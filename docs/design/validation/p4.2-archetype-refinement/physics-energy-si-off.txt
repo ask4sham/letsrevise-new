@@ -1,0 +1,385 @@
+LESSON OBJECTIVE FIELD:  
+Understand the concept of energy, how it is conserved and transferred, and apply this understanding to different physical systems.
+
+SHORT SUMMARY FIELD:  
+This lesson covers what energy is, why it matters, how energy is stored and transferred, with clear examples and exam-focused explanations for GCSE Physics Higher Tier.
+
+<strong>Energy – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> Define energy in straightforward GCSE terms.</li>  
+<li><strong>👉</strong> Explain why energy is important in physical processes.</li>  
+<li><strong>👉</strong> Understand and apply the core model of energy transfer and conservation.</li>  
+<li><strong>👉</strong> Recognise common types of energy stores and energy transfers in real-world examples.</li>  
+<li><strong>👉</strong> Practice exam-style questions that test energy concepts including calculations.</li>  
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>You should already understand these ideas before we begin:</p>  
+<ul>  
+<li>What a physical quantity is and the difference between scalar and vector quantities.</li>  
+<li>Basic forces like push and pull that can cause energy changes.</li>  
+<li>Simple work done by forces (work = force × distance) and its connection to energy.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Energy is the ability to do work or cause change.</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Energy tells us how objects move, heat up, or do anything physical; without energy changes, nothing happens in the world.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Energy is stored in different ways and can be transferred from one store to another but cannot be created or destroyed (the principle of conservation of energy).</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>When a falling object gains kinetic energy by losing gravitational potential energy.</li>  
+<li>A stretched spring stores elastic potential energy, which transfers when released.</li>  
+<li>Electrical energy powering components in a circuit transfers into light and heat energy.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Energy store</strong>, <strong>Energy transfer</strong>, <strong>Conservation of energy</strong>, <strong>Kinetic energy</strong>, <strong>Potential energy</strong>, <strong>Work done</strong>, <strong>Efficiency</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>Think about a rollercoaster at its highest point: it has stored energy because of its height. As it moves down, this energy changes into motion. This example shows how energy moves between stores but the total stays the same.</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Energy</strong></h2>  
+
+<p><strong>👉 The key idea is</strong> energy can exist in different stores and moves from one store to another without being lost.</p>
+
+<h3><strong>How energy stores work</strong></h3>  
+<ul>  
+<li>Energy stored in an object depends on its state — for example, a moving object stores kinetic energy due to its motion.</li>  
+<li>Changing position or shape can store energy as gravitational potential or elastic potential energy.</li>  
+</ul>
+
+<h3><strong>Energy transfer process → effect</strong></h3>  
+<ul>  
+<li>When energy transfers from one store to another, the total quantity remains constant — no energy is lost, just transformed.</li>  
+<li>For example, when a moving object hits a wall, kinetic energy transfers to sound, heat, and deformation energy in the wall.</li>  
+</ul>
+
+<h3><strong>Understanding conservation of energy</strong></h3>  
+<ul>  
+<li>Energy cannot be created or destroyed, only transferred or stored.</li>  
+<li>This principle allows us to predict how much energy will be in different stores after events happen.</li>  
+</ul>
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 When explaining energy changes, always describe which energy store loses energy and which one gains it — connect cause and effect clearly for marks.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which statement best describes energy conservation?  
+
+Option 1:  
+Energy is always created when used.  
+
+Option 2:  
+Energy is lost when transferred between stores.  
+
+Option 3:  
+Energy can be transferred but the total energy remains the same.  
+
+Option 4:  
+Energy disappears when objects stop moving.  
+
+Answer:  
+Energy can be transferred but the total energy remains the same.
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each energy store to its correct description.
+
+Items to drag:  
+- Kinetic energy  
+- Gravitational potential energy  
+- Elastic potential energy  
+- Thermal energy  
+
+Drop zones:  
+- Energy stored when an object moves → ______  
+- Energy stored when an object is raised up → ______  
+- Energy stored when an object is stretched or compressed → ______  
+- Energy related to temperature → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Energy stored when an object moves → Kinetic energy  
+- Energy stored when an object is raised up → Gravitational potential energy  
+- Energy stored when an object is stretched or compressed → Elastic potential energy  
+- Energy related to temperature → Thermal energy  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is saying “energy is used up” or “lost” because it disappears. This is incorrect.</p>  
+<p>Energy is never destroyed but transferred from one store to another.</p>  
+<p>Always use “energy transferred” or “energy changed” instead to score marks.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early in the lesson, after introducing energy stores  
+Type: Diagram  
+
+What it should show:  
+A simple labelled diagram with a ball thrown upwards:  
+- Label A: Kinetic energy store (when moving)  
+- Label B: Gravitational potential energy store (at height)  
+- Arrows showing energy transferring back and forth as ball moves up and down  
+
+Why it helps:  
+Visualising energy moving between kinetic and potential stores clarifies the conservation principle by showing totals remain constant.
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colour emphasis on stores and arrows  
+- Large uppercase labels  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Energy transfer during a falling object
+
+Step 1:  
+Object held at height stores gravitational potential energy.
+
+↓
+
+Step 2:  
+Object is released and starts falling, gravitational potential energy transfers to kinetic energy.
+
+↓
+
+Step 3:  
+Object gains speed, kinetic energy increases, gravitational potential energy decreases.
+
+↓
+
+Step 4:  
+Object hits the ground and kinetic energy transfers into other forms such as sound, heat, and deformation energy.
+
+Exam link:  
+Understanding this process helps explain energy conservation questions and energy transfer in exam problems.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the following types of energy stores on this electric kettle diagram.
+
+Labels to use:  
+- Electrical energy  
+- Thermal energy  
+- Kinetic energy  
+- Sound energy  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Electrical energy (input energy from plug)  
+- B → Thermal energy (water heating inside kettle)  
+- C → Kinetic energy (steam moving out)  
+- D → Sound energy (whistling noise)  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Energy concepts explain how the world works — from powering machines to natural processes.</p>  
+<p>In exams, questions about energy test your understanding of how energy changes form without disappearing.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always explain energy changes in terms of which energy store loses energy and which gains energy. Use the language of “energy transfer” rather than “energy lost.”</p>  
+<p>👉 Include units with numerical answers and show your working clearly for calculations.</p>  
+<p>👉 Connect the process to real-life examples to add clarity.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The energy disappears when the object stops moving.</p>
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The object loses kinetic energy because it stops, but the energy is transferred to heat.</p>
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The kinetic energy of the object decreases as it stops moving because the energy is transferred into the thermal energy store of the surrounding air and sound energy, following the conservation of energy principle.</p>
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It correctly shows energy is transferred, not lost.</li>  
+<li>It identifies specific energy stores involved.</li>  
+<li>It uses precise GCSE terminology linking cause to effect.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+A ball of mass 2 kg is held 5 m above the ground. Calculate the gravitational potential energy stored. (Use g = 10 N/kg)
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+GPE = mass × gravitational field strength × height  
+GPE = 2 kg × 10 N/kg × 5 m  
+GPE = 100 J  
+
+So, the ball stores 100 joules of gravitational potential energy.  
+
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+Which type of energy store increases when a spring is stretched?  
+
+Option 1:  
+Kinetic energy  
+
+Option 2:  
+Gravitational potential energy  
+
+Option 3:  
+Elastic potential energy  
+
+Option 4:  
+Thermal energy  
+
+Answer:  
+Elastic potential energy
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Energy cannot be created or destroyed; it only moves between stores like kinetic, potential, and thermal energy.</p>  
+<p>Understanding energy transfer helps explain movement, heating, sound, and many physical processes found in real life and exams.</p>  
+<p>Always connect energy changes to the stores involved and the transfer pathway in your answers.</p>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Explain why a moving car’s energy is mainly in the kinetic store, but after applying brakes, the car heats up.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+When the car is moving, it has kinetic energy due to its speed. Applying the brakes transfers kinetic energy into thermal energy because the brakes heat up due to friction. So, the kinetic energy store decreases while thermal energy increases, consistent with energy conservation.  
+
+</details>
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>Energy is always conserved — it just moves from one store to another; never used up or lost.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p><strong>Q1 (1 mark):</strong> Give one example of an energy store.</p>  
+
+<p><strong>Q2 (2 marks):</strong> Describe what happens to an object's energy stores as it falls freely to the ground.</p>  
+
+<p><strong>Q3 (3 marks):</strong> A battery transfers stored chemical energy to electrical energy in a circuit. Explain how energy conservation applies here.</p>  
+
+<p><strong>Q4 (4 marks):</strong> A cyclist pedals uphill, gaining gravitational potential energy. Explain fully how energy is transferred during this process, including the role of muscles and friction.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1:  
+<strong>Answer:</strong> Kinetic energy or gravitational potential energy or thermal energy.
+
+Q2:  
+<strong>Answer:</strong> The object loses gravitational potential energy as it falls. This energy is transferred into kinetic energy as it speeds up.
+
+Q3:  
+<strong>Answer:</strong> The chemical energy stored in the battery is transferred to electrical energy in the circuit. According to energy conservation, no energy is lost; it is just moved from one form to another.
+
+Q4:  
+<strong>Answer:</strong> The cyclist’s muscles transfer chemical energy into kinetic energy to pedal the bike. As the cyclist goes uphill, kinetic energy is transferred into gravitational potential energy. Some energy is also lost as thermal energy due to friction between the bike and road, but the total energy is conserved, just transferred between stores.  
+
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Energy is the ability to do work or cause change.</li>  
+<li>Energy can be stored in several ways: kinetic, gravitational potential, elastic potential, thermal, and more.</li>  
+<li>Energy transfers between different stores but the total energy is always conserved.</li>  
+<li>Understanding energy stores and transfers helps explain everyday processes and exam questions.</li>  
+<li>Always use precise terminology like “energy transferred” or “energy stored,” never “used up.”</li>  
+</ul>  
+<p>👉 Remember: the total energy remains constant; it only changes form.</p>  
+<p>👉 In exams, explain clearly which stores lose and gain energy, including units in calculations.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Energy</strong> – The ability to do work or cause change.  
+<strong>Energy store</strong> – Where energy is kept in an object, like kinetic or potential energy.  
+<strong>Energy transfer</strong> – The movement of energy from one store to another.  
+<strong>Conservation of energy</strong> – The principle that energy cannot be created or destroyed, only transferred.  
+<strong>Kinetic energy</strong> – Energy of movement.  
+<strong>Gravitational potential energy</strong> – Energy stored due to an object’s height above the ground.  
+<strong>Elastic potential energy</strong> – Energy stored in stretched or compressed objects.  
+<strong>Thermal energy</strong> – Energy related to temperature and heat.  
+<strong>Work done</strong> – The energy transferred when a force moves an object.  
+<strong>Efficiency</strong> – How well energy is transferred usefully without waste.

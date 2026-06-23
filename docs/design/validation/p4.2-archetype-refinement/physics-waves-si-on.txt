@@ -1,0 +1,364 @@
+LESSON OBJECTIVE FIELD:  
+Explain what waves are, their properties, and how to describe and apply these ideas in exam questions at GCSE Higher Tier.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the definition of waves, why they matter in physics, core properties of waves, key examples, vocabulary for exams, and how to answer common wave-related exam questions effectively.
+
+<strong>Waves – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> Define what waves are in clear GCSE language.</li>  
+<li><strong>👉</strong> Explain why understanding waves is important for physics and everyday life.</li>  
+<li><strong>👉</strong> Describe the core properties and behaviour of waves.</li>  
+<li><strong>👉</strong> Apply the knowledge to answer typical exam questions about waves.</li>  
+<li><strong>👉</strong> Use correct exam vocabulary when explaining wave phenomena.</li>  
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we explore waves, you should already know:</p>  
+<ul>  
+<li>How energy can be transferred from one point to another.</li>  
+<li>The difference between forces and motion in physics.</li>  
+<li>Basic properties of sound and light from everyday experience.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>A wave is a way of transferring energy from one place to another without the transfer of matter.</strong></p>  
+<p>This means the particles or medium through which the wave travels don’t move along with the wave but vibrate around their fixed positions.</p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Understanding waves helps explain everyday phenomena like sound, light, and even communication signals, allowing us to use and control energy efficiently.</strong></p>  
+<p>This knowledge is essential for technologies like radios, medical imaging, and understanding natural events such as earthquakes.</p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Core GCSE wave model: A wave is produced by a source → it transfers energy through a medium (for mechanical waves) or space (for electromagnetic waves) → waves have properties such as amplitude, wavelength, frequency, and speed → they interact with boundaries by reflection, refraction or absorption → detectors or observers receive the energy.</strong></p>  
+<p>This outlines the flow: Source → Medium → Wave properties → Interaction with medium or boundary → Detection and measurement.</p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Sound waves travelling through air, allowing us to hear.</li>  
+<li>Light waves traveling through space, allowing us to see from the Sun and other sources.</li>  
+<li>Water waves transferring energy across a pond when disturbed.</li>  
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Amplitude</strong>, <strong>Wavelength</strong>, <strong>Frequency</strong>, <strong>Wave speed</strong>, <strong>Medium</strong>, <strong>Transverse wave</strong>, <strong>Longitudinal wave</strong>, <strong>Reflection</strong>, <strong>Refraction</strong>, <strong>Energy transfer</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>Think about a stone dropped into a calm pond. The ripples that spread across the water are waves transferring energy away from the point where the stone hit without the water traveling with the ripple.</strong></p>  
+<p>This is a key example of mechanical waves moving through a medium (water).</p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Waves</strong></h2>  
+<p>👉 <strong>Key idea: Waves transfer energy by making particles in a medium vibrate without the particles moving with the wave.</strong></p>  
+
+<h3><strong>What happens physically:</strong></h3>  
+<ul>  
+<li>Particles in the medium oscillate about fixed points.</li>  
+<li>This vibration passes energy to neighboring particles, creating the wave motion.</li>  
+</ul>  
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Mechanical waves (like sound and water waves) need a medium, because particles push and pull on each other to transfer energy.</li>  
+<li>Electromagnetic waves (like light) do not need a medium and can travel through a vacuum.</li>  
+<li>Transverse waves vibrate particles perpendicular to wave direction (e.g., light, water ripples).</li>  
+<li>Longitudinal waves vibrate particles parallel to the wave direction (e.g., sound).</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 When asked to explain, use cause → effect chains like: The source causes vibrations because... These vibrations transfer energy by... Therefore, the wave moves energy without matter moving.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which statement best describes how waves transfer energy?
+
+Option 1:  
+Waves carry matter from one place to another.
+
+Option 2:  
+Waves transfer energy by moving particles along their path.
+
+Option 3:  
+Waves transfer energy by making the particles in the medium vibrate.
+
+Option 4:  
+Waves’ energy is lost as particles move with the wave.
+
+Answer:  
+Waves transfer energy by making the particles in the medium vibrate.  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term to its correct description.
+
+Items to drag:  
+- Amplitude  
+- Wavelength  
+- Frequency  
+- Wave speed  
+
+Drop zones:  
+- The distance between two crests or troughs → ______  
+- The number of waves passing a point per second → ______  
+- The height of the wave from rest to crest → ______  
+- The distance travelled by a wave per second → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- The distance between two crests or troughs → Wavelength  
+- The number of waves passing a point per second → Frequency  
+- The height of the wave from rest to crest → Amplitude  
+- The distance travelled by a wave per second → Wave speed  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is saying waves carry matter from one place to another. This is incorrect because the particles of the medium only vibrate around fixed positions and do not travel with the wave.</p>  
+<p>A better way to say it is waves transfer energy through the vibrations of particles without transferring matter.</p>  
+<p>This correction earns marks because it clearly distinguishes between energy transfer and matter movement, which is a key physics concept.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early block after core teaching (block 13)  
+Type: Diagram  
+What it should show:  
+- A transverse wave drawn with labelled crest, trough, amplitude, wavelength  
+- A longitudinal wave shown with compressions and rarefactions labelled  
+Key labels / features:  
+- Crest, Trough, Amplitude, Wavelength (transverse)  
+- Compression, Rarefaction (longitudinal)  
+Why it helps:  
+Visualising the two main types of mechanical waves helps students understand particle vibration direction and wave structure differences.  
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours  
+- Large uppercase labels  
+- No questions inside diagrams  
+- No answer text inside diagrams  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Energy transfer by waves  
+
+Step 1:  
+Source causes particles in the medium to vibrate.
+
+↓  
+
+Step 2:  
+Vibrations cause neighbouring particles to vibrate in a wave pattern.
+
+↓  
+
+Step 3:  
+Wave moves through the medium transferring energy but particles only oscillate.
+
+↓  
+
+Step 4:  
+Energy reaches the detector or observer as the wave arrives.
+
+Exam link:  
+This explains why waves can carry energy without matter moving, key for explaining wave energy transfer in exams.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of a transverse wave shown in the diagram.
+
+Labels to use:  
+- Crest  
+- Trough  
+- Amplitude  
+- Wavelength  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Crest  
+- B → Trough  
+- C → Amplitude  
+- D → Wavelength  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding the detailed properties of waves and how to explain energy transfer is vital because many exam questions ask for explanations involving cause and effect, not just definitions.</p>  
+<p>Linking wave behaviour to energy transfer shows deeper understanding and can earn higher-level marks.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 When you explain wave questions, always include cause → effect reasoning using scientific terms. Start with the source causing vibrations, explain particle motion, energy transfer, and end with the effect on detectors or observers.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Waves carry energy.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Waves carry energy because particles vibrate and pass on the energy.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Waves transfer energy because the source causes particles in the medium to vibrate, and these vibrations pass energy to neighbouring particles without the particles moving along the wave, allowing energy to travel through the medium to a detector.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It includes clear cause → effect steps.</li>  
+<li>It uses precise scientific terms like particles, vibrations, medium, and detector.</li>  
+<li>It explains how energy moves, not just stating that it does.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p><strong>Waves transfer energy without transferring matter by causing particles in a medium to vibrate; understanding the direction, properties and interactions of waves helps explain phenomena and answer exam questions clearly.</strong></p>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+Which of the following are true for a transverse wave?  
+
+Option 1:  
+Particles vibrate parallel to the direction of wave travel.  
+
+Option 2:  
+Particles vibrate perpendicular to the direction of wave travel.  
+
+Option 3:  
+They must travel through a medium.  
+
+Option 4:  
+They transfer matter from the source to the detector.  
+
+Answer:  
+Particles vibrate perpendicular to the direction of wave travel.  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 The key idea is waves move energy efficiently by vibrating particles without moving matter, which lets energy travel long distances across different media or even in space if electromagnetic.</p>  
+<p>Recognising wave types, their properties and behaviour builds a foundation for understanding real-world physics applications like sound, light, and communication.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Explain why waves do not transfer matter but still transfer energy.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+Waves transfer energy because they make particles vibrate in place, passing energy to neighbouring particles, but these particles do not move along the wave path, so matter stays in the same place while energy moves through.  
+</details>  
+
+21 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+Q1 (1 mark):  
+Define a wave in GCSE Physics.
+
+Q2 (2 marks):  
+Describe the difference between transverse and longitudinal waves.
+
+Q3 (3 marks):  
+Explain how a mechanical wave transfers energy through a medium without transferring matter.
+
+Q4 (4 marks):  
+A sound wave travels through air with a frequency of 500 Hz and a speed of 340 m/s. Calculate its wavelength. Then explain why the wave does not carry the air particles with it.
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1:  
+A wave is a way of transferring energy without transferring matter.  
+
+Q2:  
+Transverse waves have particles vibrating perpendicular to the direction of wave travel, whereas longitudinal waves have particles vibrating parallel to the wave direction.  
+
+Q3:  
+A mechanical wave transfers energy because the vibrating source makes particles in the medium vibrate. These vibrations pass energy between particles without the particles moving along the wave. This means energy moves, but matter does not.  
+
+Q4:  
+Wavelength = wave speed ÷ frequency = 340 m/s ÷ 500 Hz = 0.68 m.  
+The wave does not carry air particles because the particles only vibrate around fixed positions; they pass energy by vibration instead of moving forward.  
+</details>  
+
+22 — SUMMARY  
+Paste into: Text (concept)
+
+<ul>  
+<li>Waves transfer energy without transferring matter by making particles vibrate.</li>  
+<li>Mechanical waves require a medium; electromagnetic waves do not.</li>  
+<li>Transverse waves vibrate particles perpendicular to wave direction; longitudinal waves vibrate parallel.</li>  
+<li>Waves have key properties: amplitude, wavelength, frequency, and speed.</li>  
+<li>Explaining waves requires cause → effect chains for full marks.</li>  
+</ul>  
+<p>👉 Remember: Waves move energy, not matter — that’s fundamental.</p>  
+<p>👉 In exams, always explain the mechanism behind wave energy transfer, not just the effect.</p>  
+
+23 — KEY WORDS  
+Paste into: Key words
+
+<strong>Wave</strong> – Transfer of energy without matter moving.  
+<strong>Amplitude</strong> – Maximum height of a wave from its rest position.  
+<strong>Wavelength</strong> – Distance between two consecutive crests or compressions.  
+<strong>Frequency</strong> – Number of waves passing a point each second (Hz).  
+<strong>Wave speed</strong> – How fast the wave travels through a medium (m/s).  
+<strong>Medium</strong> – Material a wave travels through (air, water, etc.).  
+<strong>Transverse wave</strong> – Wave with particle vibration perpendicular to wave direction.  
+<strong>Longitudinal wave</strong> – Wave with particle vibration parallel to wave direction.  
+<strong>Reflection</strong> – When a wave bounces off a surface.  
+<strong>Energy transfer</strong> – Movement of energy from one place to another by waves.

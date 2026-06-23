@@ -1,0 +1,375 @@
+LESSON OBJECTIVE FIELD:  
+Understand how to simplify, interpret, and use ratios in various problems, applying methodical steps to calculate shares accurately.
+
+SHORT SUMMARY FIELD:  
+Learn to simplify ratios, find total parts, calculate one part value, share quantities accordingly, and check answers, with exam tip and modelling for top marks.
+
+<strong>Ratio – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)  
+
+<ul>  
+<li><strong>👉</strong> State the definition of <strong>ratio</strong> in clear GCSE terms.</li>  
+<li><strong>👉</strong> Explain why ratio calculations matter in problem solving and exams.</li>  
+<li><strong>👉</strong> Use the core ratio method: simplify → total parts → one part → shares → check.</li>  
+<li><strong>👉</strong> Apply the ratio method with exam-style worked examples and extend to combined ratios.</li>  
+<li><strong>👉</strong> Recognise and avoid common mistakes in ratio calculations.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)  
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>You should already know:</p>  
+<ul>  
+<li>How to divide numbers and simplify fractions.</li>  
+<li>Basic multiplication and division skills.</li>  
+<li>How to interpret word problems with quantities.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)  
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>A ratio compares the sizes of two or more quantities showing how many times one value contains or is contained within the other.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)  
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Ratio helps us share amounts fairly, understand proportions, and solve real-life problems like splitting costs or mixing ingredients.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)  
+
+<p>👉 <strong>Core method for solving ratio problems:</strong></p>  
+<ol>  
+<li>Simplify the ratio to smallest whole numbers.</li>  
+<li>Find total parts by adding ratio numbers.</li>  
+<li>Calculate value of one part by dividing total amount by total parts.</li>  
+<li>Multiply one part by each ratio number to find each share.</li>  
+<li>Check the sum of shares equals the total amount.</li>  
+</ol>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)  
+
+<ul>  
+<li>Sharing £120 between two people in ratio 3:2.</li>  
+<li>Dividing 36 sweets among children in ratio 1:5:2.</li>  
+<li>Mixing paint in ratio 4:1 for blue and white.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)  
+
+<p><strong>Ratio</strong>, <strong>Simplify</strong>, <strong>Total parts</strong>, <strong>One part</strong>, <strong>Share</strong>, <strong>Proportion</strong>, <strong>Calculate</strong>, <strong>Solve</strong>, <strong>Show that</strong>, <strong>Combined ratio</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)  
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A charity fundraiser has £420 to split between three causes in the ratio 5:3:2. Use the core method to find how much each cause receives.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)  
+
+<h2><strong>Teaching: Ratio</strong></h2>  
+
+<p>👉 <strong>Key idea:</strong></p>  
+<p>Ratio problems are about dividing a total amount into parts based on a given relationship between quantities.</p>  
+
+<h3><strong>Step 1: Simplify</strong></h3>  
+<p>👉 Always check if the ratio can be simplified. For example, 6:8 can be simplified to 3:4 by dividing both sides by 2.</p>  
+
+<h3><strong>Step 2: Total parts</strong></h3>  
+<p>👉 Add ratio numbers to find the total number of parts that the total amount is split into. E.g., ratio 3:2 has 3 + 2 = 5 parts in total.</p>  
+
+<h3><strong>Step 3: One part value</strong></h3>  
+<p>👉 Divide the total quantity by total parts to find the value of one part. For example, if total is 120 and total parts is 5, one part = 120 ÷ 5 = 24.</p>  
+
+<h3><strong>Step 4: Calculate each share</strong></h3>  
+<p>👉 Multiply one part by each ratio number to find each share. Using above, 3 parts = 3 × 24 = 72; 2 parts = 2 × 24 = 48.</p>  
+
+<h3><strong>Step 5: Check your answer</strong></h3>  
+<p>👉 Add your calculated shares and check they equal the original total. If not, recheck your calculations.</p>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 State method steps clearly, show each calculation, and write a final check sentence to gain full marks.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block  
+
+Question:  
+What is the value of one part when you split £150 in the ratio 2:3?  
+
+Option 1:  
+£30  
+
+Option 2:  
+£50  
+
+Option 3:  
+£60  
+
+Option 4:  
+£75  
+
+Answer:  
+£30  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match  
+
+Instruction:  
+Match each step to the correct description.  
+
+Items to drag:  
+- Simplify the ratio  
+- Find total parts  
+- Calculate value of one part  
+- Multiply to find each share  
+
+Drop zones:  
+- Step where you add ratio numbers → ______  
+- Step where you reduce ratios to smallest numbers → ______  
+- Step where you divide total by total parts → ______  
+- Step where you calculate each person's amount → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Step where you add ratio numbers → Find total parts  
+- Step where you reduce ratios to smallest numbers → Simplify the ratio  
+- Step where you divide total by total parts → Calculate value of one part  
+- Step where you calculate each person's amount → Multiply to find each share  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake  
+
+<h2><strong>Common mistakes with ratio</strong></h2>  
+
+<p>👉 A common mistake is mixing up part-to-part and part-to-whole ratios. For example, treating 3:2 as 3 parts out of 2, instead of summing 3 + 2 parts.</p>  
+
+<p>👉 Another error is failing to simplify the ratio first, causing more complicated calculations or wrong answers.</p>  
+
+<p>👉 Do NOT just guess shares without dividing total by total parts; this loses method marks.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)  
+
+Placement: After block 12 (Common mistake)  
+Type: Diagram (concept)  
+
+What it should show:  
+A bar model divided into parts illustrating ratio 3:2, shaded section sizes proportional to ratio parts. Label shares and total.  
+
+Key labels / features:  
+- Total amount bar  
+- 3 parts section labeled “3 parts”  
+- 2 parts section labeled “2 parts”  
+- Total parts sum = 5  
+
+Why it helps:  
+Visualizes “total parts” concept and how the total is divided into parts to share.  
+
+Brand/style:  
+LET’S REVISE header, clean white background, thick black outlines, clear labels.  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)  
+
+Process:  
+Solving a ratio sharing problem  
+
+Step 1:  
+Simplify the ratio to smallest whole numbers.  
+
+↓  
+
+Step 2:  
+Add the parts to find total parts.  
+
+↓  
+
+Step 3:  
+Divide the total quantity by total parts to find value of one part.  
+
+↓  
+
+Step 4:  
+Multiply one part by each ratio number to find each share.  
+
+Exam link:  
+Always check the shares add to the total to ensure accuracy in exam answers.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram  
+
+Instruction:  
+Label the steps in this ratio problem solving process.  
+
+Labels to use:  
+- Simplify the ratio  
+- Total parts  
+- One part value  
+- Calculate shares  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Simplify the ratio  
+- B → Total parts  
+- C → One part value  
+- D → Calculate shares  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)  
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Many exam questions ask you to share or split amounts using ratios accurately. Understanding the step-by-step method gains marks for clarity and accuracy.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always write down the total parts and work out the value of one part clearly before calculating each share — this shows your method and secures method marks.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Split £100 using the ratio 2:3 by just guessing or dividing by one number only.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Divide 100 by 5, then multiply to find shares but don’t show all steps clearly.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>First simplify ratio if needed. Total parts = 2 + 3 = 5. One part = 100 ÷ 5 = 20. Then share amounts: 2 × 20 = 40, 3 × 20 = 60. Check: 40 + 60 = 100.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It shows clear method steps expected by examiners.</li>  
+<li>It uses correct terminology and calculations.</li>  
+<li>It includes a check, demonstrating completeness.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)  
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p><strong>The key to ratio problems:</strong> Simplify → total parts → find one part → multiply → check total.</p>  
+<p>👉 Always write each step clearly in exams to earn full marks and avoid common mistakes.</p>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)  
+
+Question:  
+A recipe needs sugar and flour in the ratio 2:5. If you have 14 parts overall, what fraction of the sugar is in the total?  
+
+Option 1:  
+2/5  
+
+Option 2:  
+2/7  
+
+Option 3:  
+5/7  
+
+Option 4:  
+5/14  
+
+Answer:  
+2/7  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)  
+
+<h2><strong>Synthesis: Why ratio steps matter</strong></h2>  
+<p>👉 When solving ratio problems, the systematic approach helps prevent errors and ensures your answer matches the problem’s demand.</p>  
+<p>👉 Knowing the meaning of total parts and one part lets you scale numbers correctly and check your work.</p>  
+<p>👉 This foundation supports solving combined ratio and more complex sharing problems confidently.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question  
+
+Question:  
+If a total of £210 is shared in the ratio 7:8, what is the value of one part?  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+Total parts = 7 + 8 = 15  
+One part = 210 ÷ 15 = £14  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)  
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 The ratio approach always boils down to: Simplify → Add parts → Divide total → Multiply to find shares → Check sums.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)  
+
+<h2><strong>Exam Practice</strong></h2>  
+
+<p>Use the ratio 3:4:5 to answer the following:</p>  
+
+<p><strong>Q1 (1 mark):</strong> What is the total number of parts?</p>  
+
+<p><strong>Q2 (2 marks):</strong> If the total quantity is 60, find the value of one part.</p>  
+
+<p><strong>Q3 (3 marks):</strong> Calculate the amount corresponding to the 3 parts share and check your sums.</p>  
+
+<p><strong>Q4 (4 marks):</strong> Alice, Bob, and Carol share money in ratio 3:4:5. Bob gives £6 to Alice. What is the new ratio?</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+<p><strong>Q1:</strong> 3 + 4 + 5 = 12 parts</p>  
+<p><strong>Q2:</strong> One part = 60 ÷ 12 = 5</p>  
+<p><strong>Q3:</strong> 3 parts = 3 × 5 = 15; Check sum: 15 + 20 + 25 = 60 (correct).</p>  
+<p><strong>Q4:</strong> Bob gives £6 to Alice:<br>Original shares: A=15, B=20, C=25.<br>After transfer: Alice = 15 + 6 = 21, Bob = 20 – 6 = 14.<br>New ratio: 21:14:25.<br>Simplify: divide by 7 → 3:2:25 (can't simplify 25), so final ratio is 21:14:25 (no further simplification).</p>  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)  
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Ratio compares quantities to show relative sizes.</li>  
+<li>Simplify ratios first to make calculations easier.</li>  
+<li>Calculate total parts by adding ratio numbers.</li>  
+<li>Divide total amount by total parts to find one part value.</li>  
+<li>Multiply one part by each ratio number to find shares.</li>  
+<li>Always check your answers add up to the total.</li>  
+</ul>  
+
+<p>👉 Remember: Always show your full method to get all marks.</p>  
+<p>👉 In exams, clear working and checking your answer can distinguish a 5-mark answer from a 2-mark one.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words  
+
+<strong>Ratio</strong> – A comparison of two or more quantities showing their relative size.  
+<strong>Simplify</strong> – Reducing a ratio or fraction to its smallest whole number form.  
+<strong>Total parts</strong> – The sum of all the parts in a ratio.  
+<strong>One part</strong> – The value of a single unit when total is divided by total parts.  
+<strong>Share</strong> – Each quantity given according to ratio.  
+<strong>Proportion</strong> – Part of a whole expressed as a fraction or ratio.  
+<strong>Calculate</strong> – To work out a value using arithmetic.  
+<strong>Solve</strong> – Find an answer to a problem.  
+<strong>Show that</strong> – Prove a result using given info or working.  
+<strong>Combined ratio</strong> – Ratios that involve sharing or comparing multiple groups linked together.

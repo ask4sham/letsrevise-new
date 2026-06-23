@@ -1,0 +1,370 @@
+LESSON OBJECTIVE FIELD:  
+Understand the concept of algebra, how to use algebraic expressions, solve simple equations, and apply algebra in problem solving at a Higher Tier GCSE level.
+
+SHORT SUMMARY FIELD:  
+This lesson explains what algebra is, why it matters, shows how to form and solve algebraic expressions and equations with examples, and equips you with exam strategies to master algebra questions.
+
+<strong>Algebra – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> State what algebra is and describe algebraic expressions.</li>
+<li><strong>👉</strong> Understand the importance of algebra in representing and solving problems.</li>
+<li><strong>👉</strong> Apply algebraic rules to simplify expressions and solve equations.</li>
+<li><strong>👉</strong> Recognise key algebraic terms and use them correctly in exams.</li>
+<li><strong>👉</strong> Practice exam-style questions focusing on working accurately with algebra.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>
+<p>Before we start, you should already know:</p>
+<ul>
+<li>How to carry out basic arithmetic operations (addition, subtraction, multiplication, division).</li>
+<li>What a variable or unknown is (like x or y).</li>
+<li>How to simplify numerical expressions using brackets.</li>
+<li>How to substitute numbers into simple formulae.</li>
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>
+<p>👉 <strong>Algebra is the branch of maths that uses letters and symbols to represent numbers and describe mathematical relationships.</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>
+<p>👉 <strong>Algebra allows us to create formulas and rules that describe problems in general form, so we can solve many different cases without starting from scratch each time.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Algebraic expressions show numbers and variables with operations, and equations show that two expressions are equal — solving an equation means finding the value of the unknown that makes it true.</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>
+<li>Expression: 3x + 2 means 3 times a number plus 2.</li>
+<li>Equation: 3x + 2 = 8 means find x that makes the equation true.</li>
+<li>Substituting x = 2 into expression 3x + 2 gives 3×2 + 2 = 8.</li>
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Variable</strong>, <strong>Expression</strong>, <strong>Equation</strong>, <strong>Coefficient</strong>, <strong>Constant</strong>, <strong>Term</strong>, <strong>Simplify</strong>, <strong>Substitute</strong>, <strong>Solve</strong>, <strong>Formula</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>
+<p>👉 <strong>If you know that the perimeter of a rectangle is 2 times its length plus 2 times its width, using algebra helps us write this rule as P = 2l + 2w and solve for missing lengths when needed.</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Algebra</strong></h2>
+<p>👉 The key idea is that algebra helps us work with unknown numbers using letters to stand in place of them.</p>
+<h3><strong>Key idea:</strong></h3>
+<p>Algebra expresses general rules and relationships using symbols.</p>
+<h3><strong>What happens:</strong></h3>
+<ul>
+<li>We form expressions by combining variables and constants.</li>
+<li>We write equations by setting two expressions equal to solve problems.</li>
+</ul>
+<h3><strong>Method → reason:</strong></h3>
+<ul>
+<li>Write an equation representing the problem → use algebraic rules to isolate the unknown variable → solve to find the number.</li>
+</ul>
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 When answering, show every step clearly, including rearranging the equation and checking your solution by substituting back.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which of the following is an equation?
+
+Option 1:  
+3x + 5
+
+Option 2:  
+x + y
+
+Option 3:  
+2x + 4 = 10
+
+Option 4:  
+5 – 2
+
+Answer:  
+2x + 4 = 10
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each algebra term to its correct description.
+
+Items to drag:  
+- Variable  
+- Coefficient  
+- Constant  
+- Expression  
+
+Drop zones:  
+- A symbol representing an unknown number → ______  
+- A number multiplied by a variable → ______  
+- A fixed number without a variable → ______  
+- A combination of numbers, variables, and operations → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A symbol representing an unknown number → Variable  
+- A number multiplied by a variable → Coefficient  
+- A fixed number without a variable → Constant  
+- A combination of numbers, variables, and operations → Expression  
+
+</details>
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is treating an expression like 2x + 5 as an equation that can be solved on its own.</p>
+<p>In reality, <strong>expressions do not have an equals sign and cannot be 'solved' until they are part of an equation.</strong></p>
+<p>👉 Do NOT say “solving 2x + 5” without an equals sign — you earn no marks if you confuse expression simplification with solving an equation.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early explanation page  
+Type: Diagram (concept)  
+What it should show:  
+A labelled algebraic expression breaking down: 3x + 2  
+- "3" labeled as Coefficient  
+- "x" as Variable  
+- "2" as Constant  
+- The plus sign as Operation  
+Key labels / features:  
+Clear, large labels highlighting each part of the algebraic expression  
+Why it helps:  
+Visualising the parts of an expression makes understanding how to manipulate terms easier  
+Brand/style:  
+LET’S REVISE header, Edexcel-ready, clear black outlines, minimal colours  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Solving a simple linear equation
+
+Step 1:  
+Start with the equation, e.g., 3x + 2 = 11
+
+↓
+
+Step 2:  
+Subtract 2 from both sides: 3x + 2 – 2 = 11 – 2 → 3x = 9
+
+↓
+
+Step 3:  
+Divide both sides by 3: (3x)/3 = 9/3 → x = 3
+
+↓
+
+Step 4:  
+Check by substituting x=3 back into original equation to verify balance
+
+Exam link:  
+This process shows how to isolate the variable and check your answer in GCSE algebra questions.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of the equation shown.
+
+Labels to use:  
+- Variable  
+- Coefficient  
+- Constant  
+- Equality sign  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A → Coefficient  
+- B → Variable  
+- C → Constant  
+- D → Equality sign  
+
+</details>
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Algebra questions are common in GCSE exams because they test your ability to think abstractly and solve different types of problems efficiently.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always write down each algebraic step clearly, showing how you rearrange the equation and simplify terms. Don’t skip steps, even if they seem obvious — clarity wins marks.</p>  
+<p>👉 After solving, substitute your answer back into the original equation to check it balances. This helps catch mistakes and earns method marks.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The answer is x = 3 without showing any working.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Shows the steps 3x + 2 = 11 then 3x = 9 and x = 3 but no substitution check.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Starts with 3x + 2 = 11, subtracts 2 from both sides to get 3x = 9, divides both sides by 3 to find x = 3, then substitutes back (3×3 + 2 = 11) to verify the solution is correct.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It clearly shows each algebraic manipulation step.</li>  
+<li>Includes checking the solution, proving understanding.</li>  
+<li>Uses correct terminology and logic that examiners reward.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 <strong>Algebra is like a formula machine: use letters for unknowns, write expressions to show relationships, set equations to find unknown values, and always check your answer by substituting back.</strong></p>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+What is the coefficient in the algebraic expression 7y – 4?
+
+Option 1:  
+4
+
+Option 2:  
+7
+
+Option 3:  
+y
+
+Option 4:  
+–4
+
+Answer:  
+7
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 Algebra helps us generalise and solve many problems with unknowns by:</p>  
+<ul>  
+<li>Writing expressions combining variables and numbers.</li>  
+<li>Using equations to state relationships exactly.</li>  
+<li>Rearranging and solving equations step-by-step.</li>  
+<li>Checking answers to make sure they are correct.</li>  
+</ul>  
+<p>Mastering algebra means practicing these steps until they feel natural.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Solve for x: 5x – 3 = 12. What is x?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+5x – 3 = 12  
+Add 3 to both sides: 5x = 15  
+Divide both sides by 5: x = 3  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Remember: To solve algebraic equations, isolate the variable by performing inverse operations stepwise and always verify your result by back-substitution.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>  
+<p>Q1 (1 mark): Simplify the expression 4a + 3a.</p>  
+
+<p>Q2 (2 marks): Write an equation for the perimeter P of a square with side length s.</p>  
+
+<p>Q3 (3 marks): Solve 2x + 5 = 15 and check your answer.</p>  
+
+<p>Q4 (4 marks): A rectangle has length l = 3x + 2 and width w = x – 1. Write an expression for its perimeter and simplify. Then calculate the perimeter when x = 4.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>
+
+Q1: 4a + 3a = 7a  
+
+Q2: P = 4s  
+
+Q3:  
+2x + 5 = 15  
+2x = 10 (subtract 5)  
+x = 5 (divide by 2)  
+Check: 2×5 + 5 = 10 + 5 = 15 ✓  
+
+Q4:  
+Perimeter = 2(length + width)  
+= 2((3x + 2) + (x – 1))  
+= 2(3x + 2 + x – 1)  
+= 2(4x + 1)  
+= 8x + 2  
+When x =4: 8×4 + 2 = 32 + 2 = 34  
+
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<p>👉 Algebra uses variables to write expressions and set equations that model many situations.</p>  
+<p>👉 Expressions combine terms but don’t have equals signs, while equations state equality and can be solved.</p>  
+<p>👉 Solving means isolating the variable step-by-step using inverse operations.</p>  
+<p>👉 Always substitute your answer back into the original equation to verify it’s correct.</p>  
+<p>👉 Know key vocabulary like variable, coefficient, constant, expression, and equation.</p>  
+<p>👉 Practice clearly showing every algebra step and don’t skip workings in exams for full marks.</p>  
+
+<p><strong>Remember:</strong> Clarity in your steps and checking solutions can make or break your exam grade.</p>
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Variable</strong> – A symbol (usually a letter) representing an unknown number.  
+<strong>Expression</strong> – A mathematical phrase with numbers, variables, and operations but no equals sign.  
+<strong>Equation</strong> – A statement that two expressions are equal, shown with an equals sign.  
+<strong>Coefficient</strong> – The number multiplied by a variable in an expression.  
+<strong>Constant</strong> – A fixed number without any variable attached.  
+<strong>Term</strong> – A single number, variable, or product of numbers and variables in an expression.  
+<strong>Simplify</strong> – To make an expression easier by combining like terms or performing operations.  
+<strong>Substitute</strong> – Replacing a variable in an expression with a number.  
+<strong>Solve</strong> – To find the value of a variable that makes an equation true.  
+<strong>Formula</strong> – An equation that shows the relationship between different quantities.

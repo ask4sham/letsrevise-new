@@ -1,0 +1,359 @@
+LESSON OBJECTIVE FIELD:  
+Explain the basic atomic structure including protons, neutrons, and electrons, how electronic structure is introduced, and the link between proton number, element identity, and mass number.
+
+SHORT SUMMARY FIELD:  
+Understand the particles inside an atom, their arrangement, and how to use proton and mass numbers to explain atomic identity and mass.
+
+<strong>Atomic Structure – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the definition of <strong>Atomic Structure</strong> in clear GCSE language.</li>  
+<li><strong>👉</strong> Explain <strong>why it matters</strong> for understanding elements and their properties.</li>  
+<li><strong>👉</strong> Use the <strong>core model</strong> of atomic particles to describe atoms.</li>  
+<li><strong>👉</strong> Apply knowledge of proton number and mass number to identify elements and isotopes.</li>  
+<li><strong>👉</strong> Describe the outline of electronic structure and its importance.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>What atoms are as the smallest units of elements.</li>  
+<li>Basic idea of particles like atoms and molecules.</li>  
+<li>How symbols represent elements (e.g. H for Hydrogen).</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>An atom is made up of three types of particles: protons, neutrons, and electrons arranged to form the basic unit of an element.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Understanding atomic structure helps us explain the properties of different elements and how they react chemically.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Atoms consist of a nucleus containing protons and neutrons, surrounded by electrons arranged in shells; the number of protons defines the element, and the mass number is the total of protons and neutrons.</strong></p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Carbon atom with 6 protons, 6 neutrons, and 6 electrons.</li>  
+<li>Oxygen atom with 8 protons and 8 neutrons; electrons arranged in shells.</li>  
+<li>Hydrogen-1 (1 proton, 0 neutrons) and Hydrogen-2 (1 proton, 1 neutron) isotopes.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Atom</strong>, <strong>Proton number (Atomic number)</strong>, <strong>Neutron</strong>, <strong>Electron</strong>, <strong>Mass number</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>Consider two atoms: one with 6 protons and 6 neutrons, and another with 6 protons and 7 neutrons. They are both carbon atoms, but different isotopes due to the neutron difference.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Atomic Structure</strong></h2>  
+<p>👉 The key idea is that atoms have a central nucleus containing protons and neutrons, with electrons arranged around them in shells.</p>  
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>Protons carry a positive charge and define the element’s identity by their number — this number is called the proton number or atomic number.</li>  
+<li>Neutrons have no charge; they add mass and affect isotope identity but don’t change the element type.</li>  
+<li>Electrons carry a negative charge and orbit the nucleus in layers called shells, balancing the positive charge.</li>  
+</ul>  
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>The proton number tells us which element an atom is because it is unique to that element.</li>  
+<li>The mass number equals the total number of protons plus neutrons, showing how heavy the atom is.</li>  
+<li>Electrons arranged in shells determine how atoms interact chemically because chemical reactions involve electron transfer or sharing.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 When describing atomic structure, clearly state the particle involved, its charge, and its role. Always link the proton number to the element and the mass number to total nucleons.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What does the proton number (atomic number) of an atom tell you?
+
+Option 1:  
+The number of electrons and neutrons combined
+
+Option 2:  
+The number of protons, which defines the element
+
+Option 3:  
+The total mass of the atom
+
+Option 4:  
+The number of neutrons only
+
+Answer:  
+The number of protons, which defines the element  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each particle to its correct description.
+
+Items to drag:  
+- Proton  
+- Neutron  
+- Electron  
+- Nucleus  
+
+Drop zones:  
+- Located in the center of the atom → ______  
+- Negatively charged particle → ______  
+- Positively charged particle → ______  
+- Has no electrical charge → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- Located in the center of the atom → Nucleus  
+- Negatively charged particle → Electron  
+- Positively charged particle → Proton  
+- Has no electrical charge → Neutron  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is to say electrons orbit the nucleus like solid shells or fixed paths, like planets orbiting the sun.</p>  
+<p>Electrons actually exist in regions called shells or energy levels, which are not solid orbits but areas where electrons are most likely to be found.</p>  
+<p>This matters because examiners look for understanding of electron cloud models, not fixed orbits.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: After core teaching block 9  
+Type: Diagram  
+
+What it should show:  
+A simple labeled diagram of an atom, showing the nucleus with protons (p⁺) and neutrons (n⁰), plus electrons (e⁻) arranged in shells around the nucleus.  
+
+Key labels / features:  
+Nucleus, proton, neutron, electron, electron shells  
+
+Why it helps:  
+Visualizing the arrangement of particles makes the concept of atom structure concrete and clarifies the difference between nucleus and electrons.  
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours  
+- Large uppercase labels  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Identifying an element from an atom’s numbers
+
+Step 1:  
+Find the proton number (number of protons in the nucleus).
+
+↓
+
+Step 2:  
+Use the proton number to identify the element on the periodic table.
+
+↓
+
+Step 3:  
+Calculate the mass number by adding protons and neutrons.
+
+↓
+
+Step 4:  
+Recognize different isotopes as atoms with the same proton number but different neutron counts.
+
+Exam link:  
+Knowing proton and mass numbers helps answer exam questions about element identity and isotopes.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of the atom using the correct term.
+
+Labels to use:  
+- Proton  
+- Neutron  
+- Electron  
+- Nucleus  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A → Proton  
+- B → Neutron  
+- C → Electron  
+- D → Nucleus  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding atomic structure is vital because exam questions often ask you to explain why an element behaves a certain way based on its particles.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 When asked to explain something about atoms, always link the number of protons to the element’s identity, and explain mass number as the total of protons and neutrons — be precise and use these terms.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The proton number tells you what element it is.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The proton number tells you the number of protons in the atom, so it shows the element because each element has a unique proton number.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The proton number, also called the atomic number, is the number of protons in the nucleus. It uniquely identifies the element because no two elements have the same proton number. The mass number is the total number of protons plus neutrons and shows the isotope of the element.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It defines key terms precisely (atomic number, mass number).</li>  
+<li>Explains uniqueness of proton number for element identity.</li>  
+<li>Mentions isotopes to show deeper understanding.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+Explain how you can use the proton number and mass number to identify the element and isotope of an atom with 17 protons and 18 neutrons.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Step 1: The proton number is 17, so the element is chlorine because chlorine’s atomic number is 17.  
+Step 2: The mass number is protons + neutrons = 17 + 18 = 35.  
+Step 3: Therefore, this atom is the isotope chlorine-35.  
+Step 4: This means it is chlorine with a mass number of 35 due to its neutrons.  
+
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+An atom has 11 protons, 12 neutrons, and 11 electrons. What is the element and its mass number?
+
+Option 1:  
+Sodium, mass number 23
+
+Option 2:  
+Magnesium, mass number 23
+
+Option 3:  
+Sodium, mass number 22
+
+Option 4:  
+Magnesium, mass number 22
+
+Answer:  
+Sodium, mass number 23  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Atoms consist of positively charged protons and neutral neutrons in the nucleus, with negatively charged electrons orbiting in shells. The proton number defines the element, and the mass number shows the total nucleons. This structure explains why atoms of the same element behave similarly but can have isotopes.</p>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+<p>👉 What is the difference between the proton number and mass number of an atom?</p>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Remember: <strong>Proton number = number of protons = element identity.</strong> <br />Mass number = protons + neutrons = isotope mass.</p>  
+<p>This helps you unlock atomic structure questions easily in exams by linking numbers to element properties.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p><strong>Q1 (1 mark):</strong> What particle has a positive charge in an atom?</p>  
+<p><strong>Q2 (2 marks):</strong> Define 'mass number' and state what it includes.</p>  
+<p><strong>Q3 (3 marks):</strong> An atom has 9 protons and 10 neutrons. Identify the element and its isotope.</p>  
+<p><strong>Q4 (4 marks):</strong> Explain why the proton number is more important than the neutron number when identifying an element.</p>
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1: Proton has a positive charge.  
+
+Q2: Mass number is the total number of protons and neutrons in the nucleus of an atom.  
+
+Q3: The element is fluorine (proton number 9). The isotope is fluorine-19 because 9 + 10 = 19.  
+
+Q4: Proton number is important because it defines the element uniquely—no two elements have the same proton number. Neutron number can vary to form isotopes but does not change the element identity.  
+
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<p>👉 To sum up atomic structure:</p>  
+<ul>  
+<li>Atoms are made of protons, neutrons, and electrons.</li>  
+<li>Protons and neutrons form the nucleus at the center.</li>  
+<li>Electrons orbit in shells around the nucleus.</li>  
+<li>The proton number identifies the element uniquely.</li>  
+<li>The mass number is the sum of protons and neutrons and indicates isotopes.</li>  
+</ul>  
+<p>👉 Remember that electrons determine chemical behaviour but do not affect element identity.</p>  
+<p>👉 In exams, always explain particle roles clearly with correct terminology.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Atom</strong> – The smallest unit of an element, made up of protons, neutrons, and electrons.  
+<strong>Proton</strong> – A positively charged particle in the nucleus defining element identity.  
+<strong>Neutron</strong> – A neutrally charged particle in the nucleus adding mass.  
+<strong>Electron</strong> – A negatively charged particle orbiting the nucleus in shells.  
+<strong>Proton number (Atomic number)</strong> – The number of protons in an atom, defining the element.  
+<strong>Mass number</strong> – The total number of protons and neutrons in an atom’s nucleus.  
+<strong>Isotope</strong> – Atoms with the same proton number but different numbers of neutrons.  
+<strong>Nucleus</strong> – The center of an atom containing protons and neutrons.  
+<strong>Shell</strong> – Energy levels where electrons orbit the nucleus.  
+<strong>Charge</strong> – The electrical property of particles (positive, negative, or neutral).

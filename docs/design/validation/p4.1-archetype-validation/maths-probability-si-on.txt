@@ -1,0 +1,391 @@
+LESSON OBJECTIVE FIELD:  
+To understand probability concepts including single and combined events, use probability calculations, and apply this knowledge to GCSE-style questions.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the definition of probability, why it matters, how to calculate probabilities of single and combined events, key examples, common misconceptions, and exam strategies with practice.
+
+<strong>Probability – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Define probability clearly and understand its numerical range from 0 to 1.</li>
+<li><strong>👉</strong> Recognise why probability is important in real-life and exam contexts.</li>
+<li><strong>👉</strong> Use the core probability model: sample space → event → probability calculation.</li>
+<li><strong>👉</strong> Calculate probabilities for single and combined events (including “or” and “and” cases).</li>
+<li><strong>👉</strong> Apply exam vocabulary and structure answers for maximum marks.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>You should already be comfortable with:</p>  
+<ul>  
+<li>Basic fractions, decimals, and percentages.</li>  
+<li>Simple sets and counting outcomes.</li>  
+<li>Understanding of ratio and equivalence.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Probability is a number between 0 and 1 that measures how likely an event is to happen.</strong></p>  
+<p>It can also be written as a fraction, decimal, or percentage.</p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>We use probability to predict likely outcomes, which helps in decisions from daily life to exams and science.</strong></p>  
+<p>Because events can be uncertain, understanding probability helps us judge risks and chances clearly.</p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>The core probability model involves these steps:</strong></p>  
+<ol>  
+<li>Identify the <strong>sample space</strong> — all possible outcomes.</li>  
+<li>Define the <strong>event</strong> — what you want to happen.</li>  
+<li>Count the <strong>favourable outcomes</strong> for the event.</li>  
+<li>Calculate probability using the formula:</li>  
+</ol>  
+<p><strong>Probability of event = number of favourable outcomes ÷ total number of outcomes</strong></p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Flipping a coin: P(Heads) = 1/2 because there are 2 outcomes, only 1 is heads.</li>  
+<li>Rolling a die: P(rolling a 4) = 1/6 because one face shows 4 out of 6.</li>  
+<li>Picking a red ball from a bag with 3 red and 7 blue balls: P(red) = 3/10.</li>  
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Probability</strong>, <strong>Event</strong>, <strong>Favourable outcome</strong>, <strong>Sample space</strong>, <strong>Mutually exclusive</strong>, <strong>Independent events</strong>, <strong>Combined events</strong>, <strong>Complement</strong>, <strong>Calculate</strong>, <strong>Solve</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A bag contains 5 green balls and 3 yellow balls. What is the probability of picking a green ball?</strong></p>  
+<p>This helps you use the sample space and event to find a probability value.</p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Probability</strong></h2>  
+
+<p>👉 The key idea here is that probability values range from 0 (impossible) to 1 (certain).</p>  
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>We list all <strong>possible outcomes</strong> in a sample space.</li>  
+<li>We identify how many outcomes match the event we want (favourable outcomes).</li>  
+<li>The probability is the ratio of favourable outcomes to possible outcomes.</li>  
+</ul>  
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Sample space → defines total outcomes → sets denominator in fraction.</li>  
+<li>Event → defines what we want → counts numerator.</li>  
+<li>Divide numerator by denominator → calculate probability → predict chance.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always write your probability as a fraction between 0 and 1, simplify it, and if asked, convert to a decimal or percentage.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What is the probability of rolling an odd number on a fair six-sided die?
+
+Option 1:  
+1/6
+
+Option 2:  
+1/2
+
+Option 3:  
+1/3
+
+Option 4:  
+2/3
+
+Answer:  
+1/2
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term to the correct description.
+
+Items to drag:  
+- Probability  
+- Sample space  
+- Favourable outcome  
+- Event  
+
+Drop zones:  
+- The set of all possible outcomes → ______  
+- A specific result or combination we are interested in → ______  
+- The number representing how likely the event is → ______  
+- An outcome that counts towards the event happening → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- The set of all possible outcomes → Sample space  
+- A specific result or combination we are interested in → Event  
+- The number representing how likely the event is → Probability  
+- An outcome that counts towards the event happening → Favourable outcome  
+
+</details>
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is thinking the probability can be greater than 1 or less than 0.</p>  
+<p>Students often confuse the probability scale, but probability must always be between 0 and 1, inclusive.</p>  
+<p>👉 Another typical error is adding probabilities of events incorrectly when they are not mutually exclusive.</p>  
+<p>For example, P(A or B) ≠ P(A) + P(B) if events can both happen at once. You must subtract the overlap.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early introduction after core model, to explain sample space  
+Type: Diagram  
+
+What it should show:  
+A sample space diagram for rolling one die, showing faces 1 to 6, highlighting probability of rolling a 2.
+
+Key labels / features:  
+Sample space {1, 2, 3, 4, 5, 6}, highlighting 2 as favourable outcome.
+
+Why it helps:  
+Visualises all possible outcomes and clarifies what counts as favourables.
+
+Brand/style:  
+LET’S REVISE header, Edexcel style, clear black outline on white background, minimal colours (red highlight), large readable labels.
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Calculating Probability for Combined Events (Or)
+
+Step 1:  
+Identify all possible outcomes (sample space).
+
+↓
+
+Step 2:  
+Identify all outcomes favourable to event A.
+
+↓
+
+Step 3:  
+Identify all outcomes favourable to event B.
+
+↓
+
+Step 4:  
+Use formula P(A or B) = P(A) + P(B) - P(A and B).
+
+Exam link:  
+This method is often needed for "or" probability questions in exams to avoid double counting.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the diagram using the correct terms.
+
+Labels to use:  
+- Sample space  
+- Event  
+- Favourable outcome  
+- Probability  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A → Sample space  
+- B → Event  
+- C → Favourable outcome  
+- D → Probability  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding how to calculate and express probability accurately is a common GCSE requirement, as it helps you interpret data and assess risk properly.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always state your answer as a fraction between 0 and 1, and simplify it. If a decimal or percentage is requested, convert correctly.</p>  
+<p>👉 For combined events “or,” remember to subtract the overlap if the events are not mutually exclusive.</p>  
+<p>👉 Show full working like <em>“Probability = favourable ÷ total outcomes = …”</em> to gain method marks.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The probability of rolling a 4 is 1/6.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The probability of rolling a 4 is 1 out of 6 because there is one face with 4 and six faces total.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The probability of rolling a 4 is 1/6 because the sample space has 6 equally likely outcomes, and exactly one outcome shows a 4; thus, P(4) = 1 ÷ 6.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It uses correct terminology like sample space and outcomes.</li>  
+<li>It shows the reasoning clearly with cause and effect.</li>  
+<li>It explicitly applies the probability formula with working.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+Calculate the probability of drawing a king or a queen from a standard deck of 52 cards.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Step 1: Identify total outcomes (sample space): 52.  
+Step 2: Number of kings = 4.  
+Step 3: Number of queens = 4.  
+Step 4: No overlap since kings and queens are different cards.  
+Step 5: Probability = (4 + 4) ÷ 52 = 8 ÷ 52.  
+Step 6: Simplify: 8 ÷ 52 = 2 ÷ 13.  
+
+Final answer: P(king or queen) = 2/13.  
+
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+A bag contains 4 red balls and 6 blue balls. What is the probability of picking a ball that is red or blue?
+
+Option 1:  
+1/2
+
+Option 2:  
+4/10
+
+Option 3:  
+10/10
+
+Option 4:  
+None of the above
+
+Answer:  
+10/10
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Probability helps us measure how likely something is by comparing favourable outcomes to total possible ones.</p>  
+<p>👉 For combined events, use formulas carefully to avoid miscounting.</p>  
+<p>👉 Express answers clearly as fractions, decimals, or percentages as required.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+If the probability of rain tomorrow is 0.3, what is the probability it will not rain?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Probability not rain = 1 − 0.3 = 0.7.  
+
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 <strong>Probability = favourable outcomes ÷ total outcomes, always between 0 and 1, and combined events use addition minus any overlap.</strong></p>  
+<p>Remember: “Or” needs subtraction of overlap, “And” means multiply for independent events.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p>Here are some practice questions following GCSE style.</p>
+
+<p><strong>Q1 (1 mark):</strong> A spinner is divided into 4 equal sections numbered 1–4. What is the probability of landing on 3?</p>
+
+<p><strong>Q2 (2 marks):</strong> A bag has 5 green and 7 red marbles. What is the probability of choosing a red marble? Give your answer as a fraction.</p>
+
+<p><strong>Q3 (3 marks):</strong> A die is rolled twice. What is the probability of getting a 2 on the first roll and a 5 on the second roll? Show your working.</p>
+
+<p><strong>Q4 (4 marks):</strong> A card is picked from a standard deck. What is the probability that it is a heart or a queen? Explain your answer fully.</p>
+
+<details>  
+<summary>Reveal Model Answers</summary>
+
+<strong>Q1:</strong> P(3) = 1/4.
+
+<strong>Q2:</strong> Total marbles = 5 + 7 = 12; P(red) = 7/12.
+
+<strong>Q3:</strong> P(2 then 5) = P(2) × P(5) = (1/6) × (1/6) = 1/36.
+
+<strong>Q4:</strong>  
+Total hearts = 13, queens = 4, queen of hearts counted twice if added.  
+P(heart or queen) = P(heart) + P(queen) − P(queen of hearts) = 13/52 + 4/52 − 1/52 = 16/52 = 4/13.  
+
+</details>
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Probability measures likelihood between 0 and 1, or 0% and 100%.</li>  
+<li>Calculate probability = favourable outcomes ÷ total outcomes.</li>  
+<li>Sample space is the set of all possible outcomes.</li>  
+<li>“Or” calculations add probabilities but subtract overlap if events aren’t exclusive.</li>  
+<li>“And” calculations multiply probabilities for independent events.</li>  
+<li>Show all steps and include units if needed in exam answers.</li>  
+</ul>  
+<p>👉 Remember: Write probability answers clearly as fractions or decimals unless told otherwise.</p>  
+<p>👉 In exams, always explain reasoning with “because” or “so” to get full marks.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<p><strong>Probability</strong> – A number between 0 and 1 measuring likelihood of an event.</p>  
+<p><strong>Sample space</strong> – The set of all possible outcomes.</p>  
+<p><strong>Event</strong> – The result or outcome we are interested in.</p>  
+<p><strong>Favourable outcome</strong> – An outcome that makes the event happen.</p>  
+<p><strong>Mutually exclusive</strong> – Events that cannot happen at the same time.</p>  
+<p><strong>Independent events</strong> – Events where one does not affect the other.</p>  
+<p><strong>Combined events</strong> – Events involving “and” or “or” calculations.</p>  
+<p><strong>Complement</strong> – The event that an event does not happen; P(not A) = 1 − P(A).</p>  
+<p><strong>Calculate</strong> – Work out a number from given information.</p>  
+<p><strong>Solve</strong> – Find an answer, often by working through steps methodically.</p>

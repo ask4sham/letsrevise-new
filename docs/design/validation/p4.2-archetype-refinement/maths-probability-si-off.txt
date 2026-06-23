@@ -1,0 +1,383 @@
+LESSON OBJECTIVE FIELD:  
+Understand probability, how to calculate it, and use it to solve higher-tier GCSE questions with confidence.
+
+SHORT SUMMARY FIELD:  
+This lesson explains probability, why it matters, key methods for calculations, important terminology, and exam techniques for success.
+
+<strong>Probability – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)  
+
+<ul>  
+<li><strong>👉</strong> State the definition of <strong>Probability</strong> clearly using GCSE language.</li>  
+<li><strong>👉</strong> Explain <strong>why probability matters</strong> for predicting outcomes and making decisions.</li>  
+<li><strong>👉</strong> Use the <strong>core probability model</strong> to calculate simple and combined event probabilities.</li>  
+<li><strong>👉</strong> Apply probability ideas to exam-style questions involving single and multiple events.</li>  
+<li><strong>👉</strong> Identify and avoid common probability misconceptions.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)  
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>You should already know:</p>  
+<ul>  
+<li>Basic fraction and decimal skills.</li>  
+<li>Simple counting methods and understanding of sample spaces (the set of all possible outcomes).</li>  
+<li>How to add and multiply numbers, including fractions.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)  
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Probability</strong> is a number between 0 and 1 that measures how likely an event is to happen.</p>  
+<p>A probability of 0 means an event cannot happen, and a probability of 1 means it is certain to happen.</p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)  
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Probability helps us predict and understand outcomes in daily life, from weather forecasts to games of chance and real-world decisions.</p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)  
+
+<p>👉 <strong>Probability of an event = (Number of favourable outcomes) ÷ (Total number of possible outcomes)</strong></p>  
+<p>This formula is the core for calculating probability when all outcomes are equally likely.</p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)  
+
+<ul>  
+<li>Flipping a fair coin: probability of heads is 1 favourable outcome ÷ 2 possible = ½.</li>  
+<li>Rolling a six-sided die: probability of rolling a 4 is 1 ÷ 6.</li>  
+<li>Picking a red card from a standard 52-card deck: 26 red cards ÷ 52 cards = ½ probability.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)  
+
+<p><strong>Event</strong>, <strong>Outcome</strong>, <strong>Sample space</strong>, <strong>Favourable outcomes</strong>, <strong>Equally likely</strong>, <strong>Independent events</strong>, <strong>Mutually exclusive</strong>, <strong>Expected value</strong>, <strong>Complement</strong>, <strong>Conditional probability</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)  
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 In a bag of 5 red and 3 blue balls, the probability of randomly picking a red ball is 5 ÷ 8 because there are 5 favourable red balls and 8 in total.</p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)  
+
+<h2><strong>Teaching: Probability</strong></h2>  
+<p>👉 The key idea is: Probability measures how likely something is to happen, from impossible (0) to certain (1).</p>  
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>The sample space lists every possible outcome.</li>  
+<li>The probability of an event = number of favourable outcomes ÷ total outcomes.</li>  
+<li>Probabilities are always between 0 and 1 (including).</li>  
+</ul>  
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Identify all possible outcomes (sample space).</li>  
+<li>Count favourable outcomes for the event.</li>  
+<li>Divide favourable outcomes by total to find probability.</li>  
+<li>Use addition or multiplication rules for combined events as needed.</li>  
+</ul>  
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always state probability as a fraction, decimal, or percentage between 0 and 1. For combined events, specify if events are independent or mutually exclusive to apply correct rules.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block  
+
+Question:  
+What is the probability of rolling an odd number on a fair six-sided die?  
+
+Option 1:  
+1/2  
+
+Option 2:  
+1/3  
+
+Option 3:  
+1/6  
+
+Option 4:  
+2/3  
+
+Answer:  
+1/2  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match  
+
+Instruction:  
+Match each probability term to its description.  
+
+Items to drag:  
+- Event  
+- Sample space  
+- Favourable outcome  
+- Mutually exclusive  
+
+Drop zones:  
+- The set of all possible outcomes → ______  
+- A specific result you are interested in → ______  
+- An outcome that counts towards your event → ______  
+- Events that cannot happen at the same time → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- The set of all possible outcomes → Sample space  
+- A specific result you are interested in → Event  
+- An outcome that counts towards your event → Favourable outcome  
+- Events that cannot happen at the same time → Mutually exclusive  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake  
+
+<p>👉 A common mistake is adding probabilities of all outcomes without checking if they are mutually exclusive.</p>  
+<p>Students often confuse independent and mutually exclusive events, wrongly mixing addition and multiplication rules.</p>  
+<p>Do NOT say: "The probability of event A and B is the sum of their probabilities" if events can happen together.</p>  
+<p>A better way to say it is: Use addition for mutually exclusive events, multiplication for independent events.</p>  
+<p>This earns marks by applying correct rules for combined probabilities.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)  
+
+Placement: Early teaching section after core teaching  
+Type: Diagram  
+
+What it should show:  
+A probability tree diagram showing outcomes of flipping a coin twice (H or T each flip).  
+
+Key labels / features:  
+Branches labelled with events (Coin 1: H/T; Coin 2: H/T), with probabilities on each branch, final combined outcomes at leaf nodes with calculated probabilities.  
+
+Why it helps:  
+Visualises combined probabilities, shows how multiplication rule applies to independent events.  
+
+Brand/style:  
+LET’S REVISE header, Exam-board ready, White background, Thick black outlines, Minimal colours, Large uppercase labels, No answer text inside diagram  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)  
+
+Process:  
+Calculating combined probabilities with a probability tree  
+
+Step 1:  
+Draw branches for the first event, labelling each outcome with its probability.  
+
+↓  
+
+Step 2:  
+From each first event outcome, draw branches for the second event with probabilities.  
+
+↓  
+
+Step 3:  
+Multiply probabilities along branches to find combined probability for each final outcome.  
+
+↓  
+
+Step 4:  
+Add probabilities for final outcomes if events are mutually exclusive and you want the probability of either event happening.  
+
+Exam link:  
+This helps answer questions on combined independent events using tree diagrams, a common Higher Tier exam skill.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram  
+
+Instruction:  
+Label the parts of a probability tree diagram.  
+
+Labels to use:  
+- First event outcomes  
+- Second event outcomes  
+- Branch probability  
+- Combined outcome probability  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → First event outcomes  
+- B → Second event outcomes  
+- C → Branch probability  
+- D → Combined outcome probability  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)  
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding probability is crucial because exams often require you to calculate the chance of combined events and justify your answers clearly.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>Always state whether events are independent or mutually exclusive before applying addition or multiplication rules. This precision often earns method marks.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The probability of rolling a 4 is one out of six.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The probability of rolling a 4 is 1/6 because there is one 4 and six possible numbers on the die.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The probability of rolling a 4 on a fair six-sided die is 1/6, calculated by dividing the one favourable outcome (rolling a 4) by the total outcomes (numbers 1 to 6), assuming all outcomes are equally likely.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It clearly identifies the favourable and total outcomes.</li>  
+<li>It links cause (one 4) to process (division) and effect (probability value).</li>  
+<li>It uses precise vocabulary and assumptions about fairness and equal likelihood.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)  
+
+Question:  
+A bag contains 3 green balls, 2 yellow balls, and 5 red balls. What is the probability of picking a yellow or red ball?  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Total balls = 3 + 2 + 5 = 10  
+Favourable outcomes = yellow + red = 2 + 5 = 7  
+Since yellow and red balls are mutually exclusive, add the probabilities:  
+Probability = 7 ÷ 10 = 0.7 or 7/10  
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)  
+
+Question:  
+What is the probability of drawing a heart from a standard deck of 52 cards?  
+
+Option 1:  
+1/52  
+
+Option 2:  
+1/4  
+
+Option 3:  
+13/52  
+
+Option 4:  
+Both Option 2 and 3 are correct  
+
+Answer:  
+Both Option 2 and 3 are correct  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)  
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 Probability is calculated by counting how many ways an event can happen (favourable outcomes) compared to all possible ways, with results between 0 and 1.</p>  
+<p>👉 Combined events require knowing whether to add or multiply probabilities based on mutual exclusivity or independence.</p>  
+<p>👉 Visual tools like tree diagrams help organise and multiply probabilities for multiple events.</p>  
+<p>👉 Clear exam explanations must use precise vocabulary and reasoning.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question  
+
+Question:  
+A fair coin is flipped twice. What is the probability of getting two heads?  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Probability of head on first flip = 1/2  
+Probability of head on second flip = 1/2  
+For independent events, multiply probabilities:  
+(1/2) × (1/2) = 1/4  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)  
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Probability = (Favourable outcomes) ÷ (Total outcomes) always between 0 and 1. For combined events, use:</p>  
+<ul>  
+<li>Add for mutually exclusive events (either-or situations).</li>  
+<li>Multiply for independent events (both happen together).</li>  
+</ul>  
+<p>Always define event type before choosing the rule.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)  
+
+<p><strong>Q1 (1 mark):</strong> Find the probability of rolling a 2 on a fair six-sided die.</p>  
+<p><strong>Q2 (2 marks):</strong> A box contains 4 red, 3 blue, and 5 green marbles. Calculate the probability of picking a red marble.</p>  
+<p><strong>Q3 (3 marks):</strong> Two coins are flipped. What is the probability of getting exactly one head? Show your working.</p>  
+<p><strong>Q4 (4 marks):</strong> A bag contains 6 black and 4 white balls. Two balls are picked one after the other without replacement. Calculate the probability both balls are black.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1:  
+Probability = 1/6  
+
+Q2:  
+Total marbles = 4 + 3 + 5 = 12  
+Probability red = 4/12 = 1/3  
+
+Q3:  
+Sample space: HH, HT, TH, TT  
+Favourable outcomes: HT, TH = 2  
+Probability = 2/4 = 1/2  
+
+Q4:  
+First black ball: 6/10  
+Second black ball (no replacement): 5/9  
+Probability = (6/10) × (5/9) = 30/90 = 1/3  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)  
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Probability measures how likely an event is to happen, between 0 (impossible) and 1 (certain).</li>  
+<li>Calculated as favourable outcomes ÷ total outcomes.</li>  
+<li>Mutually exclusive events use addition of probabilities.</li>  
+<li>Independent events use multiplication of probabilities.</li>  
+<li>Tree diagrams are powerful tools for visualising combined events.</li>  
+<li>Clear exam explanations state event type and method.</li>  
+</ul>  
+<p>👉 Remember: Define whether events are mutually exclusive or independent before doing calculations.</p>  
+<p>👉 Exam reminder: Always check if scenarios say "without replacement" to know if events are independent or not.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words  
+
+<strong>Event</strong> – The outcome or set of outcomes we are interested in.  
+<strong>Outcome</strong> – A possible result of an experiment.  
+<strong>Sample space</strong> – The set of all possible outcomes.  
+<strong>Favourable outcomes</strong> – Outcomes that count toward the event.  
+<strong>Equally likely</strong> – When all outcomes have the same chance of happening.  
+<strong>Independent events</strong> – Events where one does not affect the probability of the other.  
+<strong>Mutually exclusive</strong> – Events that cannot happen at the same time.  
+<strong>Probability</strong> – A number between 0 and 1 showing how likely an event is.  
+<strong>Complement</strong> – The probability that an event does not happen.  
+<strong>Tree diagram</strong> – A visual tool used to list all possible outcomes of combined events and their probabilities.

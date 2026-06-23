@@ -1,0 +1,381 @@
+LESSON OBJECTIVE FIELD:  
+Understand how to solve algebraic equations by isolating variables using inverse operations and check answers by substitution.
+
+SHORT SUMMARY FIELD:  
+This lesson covers solving algebraic equations step-by-step, common errors to avoid, and exam techniques for clear, full-mark answers.
+
+<strong>Algebra – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the definition of an algebraic equation and what it means to solve it.</li>  
+<li><strong>👉</strong> Explain why solving equations is essential for GCSE problem-solving.</li>  
+<li><strong>👉</strong> Use the method of inverse operations to isolate variables effectively.</li>  
+<li><strong>👉</strong> Apply substitution to check solutions are correct.</li>  
+<li><strong>👉</strong> Recognise and avoid common mistakes like sign errors or skipping steps.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>How to simplify algebraic expressions (collect like terms).</li>  
+<li>Basic arithmetic operations: addition, subtraction, multiplication, division.</li>  
+<li>What a variable and constant represent in an expression or equation.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>An algebraic equation is a mathematical statement where two expressions are equal and contains variables to solve for.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Solving algebraic equations is fundamental for understanding and answering many GCSE problems and real-world maths questions.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>To solve an equation: identify the unknown → use inverse operations → isolate the variable → simplify and check by substitution.</strong></p>  
+<p>This four-step model keeps your work logical and exam-ready.</p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Solve 3x + 4 = 19 by subtracting 4 and dividing by 3.</li>  
+<li>Solve 5y - 7 = 3y + 9 by collecting like terms then isolating y.</li>  
+<li>Check solutions by substituting the value back into the original equation.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Solve</strong>, <strong>Show that</strong>, <strong>Substitute</strong>, <strong>Isolate</strong>, <strong>Inverse operations</strong>, <strong>Variable</strong>, <strong>Equation</strong>, <strong>Expression</strong>, <strong>Simplify</strong>, <strong>Check your answer</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>In the equation 4x - 5 = 15, applying the core model means isolating x by first adding 5 to both sides, then dividing by 4 to find x.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Algebra</strong></h2>  
+<p>👉 Let’s break down solving linear equations step-by-step using inverse operations.</p>  
+
+<h3><strong>Key idea:</strong></h3>  
+<p>Solving an equation means finding the value of the variable that makes the equation true.</p>  
+
+<h3><strong>Method → reason:</strong></h3>  
+<ul>  
+<li>Start by ‘undoing’ the operations around the variable using inverse operations: if it’s adding, subtract; if multiplying, divide.</li>  
+<li>Apply the same operation to both sides of the equation to keep it balanced.</li>  
+<li>Repeat until the variable stands alone (is isolated).</li>  
+</ul>  
+
+<h3><strong>Step → result:</strong></h3>  
+<ul>  
+<li>Remember to simplify each side as you go—combine like terms and perform arithmetic.</li>  
+<li>Once isolated, the number you have is the solution.</li>  
+<li>Finally, substitute the solution back into the original equation to check.</li>  
+</ul>  
+
+<h3><strong>Common error → correction:</strong></h3>  
+<p>A common mistake is forgetting to change the sign when moving terms across the equals sign.</p>  
+<p>Always apply inverse operations carefully to both sides.</p>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Show every step clearly, state the operation explicitly (e.g., "subtract 4 from both sides"), and write the final answer with units or context if needed.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which is the correct first step to solve 2x + 7 = 19?
+
+Option 1: Multiply both sides by 2  
+Option 2: Subtract 7 from both sides  
+Option 3: Add 7 to both sides  
+Option 4: Divide both sides by 7  
+
+Answer:  
+Subtract 7 from both sides  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each algebra step to its correct description.
+
+Items to drag:  
+- Inverse operation  
+- Isolate the variable  
+- Check by substitution  
+- Simplify both sides  
+
+Drop zones:  
+- Undoing an addition by subtraction → ______  
+- Getting the letter alone on one side → ______  
+- Putting the answer back into the original equation → ______  
+- Combining like terms and arithmetic → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Undoing an addition by subtraction → Inverse operation  
+- Getting the letter alone on one side → Isolate the variable  
+- Putting the answer back into the original equation → Check by substitution  
+- Combining like terms and arithmetic → Simplify both sides  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<h2><strong>Common mistake: Sign errors when rearranging</strong></h2>  
+<p>👉 Students often forget to change signs correctly when moving terms from one side of an equation to the other.</p>  
+<p>Instead of subtracting 5 from one side, they might add it incorrectly, leading to wrong answers.</p>  
+<p>Always use inverse operations carefully and check your signs at each step to avoid losing marks.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: After Block 12  
+Type: Diagram  
+
+What it should show:  
+A balance scale visual representing an equation, with weights on both sides showing 3x + 4 balanced with 19.
+
+Key labels / features:  
+- Left pan labelled: 3x + 4  
+- Right pan labelled: 19  
+- Arrow showing "Subtract 4 from both sides" with weights removed correctly  
+
+Why it helps:  
+Shows visually why whatever you do to one side must do to the other to keep balance—reinforces the equality concept.
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours  
+- Large uppercase labels  
+- No questions inside diagram  
+- No answer text inside diagram  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Solving a linear equation in four steps
+
+Step 1: Identify the operation next to the variable (e.g., addition 4 in 3x + 4)  
+↓  
+Step 2: Apply the inverse operation to both sides (subtract 4 both sides)  
+↓  
+Step 3: Simplify both sides (3x = 15)  
+↓  
+Step 4: Divide both sides by coefficient of x (divide by 3: x = 5)  
+
+Exam link:  
+This exact method is needed for all linear equation questions on the GCSE exam.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of solving the equation 5y - 7 = 18
+
+Labels to use:  
+- Inverse operation of subtraction  
+- Simplified equation after addition  
+- Division to isolate y  
+- Final solution for y  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Inverse operation of subtraction  
+- B → Simplified equation after addition  
+- C → Division to isolate y  
+- D → Final solution for y  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Accurate step-by-step algebra is essential to earn method marks in GCSE exams because examiners look for clear logical working.</p>  
+<p>Without showing each step, you risk losing marks even if your answer is right.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>Always write out each operation you perform on both sides explicitly (e.g., "subtract 7 from both sides") and line up your working neatly.</p>  
+<p>Include substitution at the end to confirm your solution is correct.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>I get x = 5 by guessing the answer.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>I subtract 4 from both sides and then divide by 3 to find x = 5.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>I subtract 4 from both sides of the equation 3x + 4 = 19 to get 3x = 15, then divide both sides by 3 to isolate x, giving x = 5. Finally, I check by substituting x = 5 back into the original equation.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It shows each inverse operation step clearly.</li>  
+<li>It uses precise maths language and notation.</li>  
+<li>It demonstrates checking, confirming the solution’s validity.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+Calculate the value of x in the equation 4x - 5 = 15.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Step 1: Add 5 to both sides: 4x - 5 + 5 = 15 + 5  
+Step 2: Simplify both sides: 4x = 20  
+Step 3: Divide both sides by 4: 4x ÷ 4 = 20 ÷ 4  
+Step 4: Simplify: x = 5  
+Step 5: Check by substitution: 4 × 5 - 5 = 20 - 5 = 15 ✓  
+
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Checkpoint block
+
+Question:  
+Which is the next step after subtracting 3 from both sides in the equation 2x + 3 = 11?
+
+Option 1: Divide both sides by 2  
+Option 2: Add 3 to both sides  
+Option 3: Multiply both sides by 2  
+Option 4: Subtract 3 from both sides again  
+
+Answer:  
+Divide both sides by 2  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 The key to solving algebra successfully is thinking methodically:</p>  
+<ul>  
+<li>Identify the variable.</li>  
+<li>Undo operations using inverse steps.</li>  
+<li>Keep the equation balanced by applying operations to both sides.</li>  
+<li>Simplify as you go, and</li>  
+<li>Always check your final answer by substitution.</li>  
+</ul>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+A student starts solving 3x + 6 = 18 by dividing both sides by 3 without subtracting 6 first. Why is this incorrect?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Dividing first does not undo the addition of 6, so the variable is not isolated properly and the solution will be wrong. The correct first step is to subtract 6 from both sides, then divide by 3.  
+
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p><strong>Step-by-step solving:</strong> Undo operations in reverse order → keep equation balanced by doing the same to both sides → isolate variable completely → substitute to check your solution.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p><strong>Q1 (1 mark):</strong> Solve x - 4 = 10.</p>  
+
+<p><strong>Q2 (2 marks):</strong> Solve 2x + 3 = 11. Show your working.</p>  
+
+<p><strong>Q3 (3 marks):</strong> Solve 5(x - 2) = 20 and check your answer by substitution.</p>  
+
+<p><strong>Q4 (4 marks):</strong> Rearrange the formula A = 3b + 7 to find b when A = 25, then calculate b.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+<strong>Q1:</strong>  
+x - 4 = 10 → add 4 both sides → x = 14  
+
+<strong>Q2:</strong>  
+2x + 3 = 11  
+Subtract 3 both sides → 2x = 8  
+Divide both sides by 2 → x = 4  
+
+<strong>Q3:</strong>  
+5(x - 2) = 20  
+Divide both sides by 5 → x - 2 = 4  
+Add 2 both sides → x = 6  
+Check: 5(6 - 2) = 5 × 4 = 20 ✓  
+
+<strong>Q4:</strong>  
+A = 3b + 7, A=25  
+Subtract 7 both sides: 25 - 7 = 3b → 18 = 3b  
+Divide both sides by 3 → b = 6  
+
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Equations show two expressions are equal, involving variables.</li>  
+<li>Solve by undoing operations using inverse operations step-by-step.</li>  
+<li>Apply each step to both sides of the equation to keep it balanced.</li>  
+<li>Simplify terms neatly and clearly at each step.</li>  
+<li>Check your solution by substituting back into the original equation.</li>  
+<li>Avoid common errors with signs and skipping steps.</li>  
+</ul>  
+<p>👉 Remember: clear, stepwise working is key to earning full marks in exams.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Equation</strong> – A statement showing two expressions are equal.  
+<strong>Variable</strong> – A letter representing an unknown number.  
+<strong>Inverse operations</strong> – Operations that undo each other (addition ↔ subtraction, multiplication ↔ division).  
+<strong>Isolate</strong> – To get the variable alone on one side of an equation.  
+<strong>Simplify</strong> – To combine like terms and perform arithmetic.  
+<strong>Substitute</strong> – To replace the variable with a number to check the solution.  
+<strong>Solve</strong> – To find the value of the variable that makes an equation true.  
+<strong>Coefficient</strong> – The number multiplied by a variable (e.g., 3 in 3x).  
+<strong>Balance</strong> – The equality of both sides; maintain by doing same operations to both.  
+<strong>Check</strong> – Verifying a solution by putting it back into the original equation.

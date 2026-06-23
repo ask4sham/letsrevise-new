@@ -1,0 +1,505 @@
+{
+  "generatedAt": "2026-06-22T20:14:44.213Z",
+  "topics": [
+    {
+      "slug": "photosynthesis",
+      "subject": "Biology",
+      "examBoard": "AQA",
+      "topic": "Photosynthesis",
+      "topicKey": "aqa-gcse-biology:photosynthesis",
+      "off": {
+        "siOn": false,
+        "subjectKey": "biology",
+        "archetypeKey": "biology-process",
+        "primarySkill": "explain",
+        "examinerConnectives": 3,
+        "examinerFraming": 0,
+        "subjectTermHits": 2,
+        "skillUsage": {
+          "explain": 9,
+          "describe": 2,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 1,
+          "interpret": 0
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 3,
+        "dataInterp": 23,
+        "challenge": 0,
+        "explanationDepth": 58,
+        "blockLengths": {
+          "coreTeaching": 1772,
+          "commonMistake": 471,
+          "workedExample": 591,
+          "examPractice": 1201
+        },
+        "teachingChars": 4038,
+        "generationSeconds": "23.1",
+        "outputChars": 15593,
+        "promptChars": 35207
+      },
+      "on": {
+        "siOn": true,
+        "subjectKey": "biology",
+        "archetypeKey": "biology-process",
+        "primarySkill": "explain",
+        "examinerConnectives": 2,
+        "examinerFraming": 0,
+        "subjectTermHits": 1,
+        "skillUsage": {
+          "explain": 8,
+          "describe": 3,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 0,
+          "interpret": 0
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 5,
+        "dataInterp": 27,
+        "challenge": 0,
+        "explanationDepth": 67,
+        "blockLengths": {
+          "coreTeaching": 1425,
+          "commonMistake": 450,
+          "examPractice": 1762
+        },
+        "teachingChars": 3639,
+        "generationSeconds": "25.9",
+        "outputChars": 15534,
+        "promptChars": 41117
+      },
+      "promptDelta": {
+        "off": {
+          "hasSubjectIntelligenceMarker": false,
+          "hasArchetypeFallback": false,
+          "siSectionChars": 0
+        },
+        "on": {
+          "hasSubjectIntelligenceMarker": true,
+          "hasArchetypeFallback": true,
+          "siSectionChars": 30
+        },
+        "extraChars": 30
+      },
+      "metricsDelta": {
+        "examinerConnectives": -1,
+        "examinerFraming": 0,
+        "subjectTermHits": -1,
+        "higherOrder": 0,
+        "misconceptionSignals": 2,
+        "dataInterp": 4,
+        "challenge": 0,
+        "explanationDepth": 9,
+        "teachingChars": -399
+      }
+    },
+    {
+      "slug": "atomic-structure",
+      "subject": "Chemistry",
+      "examBoard": "AQA",
+      "topic": "Atomic Structure",
+      "topicKey": "aqa-gcse-chemistry:atomic-structure",
+      "off": {
+        "siOn": false,
+        "subjectKey": "chemistry",
+        "archetypeKey": "chemistry-particle-model",
+        "primarySkill": "explain",
+        "examinerConnectives": 4,
+        "examinerFraming": 0,
+        "subjectTermHits": 3,
+        "skillUsage": {
+          "explain": 10,
+          "describe": 2,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 1,
+          "interpret": 1
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 4,
+        "dataInterp": 1,
+        "challenge": 0,
+        "explanationDepth": 38,
+        "blockLengths": {
+          "coreTeaching": 1201,
+          "commonMistake": 496,
+          "workedExample": 333,
+          "examPractice": 1387
+        },
+        "teachingChars": 3420,
+        "generationSeconds": "31.9",
+        "outputChars": 13657,
+        "promptChars": 33838
+      },
+      "on": {
+        "siOn": true,
+        "subjectKey": "chemistry",
+        "archetypeKey": "chemistry-particle-model",
+        "primarySkill": "explain",
+        "examinerConnectives": 7,
+        "examinerFraming": 0,
+        "subjectTermHits": 3,
+        "skillUsage": {
+          "explain": 10,
+          "describe": 2,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 1,
+          "interpret": 0
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 3,
+        "dataInterp": 1,
+        "challenge": 0,
+        "explanationDepth": 48,
+        "blockLengths": {
+          "coreTeaching": 1377,
+          "commonMistake": 448,
+          "workedExample": 593,
+          "examPractice": 977
+        },
+        "teachingChars": 3398,
+        "generationSeconds": "21.4",
+        "outputChars": 13513,
+        "promptChars": 39803
+      },
+      "promptDelta": {
+        "off": {
+          "hasSubjectIntelligenceMarker": false,
+          "hasArchetypeFallback": false,
+          "siSectionChars": 0
+        },
+        "on": {
+          "hasSubjectIntelligenceMarker": true,
+          "hasArchetypeFallback": true,
+          "siSectionChars": 30
+        },
+        "extraChars": 30
+      },
+      "metricsDelta": {
+        "examinerConnectives": 3,
+        "examinerFraming": 0,
+        "subjectTermHits": 0,
+        "higherOrder": 0,
+        "misconceptionSignals": -1,
+        "dataInterp": 0,
+        "challenge": 0,
+        "explanationDepth": 10,
+        "teachingChars": -22
+      }
+    },
+    {
+      "slug": "forces",
+      "subject": "Physics",
+      "examBoard": "AQA",
+      "topic": "Forces",
+      "topicKey": "aqa-gcse-physics:forces",
+      "off": {
+        "siOn": false,
+        "subjectKey": "physics",
+        "archetypeKey": "physics-force-system",
+        "primarySkill": "explain",
+        "examinerConnectives": 1,
+        "examinerFraming": 1,
+        "subjectTermHits": 2,
+        "skillUsage": {
+          "explain": 10,
+          "describe": 0,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 7,
+          "interpret": 0
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 5,
+        "dataInterp": 8,
+        "challenge": 0,
+        "explanationDepth": 51,
+        "blockLengths": {
+          "coreTeaching": 1289,
+          "commonMistake": 414,
+          "examPractice": 1345
+        },
+        "teachingChars": 3050,
+        "generationSeconds": "20.5",
+        "outputChars": 13205,
+        "promptChars": 33497
+      },
+      "on": {
+        "siOn": true,
+        "subjectKey": "physics",
+        "archetypeKey": "physics-force-system",
+        "primarySkill": "explain",
+        "examinerConnectives": 4,
+        "examinerFraming": 0,
+        "subjectTermHits": 3,
+        "skillUsage": {
+          "explain": 8,
+          "describe": 2,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 3,
+          "justify": 0,
+          "calculate": 9,
+          "interpret": 0
+        },
+        "higherOrder": 3,
+        "misconceptionSignals": 3,
+        "dataInterp": 10,
+        "challenge": 0,
+        "explanationDepth": 59,
+        "blockLengths": {
+          "coreTeaching": 1326,
+          "commonMistake": 500,
+          "examPractice": 1105
+        },
+        "teachingChars": 2933,
+        "generationSeconds": "25.9",
+        "outputChars": 14917,
+        "promptChars": 39303
+      },
+      "promptDelta": {
+        "off": {
+          "hasSubjectIntelligenceMarker": false,
+          "hasArchetypeFallback": false,
+          "siSectionChars": 0
+        },
+        "on": {
+          "hasSubjectIntelligenceMarker": true,
+          "hasArchetypeFallback": true,
+          "siSectionChars": 30
+        },
+        "extraChars": 30
+      },
+      "metricsDelta": {
+        "examinerConnectives": 3,
+        "examinerFraming": -1,
+        "subjectTermHits": 1,
+        "higherOrder": 3,
+        "misconceptionSignals": -2,
+        "dataInterp": 2,
+        "challenge": 0,
+        "explanationDepth": 8,
+        "teachingChars": -117
+      }
+    },
+    {
+      "slug": "algebra",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Algebra",
+      "topicKey": "edexcel-gcse-maths:algebra",
+      "off": {
+        "siOn": false,
+        "subjectKey": "maths",
+        "archetypeKey": "maths-procedure",
+        "primarySkill": "calculate",
+        "examinerConnectives": 1,
+        "examinerFraming": 0,
+        "subjectTermHits": 2,
+        "skillUsage": {
+          "explain": 1,
+          "describe": 1,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 1,
+          "calculate": 0,
+          "interpret": 2
+        },
+        "higherOrder": 1,
+        "misconceptionSignals": 6,
+        "dataInterp": 5,
+        "challenge": 1,
+        "explanationDepth": 67,
+        "blockLengths": {
+          "coreTeaching": 1301,
+          "commonMistake": 382,
+          "workedExample": 411,
+          "examPractice": 789
+        },
+        "teachingChars": 2886,
+        "generationSeconds": "26.9",
+        "outputChars": 13422,
+        "promptChars": 33005
+      },
+      "on": {
+        "siOn": true,
+        "subjectKey": "maths",
+        "archetypeKey": "maths-procedure",
+        "primarySkill": "calculate",
+        "examinerConnectives": 1,
+        "examinerFraming": 0,
+        "subjectTermHits": 2,
+        "skillUsage": {
+          "explain": 1,
+          "describe": 1,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 2,
+          "interpret": 0
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 7,
+        "dataInterp": 1,
+        "challenge": 0,
+        "explanationDepth": 56,
+        "blockLengths": {
+          "coreTeaching": 1171,
+          "commonMistake": 424,
+          "examPractice": 1006
+        },
+        "teachingChars": 2603,
+        "generationSeconds": "22.6",
+        "outputChars": 13513,
+        "promptChars": 38514
+      },
+      "promptDelta": {
+        "off": {
+          "hasSubjectIntelligenceMarker": false,
+          "hasArchetypeFallback": false,
+          "siSectionChars": 0
+        },
+        "on": {
+          "hasSubjectIntelligenceMarker": true,
+          "hasArchetypeFallback": true,
+          "siSectionChars": 30
+        },
+        "extraChars": 30
+      },
+      "metricsDelta": {
+        "examinerConnectives": 0,
+        "examinerFraming": 0,
+        "subjectTermHits": 0,
+        "higherOrder": -1,
+        "misconceptionSignals": 1,
+        "dataInterp": -4,
+        "challenge": -1,
+        "explanationDepth": -11,
+        "teachingChars": -283
+      }
+    },
+    {
+      "slug": "causes-of-ww1",
+      "subject": "History",
+      "examBoard": "AQA",
+      "topic": "Causes of WW1",
+      "topicKey": "",
+      "off": {
+        "siOn": false,
+        "subjectKey": "history",
+        "archetypeKey": "history-cause",
+        "primarySkill": "evaluate",
+        "examinerConnectives": 10,
+        "examinerFraming": 0,
+        "subjectTermHits": 2,
+        "skillUsage": {
+          "explain": 9,
+          "describe": 2,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 0,
+          "interpret": 0
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 3,
+        "dataInterp": 3,
+        "challenge": 0,
+        "explanationDepth": 88,
+        "blockLengths": {
+          "coreTeaching": 1365,
+          "commonMistake": 463,
+          "examPractice": 1299
+        },
+        "teachingChars": 3129,
+        "generationSeconds": "31.4",
+        "outputChars": 14785,
+        "promptChars": 33235
+      },
+      "on": {
+        "siOn": true,
+        "subjectKey": "history",
+        "archetypeKey": "history-cause",
+        "primarySkill": "evaluate",
+        "examinerConnectives": 8,
+        "examinerFraming": 1,
+        "subjectTermHits": 3,
+        "skillUsage": {
+          "explain": 13,
+          "describe": 2,
+          "evaluate": 0,
+          "compare": 0,
+          "analyse": 0,
+          "analyze": 0,
+          "justify": 0,
+          "calculate": 0,
+          "interpret": 0
+        },
+        "higherOrder": 0,
+        "misconceptionSignals": 4,
+        "dataInterp": 6,
+        "challenge": 0,
+        "explanationDepth": 97,
+        "blockLengths": {
+          "coreTeaching": 1605,
+          "commonMistake": 454,
+          "workedExample": 711,
+          "examPractice": 1508
+        },
+        "teachingChars": 4281,
+        "generationSeconds": "27.9",
+        "outputChars": 15941,
+        "promptChars": 39004
+      },
+      "promptDelta": {
+        "off": {
+          "hasSubjectIntelligenceMarker": false,
+          "hasArchetypeFallback": false,
+          "siSectionChars": 0
+        },
+        "on": {
+          "hasSubjectIntelligenceMarker": true,
+          "hasArchetypeFallback": true,
+          "siSectionChars": 30
+        },
+        "extraChars": 30
+      },
+      "metricsDelta": {
+        "examinerConnectives": -2,
+        "examinerFraming": 1,
+        "subjectTermHits": 1,
+        "higherOrder": 0,
+        "misconceptionSignals": 1,
+        "dataInterp": 3,
+        "challenge": 0,
+        "explanationDepth": 9,
+        "teachingChars": 1152
+      }
+    }
+  ]
+}

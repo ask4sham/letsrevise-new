@@ -1,0 +1,330 @@
+LESSON OBJECTIVE FIELD:  
+Understand how to identify, simplify, and solve algebraic expressions and equations with clear exam strategies for Higher Tier GCSE Maths.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the definition of algebra, why it’s important, core methods for handling algebraic problems, worked examples, exam vocabulary, common mistakes, and exam tips with multiple checkpoints to check understanding.
+
+<strong>Algebra – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> Define what algebra is and recognise algebraic expressions and equations.</li>  
+<li><strong>👉</strong> Explain why algebra is essential for solving a wide range of GCSE Maths problems.</li>  
+<li><strong>👉</strong> Use the core model for solving algebraic problems effectively in exams.</li>  
+<li><strong>👉</strong> Apply algebraic techniques in examples, including simplifying, rearranging, and solving equations.</li>  
+<li><strong>👉</strong> Identify and correct common mistakes with algebra.</li>  
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>Basic arithmetic operations: addition, subtraction, multiplication, division.</li>  
+<li>Order of operations (BIDMAS/BODMAS).</li>  
+<li>Simple manipulation of numbers and use of brackets.</li>  
+<li>What variables and constants are in a basic sense.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Algebra is the branch of mathematics that uses letters (variables) and symbols to represent numbers and describe relationships between quantities.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Algebra allows us to solve problems where numbers are unknown or change, making it essential for understanding patterns, modelling situations, and solving equations in exams and real life.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Identify the problem type → Choose the right algebraic method (simplify, expand, factorise, solve) → Perform algebraic steps carefully → Check results for errors or reasonableness.</strong></p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Simplifying algebraic expressions like 3x + 2x − 5 = ? (Combine like terms)</li>  
+<li>Expanding brackets: 2(x + 3) = 2x + 6</li>  
+<li>Rearranging formulae, for example making x the subject of an equation</li>  
+<li>Solving linear equations such as 2x + 5 = 13</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Expression</strong>, <strong>Equation</strong>, <strong>Variable</strong>, <strong>Simplify</strong>, <strong>Solve</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A student needs to simplify the expression 4x – 2 + 3x + 5 and then solve 7x + 3 = 31. Using the core model helps them work through each step clearly and avoid mistakes.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Algebra</strong></h2>  
+<p>👉 The key idea is to treat algebra as a process of carefully manipulating symbols to solve problems.</p>  
+<h3><strong>Key idea:</strong></h3>  
+<p>Understand what type of algebra problem you have: simplifying expressions, expanding brackets, rearranging formulae, or solving equations.</p>  
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>When simplifying, combine like terms by adding or subtracting coefficients.</li>  
+<li>When expanding, multiply each term inside the brackets by the number outside.</li>  
+<li>When solving equations, isolate the variable step by step by performing inverse operations.</li>  
+</ul>  
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Expression structure → applying operations → simplified expression or answer.</li>  
+<li>Equation structure → isolate variable using inverse steps → value of variable.</li>  
+</ul>  
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always show each calculation step clearly and write the final answer with units or required form to gain full marks.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What is the simplified form of the expression 5x + 3 – 2x + 7?  
+
+Option 1: 3x + 10  
+Option 2: 7x + 4  
+Option 3: 3x – 4  
+Option 4: 7x + 10  
+
+Answer:  
+3x + 10  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each algebra term to its correct description.
+
+Items to drag:  
+- Expression  
+- Equation  
+- Variable  
+- Simplify  
+
+Drop zones:  
+- A statement with an equals sign → ______  
+- A combination of numbers and letters without an equals sign → ______  
+- A letter representing an unknown number → ______  
+- To make an expression shorter or easier → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A statement with an equals sign → Equation  
+- A combination of numbers and letters without an equals sign → Expression  
+- A letter representing an unknown number → Variable  
+- To make an expression shorter or easier → Simplify  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is to combine unlike terms, for example writing 3x + 5 as 8x.</p>  
+<p>This is wrong because the 5 is a constant, not a term with x, so it cannot be combined with 3x.</p>  
+<p>Instead, only add coefficients with the same variable: 3x + 5 stays as it is.</p>  
+<p>Doing this correctly earns marks for correct simplification and avoids confusion.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early in lesson, near core teaching.  
+Type: Diagram (concept)  
+What it should show: A balance scale representing an equation, with algebraic terms balanced on both sides.  
+Key labels / features: Left side with 2x + 3, right side with 7, showing step-by-step removal of terms to isolate x.  
+Why it helps: Visualises solving an equation as keeping balance while removing or adding same value both sides.  
+Brand/style: LET’S REVISE style, simple scale, thick outlines, minimal colours, labels showing steps.  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process: Solving a simple linear equation
+
+Step 1: Write the equation clearly, e.g., 2x + 3 = 7  
+↓  
+Step 2: Subtract 3 from both sides to get 2x = 4  
+↓  
+Step 3: Divide both sides by 2 to isolate x: x = 2  
+↓  
+Step 4: Check the answer by substituting x back into original equation  
+Exam link: Shows clear working gets marks and prevents sign or arithmetic errors.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the steps used in solving 3(x – 4) = 15.
+
+Labels to use:  
+- Expand brackets  
+- Add or subtract terms  
+- Divide both sides  
+- Check solution  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Expand brackets  
+- B → Add or subtract terms  
+- C → Divide both sides  
+- D → Check solution  
+
+</details>
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Algebra questions appear often in GCSE Maths Higher Tier exams and require clear, stepwise working to gain full marks.</p>  
+<p>Showing every step helps avoid careless errors and makes it easier for examiners to award marks, even if the final answer is wrong.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always write down each algebra step logically from the original problem, using proper notation and checking your answer by substitution.</p>  
+<p>Do NOT just write the answer without showing how you got it — examiners want to see your reasoning.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Solves equation quickly but writes only the answer with no working or explanation.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Shows some steps like moving numbers but misses proper notation or does not check the answer.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Writes each step clearly, uses algebraic notation correctly, rearranges the equation logically, and includes a check by substitution.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>Shows logical method thoroughly for examiners to follow.</li>  
+<li>Includes verification, demonstrating understanding and accuracy.</li>  
+<li>Uses correct algebraic terminology and notation throughout.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 <strong>Always treat algebra like a balanced scale: whatever you do to one side, do to the other, and show every step clearly for full marks.</strong></p>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+Which of the following correctly solves for x in 4x – 5 = 15?  
+
+Option 1: Add 5 to both sides, get 4x = 10, then divide both sides by 4, x = 2.5  
+Option 2: Subtract 15 from both sides, get 4x – 20 = 0, then x = 5  
+Option 3: Divide both sides by 4, get x – 1.25 = 3.75, then x = 2.5  
+Option 4: Add 5 to one side only, get 4x = 20, then x = 5  
+
+Answer:  
+Add 5 to both sides, get 4x = 10, then divide both sides by 4, x = 2.5  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 Algebraic problem-solving is a stepwise, logical process of identifying the problem type, applying correct algebraic methods, writing clear working, and checking answers meticulously.</p>  
+<p>Mastering this process strengthens your ability to tackle all types of GCSE algebra questions with confidence.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Simplify the expression 7y + 2 – 4y + 9 and then find the value of y if the expression equals 15.  
+
+<details>  
+<summary>Reveal Answer</summary>  
+
+First simplify: 7y – 4y + 2 + 9 = 3y + 11  
+Set 3y + 11 = 15  
+Subtract 11 from both sides: 3y = 4  
+Divide both sides by 3: y = 4/3 or approximately 1.33  
+
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 <strong>Remember: Simplify first, then solve. Always isolate the variable step-by-step and check your solution by substitution.</strong></p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam practice</strong></h2>  
+
+<p><strong>Q1 (1 mark):</strong> Simplify 4a + 3a – 7.</p>  
+
+<p><strong>Q2 (2 marks):</strong> Expand and simplify: 3(x + 4) – 2(x – 1).</p>  
+
+<p><strong>Q3 (3 marks):</strong> Solve the equation 5x – 8 = 2x + 10. Show all steps.</p>  
+<details>  
+<summary>Reveal Model Answer</summary>  
+5x – 8 = 2x + 10  
+Subtract 2x from both sides: 3x – 8 = 10  
+Add 8 to both sides: 3x = 18  
+Divide both sides by 3: x = 6  
+Check by substitution: 5(6) – 8 = 30 – 8 = 22; 2(6) + 10 = 12 + 10 = 22; both sides equal.  
+</details>  
+
+<p><strong>Q4 (4 marks):</strong> Rearrange the formula for volume of a cuboid, V = lwh, to make h the subject and then calculate h if V = 240 cm³, l = 10 cm, w = 6 cm.</p>  
+<details>  
+<summary>Reveal Model Answer</summary>  
+V = lwh  
+Divide both sides by lw: h = V / (lw)  
+Substitute values: h = 240 / (10 × 6) = 240 / 60 = 4 cm  
+Write final answer with units: h = 4 cm  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Algebra uses letters to represent unknowns or variables in expressions and equations.</li>  
+<li>Simplify expressions by combining like terms, expand brackets carefully.</li>  
+<li>Solve equations by isolating the variable using inverse operations on both sides.</li>  
+<li>Show every step in exams to gain full marks and reduce errors.</li>  
+<li>Always check your answers by substituting back into the original equation.</li>  
+</ul>  
+<p>👉 Remember: Algebra is a language that lets you solve problems with unknowns—you need to read it carefully and work through logically.</p>  
+<p>👉 In exams, clear working and checking are just as important as the final answer.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Expression</strong> – A combination of terms (numbers and variables) without an equals sign.  
+<strong>Equation</strong> – A mathematical statement that two expressions are equal using an equals sign.  
+<strong>Variable</strong> – A symbol, usually a letter, that represents an unknown number.  
+<strong>Simplify</strong> – To combine terms and reduce an expression to its simplest form.  
+<strong>Expand</strong> – To multiply out brackets so there are no brackets left.  
+<strong>Factorise</strong> – To write an expression as a product of its factors (reverse of expand).  
+<strong>Coefficient</strong> – The number in front of a variable term that shows how many times it is multiplied.  
+<strong>Subject</strong> – The variable that a formula or equation is made into, to isolate it on one side.  
+<strong>Inverse operation</strong> – An operation that reverses another (e.g., subtraction reverses addition).  
+<strong>Substitution</strong> – Replacing variables in an expression or formula with numbers to calculate a value.

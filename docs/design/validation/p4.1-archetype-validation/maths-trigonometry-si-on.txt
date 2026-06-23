@@ -1,0 +1,373 @@
+LESSON OBJECTIVE FIELD:  
+Explain and use trigonometric ratios to solve problems involving right-angled triangles, including finding missing sides and angles with accurate reasoning.
+
+SHORT SUMMARY FIELD:  
+This lesson teaches how to recognise and apply sine, cosine, and tangent ratios in right-angled triangles, with clear exam strategies and common pitfalls explained.
+
+<strong>Trigonometry – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the definition of <strong>Trigonometry</strong> in clear GCSE language.</li>  
+<li><strong>👉</strong> Recognise and use the three main trigonometric ratios: sine, cosine, tangent.</li>  
+<li><strong>👉</strong> Apply trigonometry to find missing sides and angles in right-angled triangles.</li>  
+<li><strong>👉</strong> Develop methods for solving problems including inverse trigonometric functions.</li>  
+<li><strong>👉</strong> Understand key exam vocabulary related to trigonometric calculations.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>How to measure and identify angles in degrees.</li>  
+<li>Basic properties of right-angled triangles.</li>  
+<li>The Pythagorean theorem for finding missing sides.</li>  
+<li>Algebraic skills to rearrange formulas.</li>  
+<li>Understanding of ratio and proportion concepts.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Trigonometry is the branch of mathematics that studies the relationships between the angles and sides of right-angled triangles using ratios called sine, cosine, and tangent.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Trigonometry is essential for solving practical problems where you need to find missing distances or angles, especially in fields like engineering, construction, and navigation, as well as in GCSE exams.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>To solve right-angled triangles using trigonometry:</strong></p>  
+<ol>  
+<li>Identify which side or angle you need to find.</li>  
+<li>Choose the correct ratio (sine, cosine, or tangent) based on the sides involved.</li>  
+<li>Set up the formula and substitute the known values.</li>  
+<li>Rearrange to find the unknown side or angle.</li>  
+<li>For angles, use the inverse trigonometric functions (sin⁻¹, cos⁻¹, tan⁻¹).</li>  
+<li>Check your answer for reasonableness.</li>  
+</ol>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Finding the length of the hypotenuse given an angle and the opposite side.</li>  
+<li>Finding a missing angle when two sides are known using inverse trig.</li>  
+<li>Using tangent to find a missing length in a right-angled triangle when adjacent and opposite sides are involved.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Sine</strong>, <strong>Cosine</strong>, <strong>Tangent</strong>, <strong>Opposite</strong>, <strong>Adjacent</strong>, <strong>Hypotenuse</strong>, <strong>Inverse trigonometric function</strong>, <strong>Solve</strong>, <strong>Calculate</strong>, <strong>Show that</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A surveyor needs to find the height of a building using the angle of elevation from a point 30 metres away. By using trigonometry on the right-angled triangle formed, the height can be found without needing to measure directly.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Trigonometry</strong></h2>  
+<p>👉 The key idea is understanding how the sides of a right-angled triangle relate to its angles through ratios.</p>  
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>If you know an angle and one side, you can find the other sides.</li>  
+<li>By choosing the appropriate ratio (sine, cosine, or tangent), you connect sides and angles precisely.</li>  
+</ul>  
+
+<h3><strong>Structure → function:</strong></h3>  
+<ul>  
+<li><strong>Sine</strong> relates the <em>opposite</em> side to the <em>hypotenuse</em>.</li>  
+<li><strong>Cosine</strong> relates the <em>adjacent</em> side to the <em>hypotenuse</em>.</li>  
+<li><strong>Tangent</strong> relates the <em>opposite</em> side to the <em>adjacent</em> side.</li>  
+</ul>  
+
+<h3><strong>Process → effect:</strong></h3>  
+<ul>  
+<li>Identify sides → select the correct trig function → substitute known values → calculate using a calculator.</li>  
+<li>For angles, use the inverse function on your calculator to get the angle from the ratio.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always label the sides relative to the angle you're working from, show the formula used, substitute values clearly, and include units in your final answer.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which trigonometric ratio relates the opposite side to the adjacent side in a right-angled triangle?
+
+Option 1:  
+Sine
+
+Option 2:  
+Cosine
+
+Option 3:  
+Tangent
+
+Option 4:  
+Secant
+
+Answer:  
+Tangent  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each trigonometric ratio to the sides it relates.
+
+Items to drag:  
+- Sine  
+- Cosine  
+- Tangent  
+- Hypotenuse  
+
+Drop zones:  
+- Relates opposite to hypotenuse → ______  
+- Relates adjacent to hypotenuse → ______  
+- Relates opposite to adjacent → ______  
+- The longest side → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Relates opposite to hypotenuse → Sine  
+- Relates adjacent to hypotenuse → Cosine  
+- Relates opposite to adjacent → Tangent  
+- The longest side → Hypotenuse  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is confusing the "opposite" and "adjacent" sides relative to the given angle. This causes the wrong ratio to be used and leads to incorrect answers.</p>  
+<p>A better way to say it is: always identify the angle you're working from, then spot the side directly opposite it and the side next to it that isn't the hypotenuse.</p>  
+<p>This correction earns marks by showing clear reasoning and correct application of trig ratios.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: early teaching, before explaining formulas  
+Type: Diagram
+
+What it should show: A right-angled triangle labeled with one angle other than 90°, sides labeled "Opposite," "Adjacent," and "Hypotenuse" relative to that angle.
+
+Key labels / features: Clear side labels, angle marked with a small arc, right angle marked.
+
+Why it helps: Helps students visualize exactly what "opposite," "adjacent," and "hypotenuse" mean relative to an angle to avoid common errors.
+
+Brand/style: LET’S REVISE header, exam-board ready, white background, thick black outlines, minimal colours, large uppercase labels, no questions inside diagram.
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Solving for a missing side using trigonometry
+
+Step 1:  
+Identify the angle you are given and label the opposite, adjacent, and hypotenuse sides accordingly.
+
+↓
+
+Step 2:  
+Choose the correct trigonometric ratio based on which side you want to find (sine, cosine, or tangent).
+
+↓
+
+Step 3:  
+Write the formula with known values substituted (e.g., sin(θ) = opposite/hypotenuse).
+
+↓
+
+Step 4:  
+Rearrange to find the unknown side and use a calculator to find the answer.
+
+Exam link:  
+This method aligns with typical GCSE exam questions requiring you to calculate missing sides using trig ratios.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the diagram using the correct terms.
+
+Labels to use:  
+- Opposite  
+- Adjacent  
+- Hypotenuse  
+- Right angle  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Opposite  
+- B → Adjacent  
+- C → Hypotenuse  
+- D → Right angle  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Trigonometry questions are common in GCSE Maths because they test your understanding of angle-side relationships, problem-solving and algebra rearrangement all in one.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always write down the formula used and label the triangle sides clearly before starting calculations. This shows examiners your method and can earn method marks even if the final answer slips.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Use sine to find the side.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Use sine because it relates the opposite side to the hypotenuse.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Use the sine formula sin(θ) = opposite/hypotenuse because you know the angle θ and one side; rearrange to find the missing side by multiplying the hypotenuse by sin(θ).</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It shows understanding of the formula choice based on the triangle's sides.</li>  
+<li>Clearly explains the rearrangement and calculation step.</li>  
+<li>Uses precise terminology, demonstrating clear logic.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 When working on right-angled triangles, always label the sides relative to your angle, decide which trig ratio uses those sides, and for angles use the inverse function; this structure guarantees correct answers and clear exam communication.</p>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+If you know the hypotenuse is 10 cm and the adjacent side is 8 cm, which trigonometric ratio would you use to find the angle between them?
+
+Option 1:  
+Sine
+
+Option 2:  
+Cosine
+
+Option 3:  
+Tangent
+
+Option 4:  
+Cosecant
+
+Answer:  
+Cosine  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 The power of trigonometry is that it turns unknown lengths or angles into straightforward calculations by linking triangle sides through ratios. Once you identify the given information and the missing part, your choice of sine, cosine, or tangent becomes an easy, mechanical step.</p>  
+<p>👉 This ordered approach also helps prevent errors by making sure you start with a clear triangle labeling and formula choice.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+In a right-angled triangle, the angle is 30° and the hypotenuse is 12 cm. Calculate the length of the side opposite the 30° angle.
+
+[Provide full solution reasoning.]
+
+<details>  
+<summary>Reveal Answer</summary>  
+
+Step 1: Use sine since opposite/hypotenuse.  
+Step 2: sin(30°) = opposite / 12  
+Step 3: opposite = 12 × sin(30°) = 12 × 0.5 = 6 cm  
+Answer: The opposite side is 6 cm.  
+
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Always set your calculator to degree mode, clearly identify sides relative to the angle, use the correct trig ratio, and for finding angles use inverse functions; this routine solves nearly all right-angled trigonometry problems accurately.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p><strong>Question 1 (1 mark):</strong> Calculate sin 45° to 3 decimal places.</p>
+
+<p><strong>Question 2 (2 marks):</strong> In a right-angled triangle, the opposite side is 7 cm and the hypotenuse is 25 cm. Calculate the size of the angle opposite the 7 cm side.</p>
+
+<p><strong>Question 3 (3 marks):</strong> A ladder leans against a wall making an angle of 60° with the ground. If the foot of the ladder is 4 m from the wall, calculate the length of the ladder.</p>  
+
+<details>  
+<summary>Reveal Model Answer</summary>  
+Q1: sin 45° ≈ 0.707 (3 sf)  
+Q2: sin θ = opposite/hypotenuse = 7/25 = 0.28; θ = sin⁻¹(0.28) ≈ 16.26°, so angle ≈ 16.3° (2 sf)  
+Q3: cos 60° = adjacent/hypotenuse → cos 60° = 4 / length → length = 4 / cos 60° = 4 / 0.5 = 8 m  
+</details>  
+
+<p><strong>Question 4 (4 marks):</strong> A right-angled triangle has a hypotenuse of 15 cm and an angle of 40°. Calculate the lengths of the other two sides.</p>  
+
+<details>  
+<summary>Reveal Model Answer</summary>  
+Step 1: Label sides relative to 40°.  
+Step 2: Opposite side = hyp × sin 40° = 15 × 0.6428 = 9.64 cm  
+Step 3: Adjacent side = hyp × cos 40° = 15 × 0.7660 = 11.49 cm  
+Answer: Opposite ≈ 9.6 cm, Adjacent ≈ 11.5 cm (both 3 sf)  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Trigonometry studies ratios relating sides and angles in right-angled triangles.</li>  
+<li>The three main ratios: sine, cosine, and tangent link opposite, adjacent, and hypotenuse sides.</li>  
+<li>Use the ratio matched to the sides you know and the side or angle you want to find.</li>  
+<li>For missing angles, use inverse trig functions on a calculator (sin⁻¹, cos⁻¹, tan⁻¹).</li>  
+<li>Label your triangle carefully to avoid confusion between opposite and adjacent sides.</li>  
+<li>Always show clear formula substitution and final answers with correct units or angle measures.</li>  
+</ul>  
+<p>👉 Remember: <em>Identify → Select formula → Substitute → Calculate → Check.</em> This straightforward pathway leads to success in exams.</p>  
+<p>👉 In the exam, do not just write the answer; show the reasoned steps with labels and formula usage to maximise marks.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Sine</strong> – Ratio of opposite side to hypotenuse in a right-angled triangle.  
+<strong>Cosine</strong> – Ratio of adjacent side to hypotenuse in a right-angled triangle.  
+<strong>Tangent</strong> – Ratio of opposite side to adjacent side in a right-angled triangle.  
+<strong>Opposite</strong> – The side across from the angle being considered.  
+<strong>Adjacent</strong> – The side next to the angle being considered (not the hypotenuse).  
+<strong>Hypotenuse</strong> – The longest side opposite the right angle in a right-angled triangle.  
+<strong>Inverse function</strong> – Function (sin⁻¹, cos⁻¹, tan⁻¹) used to find angles from ratios.  
+<strong>Angle of elevation</strong> – Angle between horizontal and line of sight upwards.  
+<strong>Calculate</strong> – To work out a numerical answer using mathematics.  
+<strong>Solve</strong> – To find the value of a missing side or angle using given information.
