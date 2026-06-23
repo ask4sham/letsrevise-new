@@ -1,0 +1,333 @@
+LESSON OBJECTIVE FIELD:  
+To understand how to work with ratios, simplify them, divide quantities into given ratios, and apply ratio reasoning confidently in Higher Tier GCSE Maths problems.
+
+SHORT SUMMARY FIELD:  
+In this lesson, you’ll learn what ratio means, why it matters, how to calculate and simplify ratios, how to use them to divide amounts, and how to show clear exam working with ratios.
+
+<strong>Ratio – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> Define what a <strong>ratio</strong> is and understand how it compares quantities.</li>  
+<li><strong>👉</strong> Explain why using ratios helps us solve proportional problems efficiently.</li>  
+<li><strong>👉</strong> Apply the <strong>core method</strong> for working with ratios including simplifying and dividing amounts.</li>  
+<li><strong>👉</strong> Use ratio concepts to tackle exam-style questions confidently.</li>  
+<li><strong>👉</strong> Recognise and correct common mistakes when working with ratios.</li>  
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>How to find the greatest common divisor (GCD) to simplify fractions.</li>  
+<li>Multiplication and division skills with whole numbers and decimals.</li>  
+<li>Basic understanding of fractions, especially equivalent fractions.</li>  
+<li>How to write a ratio as a:b and understand what a ratio means.</li>  
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>A ratio is a way to compare two or more quantities showing their relative sizes as a:b (read as “a to b”).</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Ratios help us understand proportions so we can divide things fairly or scale quantities up or down, which is vital in many real-world and exam problems.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Step 1: Identify the quantities and write their ratio. → Step 2: Simplify the ratio by dividing both parts by their greatest common factor. → Step 3: Use the ratio to split amounts or find missing parts by multiplying each simplified part.</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Dividing £60 in the ratio 2:3 → share as £24 and £36.</li>  
+<li>Simplify the ratio 12:18 by dividing both by 6 → 2:3.</li>  
+<li>Cooking recipe scaled for 4 people using ratio 3:2 → find ingredient amounts for 6 people.</li>  
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>ratio</strong>, <strong>simplify</strong>, <strong>proportion</strong>, <strong>share</strong>, <strong>divide</strong>, <strong>part</strong>, <strong>equal parts</strong>, <strong>scale</strong>, <strong>equivalent ratio</strong>, <strong>greatest common divisor (GCD)</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A lemonade recipe uses lemons and sugar in the ratio 3:5. If you have 24 lemons, how much sugar do you need to keep the same taste?</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Ratio</strong></h2>  
+<p>👉 When working with ratio, the key thing is to see ratio as a comparison, not just numbers written with a colon.</p>  
+<h3><strong>Key idea:</strong></h3>  
+<p>Ratios tell us how many parts of each quantity there are relative to each other.</p>  
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>You start with quantities, write their ratio, then simplify it to simplest form.</li>  
+<li>To divide amounts in a given ratio, add the parts to find total parts, then split the quantity accordingly.</li>  
+</ul>  
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Write original ratio → Simplify the ratio → Calculate total parts → Divide amount by total parts → Multiply parts to find shares.</li>  
+</ul>  
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 When you answer ratio questions, always show the simplifying step and calculation for each part – this chain is what examiners look for: reason → calculation → answer.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which of the following is the simplest form of the ratio 18:24?
+
+Option 1: 3:4  
+Option 2: 6:8  
+Option 3: 9:12  
+Option 4: 18:24  
+
+Answer:  
+3:4
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term to its correct description.
+
+Items to drag:  
+- Simplify ratio  
+- Divide in ratio  
+- Equivalent ratio  
+- Greatest common divisor (GCD)  
+
+Drop zones:  
+- Finding the largest number that divides both parts → ______  
+- Sharing an amount according to parts → ______  
+- A ratio that has the same proportion but different numbers → ______  
+- Reducing ratio to smallest whole numbers → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Finding the largest number that divides both parts → Greatest common divisor (GCD)  
+- Sharing an amount according to parts → Divide in ratio  
+- A ratio that has the same proportion but different numbers → Equivalent ratio  
+- Reducing ratio to smallest whole numbers → Simplify ratio  
+
+</details>
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is treating the ratio numbers as quantities to add or subtract directly without working out total parts first.</p>  
+<p>For example, dividing £50 in ratio 2:3 means total parts are 2+3=5, so each part is £10; ignoring this leads to wrong answers.</p>  
+<p>Students often confuse simplifying a ratio with dividing quantities; remember to simplify ratios first, then divide amounts accordingly.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+<h2><strong>Diagram: Sharing quantity using ratio parts</strong></h2>  
+<p>👉 A bar divided into 5 equal parts to represent the ratio 2:3, showing 2 parts for one quantity and 3 parts for the other.</p>  
+<p>Labels: Total parts = 5; Each part = amount/5; Quantity 1 = 2 parts; Quantity 2 = 3 parts.</p>  
+<p>Helps visualise how a total amount is split proportionally.</p>
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+How to divide an amount in a given ratio
+
+Step 1: Write the ratio and add the parts to get the total number of parts.  
+↓  
+Step 2: Divide the total amount by the total parts to find the value of one part.  
+↓  
+Step 3: Multiply one part value by each part of the ratio for each share.  
+↓  
+Step 4: Check your parts add up to the total amount as a verification step.  
+
+Exam link:  
+This method is exactly how you show clear working for ratio division questions in the exam.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of this ratio division model.
+
+Labels to use:  
+- Total amount  
+- Total parts  
+- One part value  
+- Shares  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Total amount  
+- B → Total parts  
+- C → One part value  
+- D → Shares  
+
+</details>
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Ratio questions come up often on the Higher Tier. Understanding and showing every step clearly – simplifying ratio, finding one part value, then calculating each share – gets you straightforward marks.</strong></p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always write the total parts and show division by total parts explicitly. This proves you understand how ratio works and helps avoid careless mistakes. If asked, check your answer adds up to the total given.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The ratio is 2:3, so one person gets £2 and the other £3.</p>
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The total ratio parts are 5, so dividing £50 by 5 gives £10 per part. Then multiply £10 by 2 and £10 by 3 to get the shares.</p>
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The ratio 2:3 has total parts 5. Dividing £50 ÷ 5 gives £10 per part. Therefore, the first share is 2 × £10 = £20 and the second is 3 × £10 = £30, which add to £50.</p>
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It shows the total parts and division step explicitly.</li>  
+<li>It uses clear multiplication to find shares.</li>  
+<li>It checks the final sums add to the total amount, showing comprehension.</li>  
+</ul>
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+Calculate how to divide £84 in the ratio 5:7. Show full working.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Step 1: Add ratio parts: 5 + 7 = 12 parts total.  
+Step 2: Divide total amount by total parts: £84 ÷ 12 = £7 per part.  
+Step 3: Multiply each part:  
+5 parts × £7 = £35  
+7 parts × £7 = £49  
+Step 4: Check: £35 + £49 = £84, correct!  
+
+Answer: £35 and £49.  
+
+</details>
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+You have a ribbon 60 cm long. You want to cut it in the ratio 4:5. How long is the longer piece?
+
+Option 1: 24 cm  
+Option 2: 27 cm  
+Option 3: 30 cm  
+Option 4: 36 cm  
+
+Answer:  
+36 cm
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis: Working with Ratios</strong></h2>  
+<p>👉 The key skill is to always start by simplifying or interpreting the ratio correctly.</p>  
+<p>👉 Then use that ratio to split or compare quantities by calculating how much one “part” represents.</p>  
+<p>👉 Always show your working clearly; it proves full understanding and avoids careless errors.</p>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+If two numbers are in the ratio 7:9 and their total is 128, what is the smaller number?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Total parts = 7 + 9 = 16  
+One part = 128 ÷ 16 = 8  
+Smaller number = 7 × 8 = 56  
+
+</details>
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Always: Simplify ratio → calculate total parts → find value of one part → multiply parts to get shares → check sum matches total.</p>  
+<p>👉 This stepwise process is your go-to for ALL ratio problems.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p><strong>Q1 (1 mark):</strong> Simplify the ratio 10:15.</p>  
+<p><strong>Q2 (2 marks):</strong> Divide 42 into the ratio 3:4.</p>  
+<p><strong>Q3 (3 marks):</strong> A map scale uses ratio 1:250,000. What real distance does 4 cm on the map represent? Show your working.</p>  
+<p><strong>Q4 (4 marks):</strong> Two ingredients are mixed in ratio 2:5. You have 28 g of the first ingredient. Calculate the total mass of the mixture and how much of the second ingredient is needed.</p>
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1: Simplify 10:15 by dividing both by 5 → 2:3.  
+Q2: Total parts 3 + 4 = 7; 42 ÷ 7 = 6; shares: 3 × 6 = 18 and 4 × 6 = 24.  
+Q3: Scale 1:250,000 means 1 cm = 250,000 cm; 4 cm = 4 × 250,000 = 1,000,000 cm = 10,000 m = 10 km.  
+Q4: Ratio 2:5 means total parts 7. One part = 28 ÷ 2 = 14 g. Total mass = 7 × 14 = 98 g. Amount of second ingredient = 5 × 14 = 70 g.  
+
+</details>
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Ratios compare quantities using parts, written as a:b.</li>  
+<li>Always simplify ratios to their smallest whole numbers.</li>  
+<li>To divide an amount, add ratio parts and find value of one part.</li>  
+<li>Multiply one part value by each ratio number to get shares.</li>  
+<li>Show every step clearly in exams to gain marks.</li>  
+<li>Check your final parts sum back to the total amount given.</li>  
+</ul>  
+<p>👉 Remember: Ratio is about fair proportional sharing — never just guessing parts.</p>  
+<p>👉 In exams, avoid skipping steps that show your reasoning.</p>
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Ratio</strong> – A comparison showing the relative size of two or more values.  
+<strong>Simplify</strong> – Reducing a ratio to its smallest whole numbers by dividing both parts by their greatest common divisor.  
+<strong>Proportion</strong> – The equal relationship between ratios or amounts.  
+<strong>Share</strong> – To divide a total amount into parts according to a ratio.  
+<strong>Divide</strong> – To split an amount into parts based on a ratio.  
+<strong>Part</strong> – One component or segment in a ratio.  
+<strong>Equivalent ratio</strong> – A ratio that has the same proportion but different numbers.  
+<strong>Greatest common divisor (GCD)</strong> – The largest number that divides two numbers without remainder.  
+<strong>Total parts</strong> – The sum of all parts in a ratio, used as the divisor to split quantities.  
+<strong>Scale</strong> – A proportional relationship used to resize or convert measures.

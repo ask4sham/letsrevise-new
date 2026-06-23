@@ -1,0 +1,384 @@
+LESSON OBJECTIVE FIELD:  
+Explain how electrical circuits are organised, comparing series and parallel arrangements, and apply calculations of current, voltage, and resistance to solve problems.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the organisation of electrical circuits, key rules for current and voltage in series and parallel circuits, and how to calculate and interpret electrical quantities using the correct physical principles.
+
+<strong>Electricity – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Define key concepts like current, voltage, and resistance in circuits.</li>
+<li><strong>👉</strong> Explain the difference between series and parallel circuits and how this affects current and voltage.</li>
+<li><strong>👉</strong> Apply relationships between current, voltage, and resistance in calculations for series and parallel circuits.</li>
+<li><strong>👉</strong> Use circuit diagrams to analyse and calculate quantities in electrical circuits.</li>
+<li><strong>👉</strong> Avoid common misconceptions about current and voltage in circuits.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>Electric charge and flow of electrons as current.</li>  
+<li>Basic electrical quantities: current (I), voltage (V), and resistance (R), with their units (A, V, Ω).</li>  
+<li>How to read simple circuit diagrams with symbols.</li>  
+<li>Ohm’s Law: V = IR for a simple resistor.</li>  
+<li>That current is the flow of charge through a conductor.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Electricity in circuits is the controlled flow of electric charge around a closed path called a circuit, allowing devices to operate.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<p>👉 <strong>This matters because understanding circuit organisation helps us design and analyse real electrical devices safely and efficiently.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Electric circuits are organised by connecting components either in series (one after another) or in parallel (side by side), which determines how current and voltage behave.</strong></p>  
+
+<p>Core relationships to remember:</p>  
+<ol>  
+<li>In series circuits: current is the same through all components, total voltage divides between components.</li>  
+<li>In parallel circuits: voltage is the same across each branch, but current divides between branches.</li>  
+<li>Total resistance in series adds up; in parallel, total resistance is less than the smallest individual resistor.</li>  
+<li>Ohm’s Law applies locally to components: V = IR.</li>  
+</ol>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>A torch with bulbs connected in series so current is the same, but voltage divides between bulbs.</li>  
+<li>Household wiring where lights and sockets form parallel circuits to supply the same voltage but allow independent current flow.</li>  
+<li>A string of Christmas lights arranged in series, causing the whole string to go out if one bulb fails.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>series circuit</strong>, <strong>parallel circuit</strong>, <strong>current (I)</strong>, <strong>voltage (V)</strong>, <strong>resistance (R)</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>Consider a circuit with three identical bulbs connected either all in series or all in parallel to a 12 V battery. How will the brightness of the bulbs differ in each case? Use the rules about current and voltage to explain your answer.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Electricity Circuit Organisation</strong></h2>  
+<p>👉 <strong>The key idea is how arrangement affects current and voltage.</strong></p>  
+
+<h3><strong>Current and voltage in series</strong></h3>  
+<ul>  
+<li>In series circuits, there is only one path, so the <strong>current is the same</strong> through every component.</li>  
+<li>The <strong>total voltage of the supply splits</strong> between the components depending on their resistance.</li>  
+<li>This means bulbs in series share the battery voltage equally if identical.</li>  
+</ul>  
+
+<h3><strong>Current and voltage in parallel</strong></h3>  
+<ul>  
+<li>In parallel circuits, components are connected along separate branches.</li>  
+<li>The <strong>voltage across each branch is equal</strong> to the full supply voltage.</li>  
+<li>The current from the battery <strong>splits depending on resistance</strong>; more current flows through lower resistance branches.</li>  
+</ul>  
+
+<h3><strong>Resistance in series and parallel</strong></h3>  
+<ul>  
+<li>For components in series: <strong>total resistance = sum of individual resistances</strong> (Rₜ = R₁ + R₂ + ...).</li>  
+<li>For components in parallel: <strong>total resistance is less than the smallest resistor</strong>, calculated by 1/Rₜ = 1/R₁ + 1/R₂ + ...</li>  
+</ul>  
+
+<h3><strong>Think like an examiner</strong></h3>  
+<p>👉 Always explain current and voltage separately and relate them to the circuit layout. Use “because” to link cause and effect: for example, “The current is the same because there is only one path.”</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+In a series circuit with three identical resistors, which of these is true?  
+
+Option 1:  
+The current is divided equally among the resistors.  
+
+Option 2:  
+The voltage is the same across all resistors.  
+
+Option 3:  
+The current is the same through each resistor.  
+
+Option 4:  
+The resistance of the circuit decreases compared to one resistor.  
+
+Answer:  
+The current is the same through each resistor.  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each circuit property to whether it applies to series or parallel circuits.
+
+Items to drag:  
+- Current is the same through all components  
+- Voltage is the same across each branch  
+- Total resistance adds up  
+- Total resistance is less than smallest component  
+
+Drop zones:  
+- Applies to series circuits → ______  
+- Applies to parallel circuits → ______  
+- Applies to series circuits → ______  
+- Applies to parallel circuits → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Applies to series circuits → Current is the same through all components  
+- Applies to parallel circuits → Voltage is the same across each branch  
+- Applies to series circuits → Total resistance adds up  
+- Applies to parallel circuits → Total resistance is less than smallest component  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 <strong>A common mistake is saying “current is used up” as it flows through components in series.</strong></p>  
+<p>The correct idea is that <strong>current is the same all through a series circuit</strong> because charge flow is continuous and conserved.</p>  
+<p>👉 <strong>Why this matters:</strong> Saying current is “used up” would lose marks because it shows misunderstanding of current flow and charge conservation.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early in the teaching section for clear visualisation  
+Type: Diagram  
+What it should show:  
+- Simple circuit diagrams side by side: one series circuit with battery + 3 bulbs in a row, one parallel circuit with battery + 3 bulbs each on parallel branches  
+- Arrows indicating current flow and voltage splits labeled  
+Key labels / features:  
+- Battery, bulb symbols  
+- Arrows for current (I) and voltage (V) with numeric annotations showing same current in series, split voltage in series, equal voltage in parallel, split current in parallel  
+Why it helps:  
+- Visualises the core model for current and voltage in series/parallel circuits to avoid confusion  
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours (voltage arrows = red, current arrows = blue)  
+- Large uppercase labels
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Calculating total resistance in series and parallel circuits  
+
+Step 1:  
+In series, add up all resistances: Rₜ = R₁ + R₂ + R₃ + ...
+
+↓
+
+Step 2:  
+In parallel, calculate reciprocal of resistances: 1/Rₜ = 1/R₁ + 1/R₂ + 1/R₃ + ...
+
+↓
+
+Step 3:  
+Find total current using I = V / Rₜ with the supply voltage V and total resistance Rₜ.
+
+↓
+
+Step 4:  
+Use current and/or resistance to calculate unknown voltages or currents in each component using V = IR or rules of current/voltage in series/parallel.
+
+Exam link:  
+Mastery of these steps lets you solve calculation questions on circuit arrangements in GCSE exams.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of this circuit diagram with the correct terms.
+
+Labels to use:  
+- Battery  
+- Resistor  
+- Ammeter  
+- Voltmeter  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Battery  
+- B → Resistor  
+- C → Ammeter (in series to measure current)  
+- D → Voltmeter (across the resistor to measure voltage)  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding how current and voltage behave in series and parallel circuits helps you explain and predict the behaviour of real electrical systems.</p>  
+<p>👉 This knowledge is key for practical wiring, safety, and efficient design of devices, plus it is a common exam focus.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In exam questions, don’t just state trends like “current increases” — always explain <em>why</em> using cause → effect (e.g., “Current increases because resistance decreases, allowing more charge to flow through each second”).</p>  
+<p>👉 Always mention the relationship between components' arrangement, voltage, and current using correct terms like series or parallel.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Current is the same in series.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Current is the same in series because there is only one path for electrons to flow.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Current is the same through all components in a series circuit because charge cannot be used up; the same number of electrons pass every point per second as there is only one path available.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It explains the physical cause (only one path, charge conservation).</li>  
+<li>It links terminology (electrons, series circuit) with the reasoning.</li>  
+<li>It avoids vague terms and incorrect ideas like current being “used up.”</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+A 12 V battery is connected to two resistors, 4 Ω and 8 Ω, in series. Calculate:  
+a) The total resistance.  
+b) The current flowing through the circuit.  
+c) The voltage across the 8 Ω resistor.  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+a) Total resistance in series: Rₜ = 4 Ω + 8 Ω = 12 Ω  
+
+b) Using Ohm’s Law: I = V / Rₜ = 12 V / 12 Ω = 1 A  
+
+c) Voltage across 8 Ω resistor: V = IR = 1 A × 8 Ω = 8 V  
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+In a parallel circuit, which of the following is true?  
+
+Option 1:  
+The voltage across each component is different.  
+
+Option 2:  
+The current is the same through each branch.  
+
+Option 3:  
+The total resistance is the sum of individual resistances.  
+
+Option 4:  
+The voltage across each branch is equal to the supply voltage.  
+
+Answer:  
+The voltage across each branch is equal to the supply voltage.  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 The key idea is that how components are connected (series or parallel) changes how voltage and current behave, which affects total resistance and power distribution in circuits.</p>  
+
+<p>👉 In series, current is constant and voltage divides; in parallel, voltage is constant and current divides.</p>  
+
+<p>👉 Understanding this lets you solve real-world problems and explain experimental observations in exams.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Explain why bulbs in a parallel circuit all shine with the same brightness if they are identical bulbs and connected to the same battery.  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p><strong>Think: In series, Current is the Same, Voltage Splits; In parallel, Voltage is the Same, Current Splits.</strong></p>  
+<p>This rule helps you quickly apply the right relationships when analysing circuits.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p><strong>Q1 (1 mark):</strong> Define electric current.</p>  
+<p><strong>Q2 (2 marks):</strong> Explain what happens to current in a circuit when more resistors are added in series.</p>  
+<p><strong>Q3 (3 marks):</strong> A parallel circuit has a 6 V supply and two branches: one resistor of 3 Ω and another resistor of 6 Ω. Calculate the current in each branch.</p>  
+<p><strong>Q4 (4 marks):</strong> Compare the current and voltage in series and parallel circuits and explain how adding more bulbs affects the brightness in each arrangement.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1:  
+Electric current is the flow of electric charge, usually electrons, around a circuit.  
+
+Q2:  
+Adding more resistors in series increases total resistance because resistances add up. This causes current to decrease because current = voltage / resistance.  
+
+Q3:  
+Total voltage = 6 V (same across both branches).  
+Current in 3 Ω resistor branch: I = V / R = 6 V / 3 Ω = 2 A.  
+Current in 6 Ω resistor branch: I = 6 V / 6 Ω = 1 A.  
+
+Q4:  
+In series, current is the same through all components but voltage divides, so adding bulbs lowers voltage per bulb, dimming them. In parallel, voltage is equal across bulbs, so brightness stays same but total current increases. Adding bulbs adds branches, allowing more current overall.  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<p>👉 Electric circuits can be arranged in series or parallel.</p>  
+<p>👉 In series circuits, current is constant and voltage splits among components.</p>  
+<p>👉 In parallel circuits, voltage is constant across branches and current splits.</p>  
+<p>👉 Total resistance adds in series but decreases in parallel.</p>  
+<p>👉 Use Ohm’s Law and circuit rules to calculate current, voltage, and resistance.</p>  
+<p>👉 Remember, current is never used up – it’s the same throughout series paths.</p>  
+
+<p><strong>Remember:</strong> Always explain your answers using cause → effect and use correct terminology to earn full marks.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<p><strong>Current</strong> – The flow of electric charge measured in amperes (A).</p>  
+<p><strong>Voltage</strong> – The energy transferred per charge, measured in volts (V).</p>  
+<p><strong>Resistance</strong> – How much a component opposes the flow of current, measured in ohms (Ω).</p>  
+<p><strong>Series circuit</strong> – Components connected in a single path.</p>  
+<p><strong>Parallel circuit</strong> – Components connected on separate branches.</p>  
+<p><strong>Ohm’s Law</strong> – The relationship V = IR between voltage, current, and resistance.</p>  
+<p><strong>Total resistance</strong> – The combined resistance of all components in a circuit.</p>  
+<p><strong>Battery</strong> – A source of electrical energy creating potential difference.</p>  
+<p><strong>Current splits</strong> – In parallel circuits, current divides between different paths.</p>  
+<p><strong>Voltage splits</strong> – In series circuits, voltage divides between components.</p>

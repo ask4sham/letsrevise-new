@@ -1,0 +1,396 @@
+LESSON OBJECTIVE FIELD:  
+Understand quadratic expressions, their graphical features, and how to solve quadratic equations using various methods at Higher Tier GCSE level.
+
+SHORT SUMMARY FIELD:  
+This lesson covers what quadratics are, how to interpret their graphs, and how to solve quadratic equations using factorisation, completing the square, and the quadratic formula.
+
+<strong>Quadratics – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> Define quadratic expressions and quadratic equations clearly.</li>  
+<li><strong>👉</strong> Recognise and describe key features of quadratic graphs.</li>  
+<li><strong>👉</strong> Apply different methods to solve quadratic equations: factorising, completing the square, quadratic formula.</li>  
+<li><strong>👉</strong> Interpret and discuss the solutions in context, including discriminant analysis (HT).</li>  
+<li><strong>👉</strong> Use correct exam vocabulary and explain answers with precise mathematical language.</li>  
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we dive into quadratics, you should already know:</p>  
+<ul>  
+<li>How to work with linear expressions and equations (e.g., solving ax + b = 0).</li>  
+<li>Basic algebraic manipulation including expanding and factorising simple expressions.</li>  
+<li>Plotting and interpreting straight-line graphs.</li>  
+<li>Square numbers and roots.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 A quadratic expression is an algebraic expression where the highest power of the variable is two, usually written as <strong>ax² + bx + c</strong>, where a ≠ 0.</p>  
+<p>👉 A quadratic equation sets such an expression equal to zero, for example, <strong>ax² + bx + c = 0</strong>.</p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Quadratic functions model many real-world situations such as projectile motion, area problems, and optimisation tasks, so understanding them helps us interpret patterns and solve practical problems.</p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 A quadratic function’s graph is a parabola defined by y = ax² + bx + c, where:</p>  
+<ul>  
+<li><strong>a</strong> controls whether it opens upwards (a > 0) or downwards (a < 0).</li>  
+<li><strong>b</strong> controls the position of the vertex along the x-axis.</li>  
+<li><strong>c</strong> is the y-intercept.</li>  
+<li>The solutions of ax² + bx + c = 0 are the x-values where the graph crosses the x-axis (roots).</li>  
+</ul>  
+<p>👉 Key quadratic solving methods include:</p>  
+<ul>  
+<li>Factorising (where possible)</li>  
+<li>Completing the square</li>  
+<li>The quadratic formula: x = (-b ± √(b² - 4ac)) / 2a</li>  
+</ul>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>y = x² - 4x + 3 factorises to (x - 3)(x - 1); roots at x = 3 and x = 1.</li>  
+<li>Completing the square for y = x² + 6x + 5 gives (x + 3)² - 4; vertex at (-3, -4).</li>  
+<li>Using quadratic formula for 2x² - 4x - 6 = 0 gives roots x = 3 and x = -1.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Quadratic</strong>, <strong>Parabola</strong>, <strong>Coefficient</strong>, <strong>Roots</strong>, <strong>Vertex</strong>, <strong>Axis of symmetry</strong>, <strong>Discriminant</strong>, <strong>Factorise</strong>, <strong>Complete the square</strong>, <strong>Quadratic formula</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 The equation for the height of a ball thrown upwards is h = -5t² + 20t + 3. Use the quadratic model to find when the ball reaches the ground, that is when h = 0.</p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Quadratics</strong></h2>  
+<p>👉 The key idea is understanding the shape and solutions of quadratic equations through their graphs and algebraic forms.</p>  
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>The graph of y = ax² + bx + c is a curve called a parabola, opening upwards if a > 0, downwards if a < 0.</li>  
+<li>The parabola’s lowest/highest point is the vertex; this tells us the minimum/maximum value of the quadratic.</li>  
+<li>The roots (solutions) of the equation ax² + bx + c = 0 are points where the graph crosses the x-axis.</li>  
+</ul>  
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>The coefficients a, b, and c affect the position and shape of the graph.</li>  
+<li>The discriminant (b² - 4ac) determines the nature of solutions: two distinct real roots (if > 0), one real root (if = 0), or no real roots (if < 0).</li>  
+<li>Solving methods reveal these roots either exactly or approximately.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 When asked to solve quadratics, always write the method clearly, calculate accurately, and interpret the roots in context (e.g., times must be positive).</p>  
+<p>👉 Remember to justify the nature of roots using the discriminant for higher-tier questions.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What does the discriminant tell you about the quadratic equation 3x² + 4x - 5 = 0?
+
+Option 1:  
+How many times the graph cuts the y-axis.
+
+Option 2:  
+How many x-intercepts (real roots) the graph has.
+
+Option 3:  
+The value of the vertex.
+
+Option 4:  
+Whether the parabola opens upwards or downwards.
+
+Answer:  
+How many x-intercepts (real roots) the graph has.
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term to its correct description.
+
+Items to drag:  
+- Vertex  
+- Axis of symmetry  
+- Discriminant  
+- Roots  
+
+Drop zones:  
+- The lowest or highest point of the parabola → ______  
+- The vertical line that divides the parabola into two symmetrical halves → ______  
+- The expression b² - 4ac used to determine the nature of the roots → ______  
+- The x-values where the parabola crosses the x-axis → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- The lowest or highest point of the parabola → Vertex  
+- The vertical line that divides the parabola into two symmetrical halves → Axis of symmetry  
+- The expression b² - 4ac used to determine the nature of the roots → Discriminant  
+- The x-values where the parabola crosses the x-axis → Roots  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is thinking that the quadratic formula always gives two solutions.</p>  
+<p>👉 The correction is understanding the discriminant first: if it’s zero there is exactly one repeated root, if negative no real roots exist.</p>  
+<p>👉 This earns marks by demonstrating understanding of solution types and avoiding incorrect answers.</p>
+
+<p>👉 Students often confuse the roles of coefficients a and b, especially their relation to the shape of the graph.</p>  
+<p>👉 A better way to say it is: <em>a</em> controls how wide and which way the parabola opens, <em>b</em> affects the horizontal position of the vertex.</p>  
+<p>👉 This precision in language helps clarify reasoning for examiners.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early visual to link graph and equation.
+
+Type: Diagram
+
+What it should show:  
+- A parabola labeled y = ax² + bx + c.  
+- Points: Vertex, Roots (x-intercepts), y-intercept.  
+- Axis of symmetry shown as a dashed vertical line through vertex.  
+
+Key labels / features:  
+"Vertex", "Roots", "Axis of symmetry", "y-intercept, (0, c)"  
+
+Why it helps:  
+Shows the connection between the quadratic formula, roots, and the graph shape — essential for understanding solution meaning.
+
+Brand/style:  
+LET’S REVISE header, Edexcel GCSE style, white background, thick black lines, minimal colours, clear bold labels.  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Solving quadratic equations by factorising
+
+Step 1:  
+Write the quadratic equation equal to zero, e.g. x² - 5x + 6 = 0.
+
+↓
+
+Step 2:  
+Factorise the quadratic into two brackets: (x - 2)(x - 3) = 0.
+
+↓
+
+Step 3:  
+Set each bracket equal to zero: x - 2 = 0 and x - 3 = 0.
+
+↓
+
+Step 4:  
+Solve each linear equation for x: x = 2 or x = 3.
+
+Exam link:  
+This method works when the quadratic factorises easily and gives exact roots.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of the quadratic graph.
+
+Labels to use:  
+- Vertex  
+- Axis of symmetry  
+- Root  
+- y-intercept  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Vertex  
+- B → Axis of symmetry  
+- C → Root  
+- D → y-intercept  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Interpreting solutions of quadratic equations and their graphical meanings is a vital skill for exams and real-world applications like physics or engineering.</p>
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 When solving quadratics, always check the discriminant first to quickly determine the nature of your solutions; this can save time and avoid unnecessary calculations.</p>  
+<p>👉 For factorising, remember to write your answer as two roots clearly and test each root back in the original equation.</p>  
+<p>👉 When using the quadratic formula, write down the full formula before substituting values for accuracy marks.</p>
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The roots are where the graph crosses the x-axis.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The roots are the x-values where the quadratic graph meets the x-axis because that’s where y = 0.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The roots of the quadratic equation are the x-values at which the parabola crosses the x-axis, representing the solutions to ax² + bx + c = 0 since these points make y = 0.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It uses precise mathematical language like "parabola" and "solutions to the equation".</li>  
+<li>It links the graphical understanding to the algebraic equation clearly.</li>  
+<li>It explains the meaning of roots, not just names them.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Quadratics always produce a parabola graph where the roots correspond to x-intercepts and can be found by factorising, completing the square, or the quadratic formula; the discriminant tells you how many real roots exist.</p>  
+
+18 — QUICK CHECK  
+Paste into: Checkpoint block
+
+Question:  
+Which method would NOT always work to solve every quadratic equation?
+
+Option 1:  
+Factorising  
+
+Option 2:  
+Completing the square  
+
+Option 3:  
+Using the quadratic formula  
+
+Option 4:  
+Plotting a linear graph  
+
+Answer:  
+Factorising  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 Quadratic equations can be approached from multiple angles:</p>  
+<ul>  
+<li>Graphically identifying roots from where a parabola crosses the axis.</li>  
+<li>Algebraically solving by factorising when simple roots exist.</li>  
+<li>Completing the square to find the vertex form and perfect squares.</li>  
+<li>Using the quadratic formula for a general solution including complex or irrational roots.</li>  
+</ul>  
+<p>👉 The discriminant is a shortcut to know the number and type of roots, improving understanding and exam efficiency.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+If a quadratic has a discriminant of 0, how many real solutions does it have and what does the graph look like?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+It has exactly one real solution (a repeated root), and the parabola just touches the x-axis at the vertex (it is tangent to the axis).  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 To master quadratics, remember: the shape of the parabola is controlled by a; the vertex gives the max/min point; roots solve ax² + bx + c = 0 and depend on the discriminant value, guiding your solving method choice.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>
+
+<p><strong>Q1 (1 mark):</strong> Write down the degree of the quadratic expression 4x² - 7x + 2.</p>  
+<p><strong>Q2 (2 marks):</strong> Factorise  x² - 6x + 8 and find the roots.</p>  
+
+<p><strong>Q3 (3 marks):</strong> Complete the square to rewrite x² + 8x + 5 in vertex form and state the vertex.</p>  
+
+<p><strong>Q4 (4 marks):</strong> Use the quadratic formula to solve 2x² - 3x - 5 = 0. Show all steps clearly and state the nature of the roots.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1: The degree is 2 because the highest power of x is 2.
+
+Q2:  
+Factorising: x² - 6x + 8 = (x - 2)(x - 4)  
+Roots are x = 2 and x = 4.
+
+Q3:  
+Complete the square: x² + 8x + 5 = (x + 4)² - 16 + 5 = (x + 4)² - 11  
+Vertex: (-4, -11)
+
+Q4:  
+Quadratic formula: x = [-(-3) ± √((-3)² - 4×2×(-5)) ] / 2×2  
+= [3 ± √(9 + 40)] / 4  
+= [3 ± √49] / 4  
+= [3 ± 7] / 4  
+
+Roots:  
+x = (3 + 7)/4 = 10/4 = 2.5  
+x = (3 - 7)/4 = -4/4 = -1  
+
+Discriminant is 49 (> 0), so two distinct real roots.  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<p>👉 Quadratic expressions are polynomials of degree 2 written as ax² + bx + c.</p>  
+<p>👉 Their graphs are parabolas, shaped by the coefficient a and shifted by b and c.</p>  
+<p>👉 The solutions to quadratic equations are the x-values where the parabola crosses the x-axis (roots).</p>  
+<p>👉 Methods to solve include factorising, completing the square, and the quadratic formula.</p>  
+<p>👉 The discriminant (b² - 4ac) determines the number and type of roots.</p>  
+<p>👉 Remember to always interpret solutions in the problem context, especially for real-world applications.</p>  
+<p><strong>Remember:</strong> Always write full method steps and label your answers in exams to gain maximum marks!</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<p><strong>Quadratic</strong> – An expression where the highest power of the variable is 2.</p>  
+<p><strong>Parabola</strong> – The U-shaped graph of a quadratic function.</p>  
+<p><strong>Coefficient</strong> – A number multiplying the variable in an expression, e.g., a, b, c in ax² + bx + c.</p>  
+<p><strong>Roots</strong> – The x-values where a quadratic equation equals zero (the graph crosses the x-axis).</p>  
+<p><strong>Vertex</strong> – The maximum or minimum point on the parabola.</p>  
+<p><strong>Axis of symmetry</strong> – The vertical line through the vertex dividing the parabola into mirror images.</p>  
+<p><strong>Discriminant</strong> – The value b² - 4ac showing how many real roots exist.</p>  
+<p><strong>Factorise</strong> – Writing a quadratic as a product of two binomials.</p>  
+<p><strong>Complete the square</strong> – A method to rewrite a quadratic in the form (x + p)² + q.</p>  
+<p><strong>Quadratic formula</strong> – The formula x = (-b ± √(b² - 4ac)) / 2a used to find roots.</p>

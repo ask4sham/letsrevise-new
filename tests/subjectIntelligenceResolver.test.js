@@ -54,11 +54,15 @@ const SAMPLE_TOPICS = [
   { label: "Energy", subject: "physics", expectSubject: "physics" },
   { label: "Waves", subject: "physics", expectSubject: "physics", expectArchetype: "physics-wave" },
   { label: "Electricity", subject: "physics", expectSubject: "physics", expectArchetype: "physics-circuit" },
-  { label: "Algebra", subject: "maths", expectSubject: "maths" },
+  { label: "Algebra", subject: "maths", expectSubject: "maths", expectArchetype: "maths-algebra" },
   { label: "Graphs", subject: "maths", expectSubject: "maths", expectArchetype: "maths-graph" },
   { label: "Probability", subject: "maths", expectSubject: "maths", expectArchetype: "maths-probability" },
+  { label: "Simultaneous Equations", subject: "maths", expectSubject: "maths", expectArchetype: "maths-simultaneous" },
+  { label: "Quadratics", subject: "maths", expectSubject: "maths", expectArchetype: "maths-quadratics" },
+  { label: "Ratio", subject: "maths", expectSubject: "maths", expectArchetype: "maths-ratio" },
+  { label: "Trigonometry", subject: "maths", expectSubject: "maths", expectArchetype: "maths-trigonometry" },
   { label: "Causes of WW1", subject: "history", expectSubject: "history", expectArchetype: "history-cause" },
-  { label: "Treaty of Versailles", subject: "history", expectSubject: "history" },
+  { label: "Treaty of Versailles", subject: "history", expectSubject: "history", expectArchetype: "history-consequence" },
   { label: "Medicine Through Time", subject: "history", expectSubject: "history", expectArchetype: "history-change" },
   { label: "Rivers", subject: "geography", expectSubject: "geography", expectArchetype: "geography-physical-process" },
   { label: "Coasts", subject: "geography", expectSubject: "geography" },
@@ -253,5 +257,38 @@ describe("Phase 4.0 — Subject Intelligence Architecture", () => {
     expect(resolveSubjectKey({}, "Photosynthesis light chloroplast")).toBe("biology");
     expect(resolveSubjectKey({}, "Supply and Demand equilibrium price")).toBe("economics");
     expect(resolveArchetypeKey("physics", "Forces Newton motion", {})).toBe("physics-force-system");
+  });
+
+  test("Phase 4.2 — maths archetypes include methodology chain in appendix", () => {
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+    process.env.TEACHER_BRAIN_SUBJECT_INTELLIGENCE_V1 = "1";
+
+    const section = buildSubjectIntelligencePromptSection({
+      topic: "Simultaneous Equations",
+      subject: "maths",
+    });
+    expect(section).toMatch(/ARCHETYPE METHODOLOGY \(4\.2\)/);
+    expect(section).toMatch(/Examiner Method Marks/);
+    expect(section).toMatch(/Method → show every step of working/);
+  });
+
+  test("Phase 4.2 — history consequence and significance frameworks", () => {
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+    process.env.TEACHER_BRAIN_SUBJECT_INTELLIGENCE_V1 = "1";
+    process.env.TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE = "1";
+
+    const consequence = buildSubjectIntelligenceReasoningFallback({
+      topic: "Treaty of Versailles",
+      subject: "history",
+    });
+    expect(consequence).toMatch(/Short-term impact/);
+    expect(consequence).toMatch(/Long-term impact/);
+
+    const significance = buildSubjectIntelligenceReasoningFallback({
+      topic: "Significance of the Holocaust",
+      subject: "history",
+    });
+    expect(significance).toMatch(/Importance at the time/);
+    expect(significance).toMatch(/Overall significance/);
   });
 });

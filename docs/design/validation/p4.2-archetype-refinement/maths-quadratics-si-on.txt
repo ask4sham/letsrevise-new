@@ -1,0 +1,374 @@
+LESSON OBJECTIVE FIELD:  
+Understand quadratic expressions, solve quadratic equations using various methods, and interpret the graph features including roots and vertex for GCSE Higher Tier Maths (Edexcel).
+
+SHORT SUMMARY FIELD:  
+Learn to identify coefficients in quadratics, apply factorisation, completing the square, and quadratic formula methods accurately, interpret graphs, and avoid common errors for higher-tier exam success.
+
+<strong>Quadratics – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the definition of a quadratic expression and equation in GCSE language.</li>
+<li><strong>👉</strong> Identify coefficients a, b, and c in the standard form ax² + bx + c.</li>
+<li><strong>👉</strong> Choose and carry out methods to solve quadratic equations: factorisation, completing the square, quadratic formula.</li>
+<li><strong>👉</strong> Interpret the roots, vertex, and axis of symmetry from the quadratic graph.</li>
+<li><strong>👉</strong> Recognise and correct common mistakes, particularly sign errors in the quadratic formula.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>How to expand and simplify algebraic expressions, including brackets.</li>  
+<li>Basic solving of linear equations and rearranging formulae.</li>  
+<li>Plotting and interpreting simple graphs of linear functions.</li>  
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 A <strong>quadratic expression</strong> is a polynomial of degree 2, usually written as <em>ax² + bx + c</em> where a ≠ 0, and a <strong>quadratic equation</strong> sets this expression equal to zero, like <em>ax² + bx + c = 0</em>.</p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Quadratic equations model many real-world problems, from projectile motion in physics to profit maximisation in business, and mastering them is key to success in GCSE maths exams.</p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 To solve a quadratic equation <em>ax² + bx + c = 0</em>, first identify the coefficients a, b, and c, then choose a method: factorisation if possible, completing the square, or use the quadratic formula <em>x = (-b ± √(b² - 4ac)) / 2a</em>. Finally, interpret the roots (solutions) and the graph features like vertex and axis of symmetry.</p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Factorisation: Solve <em>x² - 5x + 6 = 0</em> by finding two numbers that multiply to 6 and add to -5.</li>  
+<li>Completing the square: Rewrite <em>x² + 6x + 5 = 0</em> as a perfect square trinomial and solve.</li>  
+<li>Quadratic formula: Use on <em>2x² - 4x - 3 = 0</em> where factorisation is hard.</li>  
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Quadratic</strong>, <strong>Coefficient</strong>, <strong>Factorise</strong>, <strong>Roots</strong>, <strong>Discriminant</strong>, <strong>Vertex</strong>, <strong>Axis of symmetry</strong>, <strong>Quadratic formula</strong>, <strong>Complete the square</strong>, <strong>Solve</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 A ball is thrown up and its height h (in metres) after t seconds is modelled by h = -5t² + 20t + 1. Find when the ball hits the ground by solving the corresponding quadratic equation.</p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Quadratics</strong></h2>  
+<p>👉 The key thing here is to break down every quadratic problem step-by-step, starting with recognising the standard form.</p>  
+
+<h3><strong>Key idea:</strong></h3>  
+<p>In GCSE, a quadratic equation always looks like <em>ax² + bx + c = 0</em>, with a ≠ 0.</p>
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>Identify the values of a, b, and c by looking carefully at the equation.</li>  
+<li>This decides the solving method: factorisation is fastest, but if not clear, use completing the square or the quadratic formula.</li>  
+</ul>
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Writing the quadratic in standard form → allows consistent solving approach.</li>  
+<li>Finding roots (solutions) → tells where the curve crosses the x-axis.</li>  
+<li>Interpreting the vertex → identifies max or min value, important in graphs.</li>  
+</ul>
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always show your method clearly with substitutions or factor pairs. Write down both roots neatly and interpret any graph questions precisely to get full marks.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which method should you try first when solving the quadratic equation \(x^2 - 7x + 10 = 0\)?  
+
+Option 1:  
+Use the quadratic formula straight away  
+
+Option 2:  
+Try factorising the expression  
+
+Option 3:  
+Complete the square immediately  
+
+Option 4:  
+Graph the equation first  
+
+Answer:  
+Try factorising the expression  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term with its description.
+
+Items to drag:  
+- a  
+- b  
+- c  
+- Discriminant  
+
+Drop zones:  
+- Coefficient of \(x^2\) → ______  
+- Coefficient of \(x\) → ______  
+- Constant term → ______  
+- \(b^2 - 4ac\) → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Coefficient of \(x^2\) → a  
+- Coefficient of \(x\) → b  
+- Constant term → c  
+- \(b^2 - 4ac\) → Discriminant  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is mixing up the signs for b in the quadratic formula.</p>  
+<p>For example, students often forget to change the sign in \(x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}\) and just write \(+b\), which leads to wrong answers.</p>  
+<p>👉 Always remember the negative sign before b is part of the formula itself – it’s not "change b’s sign", it’s "minus b". This earns method marks and avoids careless slip mistakes.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early to mid teaching (after common mistake)  
+Type: Diagram  
+
+What it should show:  
+A clear sketch of a quadratic graph \(y = ax^2 + bx + c\) with the following labelled features: roots (x-intercepts), vertex (turning point), axis of symmetry, and y-intercept. Include different cases where the graph touches the x-axis once, twice, or not at all.  
+
+Key labels / features:  
+Roots, Vertex, Axis of symmetry, y-intercept  
+
+Why it helps:  
+Visualising helps students link solutions of the equation (roots) to points where the graph crosses x-axis; vertex shows max/min value, crucial for interpretation questions.  
+
+Brand/style:  
+LET’S REVISE header, Exam-board ready, White background, Thick black outlines, Minimal colours, Large uppercase labels.  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Solving a quadratic using the quadratic formula  
+
+Step 1:  
+Identify coefficients a, b, and c from the equation \(ax^2 + bx + c = 0\)  
+
+↓  
+
+Step 2:  
+Calculate the discriminant \(D = b^2 - 4ac\)  
+
+↓  
+
+Step 3:  
+Substitute a, b, and D into the quadratic formula: \(x = \frac{-b \pm \sqrt{D}}{2a}\)  
+
+↓  
+
+Step 4:  
+Calculate the two roots using plus and minus values, then simplify  
+
+Exam link:  
+This method works for any quadratic and helps find exact solutions for exam questions.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of the quadratic graph below.  
+
+Labels to use:  
+- Roots  
+- Vertex  
+- Axis of symmetry  
+- y-intercept  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Roots  
+- B → Vertex  
+- C → Axis of symmetry  
+- D → y-intercept  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Knowing how to solve quadratic equations and interpret their graphs is essential for scoring high marks on the Higher tier. Your examiners look for clear methods, especially in showing all working using formulas and explaining your answers fully.</p>
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always write down the formula before substituting numbers, label your values as a, b, and c, and calculate the discriminant first. This shows working and can earn method marks even if the final answer is incorrect.</p>
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The quadratic formula gives the answers for the equation.</p>
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Use the quadratic formula by substituting a, b, and c into \(x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}\) to find x.</p>
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>First identify coefficients a, b, and c from the equation. Calculate the discriminant \(b^2-4ac\). Substitute these into the quadratic formula \(x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}\), compute both roots, and clearly state the exact solutions.</p>
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It shows clear method steps and formula use.</li>  
+<li>Includes calculation and interpretation of the discriminant.</li>  
+<li>States both roots explicitly for completeness.</li>  
+</ul>
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 The quadratic formula is your most reliable tool; always identify a, b, and c first and calculate the discriminant accurately to check the number and nature of roots before solving.</p>
+
+18 — QUICK CHECK  
+Paste into: Checkpoint block
+
+Question:  
+What does a negative discriminant (\(b^2 - 4ac < 0\)) tell you about the roots of a quadratic equation?  
+
+Option 1:  
+There are two distinct real roots  
+
+Option 2:  
+There is one repeated real root  
+
+Option 3:  
+There are no real roots (roots are complex)  
+
+Option 4:  
+The quadratic is factorable  
+
+Answer:  
+There are no real roots (roots are complex)  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 Remember to always start by rewriting the quadratic equation in standard form <em>ax² + bx + c = 0</em>. Next:</p>  
+<ul>  
+<li>Identify coefficients a, b, and c.</li>  
+<li>Decide if factorising is possible. If not, use quadratic formula or complete the square.</li>  
+<li>Calculate the discriminant to understand root nature.</li>  
+<li>Find roots, then interpret graph features: vertex and axis of symmetry give extra insight.</li>  
+</ul>  
+<p>👉 This approach gives a reliable pathway for all quadratic problems on the Higher tier.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Solve \(x^2 + 4x + 3 = 0\) by factorising. What are the roots?  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Factorise to \((x + 3)(x + 1) = 0\). Roots are \(x = -3\) and \(x = -1\).  
+
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 The quadratic formula will always solve any quadratic equation — just be careful with signs and calculate the discriminant first to understand your answer’s shape and roots.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam practice</strong></h2>  
+
+<p><strong>Q1 (1 mark):</strong> Write down the coefficient a in the quadratic equation \(3x^2 - 2x + 5 = 0\).</p>  
+
+<p><strong>Q2 (2 marks):</strong> Solve \(x^2 - 9 = 0\) by factorising.</p>  
+
+<p><strong>Q3 (3 marks):</strong> Use the quadratic formula to solve \(2x^2 + 3x - 2 = 0\). Show full working, including discriminant.</p>  
+
+<p><strong>Q4 (4 marks):</strong> The graph of \(y = x^2 + 6x + 11\) is a parabola. Find the vertex of the parabola by completing the square. Show all your working.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+<strong>Q1:</strong> a = 3.  
+
+<strong>Q2:</strong> Factorise: \(x^2 - 9 = (x - 3)(x + 3) = 0\). So roots are \(x = 3\), \(x = -3\).  
+
+<strong>Q3:</strong>  
+1. Identify a=2, b=3, c=-2.  
+2. Discriminant = \(3^2 - 4 \times 2 \times (-2) = 9 + 16 = 25\).  
+3. Apply formula: \(x = \frac{-3 \pm \sqrt{25}}{2 \times 2} = \frac{-3 \pm 5}{4}\).  
+4. Roots: \(x = \frac{-3 + 5}{4} = \frac{2}{4} = 0.5\) or \(x = \frac{-3 - 5}{4} = \frac{-8}{4} = -2\).  
+
+<strong>Q4:</strong>  
+1. Rewrite \(x^2 + 6x + 11\) completing the square:  
+\(x^2 + 6x + 9 + 2 = (x + 3)^2 + 2\).  
+2. Vertex is at \((-3, 2)\).  
+
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Quadratic equations are always in form \(ax^2 + bx + c = 0\), with a ≠ 0.</li>  
+<li>Identify a, b, c first before choosing solution method.</li>  
+<li>Try factorisation first, then complete the square or quadratic formula.</li>  
+<li>Calculate the discriminant \(b^2 - 4ac\) to know the nature and number of roots.</li>  
+<li>Graph features like roots, vertex, and axis of symmetry help interpret solutions.</li>  
+<li>Be careful with signs in the quadratic formula to avoid mistakes.</li>  
+</ul>  
+<p>👉 Remember: always show full working clearly—formula, substitution, discriminant, roots.</p>  
+<p>👉 In exams, don’t just give answers, explain method and check interpretation!</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Quadratic</strong> – An expression or equation where the highest power of x is 2 (ax² + bx + c).  
+<strong>Coefficient</strong> – The numerical factor multiplying a variable (e.g., a, b, c in a quadratic).  
+<strong>Factorise</strong> – To write an expression as a product of its factors.  
+<strong>Roots</strong> – The solutions to a quadratic equation where it equals zero.  
+<strong>Discriminant</strong> – The part under the square root in the quadratic formula, \(b^2 - 4ac\), indicating number of roots.  
+<strong>Vertex</strong> – The turning point of the parabola represented by the quadratic graph.  
+<strong>Axis of symmetry</strong> – The vertical line passing through the vertex dividing the parabola into mirror images.  
+<strong>Quadratic formula</strong> – \(x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}\), a formula to find roots.  
+<strong>Complete the square</strong> – A method rewriting quadratics as a perfect square plus constant.  
+<strong>Solve</strong> – To find all solutions or roots of the quadratic equation.

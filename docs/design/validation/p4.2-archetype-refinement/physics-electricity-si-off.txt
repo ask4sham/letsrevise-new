@@ -1,0 +1,342 @@
+LESSON OBJECTIVE FIELD:  
+Understand the key concepts of electricity, including current, potential difference, resistance, circuits, and apply these in calculations and explanations at a Higher Tier GCSE level.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the definition and scientific model of electric circuits, explains why electricity matters, explores current, voltage, and resistance relationships, and develops exam-ready skills with examples and common pitfalls.
+
+<strong>Electricity – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the meaning of electric current, potential difference, and resistance clearly.</li>  
+<li><strong>👉</strong> Explain why understanding electricity matters for everyday devices and exam questions.</li>  
+<li><strong>👉</strong> Use the core model of current, voltage, and resistance in calculations and explanations.</li>  
+<li><strong>👉</strong> Apply Ohm’s Law and circuit rules to typical examples, including series and parallel circuits.</li>  
+<li><strong>👉</strong> Recognise and correct common misconceptions about circuits and electrical measurements.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>You should already know:</p>  
+<ul>  
+<li>Electric charge moves in a circuit as current.</li>  
+<li>Basic components: battery (cell), wires, bulb (load), switch.</li>  
+<li>Simple series circuits and how to draw circuit symbols.</li>  
+<li>Units for current (amperes, A), voltage (volts, V), and resistance (ohms, Ω).</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Electric current is the flow of electric charge (usually electrons) through a conductor, measured in amperes (A).</strong></p>
+
+<p>👉 <strong>Potential difference (voltage) across a component is the energy transferred per unit charge, measured in volts (V).</strong></p>
+
+<p>👉 <strong>Resistance is a measure of how much a component opposes the flow of current, measured in ohms (Ω).</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Electricity powers almost all our devices—from lights to phones—and understanding current, voltage, and resistance helps us explain how these devices work and how to use electricity safely and efficiently.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Electric circuits consist of a power source pushing charge (current) through components that use energy; the potential difference (voltage) drives the current, and resistance reduces current flow following Ohm’s Law: V = IR.</strong></p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Series circuit: current constant, voltage divides among components.</li>  
+<li>Parallel circuit: voltage constant across branches, current divides.</li>  
+<li>Resistor obeying Ohm’s Law: voltage proportional to current.</li>  
+<li>Filament bulb: resistance increases with temperature, so doesn’t obey Ohm’s Law perfectly.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Current</strong>, <strong>Potential difference (Voltage)</strong>, <strong>Resistance</strong>, <strong>Ohm’s Law</strong>, <strong>Series circuit</strong>, <strong>Parallel circuit</strong>, <strong>Power supply</strong>, <strong>Resistor</strong>, <strong>Amps (A)</strong>, <strong>Volts (V)</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A student connects three identical bulbs in series to a 9 V battery. They measure the current and potential difference across each bulb to understand how the circuit works.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Electricity</strong></h2>  
+<p>👉 <strong>Let’s break down how electricity flows through a circuit and what the key quantities mean.</strong></p>
+
+<h3><strong>Key idea:</strong></h3>  
+<p>Electric current is the rate of flow of charge, moving because the battery provides energy to push electrons around the circuit.</p>
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>Charge moves through wires and components, carrying energy from the power supply.</li>  
+<li>Potential difference (voltage) is the energy given to each coulomb of charge to move through the circuit.</li>  
+<li>Resistance within components opposes the flow, reducing current depending on the material and temperature.</li>  
+</ul>
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Battery → provides energy → creates potential difference.</li>  
+<li>Potential difference → pushes charge → current flows.</li>  
+<li>Resistance → opposes current → reduces current size.</li>  
+<li>Current × Resistance = Voltage; changes in resistance change current for given voltage.</li>  
+</ul>
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Use the relationship V = IR to explain how changes in voltage or resistance affect current.</p>  
+<p>👉 When describing circuits, link current and voltage changes in series vs parallel clearly.</p>  
+<p>👉 Always mention cause → effect and use correct units (A, V, Ω).</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+In a series circuit with three identical resistors, what happens to the current as it passes through each resistor?
+
+Option 1: The current increases.  
+Option 2: The current decreases.  
+Option 3: The current stays the same.  
+Option 4: The voltage stays the same.
+
+Answer:  
+The current stays the same.  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term to its correct definition.
+
+Items to drag:  
+- Current  
+- Potential difference  
+- Resistance  
+- Ohm’s Law
+
+Drop zones:  
+- The flow of electric charge through a circuit → ______  
+- Energy transferred per unit charge → ______  
+- Opposition to current flow → ______  
+- The relationship V = IR → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- The flow of electric charge through a circuit → Current  
+- Energy transferred per unit charge → Potential difference  
+- Opposition to current flow → Resistance  
+- The relationship V = IR → Ohm’s Law  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is saying “voltage is used up” like energy disappears inside components.</p>  
+<p>👉 The better idea is that voltage is the energy given per coulomb of charge and energy changes form (e.g., electrical to light or heat), but total energy is conserved.</p>  
+<p>👉 This correction helps students explain energy transfer in circuits, which gains more marks.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early teaching, after core model.  
+Type: Diagram  
+
+What it should show:  
+A simple labeled circuit with a battery, resistor(s), ammeter, and voltmeter showing current direction and potential difference measurement points.
+
+Key labels / features:  
+Battery (cell), Ammeter (in series), Voltmeter (across resistor), resistor(s), wires, direction of current (arrows).
+
+Why it helps:  
+Visualizing where current is the same or divides, and how voltage is measured, helps link abstract terms to physical setups.
+
+Brand/style:  
+LET’S REVISE header, Exam-board ready, White background, Thick black outlines, Minimal colours, Large uppercase labels.
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Using a circuit to measure current and voltage
+
+Step 1: Connect the battery, resistor, ammeter (in series), and voltmeter (in parallel to resistor).  
+↓  
+Step 2: Close the circuit switch to allow current to flow.  
+↓  
+Step 3: Ammeter measures current flowing through the resistor.  
+↓  
+Step 4: Voltmeter measures potential difference across the resistor.  
+
+Exam link:  
+This setup is used to apply Ohm’s Law and calculate resistance from measurements.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the circuit components with the correct terms.
+
+Labels to use:  
+- Battery  
+- Ammeter  
+- Resistor  
+- Voltmeter  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A → Battery  
+- B → Ammeter  
+- C → Resistor  
+- D → Voltmeter  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding how current, voltage, and resistance work in circuits helps you predict how devices behave and solve exam problems with confidence.</p>
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In exam questions, don’t just state facts like “current decreases.” Always explain <em>why</em>, using cause → effect language with correct terms and units.</p>  
+<p>👉 For example: “The resistance increases, so the current decreases because current is inversely proportional to resistance at a constant voltage.”</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The current gets lower in the resistor.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The current gets lower because the resistor stops some current.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The current through the resistor is lower because the resistance opposes the flow of charge; according to Ohm’s law, current equals voltage divided by resistance, so increasing resistance reduces current for the same voltage.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It clearly uses cause → effect linking resistance to current.</li>  
+<li>Incorporates Ohm’s Law equation to add scientific precision.</li>  
+<li>Avoids vague wording like “stops some current.”</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 In any electric circuit, <strong>Voltage = Current × Resistance (V = IR)</strong>, so increasing resistance lowers current, and increasing voltage increases current, with energy flowing through charge carriers around the circuit.</p>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+What happens to the total resistance in a parallel circuit if another resistor is added?
+
+Option 1: The total resistance increases.  
+Option 2: The total resistance stays the same.  
+Option 3: The total resistance decreases.  
+Option 4: The total resistance doubles.
+
+Answer:  
+The total resistance decreases.  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 The relationship between current, voltage, and resistance is central to understanding how circuits behave whether components are arranged in series or parallel.</p>  
+<p>👉 In series, current remains constant and voltage divides; in parallel, voltage remains constant and current divides through each branch.</p>  
+<p>👉 Resistance totals differently in each arrangement, affecting overall current and circuit function.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Explain why the current is the same at every point in a series circuit.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+Because charge has only one path to travel, the same amount of charge flows past every point per second, so the current is constant throughout a series circuit.  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Remember that in series circuits, current is constant everywhere and voltage is shared, while in parallel circuits, voltage is the same across branches and current splits according to resistance.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p>👉 Practice exam questions to apply your knowledge and build exam technique.</p>
+
+<p>Q1 (1 mark): What unit is electric current measured in?</p>
+
+<p>Q2 (2 marks): A circuit has a 12 V battery and a resistor of 4 Ω. Calculate the current using Ohm’s Law.</p>
+
+<p>Q3 (3 marks): Explain how adding more resistors in series affects the total resistance and current in the circuit.</p>  
+
+<details>  
+<summary>Reveal Model Answer Q3</summary>  
+Adding resistors in series increases the total resistance because resistances add up. This higher resistance reduces the total current in the circuit according to Ohm’s Law (I = V / R).  
+</details>  
+
+<p>Q4 (4 marks): A lamp and a resistor are connected in parallel across a 6 V battery. Compare the current through the lamp and the resistor, and explain why they differ.</p>  
+
+<details>  
+<summary>Reveal Model Answer Q4</summary>  
+The voltage across the lamp and resistor is the same because they are in parallel. However, their currents differ because each component has a different resistance. According to Ohm’s Law (I = V / R), the component with lower resistance will have a higher current. Therefore, the current is larger in the component with less resistance.  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<p>👉 Key points to remember:</p>  
+<ul>  
+<li>Electric current is the flow of charge measured in amperes (A).</li>  
+<li>Potential difference (voltage) is the energy transferred per coulomb of charge (volts, V).</li>  
+<li>Resistance opposes current flow and is measured in ohms (Ω).</li>  
+<li>Ohm’s Law links these: V = IR.</li>  
+<li>Current is constant in series but divides in parallel; voltage divides in series but is constant in parallel.</li>  
+</ul>  
+<p>👉 Remember: Explain circuits using cause → effect chains and always use units!</p>  
+<p>👉 In exams, don’t just state patterns — explain <em>why</em> the current or voltage changes.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Current</strong> – The rate of flow of electric charge, measured in amperes (A).  
+<strong>Potential difference</strong> – Energy transferred per unit charge through a component, measured in volts (V).  
+<strong>Resistance</strong> – A component’s opposition to current flow, measured in ohms (Ω).  
+<strong>Ohm’s Law</strong> – The rule V = IR relating voltage, current, and resistance.  
+<strong>Series circuit</strong> – A circuit where components are connected end-to-end, current is the same.  
+<strong>Parallel circuit</strong> – A circuit where components are connected in separate branches, voltage is the same.  
+<strong>Ammeter</strong> – A device measuring current, connected in series.  
+<strong>Voltmeter</strong> – A device measuring voltage, connected in parallel across a component.  
+<strong>Voltage (V)</strong> – A synonym for potential difference, the driving force pushing current.  
+<strong>Resistor</strong> – A component that provides resistance in a circuit, controlling current flow.

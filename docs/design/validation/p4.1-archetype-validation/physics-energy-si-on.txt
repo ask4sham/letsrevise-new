@@ -1,0 +1,395 @@
+LESSON OBJECTIVE FIELD:  
+Understand how energy is stored, transferred, and conserved, and apply these ideas to calculate and explain energy efficiency and transfer in physical systems.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the definition of energy, how it is stored and transferred, why conservation of energy matters, how to calculate energy efficiency, and how these concepts apply in real-world contexts.
+
+<strong>Energy – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the clear GCSE Physics definition of <strong>energy</strong> and its stores.</li>  
+<li><strong>👉</strong> Explain <strong>why energy transfer and conservation</strong> matter in physical systems and everyday life.</li>  
+<li><strong>👉</strong> Describe the <strong>core energy transfer model</strong> linking stores, pathways, and outputs.</li>  
+<li><strong>👉</strong> Identify key examples of energy transfers and calculate <strong>efficiency</strong>.</li>  
+<li><strong>👉</strong> Use correct physics vocabulary and apply exam command words accurately.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>That energy can exist in different forms such as kinetic, gravitational potential, and thermal.</li>  
+<li>Basic forces like gravity and friction and their effects on motion.</li>  
+<li>That energy is measured in joules (J).</li>  
+<li>Some simple electrical components and circuits, including how energy can be transferred electrically.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Energy is the ability to do work or cause change, and it is stored in different energy stores such as kinetic energy, gravitational potential energy, chemical energy, and thermal energy.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Energy transfer explains how things move, heat up, or work, so understanding it helps us control technology, save fuel, and reduce environmental harm.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Energy is stored → transferred through pathways → turned into useful output energy and wasted energy; total energy is conserved.</strong></p>  
+<p>In more detail:</p>  
+<ol>  
+<li>Energy starts in a store (e.g., chemical energy in fuel).</li>  
+<li>It moves via a transfer pathway (e.g., electrical wires, mechanical forces, heating).</li>  
+<li>It ends partly as useful energy (e.g., kinetic energy moving a machine) and partly as wasted energy (usually thermal energy lost to the surroundings).</li>  
+<li>The total energy before and after transfer stays the same (law of conservation of energy).</li>  
+</ol>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>A moving car converting chemical energy in fuel into kinetic energy and thermal energy (waste).</li>  
+<li>A battery transferring chemical energy to electrical energy to power a torch bulb.</li>  
+<li>Heating water using an electric kettle, where electrical energy transfers into thermal energy.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Energy store</strong>, <strong>energy transfer</strong>, <strong>useful energy</strong>, <strong>wasted energy</strong>, <strong>conservation of energy</strong>, <strong>efficiency</strong>, <strong>joule (J)</strong>, <strong>power</strong>, <strong>mechanical transfer</strong>, <strong>thermal energy</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>Consider a roller coaster: the train starts at the top with stored gravitational potential energy. As it moves down, that energy transfers into kinetic energy, powering the motion. Some energy is lost as heat and sound due to friction, illustrating useful and wasted energy transfers from the core model.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Energy</strong></h2>  
+<p>👉 Let’s break down how energy works in systems using clear physics.</p>  
+
+<h3><strong>Key idea:</strong></h3>  
+<p>Energy is never used up; it just moves from one store to another or transfers to different forms.</p>  
+
+<h3><strong>What happens physically:</strong></h3>  
+<ul>  
+<li>Energy stored in objects can be in many forms—like chemical energy inside fuels or batteries, gravitational energy when an object is high up, or kinetic energy when it’s moving.</li>  
+<li>This stored energy moves through paths—such as electrical currents in wires, mechanical force through moving parts, or heating through conduction/convection.</li>  
+<li>During transfer, not all energy does useful work; some is wasted as thermal energy due to friction or resistance.</li>  
+</ul>  
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Chemical store in fuel → burned → transfers energy → kinetic energy moves car → friction causes thermal energy waste → total energy conserved.</li>  
+<li>Energy input (work done) by person pushing a box → mechanical energy transfer → box moves (kinetic energy) → some thermal energy lost in friction with floor.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always explain what the energy starts as (store), how it moves (transfer pathway), and what the useful vs wasted outputs are, using clear terms like “transfers” and “conserved” to earn full marks.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which of the following best describes what happens when energy is transferred in a system?
+
+Option 1:  
+Energy is created in the useful form only.
+
+Option 2:  
+Energy is transferred but some is lost as wasted energy, usually thermal.
+
+Option 3:  
+Energy disappears after use.
+
+Option 4:  
+Energy stored increases without any transfer.
+
+Answer:  
+Energy is transferred but some is lost as wasted energy, usually thermal.
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term to its correct description.
+
+Items to drag:  
+- Kinetic energy  
+- Chemical energy  
+- Thermal energy  
+- Gravitational potential energy  
+
+Drop zones:  
+- Energy due to motion → ______  
+- Energy stored in fuels and food → ______  
+- Energy transferred by heating → ______  
+- Energy stored in objects raised above ground → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Energy due to motion → Kinetic energy  
+- Energy stored in fuels and food → Chemical energy  
+- Energy transferred by heating → Thermal energy  
+- Energy stored in objects raised above ground → Gravitational potential energy  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is to say energy is "used up" or "lost" without explanation.</p>  
+<p>👉 Energy is never destroyed; it is conserved but transferred into less useful forms, mainly thermal energy due to friction or resistance.</p>  
+<p>👉 Explaining that energy is “wasted” rather than “used up” shows deeper understanding and is rewarded in exams.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement:  
+Early explanation of energy transfer  
+
+Type:  
+Diagram  
+
+What it should show:  
+A Sankey diagram illustrating input energy, useful output energy, and wasted energy for a simple system (e.g., electric motor turning a fan).  
+
+Key labels / features:  
+- Input energy (chemical or electrical store)  
+- Useful energy output (kinetic energy of the fan blades)  
+- Wasted energy (thermal energy due to friction and electrical resistance)  
+
+Why it helps:  
+Visualising how input energy divides helps students see the conservation and efficiency concept clearly.  
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours (green for useful, red for wasted)  
+- Large uppercase labels  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Energy transfer in a light bulb  
+
+Step 1:  
+Chemical energy stored in the battery.
+
+↓
+
+Step 2:  
+Electrical energy transferred through the wires.
+
+↓
+
+Step 3:  
+Electrical energy converted to light energy (useful output).
+
+↓
+
+Step 4:  
+Some electrical energy wasted as thermal energy (heating the filament).
+
+Exam link:  
+Understanding this stepwise energy flow supports exam answers explaining energy transfer and efficiency clearly.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the diagram using the correct terms.
+
+Labels to use:  
+- Input energy store  
+- Transfer pathway  
+- Useful energy output  
+- Wasted energy output  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Input energy store  
+- B → Transfer pathway  
+- C → Useful energy output  
+- D → Wasted energy output  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Energy transfer and conservation principles explain how all machines, engines, and natural processes work — this is fundamental to engineering, environmental science, and everyday life.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In exams, don’t just list energy forms or say energy is 'lost'; always explain how energy transfers from one store to another, specifying which transfers are useful and which produce wasted energy, and mention total energy remains constant.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Energy is used up in a machine, so it stops working.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Energy is transferred to useful work, but some energy is wasted as heat because of friction.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Energy is transferred from chemical stores to kinetic energy to move the machine, but some energy is wasted as thermal energy due to friction; the total energy is conserved.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It explains the direction of energy transfer and specifies the stores involved.</li>  
+<li>It identifies the cause of wasted energy (friction) and the form wasted energy takes (thermal).</li>  
+<li>It uses correct scientific terms and confirms energy conservation, which examiners reward.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+A kettle transfers 2000 J of electrical energy to heat water, but 400 J is lost as thermal energy to the surroundings. Calculate the efficiency of the kettle.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Step 1: Calculate useful energy output:  
+Useful energy = Total input energy - Wasted energy = 2000 J - 400 J = 1600 J  
+
+Step 2: Write efficiency formula:  
+Efficiency = (Useful energy output / Total energy input) × 100%  
+
+Step 3: Substitute values:  
+Efficiency = (1600 J / 2000 J) × 100% = 0.8 × 100% = 80%  
+
+Step 4: Final answer:  
+The kettle is 80% efficient.  
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+If a motor is 90% efficient, what does this mean?
+
+Option 1:  
+90% of the input energy is wasted.
+
+Option 2:  
+Energy is created during transfer.
+
+Option 3:  
+90% of the input energy is transferred to useful work.
+
+Option 4:  
+The motor stops after 90 seconds.
+
+Answer:  
+90% of the input energy is transferred to useful work.
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis: Energy organisation</strong></h2>  
+<p>👉 Understanding energy stores, transfer pathways, and the balance between useful and wasted outputs helps explain how physical systems work efficiently and how energy conservation is a key physics principle.</p>  
+<p>👉 This understanding supports calculating efficiency and analyzing energy use in real-world technology.</p>  
+<p>👉 It leads to better design choices that save energy and reduce environmental impact.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Describe the energy transfer steps when a cyclist pedals uphill and then coast downhill.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+When pedaling uphill, chemical energy in muscles is transferred to kinetic energy of the bike and gravitational potential energy as the cyclist gains height. Some energy is wasted as thermal energy due to friction and air resistance. When coasting downhill, gravitational potential energy transfers into kinetic energy, and again some energy is wasted as heat due to friction and air resistance. Total energy remains conserved.  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>Energy is always conserved: it moves from stores through transfer pathways into useful and wasted forms, never used up; understanding this lets you explain, calculate, and improve how systems use energy efficiently.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam practice</strong></h2>  
+
+<p><strong>Q1 (1 mark):</strong> State the unit of energy.</p>  
+
+<p><strong>Q2 (2 marks):</strong> Explain why energy efficiency is always less than 100% in real machines.</p>  
+
+<p><strong>Q3 (3 marks):</strong> Describe the energy transfers in a lamp turning on, including useful and wasted energy.</p>  
+
+<p><strong>Q4 (4 marks):</strong> Evaluate the energy efficiency of two cars – Car A has 20% efficiency and Car B has 40% efficiency – considering environmental impact and running costs.</p>  
+
+<details>  
+<summary>Reveal model answers</summary>  
+
+Q1: The unit of energy is the joule (J).  
+
+Q2: Efficiency is always less than 100% because some energy is wasted as thermal energy due to friction and resistance, so not all the input energy transfers to useful work.  
+
+Q3: Chemical energy in the battery transfers electrical energy through the wires; electrical energy transfers to light energy (useful) and thermal energy (wasted as heat in the filament); total energy is conserved.  
+
+Q4: Car B is more efficient because it converts more fuel energy to useful motion, resulting in less fuel needed for the same distance, reducing CO2 emissions and fuel costs. However, Car B may be more expensive or complex, and Car A might be cheaper upfront. Overall, Car B is generally better for the environment and cost but other factors like purchase price can affect choice.  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Energy is the ability to do work and is stored in different forms like kinetic and chemical energy.</li>  
+<li>Energy transfers happen through pathways such as mechanical movement, electrical circuits, or heating.</li>  
+<li>According to conservation of energy, total energy remains constant in a closed system.</li>  
+<li>Energy efficiency is the ratio of useful output to total input energy, always less than 100% due to wasted energy.</li>  
+<li>Wasted energy usually takes the form of thermal energy caused by friction or resistance.</li>  
+<li>Explaining energy in terms of stores, transfer, and outputs is critical for exam success.</li>  
+</ul>  
+<p>👉 Remember: energy is never lost, only transferred and conserved.</p>  
+<p>👉 In exams, always explain cause → effect for energy transfers and specify both useful and wasted energy forms.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Energy</strong> – The ability to do work or cause change, measured in joules (J).  
+<strong>Energy store</strong> – Where energy is kept in an object or system (e.g., chemical, kinetic).  
+<strong>Energy transfer</strong> – The movement of energy from one store or object to another.  
+<strong>Useful energy</strong> – Energy transferred in a form that does the intended work.  
+<strong>Wasted energy</strong> – Energy transferred that does not do useful work, often lost as heat.  
+<strong>Conservation of energy</strong> – The principle that energy cannot be created or destroyed, only transferred.  
+<strong>Efficiency</strong> – A measure of how much input energy is usefully transferred (usually expressed as a percentage).  
+<strong>Joule (J)</strong> – The unit of energy.  
+<strong>Mechanical transfer</strong> – Energy transferred by a force moving an object.  
+<strong>Thermal energy</strong> – Energy associated with the temperature of an object, often wasted due to friction or resistance.

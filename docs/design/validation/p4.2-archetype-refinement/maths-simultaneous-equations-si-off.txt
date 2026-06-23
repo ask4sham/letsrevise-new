@@ -1,0 +1,350 @@
+LESSON OBJECTIVE FIELD:  
+Use algebraic methods to solve simultaneous equations accurately and understand their application in exam-type questions.
+
+SHORT SUMMARY FIELD:  
+This lesson explains what simultaneous equations are, why they matter for solving multiple unknowns, how to solve them using substitution and elimination, and how to apply exam technique for full marks.
+
+<strong>Simultaneous Equations – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Define what simultaneous equations are and identify them in exam questions.</li>
+<li><strong>👉</strong> Understand why simultaneous equations are useful for finding values of two unknown variables together.</li>
+<li><strong>👉</strong> Learn the core methods of solving simultaneous equations: substitution and elimination.</li>
+<li><strong>👉</strong> Apply these methods to exam-style problems with accuracy.</li>
+<li><strong>👉</strong> Recognise common errors and use exam vocabulary properly to improve answers.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before starting this lesson, you should already know:</p>  
+<ul>  
+<li>How to rearrange linear equations (e.g., make y the subject).</li>  
+<li>Basic algebraic manipulation, including expanding and simplifying expressions.</li>  
+<li>How to multiply both sides of an equation by the same number without changing the solution.</li>  
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Simultaneous equations are two or more equations with two or more unknown variables that are solved together because they share the same solution values.</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>This matters because solving simultaneous equations lets us find exact values for unknowns that depend on each other, which common to many real-world problems and is frequently tested in GCSE exams.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>When solving simultaneous equations, we use algebra methods to combine the equations — either by substitution or elimination — to find values that satisfy all equations at once.</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>
+<li>Solving two linear equations like: 2x + y = 7 and x - y = 1</li>
+<li>Solving a system where one equation is rearranged and substituted into the other.</li>
+<li>Eliminating one variable by making the coefficients the same and subtracting or adding equations.</li>
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Simultaneous equations</strong>, <strong>substitution</strong>, <strong>elimination</strong>, <strong>linear equation</strong>, <strong>unknown variable</strong>, <strong>solution</strong>, <strong>rearrange</strong>, <strong>coefficient</strong>, <strong>consistent</strong>, <strong>solution pair</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A shop sells pens and notebooks. Two pens and one notebook cost £7. One pen and one notebook cost £4. What is the price of each?</strong></p>  
+<p>This situation can be solved using simultaneous equations because there are two unknowns—pen price and notebook price—and two equations from the total costs.</p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Simultaneous Equations</strong></h2>  
+
+<p><strong>📘 The key idea is:</strong></p>  
+<p>We have two equations with two unknowns, and solving simultaneously finds values of both variables that work in both equations.</p>  
+
+<p><strong>Method → reason:</strong></p>  
+<ul>  
+<li><strong>Substitution:</strong> Express one variable in terms of the other from one equation, then substitute into the other equation. This reduces two variables to one, making it easier to solve.</li>  
+<li><strong>Elimination:</strong> Multiply one or both equations to get the same coefficient for one variable, then add or subtract the equations to eliminate that variable and solve for the other.</li>  
+</ul>  
+
+<p><strong>Step → result:</strong></p>  
+<ul>  
+<li>Get one equation with one variable → solve it → substitute back → find second variable.</li>  
+</ul>  
+
+<p><strong>Think like an examiner:</strong></p>  
+<p>👉 In the exam, show every substitution and rearrangement clearly. Label variables and keep your working tidy. Write your solution as a pair (x = value, y = value) to earn full marks.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which method is best if one equation is already rearranged as y = 2x + 3?
+
+Option 1: Elimination by adding the two equations directly  
+Option 2: Substitution of y into the other equation  
+Option 3: Random guessing of x and y values  
+Option 4: Multiplying both equations by a number and subtracting  
+
+Answer:  
+Substitution of y into the other equation
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each algebraic step to the correct description.
+
+Items to drag:  
+- Rearranging one equation for a variable  
+- Substituting the expression into the other equation  
+- Multiplying equations to align coefficients  
+- Adding or subtracting to eliminate a variable  
+
+Drop zones:  
+- Step that creates an expression for one variable → ______  
+- Step that replaces a variable in an equation → ______  
+- Step that prepares equations for elimination → ______  
+- Step that removes one variable to solve for the other → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Step that creates an expression for one variable → Rearranging one equation for a variable  
+- Step that replaces a variable in an equation → Substituting the expression into the other equation  
+- Step that prepares equations for elimination → Multiplying equations to align coefficients  
+- Step that removes one variable to solve for the other → Adding or subtracting to eliminate a variable  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is not multiplying the whole equation evenly during elimination, resulting in incorrect coefficients and no variable eliminated.</p>  
+<p>Students sometimes multiply only one term, forgetting to distribute across the entire equation.</p>  
+<p>👉 Always check both sides of the equation are multiplied by the same number to keep equations equivalent, so elimination works properly and you don't lose marks in the exam.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early teaching support  
+Type: Diagram  
+
+What it should show: Two linear equations graphed on a coordinate plane, intersecting at a single point which is the solution.  
+
+Key labels / features:  
+- Equation 1 line labeled  
+- Equation 2 line labeled  
+- Intersection point showing values of x and y  
+
+Why it helps:  
+Visualises that simultaneous equations’ solution is the point both lines share, making algebra methods more meaningful.  
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours  
+- Large uppercase labels  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process: Solving simultaneous equations by elimination
+
+Step 1: Multiply one or both equations to make coefficients of one variable equal.  
+↓  
+Step 2: Add or subtract the equations to eliminate that variable.  
+↓  
+Step 3: Solve the resulting single-variable equation.  
+↓  
+Step 4: Substitute this value back into one original equation to find the other variable.  
+
+Exam link:  
+This process earns marks for clear method and solution accuracy in GCSE questions.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the steps on this elimination example.
+
+Labels to use:  
+- Multiply both sides  
+- Add equations  
+- Solve variable  
+- Substitute back  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Multiply both sides  
+- B → Add equations  
+- C → Solve variable  
+- D → Substitute back  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding simultaneous equations is crucial because it equips you to solve real-life problems with multiple unknowns and shows your algebra skills. Many GCSE questions rely on this, so mastering the topic can secure easy marks.</p>
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In exams, write down each step clearly: when you substitute, mention it; when you eliminate, say which variable you’re removing. Keep your solution pairs consistent and box your final answer. Presentation counts alongside correctness.</p>
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Solving simultaneous equations means finding x and y from two equations.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Simultaneous equations are solved by substituting one variable using one equation into the other to find values of x and y.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Simultaneous equations are two equations with two variables solved together by substitution or elimination to find the unique (x, y) values that satisfy both equations, showing detailed steps clearly for exam credit.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It uses precise terminology like substitution and elimination.</li>  
+<li>It explains cause → process → effect clearly.</li>  
+<li>It shows awareness of exam expectations for method and communication.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 To solve simultaneous equations, either substitute one variable’s expression from one equation into the other or eliminate a variable by matching coefficients and adding/subtracting. Always check each step keeps equations true and leads to a unique solution pair.</p>
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+What is the first step to solve by elimination?  
+
+Option 1: Add the two equations immediately  
+Option 2: Subtract one equation from the other directly  
+Option 3: Multiply one or both equations so a variable has the same coefficient  
+Option 4: Guess values of x and y  
+
+Answer:  
+Multiply one or both equations so a variable has the same coefficient  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Simultaneous equations combine two linked equations that need to be solved together. Substitution reduces two variables to one, and elimination removes one variable entirely by clever operations. Both methods ultimately find the pair (x, y) that works for both, which is the key idea you must master for GCSE success.</p>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Solve the simultaneous equations: 3x + 2y = 12 and x - y = 1. Give your answer as (x, y).
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+From x - y = 1, rearrange: x = y + 1  
+Substitute into 3x + 2y = 12: 3(y + 1) + 2y = 12 → 3y + 3 + 2y = 12 → 5y + 3 = 12  
+5y = 9 → y = 9/5 = 1.8  
+x = 1.8 + 1 = 2.8  
+Answer: (2.8, 1.8)  
+
+</details>
+
+21 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>  
+
+<p><strong>Q1 (1 mark):</strong> What is the definition of simultaneous equations?</p>  
+
+<p><strong>Q2 (2 marks):</strong> Solve the system: x + y = 5 and x - y = 1.</p>  
+
+<p><strong>Q3 (3 marks):</strong> Explain how substitution works to solve simultaneous equations and solve: 2x + y = 8 and y = x + 1.</p>  
+
+<p><strong>Q4 (4 marks):</strong> Solve by elimination: 3x + 4y = 20 and 5x - 4y = 8. Show all steps clearly and state your final solution as a pair.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1: Two or more equations with two or more unknowns solved together to find common values.  
+
+Q2:  
+Add: (x + y) + (x - y) = 5 + 1 → 2x = 6 → x = 3  
+Substitute: 3 + y = 5 → y = 2  
+Answer: (3, 2)  
+
+Q3:  
+Substitution means rearranging one equation to express a variable, then replacing that variable in the other equation so only one variable remains and can be solved.  
+Solve: y = x + 1 → substitute y into 2x + y = 8  
+2x + (x + 1) = 8 → 3x + 1 = 8 → 3x = 7 → x = 7/3  
+Find y: y = 7/3 + 1 = 10/3  
+Answer: (7/3, 10/3)  
+
+Q4:  
+Add equations to eliminate y:  
+3x + 4y = 20  
+5x - 4y = 8  
+Adding gives: 8x = 28 → x = 3.5  
+Substitute into first: 3(3.5) + 4y = 20 → 10.5 + 4y = 20 → 4y = 9.5 → y = 2.375  
+Answer: (3.5, 2.375)  
+
+</details>  
+
+22 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+
+<ul>  
+<li>Simultaneous equations are sets of two or more equations with shared unknown variables.</li>  
+<li>You can solve them by substitution or elimination methods.</li>  
+<li>Substitution involves rearranging one equation and replacing variables into the other.</li>  
+<li>Elimination aligns coefficients to remove one variable by adding or subtracting equations.</li>  
+<li>Clear working and correct labelling of variables improve exam answers and help avoid errors.</li>  
+<li>Always check solutions by substituting values back into original equations.</li>  
+</ul>  
+<p>👉 Remember: Show every step clearly for full exam marks.</p>  
+
+23 — KEY WORDS  
+Paste into: Key words
+
+<p><strong>Simultaneous equations</strong> – two or more equations solved together with shared unknowns.</p>  
+<p><strong>Substitution</strong> – replacing one variable with an expression from another equation.</p>  
+<p><strong>Elimination</strong> – adding or subtracting equations to remove one variable.</p>  
+<p><strong>Linear equation</strong> – an equation where variables have power 1 only.</p>  
+<p><strong>Unknown variable</strong> – a letter representing a value we need to find.</p>  
+<p><strong>Rearrange</strong> – change the equation to make one variable the subject.</p>  
+<p><strong>Coefficient</strong> – the number multiplying a variable.</p>  
+<p><strong>Solution</strong> – values of variables that satisfy all equations.</p>  
+<p><strong>Consistent</strong> – system of equations that has at least one solution.</p>  
+<p><strong>Solution pair</strong> – the ordered pair (x, y) that solves the equations.</p>

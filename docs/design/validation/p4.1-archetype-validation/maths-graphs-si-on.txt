@@ -1,0 +1,394 @@
+LESSON OBJECTIVE FIELD:  
+Understand how to read, interpret, and analyse graphs in GCSE Maths including gradients, intercepts, and turning points for Higher Tier topics.
+
+SHORT SUMMARY FIELD:  
+This lesson teaches the key concepts of graph plotting, feature identification, and interpretation with exam tips and practice to secure top marks on graph questions.
+
+<strong>Graphs – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Understand the definition of graphs and key components like axes, scale, and plotted points.</li>
+<li><strong>👉</strong> Recognise why graphs are important to represent relationships between variables visually.</li>
+<li><strong>👉</strong> Apply the core model: axes and scales → plotting points → identifying key features (gradient, intercepts, turning points).</li>
+<li><strong>👉</strong> Interpret graphs using context and exam command words such as calculate, solve, and interpret.</li>
+<li><strong>👉</strong> Develop skills for Higher Tier understanding, including gradient and turning points.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>How to plot points on a coordinate grid using (x, y) pairs.</li>  
+<li>That the x-axis is horizontal and the y-axis is vertical.</li>  
+<li>Basic understanding of linear equations like y = mx + c.</li>  
+<li>How to read simple graphs to find values.</li>  
+<li>Simple gradient calculation as “rise over run.”</li>  
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>A graph is a visual representation of data or functions that shows the relationship between two variables plotted on perpendicular axes.</strong></p>  
+<p>👉 The horizontal axis is called the <strong>x-axis</strong>, and the vertical axis is the <strong>y-axis</strong>.</p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Graphs give a clear picture of how variables relate, making it easier to identify trends, solve problems, and communicate results in exams and real-life maths.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>To analyse graphs, follow this sequence:</strong></p>  
+<ol>  
+<li>Set up <strong>axes with correct scale</strong>.</li>  
+<li><strong>Plot points or sketch</strong> the curve from data or equations.</li>  
+<li>Identify <strong>key features:</strong></li>  
+    <ul>  
+    <li><strong>Gradient (slope)</strong> shows rate of change.</li>  
+    <li><strong>Intercepts</strong> show where the graph crosses axes.</li>  
+    <li><strong>Turning points</strong> (max/min) indicate changes in direction on curves.</li>  
+    </ul>  
+<li><strong>Interpret the graph:</strong> explain what these features mean in context.</li>  
+</ol>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Linear graph example: y = 2x + 3. Gradient is 2, y-intercept is 3.</li>  
+<li>Quadratic graph: y = x² - 4x + 3, with turning points where the curve changes direction.</li>  
+<li>Real-life example: Distance-time graph showing how speed changes over time.</li>  
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Axis</strong>, <strong>Gradient</strong>, <strong>Intercept</strong>, <strong>Turning point</strong>, <strong>Plot</strong>, <strong>Scale</strong>, <strong>Coordinate</strong>, <strong>Curve</strong>, <strong>Linear</strong>, <strong>Quadratic</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A student plots the graph of y = 3x - 2 correctly, then finds where it crosses the axes and calculates the gradient. Let’s explore how this helps understand the relationship between x and y.</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Graphs</strong></h2>  
+<p>👉 The key idea is understanding how to read and interpret graphs clearly.</p>  
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>The axes must be set with the right scale so plotting is accurate.</li>  
+<li>The gradient shows how steep the line or curve is – it tells us the rate of change of y with respect to x.</li>  
+</ul>  
+
+<h3><strong>Structure → function:</strong></h3>  
+<ul>  
+<li><strong>Axis labels and scale</strong> provide the framework for plotting.</li>  
+<li><strong>Plot points</strong> mark exact values for coordinates, showing the relationship.</li>  
+<li><strong>Line or curve</strong> shape reveals mathematical form (linear, quadratic, etc.).</li>  
+<li><strong>Intercepts</strong> tell where the graph crosses an axis (when y=0 or x=0).</li>  
+<li><strong>Turning points</strong> are where the graph changes direction — important for quadratics or cubics.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 When describing graphs in exams, always refer to:</p>  
+<ul>
+<li><strong>What</strong> the feature is (e.g., gradient, intercept).</li>
+<li><strong>How</strong> it is calculated or found.</li>
+<li><strong>What it means</strong> in the question’s context.</li>
+</ul>  
+<p>For Higher Tier, make sure to explain gradients and turning points accurately.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What does the gradient of a straight line graph represent?
+
+Option 1:  
+The y-intercept of the graph.
+
+Option 2:  
+The rate of change of y with respect to x.
+
+Option 3:  
+The point where the graph crosses the x-axis.
+
+Option 4:  
+The total area under the graph.
+
+Answer:  
+The rate of change of y with respect to x.
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each graph term to its correct description.
+
+Items to drag:  
+- Gradient  
+- X-axis  
+- Turning point  
+- Y-intercept  
+
+Drop zones:  
+- The horizontal axis of a graph → ______  
+- The steepness or slope of the graph → ______  
+- A point where the graph changes direction → ______  
+- The point where the graph crosses the vertical axis → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- The horizontal axis of a graph → X-axis  
+- The steepness or slope of the graph → Gradient  
+- A point where the graph changes direction → Turning point  
+- The point where the graph crosses the vertical axis → Y-intercept  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is confusing the gradient as just the "rise" up, ignoring the "run" across.</p>  
+<p>👉 Correction: The gradient = rise ÷ run, which means both vertical and horizontal changes matter.</p>  
+<p>👉 This correction earns marks because examiners expect the full gradient calculation, showing understanding of rate of change.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: After block 9  
+Type: Diagram (concept)  
+What it should show:  
+- A labelled coordinate grid with x- and y-axes, clearly marked scale  
+- Points plotted for a straight line y = 2x + 1  
+- Labels for gradient calculation steps (rise and run)  
+Key labels / features:  
+- X-axis and Y-axis clearly marked  
+- Two plotted points connected by a straight line  
+- Arrows indicating rise (vertical difference) and run (horizontal difference)  
+Why it helps:  
+Visualising gradient helps solidify the formula rise/run and shows plotting accuracy in context  
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours  
+- Large uppercase labels  
+- No questions or text apart from labels  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Calculating Gradient from a Graph
+
+Step 1:  
+Identify two clear points on the straight line with coordinates (x₁, y₁) and (x₂, y₂).
+
+↓
+
+Step 2:  
+Calculate the vertical change (rise) = y₂ - y₁.
+
+↓
+
+Step 3:  
+Calculate the horizontal change (run) = x₂ - x₁.
+
+↓
+
+Step 4:  
+Divide rise by run to get gradient = (y₂ - y₁) ÷ (x₂ - x₁).
+
+Exam link:  
+Showing this step-by-step method in exams demonstrates understanding of gradient calculation and gains method marks.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of this quadratic graph.
+
+Labels to use:  
+- Vertex (turning point)  
+- Y-axis  
+- X-axis  
+- Roots (x-intercepts)  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Vertex (turning point)  
+- B → Y-axis  
+- C → X-axis  
+- D → Roots (x-intercepts)  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding graphs deeply unlocks many exam questions because you interpret data, find unknown values, and prove relationships visually.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always label your graphs fully and show every step of calculations clearly in exams. Use correct units and check accuracy against the scales.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The graph is a line with a gradient. It shows how y changes.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The graph is a straight line with gradient 3, which means y increases by 3 for every increase of 1 in x.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The graph of y = 3x + 2 is a straight line with gradient 3, meaning for every 1 unit increase in x, y increases by 3 units. The y-intercept is 2, showing that when x = 0, y = 2.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It links the gradient to the precise rate of change.</li>  
+<li>It explicitly mentions the y-intercept and its meaning.</li>  
+<li>It uses exact values with proper terminology.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 To master graphs, always follow the chain: set accurate axes → plot points → identify key features like gradient and intercepts → interpret meaning clearly. This clear process helps you unlock the story the graph is telling.</p>
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+What is the turning point on a quadratic graph?
+
+Option 1:  
+The point where the graph crosses the y-axis.
+
+Option 2:  
+The highest or lowest point on the curve.
+
+Option 3:  
+The point where x = 0.
+
+Option 4:  
+The gradient of the graph.
+
+Answer:  
+The highest or lowest point on the curve.
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Graphs are powerful tools because they combine mathematical plotting and visual interpretation.</p>  
+<p>👉 By mastering axes, scale, plotting, and features like gradients and intercepts, you can interpret complex situations quickly and accurately.</p>  
+<p>👉 Use the core model as your checklist in every graph question: set scale → plot → find features → interpret meaning.</p>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+A straight line passes through points (1,4) and (3,10). What is the gradient of the line?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Gradient = (10 - 4) ÷ (3 - 1) = 6 ÷ 2 = 3.  
+
+</details>
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 The gradient shows how quickly y changes as x changes: calculate it by rise/run using two points. Turning points tell us where the graph’s direction changes. Always link these features back to the question context for full marks.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>  
+
+<p><strong>Q1 (1 mark):</strong>  
+What is the name of the horizontal axis on a graph?</p>  
+
+<p><strong>Q2 (2 marks):</strong>  
+Calculate the gradient of a line passing through points (2,5) and (5,17).</p>  
+
+<p><strong>Q3 (3 marks):</strong>  
+A quadratic graph has turning points at (3,4) and (7,10). Explain what the turning points represent.</p>  
+
+<p><strong>Q4 (4 marks):</strong>  
+The graph of y = -2x + 6 is drawn. Calculate the gradient and y-intercept. Then explain what the gradient tells you about the relationship between x and y.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1 Answer:  
+The x-axis.  
+
+Q2 Answer:  
+Gradient = (17 - 5) ÷ (5 - 2) = 12 ÷ 3 = 4.  
+
+Q3 Answer:  
+Turning points are where the graph changes direction. At (3,4) and (7,10), these represent minimum or maximum values of y, showing where the curve goes from increasing to decreasing or vice versa.  
+
+Q4 Answer:  
+Gradient = -2, y-intercept = 6.  
+The gradient of -2 means y decreases by 2 for every increase of 1 in x, showing a negative relationship between x and y. The y-intercept 6 shows that when x is 0, y is 6.  
+
+</details>
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Graphs plot relationships between variables on x- and y-axes with scales.</li>  
+<li>The gradient is the rate of change, found by rise/run between points.</li>  
+<li>Intercepts show where graphs cross axes, important for reading values.</li>  
+<li>Turning points mark maximum or minimum points on curves, key in quadratics.</li>  
+<li>Always interpret graph features in context for exam answers.</li>  
+</ul>  
+<p>👉 Remember: accuracy in plotting and clear explanations are what examiners want.</p>  
+<p>👉 In exams, don’t just describe the graph shape—always explain what it means!</p>
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Axis</strong> – A reference line on a graph, usually horizontal (x-axis) or vertical (y-axis).  
+<strong>Gradient</strong> – The steepness of a line; the rate at which y changes with x.  
+<strong>Intercept</strong> – The point where the graph crosses an axis.  
+<strong>Turning point</strong> – A maximum or minimum point where the graph changes direction.  
+<strong>Plot</strong> – To mark points on a graph using coordinates.  
+<strong>Scale</strong> – The units or spacing used on the axes.  
+<strong>Coordinate</strong> – A pair of numbers (x, y) that locate a point on a graph.  
+<strong>Curve</strong> – A line that is not straight, such as quadratic or cubic graphs.  
+<strong>Linear</strong> – A graph that forms a straight line.  
+<strong>Quadratic</strong> – A graph shaped like a parabola, described by an equation with an x² term.

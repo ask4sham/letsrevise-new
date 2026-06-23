@@ -1,0 +1,362 @@
+LESSON OBJECTIVE FIELD:  
+Understand how to calculate and interpret probability, including combined events, and confidently apply this knowledge in exam questions.
+
+SHORT SUMMARY FIELD:  
+This lesson teaches probability concepts at GCSE Higher Tier level, focusing on core rules, working with combined events, vocabulary, common misconceptions, and exam technique.
+
+<strong>Probability – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the definition of <strong>probability</strong> and explain its scale from 0 to 1.</li>  
+<li><strong>👉</strong> Describe and apply the probability rules for combined independent events.</li>  
+<li><strong>👉</strong> Understand and calculate probability using diagrams, tree diagrams, and sample spaces.</li>  
+<li><strong>👉</strong> Use correct terminology like mutually exclusive events, independent events, and complementary events.</li>  
+<li><strong>👉</strong> Improve exam answers with clear reasoning and correct use of probability vocabulary.</li>  
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>What probability means and basic probability values between 0 and 1.</li>  
+<li>How to calculate basic probabilities for single events using fractions or decimals.</li>  
+<li>How to list outcomes in simple sample spaces (like throwing dice or flipping coins).</li>  
+<li>The idea of equally likely outcomes.</li>  
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Probability measures how likely an event is to happen, represented by a number between 0 (impossible) and 1 (certain).</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Probability helps us predict outcomes in real-life situations and is used widely in risk assessment, decision making, and statistics.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Key probability rules: probability of all possible outcomes adds up to 1; for two independent events A and B, the probability of both happening is P(A and B) = P(A) × P(B); for mutually exclusive events, the probability of either happening is P(A or B) = P(A) + P(B).</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Flipping a coin once: probability of heads is 0.5, tails is 0.5.</li>  
+<li>Rolling a 6-sided die: probability of rolling a 3 is 1/6, probability of rolling an even number is 3/6 = 1/2.</li>  
+<li>Drawing a card from a deck: probability of a heart is 13/52 = 1/4.</li>  
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Event</strong>, <strong>Outcome</strong>, <strong>Probability</strong>, <strong>Independent events</strong>, <strong>Mutually exclusive events</strong>, <strong>Sample space</strong>, <strong>Complement</strong>, <strong>Tree diagram</strong>, <strong>Combined events</strong>, <strong>Relative frequency</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A bag contains 3 red balls and 2 blue balls. One ball is drawn at random. What is the probability it is red? What is the probability it is blue?</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Probability</strong></h2>  
+<p>👉 When we talk about probability, the key thing is that numbers always lie between 0 and 1. 0 means impossible, 1 means certain.</p>  
+
+<h3><strong>Key idea:</strong></h3>  
+<p>Probability quantifies uncertainty about events.</p>  
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>You list all possible outcomes.</li>  
+<li>Count how many ways the event can happen.</li>  
+<li>Calculate probability by dividing the favorable outcomes by total outcomes.</li>  
+</ul>  
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Events have probabilities tied to their likelihoods.</li>  
+<li>Two events can be combined using multiplication (independent) or addition (mutually exclusive).</li>  
+<li>Using diagrams like sample spaces or tree diagrams helps visualise combinations.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always define your events clearly, show step-by-step reasoning, and use correct probability terms to get full credit.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What is the probability of drawing a red ball from a bag containing 4 red balls and 6 blue balls?
+
+Option 1:  
+4/6
+
+Option 2:  
+4/10
+
+Option 3:  
+6/10
+
+Option 4:  
+6/4
+
+Answer:  
+4/10
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each probability term to its correct description.
+
+Items to drag:  
+- Independent events  
+- Mutually exclusive events  
+- Sample space  
+- Complement
+
+Drop zones:  
+- Events that cannot happen at the same time → ______  
+- The set of all possible outcomes → ______  
+- Events where the outcome of one does not affect the other → ______  
+- The event of not happening → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Events that cannot happen at the same time → Mutually exclusive events  
+- The set of all possible outcomes → Sample space  
+- Events where the outcome of one does not affect the other → Independent events  
+- The event of not happening → Complement  
+
+</details>
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is to add probabilities for independent events instead of multiplying them.</p>  
+<p>For example, if you want the probability of two independent events both happening, do NOT say P(A or B) = P(A) + P(B) — that only works if events are mutually exclusive.</p>  
+<p><strong>Correction:</strong> For independent events happening together, use P(A and B) = P(A) × P(B).</p>  
+<p>This earns marks because it shows full understanding of event types and rules.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: After Common Mistake explanation  
+Type: Diagram  
+
+What it should show:  
+A Venn diagram contrasting mutually exclusive events (no overlap) with independent events (overlapping), plus a sample space for drawing balls from a bag.
+
+Key labels / features:  
+- Circle A (Event A)  
+- Circle B (Event B)  
+- Overlapping / non-overlapping parts  
+- Sample space with 3 red balls and 2 blue balls  
+
+Why it helps:  
+It makes the difference between mutual exclusivity and independence visual and concrete, aiding accurate exam explanations.
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours  
+- Large uppercase labels
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Using a tree diagram to calculate combined probabilities
+
+Step 1:  
+List possible outcomes for the first event (e.g., picking a red or blue ball).
+
+↓
+
+Step 2:  
+From each first outcome, branch to possible second event outcomes.
+
+↓
+
+Step 3:  
+Label each branch with the probability of that outcome.
+
+↓
+
+Step 4:  
+Multiply probabilities along branches to find combined event probabilities.
+
+Exam link:  
+Tree diagrams simplify calculations for multiple-stage events, improving answer clarity and accuracy.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the diagram using the correct terms.
+
+Labels to use:  
+- Sample space  
+- Event A  
+- Event B  
+- Intersection
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Sample space  
+- B → Event A  
+- C → Event B  
+- D → Intersection  
+
+</details>
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding probability rules and vocabulary lets you explain your answers clearly, helping examiners award full marks.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In exam questions about combined events, say exactly whether events are independent or mutually exclusive.</p>  
+<p>👉 Use phrases like <em>“since the events are independent, multiply the probabilities”</em> or <em>“since the events cannot happen at the same time, add the probabilities”</em>.</p>  
+<p>👉 This shows full understanding and maximises marks.</p>
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Probability of both is found by adding their chances.</p>
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Since the events are independent, we multiply their probabilities to find the chance of both happening.</p>
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Because the two events are independent and can occur together, the probability of both events occurring is the product of their probabilities, calculated as P(A and B) = P(A) × P(B).</p>
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It clearly identifies the event relationship.</li>  
+<li>Uses correct terminology “independent” and “product of their probabilities”.</li>  
+<li>Shows understanding of the probability rule involved.</li>  
+</ul>
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Probability always lies between 0 and 1; to find the chance of combined independent events happening together, multiply their probabilities; for mutually exclusive events, add their probabilities.</p>
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+If you roll a fair six-sided die twice, what is the probability of rolling a 4 on the first roll and a 5 on the second?
+
+Option 1:  
+1/6 + 1/6 = 1/3
+
+Option 2:  
+1/6 × 1/6 = 1/36
+
+Option 3:  
+1/12
+
+Option 4:  
+1/6
+
+Answer:  
+1/6 × 1/6 = 1/36
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 When solving probability questions, first identify whether events are mutually exclusive or independent, then apply the correct combination rule (add or multiply), and always express your final answer as a fraction, decimal, or probability between 0 and 1.</p>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+A bag contains 5 green marbles and 7 yellow marbles. Two marbles are drawn one after the other without replacement. Calculate the probability that both marbles are yellow.
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Always remember: probability of events that can’t happen at the same time adds, probability of independent events happening together multiplies, and the total probabilities of all outcomes always add to 1.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p>Q1 (1 mark): What is the probability of flipping a coin and getting heads?</p>
+
+<p>Q2 (2 marks): A spinner is divided into 4 equal parts numbered 1, 2, 3, and 4. What is the probability of landing on an even number?</p>
+
+<p>Q3 (3 marks): Two dice are rolled. What is the probability of rolling a 3 on the first die and an even number on the second die?</p>
+
+<details>  
+<summary>Reveal Model Answer Q3</summary>  
+<p>First die: P(3) = 1/6</p>  
+<p>Second die even numbers (2,4,6): P(even) = 3/6 = 1/2</p>  
+<p>Events are independent → multiply: (1/6) × (1/2) = 1/12</p>  
+</details>
+
+<p>Q4 (4 marks): A box has 6 red, 4 blue, and 5 green balls. One ball is taken at random. If the ball is red or green, what is the probability? Explain your reasoning.</p>
+
+<details>  
+<summary>Reveal Model Answer Q4</summary>  
+<p>Total balls = 6 + 4 + 5 = 15.</p>  
+<p>Since red and green are mutually exclusive events, add their probabilities:</p>  
+<p>P(red or green) = P(red) + P(green) = 6/15 + 5/15 = 11/15.</p>  
+<p>This is valid because the ball cannot be both red and green at the same time.</p>  
+</details>
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<ul>  
+<li>Probability values range between 0 (impossible) and 1 (certain).</li>  
+<li>Mutually exclusive events cannot happen together; their probabilities are added.</li>  
+<li>Independent events do not affect each other; probabilities multiply when combined.</li>  
+<li>Tree diagrams and sample spaces are vital tools for visualising and calculating probabilities.</li>  
+<li>Always use clear terminology like “independent”, “mutually exclusive”, and “complement”.</li>  
+</ul>  
+<p>👉 Remember: define your events clearly and show your working step-by-step in exams.</p>  
+<p>👉 So, never guess without checking if events occur at the same time or influence each other.</p>
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Probability</strong> – A number from 0 to 1 showing how likely an event is to happen.  
+<strong>Event</strong> – A specific outcome or set of outcomes from a probability experiment.  
+<strong>Outcome</strong> – A possible result of an experiment.  
+<strong>Sample space</strong> – The set of all possible outcomes.  
+<strong>Independent events</strong> – Events where the outcome of one does not affect the probability of the other.  
+<strong>Mutually exclusive</strong> – Events that cannot happen at the same time.  
+<strong>Complement</strong> – The event of an outcome not happening.  
+<strong>Tree diagram</strong> – A graphical method to show all possible outcomes and their probabilities.  
+<strong>Combined events</strong> – Events involving two or more steps or parts happening together.  
+<strong>Relative frequency</strong> – An experimental estimate of probability based on observed outcomes.

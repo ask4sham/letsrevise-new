@@ -1,0 +1,365 @@
+LESSON OBJECTIVE FIELD:  
+Understand graphs in GCSE Maths, including interpretation, shapes, and key features relevant to Higher Tier questions.
+
+SHORT SUMMARY FIELD:  
+This lesson explains what graphs are, why they're important, how to read and draw key graph types, plus exam strategies for graph questions.
+
+<strong>Graphs – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> Define what a graph is and what it represents in Maths.</li>  
+<li><strong>👉</strong> Explain why interpreting and drawing graphs is crucial in exams.</li>  
+<li><strong>👉</strong> Learn the core model of graph interpretation: coordinates, axes, and key features.</li>  
+<li><strong>👉</strong> Apply this knowledge to common graph shapes and question types for Higher Tier.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start this lesson on graphs, you should already know:</p>  
+<ul>  
+<li>How to plot points on a coordinate grid (x, y coordinates).</li>  
+<li>Basic algebraic manipulations, including substituting values into formulae.</li>  
+<li>Understanding of straight-line graphs — gradient and y-intercept.</li>  
+<li>How to read scales on axes accurately.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>A graph is a visual representation that shows the relationship between two variables using points, lines, or curves on a coordinate plane.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Graphs help us understand patterns and relationships between variables quickly, which is vital in real-life problems and exams alike.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Graphs use a coordinate system with horizontal (x) and vertical (y) axes to show how one variable changes with another.</strong></p>  
+<p>👉 <strong>Key features include points plotted at (x, y), lines or curves connecting points, intercepts where graphs cross axes, gradients showing steepness, and shapes that indicate types of relationships.</strong></p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Linear graphs: straight lines showing constant rate of change.</li>  
+<li>Quadratic graphs: U-shaped curves showing acceleration or deceleration in change.</li>  
+<li>Exponential graphs: curves that rise or fall faster and faster.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Coordinate</strong>, <strong>Gradient</strong>, <strong>Intercept</strong>, <strong>Curve</strong>, <strong>Asymptote</strong>, <strong>Axes</strong>, <strong>Plot</strong>, <strong>Linear</strong>, <strong>Quadratic</strong>, <strong>Exponential</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>A student records the temperature at different hours of the day and plots these points on a graph. They join the points to see the temperature changes throughout the day visually.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Graphs</strong></h2>  
+<p>👉 The key idea is understanding what graphs show and how to interpret their features.</p>  
+
+<h3><strong>What graphs show:</strong></h3>  
+<ul>  
+<li>The relationship between two variables, e.g., time vs temperature, distance vs speed.</li>  
+<li>How one variable changes when the other changes.</li>  
+</ul>  
+
+<h3><strong>Reading graphs:</strong></h3>  
+<ul>  
+<li>Identify the axes labels and scales—what variables do they show?</li>  
+<li>Find coordinates of points by reading values from axes.</li>  
+<li>Look for intercepts where the graph crosses x or y axis to understand starting values.</li>  
+<li>Check steepness or curvature to understand change rates.</li>  
+</ul>  
+
+<h3><strong>Types of graph shapes and what they mean:</strong></h3>  
+<ul>  
+<li>Straight line means a constant rate of change.</li>  
+<li>A curve bending upwards shows increasing rate of change; downwards, decreasing.</li>  
+<li>A horizontal line means no change in one variable.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 When describing graphs, say: "At x=__, y=__, showing that..." Avoid vague statements like "the graph goes up" without specifying what that means in context.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What does the gradient of a straight-line graph represent?
+
+Option 1:  
+The y-intercept value.  
+
+Option 2:  
+The rate of change between the variables.  
+
+Option 3:  
+The lowest point on the graph.  
+
+Option 4:  
+The distance between two points on the x-axis.  
+
+Answer:  
+The rate of change between the variables.  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each graph term to its correct description.
+
+Items to drag:  
+- Gradient  
+- Intercept  
+- Coordinate  
+- Curve  
+
+Drop zones:  
+- A number pair showing a point's position → ______  
+- Where the graph crosses an axis → ______  
+- The steepness of a line → ______  
+- A smooth rounded graph shape → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A number pair showing a point's position → Coordinate  
+- Where the graph crosses an axis → Intercept  
+- The steepness of a line → Gradient  
+- A smooth rounded graph shape → Curve  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is confusing the gradient with the y-intercept.</p>  
+<p>👉 Remember, the gradient shows how steep the line is (rate of change), while the y-intercept tells you where the line crosses the y-axis.</p>  
+<p>👉 Getting these mixed up loses marks because they represent different features and have different meanings in exam questions.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: After the common mistake block.  
+
+Type: Diagram  
+
+What it should show:  
+A coordinate grid with a straight line graph drawn, showing clearly labelled x-axis, y-axis, points (3,4) and (6,7), gradient marked, and y-intercept at (0,1).
+
+Key labels / features:  
+"x-axis", "y-axis", "Point (3,4)", "Point (6,7)", "Gradient = rise/run", "Y-intercept (0,1)"
+
+Why it helps:  
+Visualising these features helps students identify key parts of a graph and understand how to calculate gradient.
+
+Brand/style:  
+LET’S REVISE header, Edexcel GCSE style, white background, thick black outlines, minimal colour, large uppercase labels, no distractions in diagram.  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Calculating the gradient of a straight-line graph
+
+Step 1:  
+Identify two points on the line, for example (x₁, y₁) and (x₂, y₂).
+
+↓
+
+Step 2:  
+Calculate the rise: y₂ − y₁.
+
+↓
+
+Step 3:  
+Calculate the run: x₂ − x₁.
+
+↓
+
+Step 4:  
+Divide rise by run: gradient = (y₂ − y₁) / (x₂ − x₁).
+
+Exam link:  
+This calculation tells you the rate of change and is often required in exam graph questions.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of this graph.
+
+Labels to use:  
+- Gradient  
+- Y-intercept  
+- Point A  
+- X-axis  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Gradient  
+- B → Y-intercept  
+- C → Point A  
+- D → X-axis  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Graph questions are common on the Higher Tier paper, and examiners look for precise use of terms and clear explanations of what a graph shows.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In the exam, always link your graph description to what the variables mean and use numbers and terms like "gradient," "intercept," and "coordinate." Don’t just describe the shape.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The graph goes up then down.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The graph goes up to a maximum point then goes down because the values increase then decrease.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The graph rises from (0,2) to a maximum at (4,8), showing an increasing rate of change, then decreases after (4,8), indicated by the negative gradient after this point.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It uses clear coordinates and terminology.</li>  
+<li>Explains the shape with cause → effect language.</li>  
+<li>Links terminology (gradient, max point) to the graph’s behavior.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 A graph is a picture showing how two variables relate; using coordinates, gradients, and intercepts precisely unlocks full marks in Maths exams.</p>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+Which feature of a graph tells you the starting value of y when x is zero?
+
+Option 1:  
+Gradient  
+
+Option 2:  
+X-intercept  
+
+Option 3:  
+Y-intercept  
+
+Option 4:  
+Coordinate point  
+
+Answer:  
+Y-intercept  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Knowing how to read and describe graphs means you can explain variable relationships clearly and solve problems involving change rates and patterns easily.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+A graph passes through points (1,3) and (4,9). What is the gradient of the line joining these points?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+Gradient = (9 − 3) / (4 − 1) = 6 / 3 = 2  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Always describe a graph by linking coordinates, gradient, and intercepts with what they represent about the relationship between variables.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>
+
+<p>Q1. (1 mark) What do the axes on a graph represent? </p>
+
+<p>Q2. (2 marks) Calculate the gradient of a straight line between points (2,5) and (5,11).</p>
+
+<p>Q3. (3 marks) Describe what a straight-line graph with a negative gradient shows about the relationship between two variables.</p>
+
+<p>Q4. (4 marks) A graph shows distance (y) against time (x). Explain how to find the speed and what it means if the graph flattens out.</p>
+
+<details>  
+<summary>Reveal Model Answers</summary>
+
+Q1 Answer:  
+The axes represent the two variables, with the horizontal (x) axis showing one variable and the vertical (y) axis showing the other.  
+
+Q2 Answer:  
+Gradient = (11−5) / (5−2) = 6 / 3 = 2.  
+
+Q3 Answer:  
+A negative gradient means as the x-variable increases, the y-variable decreases. This shows an inverse relationship where one value falls while the other rises.  
+
+Q4 Answer:  
+Speed is found from the gradient of the graph (change in distance ÷ change in time). If the graph flattens out, the speed is zero because distance does not change over time.  
+
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<p>👉 Graphs visually show relationships between two variables using points, lines, or curves.</p>  
+<p>👉 Key features to look for: coordinates, gradient, intercepts, and graph shape.</p>  
+<p>👉 The gradient tells us the rate of change—positive for increasing, negative for decreasing.</p>  
+<p>👉 Intercepts indicate where the graph crosses axes and can show starting or zero values.</p>  
+<p>👉 Use precise language linking numbers and graph features to explain patterns in exam answers.</p>  
+<p><strong>Remember:</strong> Always describe how variables relate and back up your statements with evidence from the graph.</p>  
+<p>In exams, focus on cause → effect explanations when describing graph features for full marks.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Coordinate</strong> – A pair of numbers (x, y) showing a point’s position on a graph.  
+<strong>Gradient</strong> – The steepness of a line, calculated as rise over run.  
+<strong>Intercept</strong> – Where a graph crosses either the x-axis or y-axis.  
+<strong>Axes</strong> – The horizontal (x) and vertical (y) lines that form the coordinate plane.  
+<strong>Linear</strong> – A graph that forms a straight line.  
+<strong>Quadratic</strong> – A graph that forms a curve shaped like a 'U' or an inverted 'U'.  
+<strong>Exponential</strong> – A graph where values increase or decrease faster and faster.  
+<strong>Plot</strong> – To mark points on the graph using coordinates.  
+<strong>Curve</strong> – A line on a graph that is not straight but bends.  
+<strong>Rate of change</strong> – How quickly one variable changes in relation to another.

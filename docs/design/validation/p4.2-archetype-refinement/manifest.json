@@ -1,0 +1,335 @@
+{
+  "generatedAt": "2026-06-22T21:05:15.822Z",
+  "topics": [
+    {
+      "group": "maths",
+      "slug": "algebra",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Algebra",
+      "archetype": "maths-algebra",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-algebra-si-off.txt",
+          "chars": 12982,
+          "seconds": "27.1",
+          "promptChars": 33005
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-algebra-si-on.txt",
+          "chars": 13703,
+          "seconds": "26.1",
+          "promptChars": 45811
+        }
+      }
+    },
+    {
+      "group": "maths",
+      "slug": "simultaneous-equations",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Simultaneous Equations",
+      "archetype": "maths-simultaneous",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-simultaneous-equations-si-off.txt",
+          "chars": 14612,
+          "seconds": "23.3",
+          "promptChars": 33065
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-simultaneous-equations-si-on.txt",
+          "chars": 14485,
+          "seconds": "30.9",
+          "promptChars": 46292
+        }
+      }
+    },
+    {
+      "group": "maths",
+      "slug": "quadratics",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Quadratics",
+      "archetype": "maths-quadratics",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-quadratics-si-off.txt",
+          "chars": 15552,
+          "seconds": "30.9",
+          "promptChars": 33017
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-quadratics-si-on.txt",
+          "chars": 14648,
+          "seconds": "28.4",
+          "promptChars": 45868
+        }
+      }
+    },
+    {
+      "group": "maths",
+      "slug": "graphs",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Graphs",
+      "archetype": "maths-graph",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-graphs-si-off.txt",
+          "chars": 13075,
+          "seconds": "20.4",
+          "promptChars": 33001
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-graphs-si-on.txt",
+          "chars": 14121,
+          "seconds": "25.7",
+          "promptChars": 45599
+        }
+      }
+    },
+    {
+      "group": "maths",
+      "slug": "probability",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Probability",
+      "archetype": "maths-probability",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-probability-si-off.txt",
+          "chars": 14163,
+          "seconds": "19.7",
+          "promptChars": 33021
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-probability-si-on.txt",
+          "chars": 15196,
+          "seconds": "30.3",
+          "promptChars": 45487
+        }
+      }
+    },
+    {
+      "group": "maths",
+      "slug": "ratio",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Ratio",
+      "archetype": "maths-ratio",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-ratio-si-off.txt",
+          "chars": 12820,
+          "seconds": "38.6",
+          "promptChars": 32997
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-ratio-si-on.txt",
+          "chars": 13257,
+          "seconds": "26.5",
+          "promptChars": 45361
+        }
+      }
+    },
+    {
+      "group": "maths",
+      "slug": "trigonometry",
+      "subject": "Maths",
+      "examBoard": "Edexcel",
+      "topic": "Trigonometry",
+      "archetype": "maths-trigonometry",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-trigonometry-si-off.txt",
+          "chars": 14778,
+          "seconds": "27.8",
+          "promptChars": 33025
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\maths-trigonometry-si-on.txt",
+          "chars": 14928,
+          "seconds": "30.8",
+          "promptChars": 44986
+        }
+      }
+    },
+    {
+      "group": "physics",
+      "slug": "forces",
+      "subject": "Physics",
+      "examBoard": "AQA",
+      "topic": "Forces",
+      "archetype": "physics-force-system",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-forces-si-off.txt",
+          "chars": 13619,
+          "seconds": "26.2",
+          "promptChars": 33497
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-forces-si-on.txt",
+          "chars": 13248,
+          "seconds": "28.8",
+          "promptChars": 39303
+        }
+      }
+    },
+    {
+      "group": "physics",
+      "slug": "energy",
+      "subject": "Physics",
+      "examBoard": "AQA",
+      "topic": "Energy",
+      "archetype": "physics-energy-transfer",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-energy-si-off.txt",
+          "chars": 14782,
+          "seconds": "22.8",
+          "promptChars": 33497
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-energy-si-on.txt",
+          "chars": 13933,
+          "seconds": "28.0",
+          "promptChars": 39303
+        }
+      }
+    },
+    {
+      "group": "physics",
+      "slug": "electricity",
+      "subject": "Physics",
+      "examBoard": "AQA",
+      "topic": "Electricity",
+      "archetype": "physics-circuit",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-electricity-si-off.txt",
+          "chars": 14980,
+          "seconds": "22.7",
+          "promptChars": 33517
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-electricity-si-on.txt",
+          "chars": 16313,
+          "seconds": "31.2",
+          "promptChars": 39262
+        }
+      }
+    },
+    {
+      "group": "physics",
+      "slug": "waves",
+      "subject": "Physics",
+      "examBoard": "AQA",
+      "topic": "Waves",
+      "archetype": "physics-wave",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-waves-si-off.txt",
+          "chars": 13492,
+          "seconds": "24.7",
+          "promptChars": 33493
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\physics-waves-si-on.txt",
+          "chars": 14718,
+          "seconds": "21.0",
+          "promptChars": 39302
+        }
+      }
+    },
+    {
+      "group": "history",
+      "slug": "causes",
+      "subject": "History",
+      "examBoard": "AQA",
+      "topic": "Causes of WW1",
+      "archetype": "history-cause",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-causes-si-off.txt",
+          "chars": 14958,
+          "seconds": "25.6",
+          "promptChars": 33235
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-causes-si-on.txt",
+          "chars": 14803,
+          "seconds": "21.8",
+          "promptChars": 39004
+        }
+      }
+    },
+    {
+      "group": "history",
+      "slug": "consequences",
+      "subject": "History",
+      "examBoard": "AQA",
+      "topic": "Treaty of Versailles",
+      "archetype": "history-consequence",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-consequences-si-off.txt",
+          "chars": 14586,
+          "seconds": "26.3",
+          "promptChars": 33263
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-consequences-si-on.txt",
+          "chars": 14450,
+          "seconds": "23.6",
+          "promptChars": 43971
+        }
+      }
+    },
+    {
+      "group": "history",
+      "slug": "significance",
+      "subject": "History",
+      "examBoard": "AQA",
+      "topic": "Significance of the Holocaust",
+      "archetype": "history-significance",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-significance-si-off.txt",
+          "chars": 14574,
+          "seconds": "19.9",
+          "promptChars": 33299
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-significance-si-on.txt",
+          "chars": 16040,
+          "seconds": "22.1",
+          "promptChars": 43809
+        }
+      }
+    },
+    {
+      "group": "history",
+      "slug": "interpretations",
+      "subject": "History",
+      "examBoard": "AQA",
+      "topic": "Historians' interpretations of the Cold War",
+      "archetype": "history-interpretation",
+      "files": {
+        "off": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-interpretations-si-off.txt",
+          "chars": 14471,
+          "seconds": "62.6",
+          "promptChars": 33355
+        },
+        "on": {
+          "path": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\p4.2-archetype-refinement\\history-interpretations-si-on.txt",
+          "chars": 15026,
+          "seconds": "23.8",
+          "promptChars": 39184
+        }
+      }
+    }
+  ]
+}

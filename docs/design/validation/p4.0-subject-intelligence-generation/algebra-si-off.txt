@@ -1,0 +1,364 @@
+LESSON OBJECTIVE FIELD:  
+To understand algebraic expressions, equations, and inequalities, and to develop skills in manipulating, solving, and interpreting them in Higher Tier GCSE problems.
+
+SHORT SUMMARY FIELD:  
+This lesson teaches the core concepts of algebra including definitions, why algebra matters, working with expressions and equations, common mistakes, exam language, and practice with exam-style questions.
+
+<strong>Algebra – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Define key algebraic terms: expressions, equations, formulas, and inequalities.</li>
+<li><strong>👉</strong> Explain why algebra is important both in maths exams and in solving practical problems.</li>
+<li><strong>👉</strong> Use core algebraic methods: expanding, simplifying, factoring, solving linear and quadratic equations.</li>
+<li><strong>👉</strong> Apply algebraic principles to answer common exam-style questions confidently.</li>
+<li><strong>👉</strong> Identify and avoid common misconceptions in algebra.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>You should already be comfortable with:</p>  
+<ul>  
+<li>Basic arithmetic (addition, subtraction, multiplication, division).</li>  
+<li>Understanding variables as unknown numbers or generalised values.</li>  
+<li>Using index notation and working with powers and square roots.</li>  
+<li>Solving simple linear equations.</li>  
+<li>Substituting numbers into formulas.</li>  
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Algebra is the branch of mathematics that uses symbols and letters to represent numbers and express general mathematical relationships and rules.</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Algebra allows us to solve problems where values are unknown, describe patterns, and model real-world situations using equations and formulas.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Key algebraic processes include: write expressions → simplify by combining like terms → expand brackets → factorise expressions → solve equations or inequalities → interpret solutions.</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Expanding: e.g., 3(x + 4) = 3x + 12</li>  
+<li>Factorising: e.g., x² + 5x = x(x + 5)</li>  
+<li>Solving linear equations: e.g., 2x + 3 = 11 → x = 4</li>  
+<li>Solving quadratic equations: e.g., x² − 5x + 6 = 0 → (x − 2)(x − 3) = 0</li>  
+<li>Working with inequalities: e.g., 3x − 4 > 5</li>  
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Expression</strong>, <strong>Equation</strong>, <strong>Formula</strong>, <strong>Inequality</strong>, <strong>Expand</strong>, <strong>Factorise</strong>, <strong>Simplify</strong>, <strong>Solve</strong>, <strong>Substitute</strong>, <strong>Like terms</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>Suppose you want to find two numbers where one is 3 more than the other and their product is 40. We can use algebra to define variables for the numbers, set up an equation, and solve to find the values.</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Algebra</strong></h2>  
+
+<p>👉 The key idea is: Algebra is the language of generalized maths, letting us create formulas, solve equations, and express relationships.</p>  
+
+<h3><strong>Method → Reason:</strong></h3>  
+<ul>  
+<li>Start with expressions: combinations of numbers and variables without an equals sign.</li>  
+<li>Combine like terms to simplify expressions, reducing complexity.</li>  
+<li>Use algebraic expansion to remove brackets and write expressions in standard form.</li>  
+<li>Factorising reverses expansion, essential for solving quadratic equations.</li>  
+<li>Set up equations by equating expressions to values or to each other.</li>  
+<li>Solve linear equations by isolating variables using inverse operations.</li>  
+<li>For quadratics, use methods like factorising, completing the square, or the quadratic formula.</li>  
+<li>Inequalities show ranges of possible values, solved similarly but paying attention to reversing inequality signs when multiplying/dividing by negatives.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Use clear steps: write the original equation, show each algebraic step logically, and state the solution clearly with units or context where needed.</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What is the expanded form of 4(x − 3)?
+
+Option 1:  
+4x − 3
+
+Option 2:  
+4x − 12
+
+Option 3:  
+4x + 3
+
+Option 4:  
+x − 12
+
+Answer:  
+4x − 12
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match  
+
+Instruction:  
+Match each term to its correct description.
+
+Items to drag:  
+- Expression  
+- Equation  
+- Factorising  
+- Inequality  
+
+Drop zones:  
+- A mathematical phrase without an equals sign → ______  
+- A mathematical statement that something is equal → ______  
+- Writing an expression as a product of its factors → ______  
+- A mathematical statement comparing two values with <, > symbols → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A mathematical phrase without an equals sign → Expression  
+- A mathematical statement that something is equal → Equation  
+- Writing an expression as a product of its factors → Factorising  
+- A mathematical statement comparing two values with <, > symbols → Inequality  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is forgetting to multiply every term inside brackets when expanding. For example, writing 3(x + 5) as 3x + 5 instead of 3x + 15.</p>  
+<p>This loses marks because the expression is simplified incorrectly.</p>  
+<p>Always multiply each term inside the brackets by the outside factor to avoid this error.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: After Common Mistake block  
+Type: Diagram (concept)  
+What it should show: A visual of expanding and factorising a quadratic expression, e.g. (x + 3)(x + 4) shown expanding to x² + 7x + 12, then factorising back.  
+Key labels / features: Brackets, terms being multiplied, plus and multiply symbols, arrows showing direction of operation (expand / factorise).  
+Why it helps: Shows the reversible relationship between expanding and factorising visually, making abstract algebra concrete.  
+Brand/style: LET’S REVISE header, Exam-board ready, White background, Thick black outlines, Minimal colours, Large uppercase labels.  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Solving a linear equation  
+
+Step 1:  
+Write the equation clearly, e.g., 5x − 7 = 18  
+
+↓  
+
+Step 2:  
+Add 7 to both sides to isolate the term with x: 5x = 25  
+
+↓  
+
+Step 3:  
+Divide both sides by 5 to solve for x: x = 5  
+
+↓  
+
+Step 4:  
+Check by substituting x back into the original equation.  
+
+Exam link:  
+This shows the fundamental approach examiners expect for linear equation solutions — clear steps progressing logically to the final answer.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of an algebraic equation.
+
+Labels to use:  
+- Variable  
+- Coefficient  
+- Constant term  
+- Equals sign  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Variable  
+- B → Coefficient  
+- C → Constant term  
+- D → Equals sign  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Algebra is central to GCSE maths. Understanding language and methods means you can tackle a broad range of exam questions, from simplifying expressions to solving complex equations.</p>
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always show every algebraic step clearly and justify key actions like expanding, rearranging, or factoring — examiners reward thorough, logical method over rushed answers.</p>
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The student writes down the answer to an equation but skips steps and does not show working.</p>
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The student shows some working steps, like expanding brackets or moving terms, but skips important justification or makes minor errors.</p>
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The student begins with the original equation, clearly expands or rearranges correctly, isolates the variable step-by-step, and ends with a solution and a check or interpretation.</p>
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It follows logical, clear steps an examiner can follow easily.</li>  
+<li>It shows mastery of algebraic techniques, earning full method marks.</li>  
+<li>It avoids careless errors and explains reasoning, which strengthens argumentation for higher marks.</li>  
+</ul>
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+Solve 2(x − 3) + 4 = 14.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+Step 1: Expand brackets: 2x − 6 + 4 = 14  
+Step 2: Simplify left side: 2x − 2 = 14  
+Step 3: Add 2 to both sides: 2x = 16  
+Step 4: Divide both sides by 2: x = 8  
+Step 5: Check by substitution into the original equation if time permits.
+
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+What is the solution to the inequality 3x + 2 > 11?
+
+Option 1:  
+x > 3
+
+Option 2:  
+x < 3
+
+Option 3:  
+x > 9
+
+Option 4:  
+x = 3
+
+Answer:  
+x > 3
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Understand that algebra connects expressions and equations, enabling problem-solving through a sequence of transformations: simplify → rearrange → solve → interpret.</p>  
+<p>Mastery builds from manipulating expressions correctly to applying them in word problems or inequalities.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Factorise the expression x² + 7x + 10.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+(x + 5)(x + 2)  
+
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 In algebra, think of expressions as “phrases” and equations as “sentences” with an equals sign. Always simplify expressions fully before solving equations. Use expansion and factorising as inverse processes – knowing which to apply depends on the problem. Precise, clear steps guarantee full marks.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p><strong>Q1 (1 mark):</strong> Simplify 5x + 3x − 7.</p>  
+<p><strong>Q2 (2 marks):</strong> Expand and simplify 4(2x − 1) + 3x.</p>  
+<p><strong>Q3 (3 marks):</strong> Solve the quadratic equation x² − 4x − 5 = 0 by factorising.</p>  
+<p><strong>Q4 (4 marks):</strong> Solve the inequality 2(x + 3) ≤ 4x − 1 and represent the solution on a number line.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1 answer: 8x − 7  
+
+Q2 answer: Expand: 8x − 4 + 3x = 11x − 4  
+
+Q3 answer: Factorise: (x − 5)(x + 1) = 0 → x = 5 or x = −1  
+
+Q4 answer:  
+Step 1: 2x + 6 ≤ 4x − 1  
+Step 2: 6 + 1 ≤ 4x − 2x  
+Step 3: 7 ≤ 2x  
+Step 4: x ≥ 3.5  
+Represent on number line: shaded from 3.5 to ∞, including 3.5 (closed circle).  
+
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Algebra uses variables to express general mathematical ideas.</li>  
+<li>Always simplify expressions by combining like terms and expanding brackets.</li>  
+<li>Factorising helps solve quadratic equations and simplify expressions.</li>  
+<li>Equations and inequalities need steps done carefully, especially when moving terms and dividing by negatives.</li>  
+<li>Show clear, logical working in exams: this earns method marks and reduces errors.</li>  
+</ul>  
+<p>👉 Remember: algebra is a toolkit for solving unknowns and explaining relationships, so practice thinking step-by-step.</p>  
+<p>👉 In exams, don’t rush—show all steps clearly, check answers if you can!</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<p><strong>Expression</strong> – A combination of variables, numbers and operations without an equals sign.<br />  
+<strong>Equation</strong> – A mathematical statement showing two expressions are equal.<br />  
+<strong>Formula</strong> – An equation that relates variables to each other.<br />  
+<strong>Inequality</strong> – A statement showing one quantity is larger or smaller than another.<br />  
+<strong>Expand</strong> – Removing brackets by multiplying out.<br />  
+<strong>Factorise</strong> – Writing an expression as a product of its factors.<br />  
+<strong>Simplify</strong> – Combining like terms to make expressions easier.<br />  
+<strong>Solve</strong> – Finding the value(s) of the variable(s) that make an equation true.<br />  
+<strong>Substitute</strong> – Replacing variables with numbers.<br />  
+<strong>Like terms</strong> – Terms that have the same variable parts and can be combined.</p>

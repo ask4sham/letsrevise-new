@@ -1,0 +1,383 @@
+LESSON OBJECTIVE FIELD:  
+Understand what energy is, how it is conserved and transferred in systems, and how to apply energy concepts to calculate changes in energy stores and efficiency at GCSE Higher Tier.
+
+SHORT SUMMARY FIELD:  
+This lesson explores the definition of energy, the principle of conservation of energy, different energy stores and transfers, efficiency, and how to apply these to exam-style questions.
+
+<strong>Energy – Organisation (AQA KS4 - GCSE)</strong>
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>  
+<li><strong>👉</strong> State the definition of <strong>energy</strong> and understand the different energy stores in physical systems.</li>  
+<li><strong>👉</strong> Explain the principle of conservation of energy and how energy can be transferred between stores but not created or destroyed.</li>  
+<li><strong>👉</strong> Apply the concept of energy transfers to calculate changes using relevant formulae like kinetic, gravitational potential, and elastic potential energy.</li>  
+<li><strong>👉</strong> Understand and calculate <strong>efficiency</strong> and explain why some energy is 'wasted' in real processes.</li>  
+<li><strong>👉</strong> Use energy principles to answer exam questions with clear cause → effect explanations.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>Basic units: Energy is measured in joules (J); power is energy transferred per second (watts, W).</li>  
+<li>Forces can do work to transfer energy between stores.</li>  
+<li>Understanding of motion, speed, and height for kinetic and potential energy concepts.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Energy is the ability to do work, or to cause change, and it is measured in joules (J).</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Energy explains how objects move, heat up, and how machines and living things survive and function, making it essential for everything in physics and everyday life.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>Energy cannot be created or destroyed; it can only be transferred or stored. This is the principle of conservation of energy.</strong></p>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>A falling object transfers gravitational potential energy into kinetic energy as it speeds up.</li>  
+<li>A stretched spring stores elastic potential energy that can be transferred back when released.</li>  
+<li>A lamp transfers electrical energy into light and thermal energy, with some energy wasted as heat.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Energy store</strong>, <strong>energy transfer</strong>, <strong>conservation of energy</strong>, <strong>efficiency</strong>, <strong>work done</strong>, <strong>kinetic energy</strong>, <strong>gravitational potential energy</strong>, <strong>elastic potential energy</strong>, <strong>energy wasted</strong>, <strong>power</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>Consider a roller coaster at its highest point. It has maximum gravitational potential energy. As it moves down, this energy transfers to kinetic energy, making it speed up. At the lowest point, most energy is kinetic, and as it climbs the next hill, energy shifts back to potential.</strong></p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Energy</strong></h2>  
+<p>👉 The key idea is that energy exists in different stores and moves through systems but is always conserved overall. This helps us explain many physical phenomena.</p>  
+
+<h3><strong>Energy stores & transfers</strong></h3>  
+<ul>  
+<li>The main energy stores are kinetic, gravitational potential, elastic potential, thermal, chemical, and nuclear.</li>  
+<li>Energy transfers happen when forces do work, causing changes in motion, temperature, or shape.</li>  
+</ul>  
+
+<h3><strong>Energy transfer examples and formulae</strong></h3>  
+<ul>  
+<li>Kinetic energy (moving objects): <em>KE = ½ × mass × speed²</em></li>  
+<li>Gravitational potential energy (any object at height): <em>GPE = mass × gravitational field strength × height</em></li>  
+<li>Elastic potential energy (in stretched or compressed springs): <em>EPE = ½ × spring constant × extension²</em></li>  
+</ul>  
+
+<h3><strong>Efficiency and energy loss</strong></h3>  
+<ul>  
+<li>Not all input energy transfers usefully; some is wasted, usually as thermal energy due to friction or resistance.</li>  
+<li>Efficiency = (useful energy output ÷ total energy input) × 100%</li>  
+<li>Devices with higher efficiency waste less energy.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Don’t just name energy stores or say ‘energy is lost’. Explain <em>what</em> causes the transfer (like friction) and <em>where</em> that energy goes (to thermal store). Use formulae to calculate exact changes when numbers are given.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+Which of the following represents the correct formula for gravitational potential energy?
+
+Option 1:  
+GPE = ½ × mass × speed²
+
+Option 2:  
+GPE = mass × gravitational field strength × height
+
+Option 3:  
+GPE = mass × speed × height
+
+Option 4:  
+GPE = spring constant × extension
+
+Answer:  
+GPE = mass × gravitational field strength × height
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each energy term to its correct description.
+
+Items to drag:  
+- Kinetic energy  
+- Gravitational potential energy  
+- Elastic potential energy  
+- Efficiency  
+
+Drop zones:  
+- Energy stored by moving objects → ______  
+- Energy stored by an object raised above ground → ______  
+- Energy stored in stretched or compressed springs → ______  
+- Measure of useful energy out compared to total input → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Energy stored by moving objects → Kinetic energy  
+- Energy stored by an object raised above ground → Gravitational potential energy  
+- Energy stored in stretched or compressed springs → Elastic potential energy  
+- Measure of useful energy out compared to total input → Efficiency  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is saying energy is “lost” or “used up”. This is wrong because energy is always conserved. It’s better to say energy is “transferred to a less useful form” like thermal energy, often wasted due to friction.</p>  
+<p>👉 Another common error is mixing up kinetic and potential energy formulas or units — remember kinetic depends on speed squared, potential depends on height.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement:  
+Early teaching to illustrate energy stores and transfers
+
+Type:  
+Diagram
+
+What it should show:  
+A clear schematic of a raised object (block on table), a moving car, and a stretched spring, showing arrows representing energy transfers among: gravitational potential, kinetic, elastic potential, and thermal (wasted) energy stores.
+
+Key labels / features:  
+- Block labeled with GPE store at height  
+- Car labeled with KE store in motion  
+- Spring labeled with EPE store when stretched  
+- Arrows showing transfer between stores and wasted energy arrows pointing to thermal store
+
+Why it helps:  
+Visualizing different stores and the directions of transfer helps students link abstract concepts to physical situations.
+
+Brand/style:  
+LET’S REVISE header, Exam-board ready, white background, thick black outlines, minimal colours, large uppercase labels, no embedded questions  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Energy transfer in a falling object  
+
+Step 1:  
+The object has gravitational potential energy because of its height above ground.  
+
+↓  
+
+Step 2:  
+As it falls, gravitational potential energy decreases because height decreases.  
+
+↓  
+
+Step 3:  
+The lost potential energy transfers to kinetic energy, increasing the object’s speed.  
+
+↓  
+
+Step 4:  
+On hitting the ground, some kinetic energy transfers to thermal energy and sound energy (waste).  
+
+Exam link:  
+Show how energy conservation and transfers explain motion and energy calculations in falling objects.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of an energy transfer in a simple electric heater circuit.
+
+Labels to use:  
+- Electrical energy  
+- Thermal energy  
+- Useful energy output  
+- Wasted energy  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Electrical energy  
+- B → Thermal energy  
+- C → Useful energy output  
+- D → Wasted energy  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding energy transfers and conservation is central to physics, explaining everyday events and engineering problems, from powering cars to heating homes.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In exams, don’t just list energy stores or say energy is lost. Always explain the cause (e.g., friction, electrical resistance), what happens to the energy, and use correct terminology like 'energy transferred to thermal store'. Show the flow clearly.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Energy is lost when the object moves.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Energy is lost because it changes into heat when the object moves.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Energy is conserved but transferred from kinetic to thermal energy due to friction between the object and air, causing energy to be wasted as heat.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It states the cause (friction).</li>  
+<li>It explains what type of energy it transfers to (thermal).</li>  
+<li>It explicitly states energy conservation, avoiding saying energy is ‘lost’.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+A 2 kg ball is thrown straight up to a height of 5 m. Calculate the gravitational potential energy gained. (g = 9.8 N/kg)  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+GPE = mass × g × height = 2 × 9.8 × 5 = 98 J  
+
+The ball gains 98 joules of gravitational potential energy when it reaches the height.  
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+What does the efficiency of a device compare?
+
+Option 1:  
+Useful energy output to total energy input  
+
+Option 2:  
+Total energy input to useful energy output  
+
+Option 3:  
+Kinetic energy to potential energy  
+
+Option 4:  
+Energy lost to sound energy  
+
+Answer:  
+Useful energy output to total energy input  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis: Energy conservation and transfer</strong></h2>  
+<p>👉 Energy is never lost, only transferred between different stores, such as kinetic, potential, or thermal. This explains why machines need input energy and why some energy always ends as waste heat, limiting efficiency.</p>  
+
+<p>👉 In calculations, use the correct formulas for each energy type and include energy loss explanations for full answers.</p>  
+
+<p>👉 Ultimately, understanding energy helps predict what happens in physical systems and calculate useful quantities that are vital for exam success.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Explain why a moving car eventually stops even if the driver doesn’t apply the brakes.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+The car’s kinetic energy is transferred to thermal energy in the brakes and surrounding air due to friction and air resistance. This energy transfer causes the car to slow down and eventually stop, as energy is conserved but spread into less useful forms.  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 <strong>Energy cannot be created or destroyed; it can only be transferred between stores or dissipated as less useful forms like heat.</strong></p>  
+
+<p>👉 <strong>Always think: input energy → useful output energy + wasted energy, with total energy conserved.</strong></p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>  
+
+<p><strong>Q1 (1 mark):</strong> What is the unit of energy?</p>  
+<p><strong>A1:</strong> Joule (J)</p>  
+
+<p><strong>Q2 (2 marks):</strong> A 3 kg object is lifted 4 m. Calculate the increase in gravitational potential energy. (g = 10 N/kg)</p>  
+<p><strong>A2:</strong> GPE = 3 × 10 × 4 = 120 J</p>  
+
+<p><strong>Q3 (3 marks):</strong> Explain why energy efficiency can never be 100% in real machines.</p>  
+<details>  
+<summary>Reveal Model Answer</summary>  
+Energy input is always partly transferred to waste energy stores, mostly thermal due to friction or resistance.<br/>  
+This means not all energy is converted into useful output.<br/>  
+Therefore, efficiency is less than 100%.  
+</details>  
+
+<p><strong>Q4 (4 marks):</strong> A compressed spring has an elastic potential energy of 50 J. When released, it transfers this energy into kinetic energy and thermal energy due to friction. Explain the energy transfers that take place and why energy conservation still applies.</p>  
+<details>  
+<summary>Reveal Model Answer</summary>  
+The elastic potential energy stored in the compressed spring transfers to kinetic energy as the spring moves a mass.<br/>  
+Some energy is also transferred to thermal energy because friction converts part of the energy to heat.<br/>  
+Energy conservation means total energy before release equals total energy after transfer, just split into different stores.<br/>  
+Energy is not lost, but some is less useful thermal energy.  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Energy is the ability to do work and is measured in joules (J).</li>  
+<li>Energy cannot be created or destroyed, only transferred or stored.</li>  
+<li>Common energy stores: kinetic, gravitational potential, elastic potential, thermal, chemical.</li>  
+<li>Energy transfers can be calculated using key formulae for kinetic, potential, and elastic energy.</li>  
+<li>Efficiency measures how much input energy is usefully converted; some energy is always wasted.</li>  
+<li>Always explain causes and effects of energy transfers in exam answers for full marks.</li>  
+</ul>  
+<p>👉 Remember: total energy in a system stays constant, but it changes form.</p>  
+<p>👉 Exam tip: Never say energy is ‘lost’ without explaining where it has gone, and use correct units for calculations.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Energy</strong> – The ability to do work or cause change, measured in joules (J).  
+<strong>Energy store</strong> – Where energy is held in a system (e.g., kinetic, potential).  
+<strong>Energy transfer</strong> – Movement of energy from one store to another.  
+<strong>Conservation of energy</strong> – Energy can’t be created or destroyed, only transferred.  
+<strong>Kinetic energy</strong> – Energy stored in moving objects.  
+<strong>Gravitational potential energy</strong> – Energy stored due to an object’s height.  
+<strong>Elastic potential energy</strong> – Energy stored in stretched or compressed objects.  
+<strong>Efficiency</strong> – Ratio of useful energy output to total energy input (%).  
+<strong>Wasted energy</strong> – Energy transferred to less useful forms, often thermal.  
+<strong>Work done</strong> – The energy transferred when a force moves an object (joules).

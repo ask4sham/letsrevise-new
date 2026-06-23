@@ -1,0 +1,378 @@
+LESSON OBJECTIVE FIELD:  
+Understand how to interpret and work with graphs by plotting points, reading gradients and intercepts, and explaining their meaning in context for GCSE Maths Higher Tier.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the essential skills for drawing, analysing, and interpreting graphs, including calculating gradients and intercepts, and applying exam-style reasoning at Higher Tier.
+
+<strong>Graphs – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Define what a graph is and the main components like axes, scale, and plotted points.</li>
+<li><strong>👉</strong> Explain why understanding graphs is important for interpreting relationships between quantities.</li>
+<li><strong>👉</strong> Apply the core method for reading and drawing graphs including calculating gradients and intercepts.</li>
+<li><strong>👉</strong> Use exam vocabulary to describe and interpret graphs with precision.</li>
+<li><strong>👉</strong> Practice exam-style questions that involve graph reading, gradient calculation, and interpreting real data.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>
+<p>You should already be confident with:</p>
+<ul>
+<li>Coordinate pairs and plotting points on the Cartesian plane.</li>
+<li>Basic algebra including understanding equations of straight lines.</li>
+<li>Understanding of scales and units on both axes.</li>
+<li>Using difference (change) between values to find rates like gradient as rise over run.</li>
+<li>Reading values from tables and linking those into graphs.</li>
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>
+<p>👉 <strong>A graph is a diagram that shows the relationship between two variables plotted on perpendicular axes.</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>
+<p>👉 <strong>Graphs are essential tools to visually represent how one quantity changes with another and to interpret real-world data quickly.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>The core model for working with graphs is: Label axes and choose a scale → Plot points accurately → Draw or sketch the curve or line → Identify key features like intercepts, gradients, turning points → Interpret what these features mean in the problem context.</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>
+<li>Linear graphs such as distance-time showing constant speed.</li>
+<li>Quadratic graphs such as height vs time for thrown balls showing maximum height (turning point).</li>
+<li>Graphs showing gradients as rates of change, for example, speed from a distance-time graph.</li>
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Plot, axes, scale, gradient, intercept, turning point, linear, quadratic, interpret, estimate</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>
+<p>👉 <strong>A cyclist rides at a steady speed for 2 hours, then slows down gradually until stopping at the 4-hour mark. The distance-time graph will have a straight line followed by a curve flattening out.</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Graphs</strong></h2>
+<p>👉 The key idea is accurately representing and interpreting relationships between variables shown on graphs.</p>
+
+<h3><strong>Method → reason:</strong></h3>
+<ul>
+<li>Start by labelling your axes with the correct variables and units.</li>
+<li>Choose a suitable scale so the graph fills the space and data points are clearly spread out.</li>
+<li>Plot points carefully by translating coordinate pairs onto the grid.</li>
+<li>Connect points smoothly for curves or straight lines for linear relationships.</li>
+<li>Identify key features such as the gradient (rate of change) and intercepts (where graph crosses axes).</li>
+</ul>
+
+<h3><strong>Step → result:</strong></h3>
+<ul>
+<li>To find gradient of a straight line: use gradient = (change in y) ÷ (change in x).</li>
+<li>The gradient often represents a speed, rate, or other real-world quantity depending on the axes.</li>
+<li>The y-intercept gives the starting value of y when x is zero.</li>
+</ul>
+
+<h3><strong>Common error → correction:</strong></h3>
+<ul>
+<li>Students often calculate ‘rise’ only for gradient and forget to divide by the ‘run’ causing incorrect slopes.</li>
+<li>Always remember: gradient = vertical change ÷ horizontal change, not just vertical.</li>
+<li>Also be careful to read the correct points and units off the axes to avoid scale errors.</li>
+</ul>
+
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 Use precise language in your answers like “The gradient of the line is 3 because the distance increases by 3 km every hour.” Avoid vague terms like "it gets bigger".</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What does the gradient of a distance-time graph represent?
+
+Option 1:  
+The total distance travelled.
+
+Option 2:  
+The starting point on the time axis.
+
+Option 3:  
+The speed of the object.
+
+Option 4:  
+The time taken to stop.
+
+Answer:  
+The speed of the object.
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each graph term to its correct description.
+
+Items to drag:  
+- Gradient  
+- Y-intercept  
+- Plot  
+- Scale
+
+Drop zones:  
+- The steepness of a straight line → ______  
+- The value where the line crosses the y-axis → ______  
+- To put points on the graph in the right place → ______  
+- How much each square on an axis represents → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- The steepness of a straight line → Gradient  
+- The value where the line crosses the y-axis → Y-intercept  
+- To put points on the graph in the right place → Plot  
+- How much each square on an axis represents → Scale  
+
+</details>
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<h2><strong>Common mistake</strong></h2>
+<p>👉 A common mistake is calculating the gradient as only the vertical change (rise) without dividing by the horizontal change (run).</p>
+<p>This means the slope is often overestimated or undervalued.</p>
+<p>The correct method is: gradient = change in y ÷ change in x.</p>
+<p>In exams, correctly showing both the rise and run earns method marks and avoids losing accuracy points.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+<h2><strong>Diagram: Coordinate grid with gradient triangle</strong></h2>  
+<p>Shows a Cartesian plane with axes labelled x and y, two points plotted (A and B), and a right triangle formed between them to illustrate rise and run for gradient calculation.</p>  
+<p>Labels: Axis X, Axis Y, Point A, Point B, Rise (vertical side), Run (horizontal side)</p>  
+<p>Helps students visually understand how to measure change in y and change in x.</p>
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Finding the gradient of a line on a graph
+
+Step 1:  
+Identify two clear points on the straight line and write down their coordinates (x₁, y₁) and (x₂, y₂).
+
+↓
+
+Step 2:  
+Calculate the vertical change (rise) as y₂ − y₁.
+
+↓
+
+Step 3:  
+Calculate the horizontal change (run) as x₂ − x₁.
+
+↓
+
+Step 4:  
+Divide rise by run to find the gradient = (y₂ − y₁) ÷ (x₂ − x₁).
+
+Exam link:  
+Use this gradient to interpret rates in exam questions, like speed from distance-time graphs.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of this graph related to gradient calculation.
+
+Labels to use:  
+- X-axis  
+- Y-axis  
+- Rise (Δy)  
+- Run (Δx)
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → X-axis  
+- B → Y-axis  
+- C → Rise (Δy)  
+- D → Run (Δx)  
+
+</details>
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 In exams, graphs are often used to test your understanding of how two variables relate. Interpreting gradients and intercepts helps you describe real-world processes clearly.</p>
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 When you’re asked to interpret a graph, always link the math with the context. Don’t just calculate a gradient—say what it means in real terms, such as speed or rate.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The gradient is the rise.</p>
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The gradient is the rise divided by the run, showing how fast something changes.</p>
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The gradient is calculated by dividing the change in y by the change in x and represents the rate of change, such as speed, which means the distance increases by a certain amount for each unit of time.</p>
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It clearly explains the calculation method.</li>  
+<li>It links the mathematical result to the real-world meaning.</li>  
+<li>It shows understanding beyond just a definition.</li>  
+</ul>
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p><strong>Gradient = change in y ÷ change in x</strong> is the cornerstone of graph interpretation, and speaking about what this means in context is the fast track to full marks.</p>
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+Which of these is the correct method to find the gradient between points (2,4) and (6,12)?
+
+Option 1:  
+(12 − 4) ÷ (6 − 2)
+
+Option 2:  
+(6 − 2) ÷ (12 − 4)
+
+Option 3:  
+(2 + 6) ÷ (4 + 12)
+
+Option 4:  
+(12 × 4) − (6 × 2)
+
+Answer:  
+(12 − 4) ÷ (6 − 2)
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>
+<p>👉 To succeed with graphs:</p>
+<ul>
+<li>Always label axes clearly with correct units and choose an appropriate scale.</li>
+<li>Plot points carefully, then connect or sketch the graph accurately.</li>
+<li>Calculate gradients by dividing the vertical change by the horizontal change—never forget this step.</li>
+<li>Use the y-intercept to understand starting values.</li>
+<li>Interpret all features in context—link numbers to real-world meanings like speed or cost.</li>
+</ul>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+A straight line on a graph passes through (1,3) and (4,15). What is the gradient of the line?
+
+A) 3  
+B) 4  
+C) 5  
+D) 12
+
+Answer:  
+4
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Remember, the <strong>gradient</strong> = rise ÷ run; it tells you the rate of change, and the <strong>y-intercept</strong> shows the initial starting point on the y-axis. Always explain what these mean in your answers.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>
+
+<p><strong>Q1 (1 mark):</strong> What is plotted on the y-axis of a speed-time graph?</p>
+
+<p><strong>Q2 (2 marks):</strong> Find the y-intercept of the line passing through (0, 5) and (3, 11).</p>
+
+<p><strong>Q3 (3 marks):</strong> A graph shows temperature rising from 10°C at 2 pm to 22°C at 6 pm. Calculate the gradient and explain what it means in context.</p>
+
+<p><strong>Q4 (4 marks):</strong> A linear graph shows revenue (in £) against number of items sold. The line passes through (0, 50) and (10, 250). Calculate the gradient, find the y-intercept, and interpret both values in the context of the business.</p>
+
+<details>  
+<summary>Reveal Model Answers</summary>
+
+Q1:  
+Answer: Time (hours) is plotted on the x-axis, so speed is on the y-axis.
+
+Q2:  
+Answer:  
+Since one point is (0, 5), the y-intercept is 5.
+
+Q3:  
+Answer:  
+Step 1: Calculate gradient = (22 - 10) ÷ (6 - 2) = 12 ÷ 4 = 3  
+Step 2: Interpretation: The temperature increases by 3°C every hour between 2 pm and 6 pm.
+
+Q4:  
+Answer:  
+Step 1: Gradient = (250 - 50) ÷ (10 - 0) = 200 ÷ 10 = 20  
+Step 2: Y-intercept = 50  
+Step 3: Interpretation: Gradient means the business earns £20 per item sold.  
+The y-intercept means the business has £50 of revenue even when no items are sold, possibly a base fee.
+</details>
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>
+<ul>
+<li>The axes on a graph show variables and units; always label these clearly.</li>
+<li>Graph plotting requires accuracy and using a suitable scale.</li>
+<li>The gradient is the change in y divided by the change in x and represents the rate in context.</li>
+<li>The y-intercept is where the graph meets the y-axis and often shows an initial value.</li>
+<li>Interpreting graphs in exams needs clear reference to what numbers mean in the real world.</li>
+<li>Watch common errors by carefully checking your rise/run and scales.</li>
+</ul>
+<p>👉 <strong>Remember:</strong> Always link your calculations to what they mean for the situation described.</p>
+<p>👉 <strong>Exam reminder:</strong> Showing every step of working and stating units can earn marks even if your final answer isn’t perfect.</p>
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Plot</strong> – To mark points on a graph according to their coordinates.  
+<strong>Axes</strong> – The horizontal (x) and vertical (y) lines on a graph.  
+<strong>Scale</strong> – The value represented by each unit on the axes.  
+<strong>Gradient</strong> – The steepness of a line found by dividing change in y by change in x.  
+<strong>Y-intercept</strong> – The point where the graph crosses the y-axis (x=0).  
+<strong>Linear</strong> – A graph represented by a straight line.  
+<strong>Quadratic</strong> – A curve shaped like a parabola on a graph.  
+<strong>Interpret</strong> – To explain the meaning of data or features in context.  
+<strong>Rise</strong> – The vertical change between two points on a graph.  
+<strong>Run</strong> – The horizontal change between two points on a graph.

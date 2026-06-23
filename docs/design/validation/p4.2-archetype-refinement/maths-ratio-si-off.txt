@@ -1,0 +1,355 @@
+LESSON OBJECTIVE FIELD:  
+Understand the concept of ratio, how to use it to compare quantities, and apply ratio reasoning confidently to answer Higher Tier GCSE style questions.
+
+SHORT SUMMARY FIELD:  
+This lesson covers the meaning of ratio, why it matters, how to work with ratio problems, common mistakes, exam vocabulary, and expert tips for answering ratio questions on the Edexcel GCSE Higher Tier.
+
+<strong>Ratio – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Understand the clear definition of ratio and what it shows about quantities.</li>
+<li><strong>👉</strong> Explain why knowing how to use ratios matters in problem-solving and exams.</li>
+<li><strong>👉</strong> Learn the core model for working with ratios, including simplifying and scaling.</li>
+<li><strong>👉</strong> Apply ratio concepts to real exam-style questions with confidence.</li>
+<li><strong>👉</strong> Identify and avoid common mistakes when working with ratios.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>
+<p>You need to be comfortable with these ideas before we start:</p>
+<ul>
+<li>Multiplication and division of whole numbers and decimals.</li>
+<li>Simplifying fractions and finding equivalent fractions.</li>
+<li>Basic understanding of proportions and fractions.</li>
+<li>Reading and interpreting units and quantities in context.</li>
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>
+<p>👉 <strong>A ratio compares the sizes of two or more quantities by showing how many times one value contains or fits into the other.</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>
+<p>👉 <strong>Ratios help us understand relationships between amounts quickly, making it easier to scale, compare, and solve problems in everyday life and exams.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>The core model for ratio problems is: Express quantities in simplest ratio form → Use multiplication or division to scale quantities → Apply consistently to find unknown values.</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>
+<li>Mixing paint in a 2 : 5 ratio means for every 2 parts of red, there are 5 parts of blue.</li>
+<li>A recipe calls for sugar and flour in a 1 : 3 ratio — if you use 100g of sugar, flour used is 300g.</li>
+<li>In a classroom, the ratio of boys to girls is 4 : 7 — to find total students or missing numbers, you scale this ratio.</li>
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Ratio</strong>, <strong>Simplify</strong>, <strong>Equivalent ratio</strong>, <strong>Scale</strong>, <strong>Parts</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>
+<p>👉 <strong>A juice recipe uses orange and apple juice in the ratio 3 : 2. If 900 ml of orange juice is used, how much apple juice is needed to keep the taste balanced?</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Ratio</strong></h2>  
+<p>👉 The key idea is that ratio expresses how much of one quantity relates to another.</p>  
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>Ratios compare amounts directly — for example, 3 : 2 means 3 parts of one thing for every 2 parts of another.</li>  
+<li>To work with ratios, simplify if possible to find the basic units of comparison.</li>  
+<li>Once simplified, we can scale up or down by multiplying or dividing both parts by the same number.</li>  
+</ul>  
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Express given quantities as a ratio → Simplify ratio → Scale ratio to find missing amounts.</li>  
+<li>This process ensures proportions stay consistent and values relate correctly.</li>  
+</ul>  
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always state the simplified ratio first. Use multiplication or division to scale. Give final answers with correct units and in simplest form.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What is the simplified ratio of 18 : 24?  
+
+Option 1: 3 : 4  
+Option 2: 6 : 8  
+Option 3: 2 : 3  
+Option 4: 4 : 6  
+
+Answer:  
+3 : 4  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each ratio term to its meaning.
+
+Items to drag:  
+- Ratio  
+- Simplify  
+- Scale  
+- Equivalent ratio  
+
+Drop zones:  
+- A comparison of quantities → ______  
+- To divide both parts by the same number → ______  
+- To multiply both parts by the same number → ______  
+- Another ratio with the same relationship → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A comparison of quantities → Ratio  
+- To divide both parts by the same number → Simplify  
+- To multiply both parts by the same number → Scale  
+- Another ratio with the same relationship → Equivalent ratio  
+
+</details>
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is mixing up when to multiply and when to divide in ratio problems.</p>  
+<p>Students often divide when they should multiply to find equivalent ratios or scale up, or vice versa.</p>  
+<p>Do NOT just guess what to do—think: if you want a bigger amount, multiply; if you want to simplify or find one part, divide.</p>  
+<p>This precision earns marks and avoids errors.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early introduction of ratio concept  
+Type: Diagram  
+
+What it should show:  
+A pair of bars labelled with quantities, e.g., 6 units and 8 units, displaying the ratio 6 : 8, with arrows or brackets indicating how to simplify to 3 : 4.  
+
+Key labels / features:  
+"6 parts" on top bar, "8 parts" below, simplification step showing dividing both by 2 to get 3 and 4.  
+
+Why it helps:  
+Visualizing quantities helps understand the process of simplifying ratios by dividing both parts equally.  
+
+Brand/style:  
+LET’S REVISE header, Edexcel-ready, clear thick outlines, minimal colour.
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Solving ratio scaling problems  
+
+Step 1:  
+Write the known quantities as a ratio.  
+
+↓  
+
+Step 2:  
+Simplify the ratio if possible by dividing both parts by their greatest common factor.  
+
+↓  
+
+Step 3:  
+Decide what you want to find and whether to scale up or down.  
+
+↓  
+
+Step 4:  
+Multiply or divide both parts of ratio as needed to find the unknown quantity.  
+
+Exam link:  
+Exam questions often ask to find unknown amounts based on given ratio relationships. Showing all steps clearly gains full marks.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of the ratio in this diagram.
+
+Labels to use:  
+- First quantity  
+- Second quantity  
+- Ratio parts  
+- Simplified ratio  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → First quantity  
+- B → Second quantity  
+- C → Ratio parts  
+- D → Simplified ratio  
+
+</details>
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 <strong>Ratios often appear in real-life problem-solving contexts like cooking, mixing substances, or comparing groups.</strong> Getting the ratio right ensures you scale amounts exactly, preserving relationships.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 Always simplify ratios first before multiplying or dividing. Write down each step clearly and include units in your final answer to get full marks.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The ratio is 3 : 2, so the second amount is 200 ml.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The ratio of orange to apple juice is 3 : 2 and 900 ml of orange is used, so apple juice is (900 ÷ 3) × 2 = 600 ml.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Given the ratio orange:apple = 3 : 2, first find 1 part by dividing 900 ml by 3, which is 300 ml. Then multiply 300 ml by 2 to find apple juice required: 600 ml, maintaining the correct ratio.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It explains each step clearly with calculation details.</li>  
+<li>Uses precise ratio terminology "parts".</li>  
+<li>Presents a cause → process → effect chain showing understanding.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+The ratio of boys to girls in a school is 5 : 6. If there are 120 boys, how many girls are there?  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+The ratio is 5 : 6. One part = 120 ÷ 5 = 24.  
+Girls = 6 parts = 6 × 24 = 144.  
+So, there are 144 girls in the school.  
+
+</details>
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+A recipe uses sugar and flour in ratio 2 : 7. If you use 50g of sugar, how much flour do you need?  
+
+Option 1: 14g  
+Option 2: 175g  
+Option 3: 350g  
+Option 4: 28g  
+
+Answer:  
+175g  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 The essence of ratio is expressing a relationship by showing parts relative to each other, then scaling consistently to solve problems.</p>  
+<p>Accurate simplification and careful scaling ensure answers that make sense in context and earn full marks in exams.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+If the ratio of red balls to blue balls is 4 : 9, and there are 36 blue balls, how many red balls are there?  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+One part = 36 ÷ 9 = 4  
+Red balls = 4 parts = 4 × 4 = 16 red balls  
+
+</details>
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Always simplify ratios first to their smallest whole numbers, then multiply or divide both parts by the same number to scale. This keeps ratios accurate and consistent throughout all problems.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>  
+
+<p>Q1 (1 mark): Simplify the ratio 15 : 20.</p>  
+<p>Q2 (2 marks): In a group, the ratio of cats to dogs is 7 : 5. If there are 35 cats, how many dogs are there?</p>  
+<p>Q3 (3 marks): A map uses a scale of 1 : 50,000. If two towns are 4 cm apart, what is the real distance? Show your working clearly.</p>  
+<p>Q4 (4 marks): The ratio of boys to girls in a school is 3 : 4. There are 196 children in total. Find the number of boys and girls.</p>  
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1: 15 : 20 simplified by dividing both by 5 → 3 : 4.  
+
+Q2: One part = 35 ÷ 7 = 5 dogs per part. Dogs = 5 parts × 5 = 25 dogs.  
+
+Q3: 1 cm on map = 50,000 cm real distance (500 m).  
+4 cm on map = 4 × 50,000 = 200,000 cm = 2,000 m = 2 km.  
+
+Q4: Ratio 3 : 4, total parts = 7 parts.  
+One part = 196 ÷ 7 = 28 children.  
+Boys = 3 × 28 = 84; Girls = 4 × 28 = 112.  
+
+</details>
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>
+
+<ul>
+<li>👉 Ratio compares quantities by expressing how many times one fits into the other.</li>
+<li>👉 Always simplify ratios first for easier comparison and scaling.</li>
+<li>👉 Use multiplication or division to scale ratios consistently when finding unknown values.</li>
+<li>👉 Common errors include mixing up when to multiply or divide.</li>
+<li>👉 Writing full calculation steps and including units helps gain full exam marks.</li>
+<li>👉 Practice with real examples to build confidence and speed.</li>
+</ul>
+
+<p>Remember: A clear, step-by-step explanation in the exam demonstrates your full understanding of ratio.</p>
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<strong>Ratio</strong> – A comparison of two or more quantities showing their relative sizes.  
+<strong>Simplify</strong> – To reduce numbers to their smallest whole number relationship.  
+<strong>Equivalent ratio</strong> – Other ratios that have the same simplified form.  
+<strong>Scale</strong> – To multiply or divide both parts of a ratio by the same number.  
+<strong>Parts</strong> – Units into which quantities are divided when expressing ratios.  
+<strong>Proportion</strong> – A statement that two ratios are equal.  
+<strong>Divide</strong> – To split a number into equal parts.  
+<strong>Multiply</strong> – To increase a number by repetitions.  
+<strong>Units</strong> – Labels that describe measurements (e.g., grams, ml).  
+<strong>Simplest form</strong> – The lowest whole numbers that express the ratio correctly.

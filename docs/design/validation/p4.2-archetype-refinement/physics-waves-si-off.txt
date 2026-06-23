@@ -1,0 +1,368 @@
+LESSON OBJECTIVE FIELD:  
+Explain the properties, behaviour, and organisation of waves relevant to GCSE Physics Higher Tier.
+
+SHORT SUMMARY FIELD:  
+This lesson covers what waves are, why understanding them matters, how they transfer energy, key examples of waves, and important exam vocabulary with focused exam technique.
+
+<strong>Waves – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Define waves and explain their main purpose.</li>
+<li><strong>👉</strong> Understand why studying waves is important for real-world technology and science.</li>
+<li><strong>👉</strong> Use the core wave model: disturbance → wave → energy transfer without matter transfer.</li>
+<li><strong>👉</strong> Apply wave concepts to examples like water waves, sound waves, and electromagnetic waves.</li>
+<li><strong>👉</strong> Use correct exam vocabulary: amplitude, wavelength, frequency, period, and wave speed.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>
+<p>Before we dive deeper into waves, you should already know:</p>
+<ul>
+<li>What is energy and how it can be transferred.</li>
+<li>The concept of particles as tiny parts of matter.</li>
+<li>Basic idea of forces and motion.</li>
+<li>Simple understanding of vibrations and oscillations.</li>
+</ul>
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>
+<p>👉 <strong>A wave is a disturbance that transfers energy from one place to another without transferring matter permanently.</strong></p>
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>
+<p>👉 <strong>Waves are fundamental for communication, medical imaging, and natural phenomena like earthquakes, so understanding them is essential for technology and safety.</strong></p>
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 <strong>The core model for waves is: energy causes a disturbance → particles oscillate locally but do not travel → energy moves through the wave → energy arrives at a new place, enabling work or detection.</strong></p>
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>
+<li>Water waves – energy moves across the water surface, water particles move up and down but stay in place.</li>
+<li>Sound waves – energy moves through air as vibrating air particles, transferring sound energy to your ears.</li>
+<li>Electromagnetic waves (like light) – energy travels through space without needing particles to move.</li>
+</ul>
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Amplitude</strong>, <strong>Wavelength</strong>, <strong>Frequency</strong>, <strong>Period</strong>, <strong>Wave speed</strong>, <strong>Transverse waves</strong>, <strong>Longitudinal waves</strong>, <strong>Oscillations</strong>, <strong>Energy transfer</strong>, <strong>Medium</strong></p>
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>
+<p>👉 <strong>Think about a ripple created when you drop a pebble into a pond. That ripple carries energy across the water, but the water particles themselves only move up and down and stay roughly in the same place.</strong></p>
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Waves</strong></h2>
+<p>👉 The key idea here is: waves transfer energy without matter travelling along.</p>
+
+<h3><strong>What happens physically:</strong></h3>
+<ul>
+<li>When a wave passes through a material (like water or air), its particles vibrate in place.</li>
+<li>This vibration or oscillation passes the energy from one particle to the next.</li>
+</ul>
+
+<h3><strong>Structure → function:</strong></h3>
+<ul>
+<li>Particles do not move forward with the wave; instead, they oscillate around fixed points.</li>
+<li>This means matter is not transported over long distances, but energy is.</li>
+</ul>
+
+<h3><strong>Process → effect:</strong></h3>
+<ul>
+<li>Energy from a source causes particles to oscillate → oscillations pass energy through the medium → energy reaches detectors or new locations for use.</li>
+</ul>
+
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 Use phrases showing cause → effect: “Energy causes oscillations in particles, which pass energy along the wave without moving the particles themselves.”</p>
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What does a wave transfer from one place to another?
+
+Option 1:  
+Particles of the medium
+
+Option 2:  
+Energy
+
+Option 3:  
+Matter
+
+Option 4:  
+Momentum
+
+Answer:  
+Energy
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each wave type to its correct property.
+
+Items to drag:  
+- Transverse wave  
+- Longitudinal wave  
+- Does not need a medium  
+- Requires a medium  
+
+Drop zones:  
+- A wave type where particles oscillate perpendicular to energy transfer → ______  
+- A wave type where particles oscillate parallel to energy transfer → ______  
+- Electromagnetic waves → ______  
+- Mechanical waves → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A wave type where particles oscillate perpendicular to energy transfer → Transverse wave  
+- A wave type where particles oscillate parallel to energy transfer → Longitudinal wave  
+- Electromagnetic waves → Does not need a medium  
+- Mechanical waves → Requires a medium  
+
+</details>
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<p>👉 A common mistake is saying waves carry matter or particles along from one place to another.</p>  
+<p>In reality, particles only oscillate about a fixed point and do not travel with the wave.</p>  
+<p>👉 This distinction is vital for exam marks and understanding wave properties correctly.</p>
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement: Early explanation of wave types  
+Type: Diagram  
+
+What it should show:  
+Clear labelled depiction of transverse and longitudinal waves side-by-side, showing particle movement direction relative to energy transfer.
+
+Key labels / features:  
+Particles oscillating up and down (transverse), particles oscillating back and forth (longitudinal), wave direction arrow, wavelength labeled.
+
+Why it helps:  
+Visualising particle oscillations helps students understand the core difference between transverse and longitudinal waves.
+
+Brand/style:  
+LET’S REVISE header, Exam-board ready, white background, thick black outlines, minimal colour, large uppercase labels.
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Energy transfer by a wave
+
+Step 1:  
+Energy source creates a disturbance causing particles to oscillate.  
+
+↓
+
+Step 2:  
+Oscillating particles disturb their neighbours, transferring energy locally.  
+
+↓
+
+Step 3:  
+This pattern of disturbance travels through the medium as a wave.  
+
+↓
+
+Step 4:  
+Energy arrives at a new location, where it can be detected or used.  
+
+Exam link:  
+Describe how waves transfer energy without transferring matter in an exam answer.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the diagram using the correct terms.
+
+Labels to use:  
+- Wavelength  
+- Amplitude  
+- Crest  
+- Trough  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>
+
+- A → Crest  
+- B → Trough  
+- C → Amplitude  
+- D → Wavelength  
+
+</details>
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Understanding wave properties is essential because wave phenomena affect how we communicate, see, hear, and use technology every day—such as mobile phones, medical imaging, and seismic monitoring.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 In exam answers, don’t just name wave properties; always explain how they relate to energy transfer and particle movement. Use the cause → effect structure: "Because energy causes particles to oscillate, the wave carries energy forward without moving matter."</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>Waves move particles and energy.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>Waves move energy because they cause particles to vibrate.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Waves transfer energy through oscillations of particles without transporting matter because particles vibrate around fixed points, passing the energy along the wave.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It clearly explains that particles do not travel with the wave.</li>  
+<li>It uses correct terms ‘oscillations’ and ‘energy transfer’.</li>  
+<li>It follows a cause → effect chain demonstrating understanding.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+Explain why waves transfer energy but do not transfer matter.
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>
+
+Waves transfer energy because they cause particles in a medium to oscillate and pass this energy on to nearby particles. The particles vibrate around fixed points without moving along the wave path, so matter is not transferred — only energy moves from one place to another.
+
+</details>
+
+18 — QUICK CHECK  
+Paste into: Quick check (checkpoint)
+
+Question:  
+Which wave type has particles oscillating perpendicular to the direction of energy transfer?
+
+Option 1:  
+Longitudinal waves
+
+Option 2:  
+Transverse waves
+
+Option 3:  
+Sound waves
+
+Option 4:  
+Electromagnetic waves
+
+Answer:  
+Transverse waves
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<p>👉 Waves are a way energy moves through a medium or space via particle oscillations without moving matter far.</p>  
+<p>👉 This principle underlies sound, water ripples, and light, linking wave properties with their practical uses.</p>
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+<p>👉 Why can sound not travel through a vacuum? Explain using particle vibrations.</p>
+
+<details>  
+<summary>Reveal Answer</summary>
+
+Sound requires particles to vibrate and transfer energy. In a vacuum, there are no particles, so no vibrations can occur and sound cannot travel.
+
+</details>
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>Waves move energy through oscillations of particles without carrying the particles themselves along.</p>
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<p>Question 1 (1 mark):</p>  
+<p>Define what a wave is in physics.</p>
+
+<p>Question 2 (2 marks):</p>  
+<p>Explain the difference between transverse and longitudinal waves.</p>
+
+<p>Question 3 (3 marks):</p>  
+<p>Describe how energy is transferred by a wave without transferring matter.</p>
+
+<p>Question 4 (4 marks):</p>  
+<p>A student drops a stone into a pond, creating ripples. Explain what happens to the water particles and the energy as the ripples spread out.</p>
+
+<details>  
+<summary>Reveal Model Answers</summary>
+
+<p><strong>Q1:</strong> A wave is a disturbance that transfers energy without transferring matter.</p>
+
+<p><strong>Q2:</strong> In transverse waves, particles oscillate perpendicular to the wave direction, while in longitudinal waves, particles oscillate parallel to the wave direction.</p>
+
+<p><strong>Q3:</strong> Energy makes particles oscillate; these vibrations pass energy along the wave while the particles remain in place, so matter is not transported.</p>
+
+<p><strong>Q4:</strong> When the stone hits the water, it causes water particles to oscillate up and down, creating ripples. The energy moves outward as the ripples spread, but the water particles only vibrate near their positions without moving outward with the waves.</p>
+
+</details>
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<ul>
+<li>Waves transfer energy, not matter.</li>
+<li>Particles in waves oscillate locally but do not travel with the wave.</li>
+<li>Two main types: transverse (oscillations perpendicular) and longitudinal (oscillations parallel).</li>
+<li>Wave properties like amplitude and wavelength describe how waves behave.</li>
+<li>Understanding waves explains phenomena like sound, water ripples, and light.</li>
+</ul>
+<p>👉 Remember: Energy moves, particles vibrate.</p>
+<p>👉 Exam reminder: Always explain why particles don’t move forward to score full marks.</p>
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<p><strong>Amplitude</strong> – The maximum displacement of a particle from its rest position.</p>  
+<p><strong>Wavelength</strong> – The distance between two corresponding points on adjacent waves.</p>  
+<p><strong>Frequency</strong> – How many waves pass a point per second.</p>  
+<p><strong>Period</strong> – The time taken for one wave to pass a point.</p>  
+<p><strong>Wave speed</strong> – How fast the wave transfers energy through the medium.</p>  
+<p><strong>Transverse wave</strong> – Wave where particles oscillate perpendicular to the energy direction.</p>  
+<p><strong>Longitudinal wave</strong> – Wave where particles oscillate parallel to the energy direction.</p>  
+<p><strong>Oscillation</strong> – Repeated back and forth motion of particles.</p>  
+<p><strong>Medium</strong> – The material through which mechanical waves travel.</p>  
+<p><strong>Energy transfer</strong> – Movement of energy from one place to another by waves, not particles.</p>

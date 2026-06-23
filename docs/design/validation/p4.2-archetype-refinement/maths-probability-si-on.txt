@@ -1,0 +1,402 @@
+LESSON OBJECTIVE FIELD:  
+I can explain and calculate probabilities of single and combined events, including independent and mutually exclusive cases, using sample spaces, tree diagrams, and correct terminology.
+
+SHORT SUMMARY FIELD:  
+This lesson develops a clear understanding of probability concepts including sample space, independent and mutually exclusive events, and teaches how to calculate combined probabilities with accurate exam language and method.
+
+<strong>Probability – Organisation (Edexcel KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — REVISION OBJECTIVES  
+Paste into: Text (concept)
+
+<ul>
+<li><strong>👉</strong> Define probability and describe sample spaces clearly.</li>
+<li><strong>👉</strong> Explain why understanding probability is essential for solving exam questions accurately.</li>
+<li><strong>👉</strong> Apply the core probability model to calculate single and combined event probabilities.</li>
+<li><strong>👉</strong> Use probability notation and vocabulary correctly in exam answers.</li>
+<li><strong>👉</strong> Understand and apply conditions for independent and mutually exclusive events.</li>
+</ul>
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>Basic fractions and decimals including equivalence (½ = 0.5).</li>  
+<li>How to list all possible outcomes of an event (sample space).</li>  
+<li>Multiplication and addition of simple numbers.</li>  
+<li>Understanding of simple probability as “chance” that something happens between 0 and 1.</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>Probability</strong> is a number between 0 and 1 that measures how likely an event is to happen, with 0 meaning impossible and 1 meaning certain.</p>  
+<p>👉 The <strong>sample space</strong> is the complete set of all possible outcomes for a given situation.</p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Probability helps us make predictions based on chance, whether it’s for exam questions, everyday decisions, or understanding real-world situations like weather or games.</p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<p>👉 The core probability model follows these steps:</p>  
+<ol>  
+<li>List all outcomes in the <strong>sample space</strong>.</li>  
+<li>Identify the number of <strong>favourable outcomes</strong> that match the event.</li>  
+<li>Calculate probability by using the formula: <strong>P(event) = number of favourable outcomes ÷ total number of outcomes</strong>.</li>  
+<li>For combined events, apply rules for <strong>AND</strong> (multiply if independent events) or <strong>OR</strong> (add if mutually exclusive events).</li>  
+<li>Interpret and explain the final probability in context.</li>  
+</ol>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<ul>  
+<li>Rolling a 6-sided die and finding the probability of getting a 4: outcomes {1,2,3,4,5,6}, P(4) = 1/6.</li>  
+<li>Drawing a red card from a deck of cards: count red cards (26), total cards (52), P(red) = 26/52 = 1/2.</li>  
+<li>Flipping two coins and calculating the probability of both heads: sample space is {HH, HT, TH, TT}, P(both heads) = 1/4.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<p><strong>Probability</strong>, <strong>event</strong>, <strong>sample space</strong>, <strong>favourable outcomes</strong>, <strong>independent events</strong>, <strong>mutually exclusive</strong>, <strong>AND</strong>, <strong>OR</strong>, <strong>calculate</strong>, <strong>show that</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 A box contains 5 blue balls and 3 red balls. You pick one ball at random. What is the probability of choosing a red ball?</p>  
+<p>👉 This follows the core model: sample space has 8 balls, favorable outcomes are 3 red balls, so probability = 3/8.</p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: Probability</strong></h2>  
+<p>👉 The key idea is calculating probabilities using fractions from a complete list of outcomes.</p>  
+<h3><strong>Key idea:</strong></h3>  
+<p>Probability is the size of the part you want divided by the whole sample space.</p>  
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>First, write down the <strong>sample space</strong>. This is the list of all possible results.</li>  
+<li>Then identify which results you actually want to happen — these are the <strong>favourable outcomes</strong>.</li>  
+<li>Use the formula: <strong>P(event) = favourable outcomes ÷ total outcomes</strong>.</li>  
+</ul>  
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>Sample space defines the denominator → tells us how many possible results there are.</li>  
+<li>Counting favourable outcomes gives numerator → tells us how many of those results count as success.</li>  
+<li>Fraction shows chance → a probability of 0 means impossible, 1 means certain.</li>  
+</ul>  
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 Always state the event clearly, show the sample space and how many outcomes are favourable, then write the fraction and simplify if possible.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What is the probability of rolling a 3 or a 5 on a fair six-sided dice?
+
+Option 1:  
+1/6
+
+Option 2:  
+1/3
+
+Option 3:  
+1/2
+
+Option 4:  
+2/3
+
+Answer:  
+1/3  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each term to the correct description.
+
+Items to drag:  
+- Probability  
+- Sample space  
+- Favourable outcomes  
+- Mutually exclusive  
+
+Drop zones:  
+- The set of all possible outcomes → ______  
+- The chance an event will happen (between 0 and 1) → ______  
+- The outcomes that satisfy the event → ______  
+- Events that cannot happen at the same time → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- The set of all possible outcomes → Sample space  
+- The chance an event will happen (between 0 and 1) → Probability  
+- The outcomes that satisfy the event → Favourable outcomes  
+- Events that cannot happen at the same time → Mutually exclusive  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<h2><strong>Common mistake: Adding probabilities for independent events</strong></h2>  
+<p>👉 A common mistake is adding probabilities when you should multiply for independent events.</p>  
+<p>For example, if you flip two coins, the probability of heads on the first OR heads on the second is not ½ + ½ = 1 (which is impossible). Instead, you multiply for both heads: ½ × ½ = ¼.</p>  
+<p>👉 Do NOT just add probabilities for AND events unless stated as mutually exclusive or OR events.</p>  
+<p>This mistake loses marks because it creates probabilities greater than 1 or wrong answers.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Placement:  
+After Common Mistake
+
+Type:  
+Diagram
+
+What it should show:  
+A simple sample space diagram for rolling a single dice, showing 6 outcomes labeled 1 to 6.
+
+Key labels / features:  
+- All six faces equally likely.  
+- Highlight the favourable outcomes for “rolling a 4 or 5.”  
+
+Why it helps:  
+It clearly visualizes sample space and helps students count favourable and total outcomes for probability calculation.  
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours (highlight for favoured outcomes)  
+- Large uppercase labels  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Calculating combined probabilities for independent events (AND rule)
+
+Step 1:  
+Identify the sample space and possible outcomes for each event.
+
+↓
+
+Step 2:  
+Calculate the probability for each individual event.
+
+↓
+
+Step 3:  
+Multiply the probabilities of each event to find the combined probability (if independent).
+
+↓
+
+Step 4:  
+Simplify your final answer and interpret it in context.
+
+Exam link:  
+Multiply probabilities for independent events to answer combined event questions clearly in exams.
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of a tree diagram for two coin tosses.
+
+Labels to use:  
+- Sample space  
+- Branch probability  
+- Combined event probability  
+- Outcome
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Sample space  
+- B → Branch probability  
+- C → Combined event probability  
+- D → Outcome  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Probability questions test your understanding of chance and require clear method steps and correct vocabulary to gain marks.</p>  
+<p>Showing your working step-by-step proves you understand and helps examiners award method marks.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>Always write down the sample space and explain how you found favourable outcomes. For combined events, state clearly if you are adding (OR) or multiplying (AND) probabilities, and say if events are independent or mutually exclusive.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The probability is ½ because there are two sides on a coin.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The probability is ½ because heads is one of the two possible outcomes on a coin, so 1 out of 2.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>The probability of getting heads when tossing a fair coin is ½ because the sample space contains 2 outcomes (heads and tails), and only 1 of these is favourable. Therefore, P(heads) = 1 ÷ 2 = ½.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It explicitly states the sample space and the number of favourable outcomes.</li>  
+<li>It uses correct probability notation.</li>  
+<li>It clearly links cause and effect in a logical chain, meeting exam expectations.</li>  
+</ul>  
+
+17 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 Probability = (favourable outcomes) ÷ (total outcomes); combine using:</p>  
+<ul>  
+<li><strong>AND (independent)</strong>: multiply probabilities.</li>  
+<li><strong>OR (mutually exclusive)</strong>: add probabilities.</li>  
+</ul>  
+<p>This method keeps probability values sensible between 0 and 1 and ensures full marks.</p>  
+
+18 — QUICK CHECK  
+Paste into: Checkpoint block
+
+Question:  
+Two dice are rolled. What is the probability that both show a 6?
+
+Option 1:  
+1/6 + 1/6
+
+Option 2:  
+1/6 × 1/6
+
+Option 3:  
+1/3
+
+Option 4:  
+1/12
+
+Answer:  
+1/6 × 1/6  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis: Understanding combined probabilities</strong></h2>  
+<p>👉 When combining probabilities, deciding whether to add or multiply depends on the relationship between events:</p>  
+<ul>  
+<li>If events cannot occur together at the same time (mutually exclusive), use addition.</li>  
+<li>If events occur independently, use multiplication.</li>  
+</ul>  
+<p>Understanding this lets you tackle more complex exam questions confidently.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+If you draw one card from a standard pack of 52 cards, what is the probability of drawing a King or a Queen?
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+There are 4 Kings and 4 Queens, so favourable outcomes = 8.  
+Total outcomes = 52.  
+Since Kings and Queens cannot be drawn at the same time, these events are mutually exclusive.  
+So, P(King or Queen) = (4 + 4) ÷ 52 = 8/52 = 2/13.  
+
+</details>  
+
+21 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam Practice</strong></h2>
+
+<p><strong>Q1 (1 mark):</strong> A coin is flipped once. What is the probability of getting tails?</p>
+
+<p><strong>Q2 (2 marks):</strong> A six-sided die is rolled. Calculate the probability of rolling a 2 or 5.</p>
+
+<p><strong>Q3 (3 marks):</strong> Two coins are tossed. Calculate the probability of getting one head and one tail in any order. Show your steps.</p>
+
+<p><strong>Q4 (4 marks):</strong> Bag A contains 3 red balls and 2 blue balls. Bag B contains 4 red balls and 1 blue ball. One ball is drawn from each bag. Calculate the probability that one ball is red and the other is blue. Explain your method clearly.</p>
+
+<details>  
+<summary>Reveal Model Answers</summary>  
+
+Q1:  
+P(tails) = number of tails ÷ total outcomes = 1 ÷ 2 = ½.
+
+Q2:  
+Sample space = {1,2,3,4,5,6}  
+Favourable outcomes = {2,5} → 2 outcomes  
+P(2 or 5) = 2 ÷ 6 = 1/3.
+
+Q3:  
+Sample space for two coins = {HH, HT, TH, TT}  
+Favourable outcomes = {HT, TH} → 2 outcomes  
+Total outcomes = 4  
+P(one head, one tail) = 2 ÷ 4 = ½.
+
+Q4:  
+Step 1: Define events.  
+Bag A = 3 red, 2 blue; Bag B = 4 red, 1 blue.  
+Step 2: Calculate probabilities for each bag.  
+P(red from A) = 3/5, P(blue from A) = 2/5  
+P(red from B) = 4/5, P(blue from B) = 1/5  
+Step 3: Find probability one red and one blue:  
+Either red from A AND blue from B, OR blue from A AND red from B.  
+P = (3/5 × 1/5) + (2/5 × 4/5) = 3/25 + 8/25 = 11/25.
+
+</details>  
+
+22 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Probability measures how likely an event is, ranging from 0 (impossible) to 1 (certain).</li>  
+<li>The sample space lists all possible outcomes in a probability situation.</li>  
+<li>Single event probability is calculated as favourable outcomes over total outcomes.</li>  
+<li>For combined events, use multiplication for independent (AND) events.</li>  
+<li>Use addition for mutually exclusive (OR) events.</li>  
+<li>Always show working and use correct terminology for full exam marks.</li>  
+</ul>  
+<p>👉 Remember: Always define your sample space before finding probabilities!</p>  
+<p>👉 In exams, writing out your method clearly can earn method marks even if you make small errors.</p>  
+
+23 — KEY WORDS  
+Paste into: Key words
+
+<strong>Probability</strong> – A number between 0 and 1 showing how likely an event is.  
+<strong>Sample space</strong> – The complete set of possible outcomes of an event.  
+<strong>Event</strong> – A specific outcome or group of outcomes from the sample space.  
+<strong>Favourable outcomes</strong> – The outcomes that satisfy the event being considered.  
+<strong>Independent events</strong> – Events where the outcome of one does not affect the other.  
+<strong>Mutually exclusive</strong> – Events that cannot happen at the same time.  
+<strong>Combined probability</strong> – The probability of two or more events happening together or separately.  
+<strong>Addition rule</strong> – For mutually exclusive events, P(A or B) = P(A) + P(B).  
+<strong>Multiplication rule</strong> – For independent events, P(A and B) = P(A) × P(B).  
+<strong>Outcome</strong> – A single possible result of an experiment or event.
