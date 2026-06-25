@@ -29,6 +29,14 @@ export function checkpointMarkSchemeEditorText(
   return checkpointMarkSchemeLines(markScheme).join("\n");
 }
 
+/** Block-level API persist: LessonPageBlockSchema expects markScheme as string, not string[]. */
+export function checkpointMarkSchemeForBlockPersist(
+  markScheme?: string | string[] | null | undefined
+): string | undefined {
+  const text = checkpointMarkSchemeEditorText(markScheme);
+  return text || undefined;
+}
+
 /**
  * Merge free-text checkpoint explanation with mark-scheme bullet points for student display.
  * Non-breaking: empty inputs yield undefined.

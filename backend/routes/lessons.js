@@ -40,7 +40,10 @@ const {
   toLessonFullPayload,
   stripCheckpointAutoMarkFromLesson,
 } = require("../utils/lessonPayload");
-const { makeLessonDbSafe } = require("../utils/lessonDbSafe");
+const {
+  makeLessonDbSafe,
+  rehydrateLessonPagesMarkSchemeFromDb,
+} = require("../utils/lessonDbSafe");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
@@ -2718,6 +2721,8 @@ async function publishToggleHandler(req, res, mode) {
       lesson.status = "draft";
     }
 
+    await rehydrateLessonPagesMarkSchemeFromDb(lesson);
+
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
 
@@ -3596,7 +3601,9 @@ router.put("/:id", auth, async (req, res) => {
     if (updates.pages && Array.isArray(updates.pages)) {
       // Use the new mergePagesOnUpdate function
       const merged = mergePagesOnUpdate(lessonId, lesson.pages || [], updates.pages);
-      lesson.pages = promoteHeroOnLesson({ pages: merged }).pages;
+      lesson.pages = makeLessonDbSafe({
+        pages: promoteHeroOnLesson({ pages: merged }).pages,
+      }).pages;
       lesson.markModified("pages");
       delete updates.pages; // Remove from general updates to avoid overwriting
     }

@@ -30,7 +30,7 @@ import DiagramAssetLibraryPanel from "../components/diagrams/DiagramAssetLibrary
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import {
   checkpointMarkSchemeEditorText,
-  checkpointMarkSchemeLines,
+  checkpointMarkSchemeForBlockPersist,
   mergeCheckpointExplanationParts,
 } from "../utils/checkpointFeedback";
 import {
@@ -3655,7 +3655,9 @@ const EditLessonPage: React.FC = () => {
           }
           if (b.type === "checkpoint") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            const markSchemeBlk = checkpointMarkSchemeLines((b as LessonPageBlock).markScheme);
+            const markSchemeBlk = checkpointMarkSchemeForBlockPersist(
+              (b as LessonPageBlock).markScheme
+            );
             const cpOut: Record<string, unknown> = {
               type: "checkpoint",
               prompt: String(b.prompt ?? "").trim(),
@@ -3663,14 +3665,16 @@ const EditLessonPage: React.FC = () => {
               options: opts,
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
-              ...(markSchemeBlk.length ? { markScheme: markSchemeBlk } : {}),
+              ...(markSchemeBlk ? { markScheme: markSchemeBlk } : {}),
             };
             if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
             return cpOut;
           }
           if (b.type === "selfCheck") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            const markSchemeSc = checkpointMarkSchemeLines((b as LessonPageBlock).markScheme);
+            const markSchemeSc = checkpointMarkSchemeForBlockPersist(
+              (b as LessonPageBlock).markScheme
+            );
             const scOut: Record<string, unknown> = {
               type: "selfCheck",
               prompt: String(b.prompt ?? "").trim(),
@@ -3678,7 +3682,7 @@ const EditLessonPage: React.FC = () => {
               options: opts,
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
-              ...(markSchemeSc && markSchemeSc.length ? { markScheme: markSchemeSc } : {}),
+              ...(markSchemeSc ? { markScheme: markSchemeSc } : {}),
             };
             if (typeof b.role === "string" && b.role.trim()) scOut.role = b.role.trim();
             return scOut;

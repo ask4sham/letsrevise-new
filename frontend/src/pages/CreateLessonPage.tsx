@@ -62,6 +62,7 @@ import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock"
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import {
+  checkpointMarkSchemeForBlockPersist,
   checkpointMarkSchemeLines,
   mergeCheckpointExplanationParts,
 } from "../utils/checkpointFeedback";
@@ -1480,19 +1481,15 @@ const CreateLessonPage: React.FC = () => {
           out.correctAnswer = safeStr(p.checkpoint.answer, "");
           const chkExpl = safeStr(p.checkpoint.explanation, "").trim();
           if (chkExpl) out.explanation = chkExpl;
-          const chkMs = Array.isArray(p.checkpoint.markScheme)
-            ? p.checkpoint.markScheme.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
-            : [];
-          if (chkMs.length) out.markScheme = chkMs;
+          const chkMs = checkpointMarkSchemeForBlockPersist(p.checkpoint.markScheme);
+          if (chkMs) out.markScheme = chkMs;
         }
         if (blockType === "selfCheck") {
           const bsc = b as LessonPageBlock;
           const chkExpl = bsc.explanation != null ? String(bsc.explanation).trim() : "";
-          const chkMs = Array.isArray(bsc.markScheme)
-            ? bsc.markScheme.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
-            : [];
+          const chkMs = checkpointMarkSchemeForBlockPersist(bsc.markScheme);
           if (chkExpl) out.explanation = chkExpl;
-          if (chkMs.length) out.markScheme = chkMs;
+          if (chkMs) out.markScheme = chkMs;
           out.prompt = String(bsc.prompt ?? "").trim();
           out.questionType = bsc.questionType === "short" ? "short" : "mcq";
           const scOpts = Array.isArray(bsc.options) ? bsc.options.map((o: string) => String(o ?? "").trim()) : [];

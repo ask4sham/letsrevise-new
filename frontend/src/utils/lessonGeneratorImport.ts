@@ -27,6 +27,7 @@ import { stripSs1PrefixFromTitle } from "./formatBlockHeading";
 import { mergeLessonBlockIntroFields } from "./lessonRichText";
 import { canonicalSlugFromText } from "./normalizeLessonTopicKey";
 import { cleanSequenceStepDescription } from "./cleanSequenceStepDescription";
+import { checkpointMarkSchemeForBlockPersist } from "./checkpointFeedback";
 import {
   buildHotspotsFromGeneratorScript,
   hydrateInteractiveSequenceStepsForEditor,
@@ -231,9 +232,13 @@ function elevateExtraImportedCheckpointsToSelfCheck(
     ca = enriched.correctAnswer;
     expl = enriched.explanation;
     const msRaw = raw.markScheme;
-    const markScheme = Array.isArray(msRaw)
-      ? msRaw.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
-      : ([] as string[]);
+    const msPersist = checkpointMarkSchemeForBlockPersist(
+      Array.isArray(msRaw)
+        ? msRaw.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+        : typeof msRaw === "string"
+          ? msRaw
+          : undefined
+    );
     const title = typeof raw.title === "string" ? raw.title.trim() : "";
     const role = typeof raw.role === "string" ? raw.role.trim() : "";
 
@@ -248,7 +253,7 @@ function elevateExtraImportedCheckpointsToSelfCheck(
       correctAnswer: ca || opts.find(Boolean) || "",
       explanation: expl,
     };
-    if (markScheme.length) out.markScheme = markScheme;
+    if (msPersist) out.markScheme = msPersist;
     return out;
   });
 }
@@ -324,11 +329,13 @@ function recordToLessonBlock(
         (payload as { difficultyTier?: unknown; difficulty?: unknown }).difficultyTier ??
           (payload as { difficulty?: unknown }).difficulty
       );
-      const markScheme = applyDifficultyToMarkScheme(
-        Array.isArray(payload.markScheme)
-          ? (payload.markScheme as string[]).map((x) => String(x ?? ""))
-          : undefined,
-        tier
+      const markScheme = checkpointMarkSchemeForBlockPersist(
+        applyDifficultyToMarkScheme(
+          Array.isArray(payload.markScheme)
+            ? (payload.markScheme as string[]).map((x) => String(x ?? ""))
+            : undefined,
+          tier
+        )
       );
       return attachBlockNumber(
         {
@@ -341,7 +348,7 @@ function recordToLessonBlock(
           options: opts,
           correctAnswer,
           explanation,
-          ...(markScheme?.length ? { markScheme } : {}),
+          ...(markScheme ? { markScheme } : {}),
         },
         record
       );
@@ -379,11 +386,13 @@ function recordToLessonBlock(
         (payload as { difficultyTier?: unknown; difficulty?: unknown }).difficultyTier ??
           (payload as { difficulty?: unknown }).difficulty
       );
-      const markScheme = applyDifficultyToMarkScheme(
-        Array.isArray(payload.markScheme)
-          ? (payload.markScheme as string[]).map((x) => String(x ?? ""))
-          : undefined,
-        tier
+      const markScheme = checkpointMarkSchemeForBlockPersist(
+        applyDifficultyToMarkScheme(
+          Array.isArray(payload.markScheme)
+            ? (payload.markScheme as string[]).map((x) => String(x ?? ""))
+            : undefined,
+          tier
+        )
       );
       return attachBlockNumber(
         {
@@ -396,7 +405,7 @@ function recordToLessonBlock(
           options: qType === "short" ? ["", "", "", ""] : opts,
           correctAnswer,
           explanation,
-          ...(markScheme?.length ? { markScheme } : {}),
+          ...(markScheme ? { markScheme } : {}),
         },
         record
       );
