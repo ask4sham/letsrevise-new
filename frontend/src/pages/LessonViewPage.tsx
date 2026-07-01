@@ -85,12 +85,6 @@ import {
 import { recordMastery, getMastery } from "../api/mastery";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
-import { getVisualExplanationEnabled } from "../api/featureFlags";
-import VisualExplanationPanel from "../components/lesson/VisualExplanationPanel";
-import {
-  buildVisualExplanationContext,
-  findVisualExplanationAnchor,
-} from "../utils/visualExplanationAnchor";
 import { updateUser } from "../utils/authStorage";
 import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
@@ -1547,7 +1541,6 @@ const LessonViewPage: React.FC = () => {
   // PR-FE-REVIEWS-COLLAPSE-1: Student Reviews collapsed by default, expand on pill click
   const [showReviews, setShowReviews] = useState(false);
   const reviewsRef = useRef<HTMLDivElement>(null);
-  const [visualExplanationEnabled, setVisualExplanationEnabled] = useState(false);
   useEffect(() => {
     if (previewLockRef.current) {
       if (process.env.NODE_ENV !== "production") {
@@ -1559,29 +1552,6 @@ const LessonViewPage: React.FC = () => {
       reviewsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [showReviews]);
-
-  useEffect(() => {
-    const userType = (user?.userType ?? "").toString().toLowerCase();
-    const isTa =
-      userType === "teacher" ||
-      userType === "admin" ||
-      (user as { isAdmin?: boolean })?.isAdmin === true;
-    if (!token || !isTa) {
-      setVisualExplanationEnabled(false);
-      return;
-    }
-    let cancelled = false;
-    getVisualExplanationEnabled()
-      .then((enabled) => {
-        if (!cancelled) setVisualExplanationEnabled(enabled);
-      })
-      .catch(() => {
-        if (!cancelled) setVisualExplanationEnabled(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user, token]);
 
   // PR — Adaptive Testing Loop: topic mastery for adaptive feedback
   const [masteryData, setMasteryData] = useState<{ attempts: number; correct: number; masteryScore: number } | null>(null);
@@ -3300,62 +3270,6 @@ const LessonViewPage: React.FC = () => {
     user?.userType === "teacher" ||
     (user as any)?.isAdmin === true;
 
-  const visualExplanationAnchor = useMemo(() => {
-    if (!lesson || !currentPage) return null;
-    return findVisualExplanationAnchor(currentPage, {
-      title: lesson.title,
-      topic: lesson.topic,
-      subject: lesson.subject,
-      level: lesson.level,
-      examBoardName: lesson.examBoardName,
-    }, {
-      showDeeperKnowledge,
-      showPageKicker: false,
-    });
-  }, [currentPage, lesson, showDeeperKnowledge]);
-
-  const visualExplanationTeachingContext = useMemo(() => {
-    if (!lesson || !currentPage || !visualExplanationAnchor) return "";
-    return buildVisualExplanationContext(currentPage, visualExplanationAnchor.anchorIndex, {
-      title: lesson.title,
-      topic: lesson.topic,
-      subject: lesson.subject,
-      level: lesson.level,
-      examBoardName: lesson.examBoardName,
-    });
-  }, [currentPage, lesson, visualExplanationAnchor]);
-
-  const renderVisualExplanationAfterBlock = useCallback(
-    (blockIdx: number) => {
-      if (!visualExplanationEnabled || !isTeacherOrAdmin || !lesson || !visualExplanationAnchor) {
-        return null;
-      }
-      if (visualExplanationAnchor.anchorIndex !== blockIdx) return null;
-      return (
-        <VisualExplanationPanel
-          lesson={{
-            id: lesson.id,
-            title: lesson.title,
-            topic: lesson.topic,
-            subject: lesson.subject,
-            level: lesson.level,
-            examBoardName: lesson.examBoardName,
-          }}
-          anchorTitle={visualExplanationAnchor.anchorTitle}
-          teachingContext={visualExplanationTeachingContext}
-          blockKey={visualExplanationAnchor.blockKey}
-        />
-      );
-    },
-    [
-      visualExplanationEnabled,
-      isTeacherOrAdmin,
-      lesson,
-      visualExplanationAnchor,
-      visualExplanationTeachingContext,
-    ]
-  );
-
   // ============================
   // Render states
   // ============================
@@ -4135,7 +4049,6 @@ const LessonViewPage: React.FC = () => {
                                   v12StudentPresentation ? "v12" : "default"
                                 }
                               />
-                              {renderVisualExplanationAfterBlock(idx)}
                               {user && id && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
                                   <button
@@ -4317,7 +4230,6 @@ const LessonViewPage: React.FC = () => {
                               safeStr((b as { role?: string }).role, "")
                             );
                           })()}
-                          {renderVisualExplanationAfterBlock(idx)}
                           {user && id && (
                             <div style={{ marginTop: 6, fontSize: 12 }}>
                               <button
