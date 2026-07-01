@@ -21,6 +21,13 @@ const {
   boardSubjectToSpecKey,
   COVERAGE_THRESHOLD,
 } = require("../services/syllabusAlignment");
+const {
+  resolveTopicSpecForGeneration,
+  hasRichSpecForAssessment,
+} = require("../services/topicSpecification");
+const { planAssessmentJourney } = require("../services/assessmentJourneyPlanner");
+const { validateAssessmentIntent } = require("../services/assessmentIntentValidator");
+const { applyAssessmentJourneyFromPlan } = require("../services/assessmentJourneyApply");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
@@ -5430,7 +5437,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
     // ✅ 1) Find the single Gold Standard master template (optional — used only for templateSource tracking)
     const gold = await Lesson.findOne({ isTemplate: true }).lean();
 
-    const specKey = boardSubjectToSpecKey(board, subject) || (topicKey ? parseTopicKey(topicKey).specKey : null);
+    const specKey =
+      (topicKey && parseTopicKey(topicKey).specKey) ||
+      boardSubjectToSpecKey(board, subject) ||
+      (topicKey ? parseTopicKey(topicKey).specKey : null);
 
     // ✅ Derive canonical topicKey: prefer from request (strip namespace if present); otherwise resolve from topic string
     const rawFromRequest = topicKey ? (parseTopicKey(topicKey).topicKey || topicKey.trim()) : null;
@@ -5693,6 +5703,52 @@ router.post("/generate-and-save", auth, async (req, res) => {
     }
 
     sanitized = finalDraft;
+
+    // Deterministic assessment journey from topic spec (overrides LLM generic assessment blocks)
+    try {
+      const topicSpec = resolveTopicSpecForGeneration(specKey, canonicalTopicKey, {
+        examCode: req.body?.examCode,
+      });
+      if (hasRichSpecForAssessment(topicSpec)) {
+        const journey = planAssessmentJourney({
+          topic: subTopicDisplay || topic,
+          topicKey: canonicalTopicKey,
+          specKey,
+          topicSpec,
+          examCode: topicSpec.examCode,
+        });
+        const applyResult = applyAssessmentJourneyFromPlan(sanitized, {
+          plan: journey.plan,
+          topicLabel: subTopicDisplay || topic,
+          vocabulary: topicSpec.requiredVocabulary,
+          misconceptions: topicSpec.commonMisconceptions,
+          force: true,
+        });
+        const assessmentValidation = validateAssessmentIntent(sanitized, {
+          plan: journey.plan,
+          vocabulary: topicSpec.requiredVocabulary,
+          misconceptions: topicSpec.commonMisconceptions,
+        });
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[generate-and-save] assessment journey applied:", {
+            replaced: applyResult.replaced,
+            valid: assessmentValidation.valid,
+            issues: assessmentValidation.issues?.slice(0, 5),
+          });
+        }
+        if (!assessmentValidation.valid) {
+          console.warn(
+            "[generate-and-save] assessment validation issues after apply:",
+            assessmentValidation.issues?.slice(0, 8)
+          );
+        }
+      }
+    } catch (assessmentErr) {
+      console.warn(
+        "[generate-and-save] assessment journey apply skipped:",
+        assessmentErr?.message || assessmentErr
+      );
+    }
 
     if (process.env.NODE_ENV !== "production") {
       const allBlocks = (finalDraft.pages || []).flatMap((p) => p.blocks || []);

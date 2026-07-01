@@ -1,0 +1,599 @@
+{
+  "specKey": "edexcel-igcse-biology",
+  "subject": "Biology",
+  "examBoard": "Edexcel",
+  "level": "IGCSE",
+  "topics": {
+    "response-to-changes-in-the-environment": {
+      "topicTitle": "Response To Changes In The Environment",
+      "specReference": [
+        "2.75"
+      ],
+      "learningOutcomes": [
+        "Describe response to changes in the environment",
+        "Explain how response to changes in the environment works in the body",
+        "Apply knowledge of response to changes in the environment to exam questions"
+      ],
+      "requiredVocabulary": [
+        "stimulus",
+        "response",
+        "receptor"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in response to changes in the environment"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in response to changes in the environment"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain response to changes in the environment (3 marks)",
+        "Describe response to changes in the environment (2 marks)"
+      ]
+    },
+    "homeostasis": {
+      "topicTitle": "Homeostasis",
+      "specReference": [
+        "2.81"
+      ],
+      "learningOutcomes": [
+        "Define homeostasis as maintaining a constant internal environment",
+        "Explain how body temperature is regulated",
+        "Explain how blood water content is controlled"
+      ],
+      "requiredVocabulary": [
+        "homeostasis",
+        "negative feedback",
+        "set point"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in homeostasis"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in homeostasis"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain homeostasis (3 marks)",
+        "Describe homeostasis (2 marks)"
+      ]
+    },
+    "co-ordinating-response": {
+      "topicTitle": "Co Ordinating Response",
+      "specReference": [
+        "2.82"
+      ],
+      "learningOutcomes": [
+        "Describe co ordinating response",
+        "Explain how co ordinating response works in the body",
+        "Apply knowledge of co ordinating response to exam questions"
+      ],
+      "requiredVocabulary": [
+        "coordination",
+        "hormone",
+        "nervous"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in co ordinating response"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in co ordinating response"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain co ordinating response (3 marks)",
+        "Describe co ordinating response (2 marks)"
+      ]
+    },
+    "response-to-stimuli-plants": {
+      "topicTitle": "Response To Stimuli Plants",
+      "specReference": [
+        "2.83"
+      ],
+      "learningOutcomes": [
+        "Describe response to stimuli plants",
+        "Explain how response to stimuli plants works in the body",
+        "Apply knowledge of response to stimuli plants to exam questions"
+      ],
+      "requiredVocabulary": [
+        "tropism",
+        "auxin",
+        "gravitropism"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in response to stimuli plants"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in response to stimuli plants"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain response to stimuli plants (3 marks)",
+        "Describe response to stimuli plants (2 marks)"
+      ]
+    },
+    "nervous-and-hormonal-control": {
+      "topicTitle": "Nervous And Hormonal Control",
+      "specReference": [
+        "2.84"
+      ],
+      "learningOutcomes": [
+        "Describe nervous and hormonal control",
+        "Explain how nervous and hormonal control works in the body",
+        "Apply knowledge of nervous and hormonal control to exam questions"
+      ],
+      "requiredVocabulary": [
+        "nervous system",
+        "endocrine",
+        "hormone"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in nervous and hormonal control"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in nervous and hormonal control"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain nervous and hormonal control (3 marks)",
+        "Describe nervous and hormonal control (2 marks)"
+      ]
+    },
+    "human-nervous-system": {
+      "topicTitle": "Human Nervous System",
+      "specReference": [
+        "2.85"
+      ],
+      "learningOutcomes": [
+        "Describe human nervous system",
+        "Explain how human nervous system works in the body",
+        "Apply knowledge of human nervous system to exam questions"
+      ],
+      "requiredVocabulary": [
+        "CNS",
+        "PNS",
+        "neurone"
+      ],
+      "requiredStructures": [
+        "neurone"
+      ],
+      "requiredProcesses": [
+        "Process involved in human nervous system"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in human nervous system"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain human nervous system (3 marks)",
+        "Describe human nervous system (2 marks)"
+      ]
+    },
+    "role-of-neurotransmitters-at-synapses": {
+      "topicTitle": "Role Of Neurotransmitters At Synapses",
+      "specReference": [
+        "2.86"
+      ],
+      "learningOutcomes": [
+        "Describe role of neurotransmitters at synapses",
+        "Explain how role of neurotransmitters at synapses works in the body",
+        "Apply knowledge of role of neurotransmitters at synapses to exam questions"
+      ],
+      "requiredVocabulary": [
+        "synapse",
+        "neurotransmitter",
+        "acetylcholine"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in role of neurotransmitters at synapses"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in role of neurotransmitters at synapses"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain role of neurotransmitters at synapses (3 marks)",
+        "Describe role of neurotransmitters at synapses (2 marks)"
+      ]
+    },
+    "simple-reflex-arc": {
+      "topicTitle": "Simple Reflex Arc",
+      "specReference": [
+        "2.90"
+      ],
+      "learningOutcomes": [
+        "Describe simple reflex arc",
+        "Explain how simple reflex arc works in the body",
+        "Apply knowledge of simple reflex arc to exam questions"
+      ],
+      "requiredVocabulary": [
+        "sensory neurone",
+        "relay neurone",
+        "motor neurone",
+        "reflex arc"
+      ],
+      "requiredStructures": [
+        "sensory neurone",
+        "relay neurone",
+        "motor neurone",
+        "reflex arc"
+      ],
+      "requiredProcesses": [
+        "Process involved in simple reflex arc"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in simple reflex arc"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain simple reflex arc (3 marks)",
+        "Describe simple reflex arc (2 marks)"
+      ],
+      "structureRoles": {
+        "sensory neurone": "carries impulses from receptors to the CNS",
+        "relay neurone": "connects sensory and motor neurones in the spinal cord",
+        "motor neurone": "carries impulses from the CNS to effectors"
+      }
+    },
+    "the-human-eye-structure": {
+      "topicTitle": "The Human Eye Structure",
+      "specReference": [
+        "2.91"
+      ],
+      "learningOutcomes": [
+        "Describe the human eye structure",
+        "Explain how the human eye structure works in the body",
+        "Apply knowledge of the human eye structure to exam questions"
+      ],
+      "requiredVocabulary": [
+        "cornea",
+        "lens",
+        "retina"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in the human eye structure"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in the human eye structure"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain the human eye structure (3 marks)",
+        "Describe the human eye structure (2 marks)"
+      ]
+    },
+    "the-human-eye-function": {
+      "topicTitle": "The Human Eye Function",
+      "specReference": [
+        "2.92"
+      ],
+      "learningOutcomes": [
+        "Describe the human eye function",
+        "Explain how the human eye function works in the body",
+        "Apply knowledge of the human eye function to exam questions"
+      ],
+      "requiredVocabulary": [
+        "accommodation",
+        "pupil reflex",
+        "retina"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in the human eye function"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in the human eye function"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain the human eye function (3 marks)",
+        "Describe the human eye function (2 marks)"
+      ]
+    },
+    "the-role-of-skin-in-temperature-regulation": {
+      "topicTitle": "The Role Of Skin In Temperature Regulation",
+      "specReference": [
+        "2.93"
+      ],
+      "learningOutcomes": [
+        "Describe the role of skin in temperature regulation",
+        "Explain how the role of skin in temperature regulation works in the body",
+        "Apply knowledge of the role of skin in temperature regulation to exam questions"
+      ],
+      "requiredVocabulary": [
+        "vasodilation",
+        "vasoconstriction",
+        "sweating"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in the role of skin in temperature regulation"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in the role of skin in temperature regulation"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain the role of skin in temperature regulation (3 marks)",
+        "Describe the role of skin in temperature regulation (2 marks)"
+      ]
+    },
+    "hormones-adrenaline-insulin-testosterone-progesterone-and-oestrogen": {
+      "topicTitle": "Hormones Adrenaline Insulin Testosterone Progesterone And Oestrogen",
+      "specReference": [
+        "2.94"
+      ],
+      "learningOutcomes": [
+        "Describe hormones adrenaline insulin testosterone progesterone and oestrogen",
+        "Explain how hormones adrenaline insulin testosterone progesterone and oestrogen works in the body",
+        "Apply knowledge of hormones adrenaline insulin testosterone progesterone and oestrogen to exam questions"
+      ],
+      "requiredVocabulary": [
+        "adrenaline",
+        "insulin",
+        "testosterone"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in hormones adrenaline insulin testosterone progesterone and oestrogen"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in hormones adrenaline insulin testosterone progesterone and oestrogen"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain hormones adrenaline insulin testosterone progesterone and oestrogen (3 marks)",
+        "Describe hormones adrenaline insulin testosterone progesterone and oestrogen (2 marks)"
+      ]
+    },
+    "the-role-of-hormones-adh-fsh-and-lh": {
+      "topicTitle": "The Role Of Hormones Adh Fsh And Lh",
+      "specReference": [
+        "2.95"
+      ],
+      "learningOutcomes": [
+        "Describe the role of hormones adh fsh and lh",
+        "Explain how the role of hormones adh fsh and lh works in the body",
+        "Apply knowledge of the role of hormones adh fsh and lh to exam questions"
+      ],
+      "requiredVocabulary": [
+        "ADH",
+        "FSH",
+        "LH"
+      ],
+      "requiredStructures": [],
+      "requiredProcesses": [
+        "Process involved in the role of hormones adh fsh and lh"
+      ],
+      "commonMisconceptions": [
+        "Students confuse terms in the role of hormones adh fsh and lh"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Explain the role of hormones adh fsh and lh (3 marks)",
+        "Describe the role of hormones adh fsh and lh (2 marks)"
+      ]
+    },
+    "human-male-and-female-reproductive-systems": {
+      "topicTitle": "Human Male & Female Reproductive Systems",
+      "specReference": [
+        "2.97",
+        "2.98"
+      ],
+      "learningOutcomes": [
+        "Describe the structure and function of male reproductive organs",
+        "Describe the structure and function of female reproductive organs",
+        "Explain where fertilisation usually occurs",
+        "Explain how sperm travel from the testes to leave the body"
+      ],
+      "requiredVocabulary": [
+        "testis",
+        "epididymis",
+        "sperm duct",
+        "prostate gland",
+        "urethra",
+        "penis",
+        "ovary",
+        "oviduct",
+        "uterus",
+        "cervix",
+        "vagina",
+        "fertilisation",
+        "cilia"
+      ],
+      "requiredStructures": [
+        "testis",
+        "oviduct",
+        "uterus",
+        "cervix",
+        "ovary",
+        "epididymis",
+        "sperm duct",
+        "prostate gland",
+        "urethra",
+        "penis",
+        "vagina"
+      ],
+      "structureRoles": {
+        "testis": "produces sperm cells",
+        "oviduct": "is lined with cilia that move the ovum towards the uterus, increasing the chance of fertilisation",
+        "uterus": "is where the embryo implants — fertilisation does not usually occur here",
+        "ovary": "produces eggs (ova)"
+      },
+      "requiredProcesses": [
+        "Sperm travel from the testes through the sperm duct and urethra to leave the body",
+        "Fertilisation usually occurs in the oviduct",
+        "Cilia move the ovum along the oviduct towards the uterus"
+      ],
+      "commonMisconceptions": [
+        "Fertilisation usually happens in the uterus",
+        "Eggs are produced in the uterus",
+        "Sperm are stored in the prostate gland"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "compare",
+        "label"
+      ],
+      "likelyExamQuestions": [
+        "Compare the functions of the ovary and the testis",
+        "Label the male and female reproductive systems",
+        "Explain how the uterus is adapted to protect the embryo"
+      ]
+    },
+    "the-process-of-photosynthesis": {
+      "topicTitle": "The Process of Photosynthesis",
+      "specReference": [
+        "2.19",
+        "2.20"
+      ],
+      "learningOutcomes": [
+        "Describe the process of photosynthesis and the word equation",
+        "Explain how chloroplasts are adapted for photosynthesis",
+        "Explain limiting factors on the rate of photosynthesis"
+      ],
+      "requiredVocabulary": [
+        "chlorophyll",
+        "chloroplast",
+        "glucose",
+        "starch",
+        "light intensity",
+        "carbon dioxide",
+        "oxygen"
+      ],
+      "requiredStructures": [
+        "chloroplast",
+        "palisade mesophyll",
+        "stomata",
+        "guard cell"
+      ],
+      "structureRoles": {
+        "chloroplast": "contains chlorophyll for absorbing light",
+        "stomata": "allow carbon dioxide to enter the leaf"
+      },
+      "requiredProcesses": [
+        "Light energy is converted to chemical energy in glucose during photosynthesis",
+        "Carbon dioxide and water are converted to glucose and oxygen"
+      ],
+      "requiredGraphs": [
+        "Graph showing effect of light intensity on rate of photosynthesis"
+      ],
+      "commonMisconceptions": [
+        "Plants do not respire",
+        "Photosynthesis only happens in sunlight so plants never use oxygen"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "compare"
+      ],
+      "likelyExamQuestions": [
+        "Explain how the leaf is adapted for photosynthesis (4 marks)",
+        "Describe the process of photosynthesis (3 marks)"
+      ]
+    },
+    "kidney-excretion-and-osmoregulation": {
+      "topicTitle": "Kidney: Excretion & Osmoregulation",
+      "specReference": [
+        "2.96"
+      ],
+      "learningOutcomes": [
+        "Describe the role of the kidney in excretion and osmoregulation",
+        "Explain how ADH controls water reabsorption",
+        "Explain dialysis as a treatment for kidney failure"
+      ],
+      "requiredVocabulary": [
+        "nephron",
+        "glomerulus",
+        "ADH",
+        "urea",
+        "osmoregulation",
+        "dialysis"
+      ],
+      "requiredStructures": [
+        "kidney",
+        "nephron",
+        "glomerulus",
+        "collecting duct"
+      ],
+      "requiredProcesses": [
+        "Ultrafiltration in the glomerulus",
+        "Selective reabsorption in the nephron",
+        "ADH increases water reabsorption in the collecting duct"
+      ],
+      "commonMisconceptions": [
+        "Urine is produced only in the bladder",
+        "The kidney only removes urea and has no role in water balance"
+      ],
+      "commandWords": [
+        "describe",
+        "explain",
+        "compare"
+      ],
+      "likelyExamQuestions": [
+        "Explain how the kidney regulates water content (4 marks)",
+        "Describe the role of ADH (3 marks)"
+      ]
+    }
+  }
+}
