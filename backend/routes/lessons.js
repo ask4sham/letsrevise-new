@@ -63,6 +63,17 @@ const {
   VIEW_PERMISSION,
   TEACH_PERMISSION,
 } = require("../services/lessonShareService");
+const {
+  listApprovedLessons,
+  listPendingCatalogueApprovals,
+  submitLessonForApproval,
+  approveLessonForCatalogue,
+  rejectLessonForCatalogue,
+  retireLessonFromCatalogue,
+  markCataloguePendingReReview,
+  recordCatalogueReReviewAfterEdit,
+  getTeacherLibraryStatus,
+} = require("../services/approvedLessonsService");
 const { normalizeLessonDescription } = require("../utils/lessonDescriptionLimits");
 const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
 const { hydrateDiagramAssetsOnPages } = require("../services/diagramAssetService");
@@ -2330,6 +2341,156 @@ router.get("/teaching-library", auth, async (req, res) => {
 });
 
 /* =========================================
+   LetsRevise Approved catalogue (approved-lessons-v1)
+   GET /api/lessons/approved-lessons
+   ========================================= */
+router.get("/approved-lessons", auth, async (req, res) => {
+  try {
+    if (!isTeacherOrAdmin(req.user)) {
+      return res.status(403).json({ error: "Only teachers can browse approved lessons" });
+    }
+    const { subject, level, topic, board, tier, q, search, limit, offset } = req.query;
+    const lessons = await listApprovedLessons({
+      subject,
+      level,
+      topic,
+      board,
+      tier,
+      q,
+      search,
+      limit,
+      offset,
+    });
+    return res.json({ lessons, count: lessons.length });
+  } catch (err) {
+    return sendInternalError("lessons/approved-lessons", err, res);
+  }
+});
+
+/* =========================================
+   Admin catalogue approval queue
+   GET /api/lessons/catalogue-approvals?status=pending
+   ========================================= */
+router.get("/catalogue-approvals", auth, async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only admin can view catalogue approvals" });
+    }
+    const status = String(req.query.status || "pending").toLowerCase();
+    if (status !== "pending") {
+      return res.status(400).json({ error: "Only status=pending is supported in v1" });
+    }
+    const lessons = await listPendingCatalogueApprovals();
+    return res.json({ lessons, count: lessons.length });
+  } catch (err) {
+    return sendInternalError("lessons/catalogue-approvals", err, res);
+  }
+});
+
+function sendApprovedLessonServiceError(err, res) {
+  if (err?.status) {
+    return res.status(err.status).json({
+      error: err.message,
+      code: err.code || undefined,
+    });
+  }
+  return sendInternalError("lessons/approved-catalogue", err, res);
+}
+
+router.post("/:id/submit-for-approval", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const result = await submitLessonForApproval({ lessonId, userId: req.user._id });
+    return res.json({
+      success: true,
+      alreadyPending: !!result.alreadyPending,
+      msg: result.alreadyPending
+        ? "Lesson already submitted for catalogue approval"
+        : "Lesson submitted for catalogue approval",
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    return sendApprovedLessonServiceError(err, res);
+  }
+});
+
+router.post("/:id/approve-for-catalogue", auth, async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only admin can approve catalogue lessons" });
+    }
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const result = await approveLessonForCatalogue({
+      lessonId,
+      adminId: req.user._id,
+      internalNotes: req.body?.internalNotes,
+    });
+    return res.json({
+      success: true,
+      msg: "Lesson approved for LetsRevise catalogue",
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    return sendApprovedLessonServiceError(err, res);
+  }
+});
+
+router.post("/:id/reject-for-catalogue", auth, async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only admin can reject catalogue submissions" });
+    }
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const result = await rejectLessonForCatalogue({
+      lessonId,
+      adminId: req.user._id,
+      notes: req.body?.notes || req.body?.rejectionNotes,
+      internalNotes: req.body?.internalNotes,
+    });
+    return res.json({
+      success: true,
+      msg: "Catalogue submission rejected",
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    return sendApprovedLessonServiceError(err, res);
+  }
+});
+
+router.post("/:id/retire-from-catalogue", auth, async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only admin can retire catalogue lessons" });
+    }
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const result = await retireLessonFromCatalogue({
+      lessonId,
+      adminId: req.user._id,
+      internalNotes: req.body?.internalNotes,
+    });
+    return res.json({
+      success: true,
+      msg: "Lesson retired from LetsRevise catalogue",
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    return sendApprovedLessonServiceError(err, res);
+  }
+});
+
+/* =========================================
    Share for Review — manage grants on a lesson
    GET/POST /api/lessons/:id/shares
    DELETE /api/lessons/:id/shares/:teacherId
@@ -3058,7 +3219,15 @@ router.post("/:id/unpublish", auth, async (req, res) => {
 
     lesson.status = "draft";
     lesson.isPublished = false;
+    const reReview = markCataloguePendingReReview(lesson, { actorId: req.user._id });
     await lesson.save({ runValidators: true });
+    if (reReview.changed) {
+      await recordCatalogueReReviewAfterEdit({
+        lessonId: lesson._id,
+        actorId: req.user._id,
+        previousStatus: reReview.previousStatus,
+      });
+    }
 
     return res.json({
       success: true,
@@ -3770,6 +3939,8 @@ router.put("/:id", auth, async (req, res) => {
       return res.status(401).json({ msg: "User not authorized" });
     }
 
+    const wasCatalogueApproved = getTeacherLibraryStatus(lesson) === "approved";
+
     if (["archived", "flagged"].includes(String(lesson.status || ""))) {
       return res.status(403).json({ msg: "Lesson is moderated and cannot be edited" });
     }
@@ -3900,6 +4071,17 @@ router.put("/:id", auth, async (req, res) => {
     lesson.qualityBand = qualityResult.band;
     lesson.qualityCategories = qualityResult.categories;
     lesson.qualityIssues = qualityResult.issues?.length ? qualityResult.issues : undefined;
+
+    if (wasCatalogueApproved) {
+      const reReview = markCataloguePendingReReview(lesson, { actorId: req.user._id });
+      if (reReview.changed) {
+        await recordCatalogueReReviewAfterEdit({
+          lessonId: lesson._id,
+          actorId: req.user._id,
+          previousStatus: reReview.previousStatus,
+        });
+      }
+    }
 
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });

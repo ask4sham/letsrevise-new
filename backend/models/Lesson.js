@@ -494,6 +494,35 @@ const LessonSchema = new mongoose.Schema(
       enum: LESSON_STATUSES,
       default: "draft",
     },
+    /**
+     * LetsRevise Approved catalogue metadata (approved-lessons-v1).
+     * Lightweight — approval audit lives in LessonApproval collection.
+     */
+    teacherLibrary: {
+      type: new mongoose.Schema(
+        {
+          status: {
+            type: String,
+            enum: ["none", "pending_review", "approved", "rejected", "retired"],
+            default: "none",
+          },
+          submittedAt: { type: Date, default: null },
+          submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+          approvedAt: { type: Date, default: null },
+          approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+          rejectedAt: { type: Date, default: null },
+          rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+          rejectionNotes: { type: String, default: "" },
+          internalNotes: { type: String, default: "" },
+          retiredAt: { type: Date, default: null },
+          retiredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+          /** Incremented on each admin catalogue approval (catalogue version). */
+          version: { type: Number, default: null },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
     adminNotes: { type: String, default: "" },
 
     /**
@@ -681,6 +710,8 @@ LessonSchema.virtual("examBoard").get(function () {
 // Include virtuals in JSON so responses get examBoard when not using lean()
 LessonSchema.set("toJSON", { virtuals: true });
 LessonSchema.set("toObject", { virtuals: true });
+
+LessonSchema.index({ status: 1, "teacherLibrary.status": 1 });
 
 const Lesson = mongoose.model("Lesson", LessonSchema);
 Lesson.LESSON_STATUSES = LESSON_STATUSES;

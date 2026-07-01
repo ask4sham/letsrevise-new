@@ -32,6 +32,8 @@ const {
 
 } = require("../services/lessonShareService");
 
+const { isApprovedCatalogueLesson } = require("../services/approvedLessonsService");
+
 
 
 function resolveLessonId(req, allowBody = false) {
@@ -349,6 +351,38 @@ module.exports = function canAccessContent(options = {}) {
         if (process.env.NODE_ENV !== "production") {
 
           console.info("[canAccessContent]", { userId: req.user._id?.toString(), lessonId: lessonIdStr, reason: sharedAccess.reason });
+
+        }
+
+        return next();
+
+      }
+
+
+
+      if (isTeacherUser && !isOwner && isPublished && isApprovedCatalogueLesson(lesson)) {
+
+        req.lesson = lesson;
+
+        req.accessDecision = {
+
+          allowed: true,
+
+          reason: classroomMode ? "APPROVED_TEACH" : "APPROVED_PREVIEW",
+
+        };
+
+        if (process.env.NODE_ENV !== "production") {
+
+          console.info("[canAccessContent]", {
+
+            userId: req.user._id?.toString(),
+
+            lessonId: lessonIdStr,
+
+            reason: req.accessDecision.reason,
+
+          });
 
         }
 
