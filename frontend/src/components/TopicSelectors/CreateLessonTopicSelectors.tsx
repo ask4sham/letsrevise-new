@@ -4,14 +4,10 @@
  */
 import React from "react";
 import type { CreateLessonOptionsResponse } from "../../api/taxonomy";
+import { formatSpecOptionLabel } from "../../utils/createLessonSpecSync";
+import type { TopicSelectionValue } from "../../types/topicSelection";
 
-export type TopicSelectionValue = {
-  subject: string;
-  specKey: string;
-  mainTopicTitle: string;
-  topicKey: string;
-  topic: string;
-};
+export type { TopicSelectionValue } from "../../types/topicSelection";
 
 export type TopicSelectorCells = {
   subject: React.ReactNode;
@@ -141,7 +137,7 @@ export function CreateLessonTopicSelectors({
         <option value="">Select spec</option>
         {currentSubject.specs.map((spec) => (
           <option key={spec.specKey} value={spec.specKey}>
-            {spec.specLabel}
+            {formatSpecOptionLabel(spec.specKey, spec.specLabel)}
           </option>
         ))}
       </select>

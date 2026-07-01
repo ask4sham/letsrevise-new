@@ -1,6 +1,6 @@
 // frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { defaultUrlTransform } from "react-markdown";
 import api from "../services/api";
 import { toAbsoluteAssetUrl } from "../services/mediaUrl";
@@ -18,7 +18,16 @@ import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { sanitizeTeacherMarkdown } from "../utils/lessonTeacherMarkdown";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
-import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
+import { getSpecIdentity } from "../api/taxonomy";
+import {
+  applySpecIdentityFields,
+  findSpecKeyForBoardAndLevel,
+  findTopicSelectionInOptions,
+} from "../utils/createLessonSpecSync";
+import {
+  CreateLessonTopicSelectors,
+  type TopicSelectionValue,
+} from "../components/TopicSelectors/CreateLessonTopicSelectors";
 import { ExistingLessonsPanel } from "../components/ExistingLessonsPanel";
 import {
   type LessonBlockType,
@@ -422,6 +431,7 @@ function buildMarkdownForFile(url: string, file: File) {
 const CreateLessonPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { token, user } = useCurrentUser({ watchLocation: true });
 
   const [loading, setLoading] = useState(false);
@@ -584,12 +594,44 @@ const CreateLessonPage: React.FC = () => {
 
   const handleTopicSelectionChange = (value: TopicSelectionValue) => {
     setTopicSelection(value);
+    const identityFields = value.specKey
+      ? applySpecIdentityFields(value.specKey, {
+          board: formData.board,
+          level: formData.level,
+          tier: formData.tier,
+        })
+      : null;
     setFormData((prev) => ({
       ...prev,
       subject: value.subject,
       topic: value.topic,
       topicKey: value.topicKey,
+      ...(identityFields
+        ? {
+            board: identityFields.board as typeof prev.board,
+            level: identityFields.level,
+            tier: identityFields.tier as GcseTier,
+          }
+        : {}),
     }));
+  };
+
+  const syncSpecFromBoardAndLevel = (
+    subject: string,
+    board: string,
+    level: string,
+    current: TopicSelectionValue
+  ) => {
+    const matchedSpecKey = findSpecKeyForBoardAndLevel(taxonomyOptions, subject, board, level);
+    if (!matchedSpecKey || matchedSpecKey === current.specKey) return;
+    handleTopicSelectionChange({
+      ...current,
+      subject,
+      specKey: matchedSpecKey,
+      mainTopicTitle: "",
+      topicKey: "",
+      topic: "",
+    });
   };
 
   const handleGeneratorImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -636,7 +678,7 @@ const CreateLessonPage: React.FC = () => {
 
       if (meta.level) {
         const lv = meta.level.trim();
-        if (lv === "GCSE" || lv === "A-Level" || lv === "KS3") {
+        if (lv === "GCSE" || lv === "A-Level" || lv === "KS3" || lv === "IGCSE") {
           setFormData((prev) => ({
             ...prev,
             level: lv,
@@ -765,43 +807,19 @@ const CreateLessonPage: React.FC = () => {
     }
   };
 
-  // Prefill from Gap Priorities: location.state { specKey, topicKey } from create_lesson action
+  // Prefill from Gap Priorities / coverage links: ?specKey=&topicKey= or location.state
   const prefilledFromGapRef = useRef(false);
   useEffect(() => {
     if (prefilledFromGapRef.current || taxonomyLoading || !taxonomyOptions) return;
     const state = location.state as { specKey?: string; topicKey?: string } | null;
-    const targetSpecKey = state?.specKey?.trim();
-    const targetTopicKey = (state?.topicKey ?? "").trim();
+    const targetSpecKey = (searchParams.get("specKey") || state?.specKey || "").trim();
+    const targetTopicKey = (searchParams.get("topicKey") || state?.topicKey || "").trim();
     if (!targetSpecKey || !targetTopicKey) return;
 
-    for (const subj of taxonomyOptions.subjects ?? []) {
-      for (const spec of subj.specs ?? []) {
-        if (spec.specKey !== targetSpecKey) continue;
-        for (const main of spec.mainTopics ?? []) {
-          for (const sub of main.subTopics ?? []) {
-            const matches =
-              sub.topicKey === targetTopicKey ||
-              (!targetTopicKey.includes(":") &&
-                sub.topicSlug === targetTopicKey &&
-                sub.topicKey.startsWith(`${targetSpecKey}:`));
-            if (matches) {
-              prefilledFromGapRef.current = true;
-              const val: TopicSelectionValue = {
-                subject: subj.subject,
-                specKey: spec.specKey,
-                mainTopicTitle: main.title,
-                topicKey: sub.topicKey,
-                topic: sub.title,
-              };
-              handleTopicSelectionChange(val);
-              return;
-            }
-          }
-        }
-      }
-    }
+    const match = findTopicSelectionInOptions(taxonomyOptions, targetSpecKey, targetTopicKey);
     prefilledFromGapRef.current = true;
-  }, [taxonomyLoading, taxonomyOptions, location.state]);
+    if (match) handleTopicSelectionChange(match);
+  }, [taxonomyLoading, taxonomyOptions, location.state, searchParams]);
 
   const normalizeOrders = (arr: LessonPage[]) =>
     arr
@@ -1539,6 +1557,8 @@ const CreateLessonPage: React.FC = () => {
       if (topicSelection.specKey) payload.specKey = topicSelection.specKey;
       if (topicSelection.mainTopicTitle) payload.mainTopic = topicSelection.mainTopicTitle;
       if (topicSelection.topic) payload.subTopic = topicSelection.topic;
+      const identity = topicSelection.specKey ? getSpecIdentity(topicSelection.specKey) : null;
+      if (identity?.examCode) payload.examCode = identity.examCode;
     }
 
     if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
@@ -1987,6 +2007,7 @@ const CreateLessonPage: React.FC = () => {
                 lessonId={draftLessonId}
                 parentEnsuring={ensuringDraft}
                 ensureLessonId={ensureLessonId}
+                lessonSpecKey={topicSelection.specKey || undefined}
               />
             </aside>
 
@@ -2057,7 +2078,18 @@ const CreateLessonPage: React.FC = () => {
                       <select
                         name="board"
                         value={formData.board}
-                        onChange={onChange}
+                        onChange={(e) => {
+                          const board = e.target.value as typeof formData.board;
+                          setFormData((prev) => ({ ...prev, board }));
+                          if (topicSelection.subject) {
+                            syncSpecFromBoardAndLevel(
+                              topicSelection.subject,
+                              board,
+                              formData.level,
+                              topicSelection
+                            );
+                          }
+                        }}
                         style={ui.input}
                       >
                         <option value="">Select board…</option>
@@ -2098,11 +2130,20 @@ const CreateLessonPage: React.FC = () => {
                                   level: value,
                                   tier: value === "GCSE" ? prev.tier : "",
                                 }));
+                                if (topicSelection.subject && formData.board) {
+                                  syncSpecFromBoardAndLevel(
+                                    topicSelection.subject,
+                                    formData.board,
+                                    value,
+                                    topicSelection
+                                  );
+                                }
                               }}
                               style={ui.input}
                             >
                               <option value="KS3">KS3</option>
                               <option value="GCSE">GCSE</option>
+                              <option value="IGCSE">IGCSE</option>
                               <option value="A-Level">A-Level</option>
                             </select>
                           </label>
@@ -2117,6 +2158,51 @@ const CreateLessonPage: React.FC = () => {
                       </>
                     )}
                   />
+
+                  {topicSelection.specKey ? (
+                    <div
+                      style={{
+                        gridColumn: "1 / -1",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        background: "#ecfdf5",
+                        border: "1px solid #a7f3d0",
+                        fontSize: "0.875rem",
+                        color: "#065f46",
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Syllabus selection</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", color: "#047857" }}>
+                        <span>Spec: {topicSelection.specKey}</span>
+                        {getSpecIdentity(topicSelection.specKey)?.examCode ? (
+                          <span>Exam code: {getSpecIdentity(topicSelection.specKey)!.examCode}</span>
+                        ) : null}
+                        <span>Board: {formData.board || "—"}</span>
+                        <span>Level: {formData.level || "—"}</span>
+                        {topicSelection.mainTopicTitle ? (
+                          <span>Main topic: {topicSelection.mainTopicTitle}</span>
+                        ) : null}
+                        {topicSelection.topic ? <span>Sub-topic: {topicSelection.topic}</span> : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {taxonomyError ? (
+                    <div
+                      style={{
+                        gridColumn: "1 / -1",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        fontSize: "0.8125rem",
+                        color: "#b91c1c",
+                      }}
+                    >
+                      Could not load syllabus options ({taxonomyError}). Restart the backend so
+                      /api/taxonomy/create-lesson-options includes Edexcel IGCSE Biology.
+                    </div>
+                  ) : null}
 
                   {/* Row 4: GCSE Tier (2 cols) + Estimated duration (1 col) */}
                   <div style={{ gridColumn: "1 / span 2" }}>

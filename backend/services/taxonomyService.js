@@ -6,7 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getMergedTaxonomyBySpecKey } = require("./adminTaxonomyService");
-const { isTopicGroup } = require("../utils/topicTaxonomy");
+const { isTopicGroup, getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 
 const CONFIG_DIR = path.join(__dirname, "..", "config");
 
@@ -19,6 +19,7 @@ const SPEC_KEYS = [
   "aqa-l2-further-maths",
   "aqa-gcse-english-literature",
   "aqa-gcse-english-language",
+  "edexcel-igcse-biology",
 ];
 
 function specKeyFromFilename(filePath) {
@@ -37,10 +38,14 @@ function getTopicFiles() {
 }
 
 function specLabel(data, specKey) {
-  const examBoard = (data.examBoard && data.examBoard.trim()) || "AQA";
-  const level = (data.level && data.level.trim()) || "GCSE";
-  const subject = (data.subject && data.subject.trim()) || specKey;
-  return `${examBoard} ${level} ${subject}`.trim();
+  const { getSpecMetadata } = require("../config/specRegistry");
+  const meta = getSpecMetadata(specKey) || {};
+  const examBoard = (data.examBoard && data.examBoard.trim()) || meta.board || "AQA";
+  const level = (data.level && data.level.trim()) || meta.level || "GCSE";
+  const subject = (data.subject && data.subject.trim()) || meta.subject || specKey;
+  const base = `${examBoard} ${level} ${subject}`.trim();
+  const examCode = meta.examCode || data.examCode || null;
+  return examCode ? `${base} (${examCode})` : base;
 }
 
 /**
@@ -113,7 +118,11 @@ async function getCreateLessonOptionsMerged() {
   const bySubject = new Map();
 
   for (const specKey of SPEC_KEYS) {
-    const taxonomy = await getMergedTaxonomyBySpecKey(specKey);
+    // Section-based static taxonomies: merged admin path only indexes flat unit.topics.
+    const taxonomy =
+      specKey === "edexcel-igcse-biology"
+        ? getTaxonomyBySpecKey(specKey)
+        : await getMergedTaxonomyBySpecKey(specKey);
     if (!taxonomy) continue;
 
     const subject = taxonomy.subject || "Unknown";

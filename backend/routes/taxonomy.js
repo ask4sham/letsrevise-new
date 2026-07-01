@@ -67,13 +67,19 @@ router.get("/create-lesson-options", async (req, res) => {
 
 async function serveMergedTaxonomy(specKey, res) {
   try {
-    const taxonomy = await getMergedTaxonomyBySpecKey(specKey);
+    // Section-based static taxonomies (e.g. Edexcel IGCSE Biology) are served from config as-is.
+    // getMergedTaxonomyBySpecKey only indexes flat unit.topics and would drop section leaves.
+    const taxonomy =
+      specKey === "edexcel-igcse-biology"
+        ? getTaxonomyBySpecKey(specKey)
+        : await getMergedTaxonomyBySpecKey(specKey);
     if (!taxonomy) return res.status(404).json({ error: "Taxonomy not found" });
     return res.json({
       subject: taxonomy.subject,
       examBoard: taxonomy.examBoard,
       level: taxonomy.level,
       specKey: taxonomy.specKey || specKey,
+      ...(taxonomy.displayName ? { displayName: taxonomy.displayName } : {}),
       units: taxonomy.units,
     });
   } catch (err) {
@@ -90,6 +96,7 @@ router.get("/aqa-gcse-maths-higher", (req, res) => serveMergedTaxonomy("aqa-gcse
 router.get("/aqa-l2-further-maths", (req, res) => serveMergedTaxonomy("aqa-l2-further-maths", res));
 router.get("/aqa-gcse-english-literature", (req, res) => serveMergedTaxonomy("aqa-gcse-english-literature", res));
 router.get("/aqa-gcse-english-language", (req, res) => serveMergedTaxonomy("aqa-gcse-english-language", res));
+router.get("/edexcel-igcse-biology", (req, res) => serveMergedTaxonomy("edexcel-igcse-biology", res));
 
 /**
  * POST /api/taxonomy/topics — Pattern B: create validated custom sub-topic (alias of POST /api/admin/taxonomy/topics).

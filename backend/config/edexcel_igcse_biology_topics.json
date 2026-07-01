@@ -1,0 +1,1460 @@
+{
+  "subject": "Biology",
+  "examBoard": "Edexcel",
+  "level": "IGCSE",
+  "specKey": "edexcel-igcse-biology",
+  "displayName": "Edexcel IGCSE Biology",
+  "tier": [],
+  "units": [
+    {
+      "unit": "The nature and variety of living organisms",
+      "key": "nature-and-variety-of-living-organisms",
+      "mainTopic": "The nature and variety of living organisms",
+      "topics": [],
+      "sections": [
+        {
+          "title": "Characteristics of living organisms",
+          "slug": "characteristics-of-living-organisms",
+          "topics": [
+            {
+              "topic": "Characteristics of Living Organisms",
+              "key": "characteristics-of-living-organisms",
+              "mainTopic": "The nature and variety of living organisms",
+              "section": "Characteristics of living organisms",
+              "topicKey": "edexcel-igcse-biology:characteristics-of-living-organisms",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Variety of living organisms",
+          "slug": "variety-of-living-organisms",
+          "topics": [
+            {
+              "topic": "Common Features: Eukaryotic Organisms",
+              "key": "common-features-eukaryotic-organisms",
+              "mainTopic": "The nature and variety of living organisms",
+              "section": "Variety of living organisms",
+              "topicKey": "edexcel-igcse-biology:common-features-eukaryotic-organisms",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Common Features: Prokaryotic Organisms",
+              "key": "common-features-prokaryotic-organisms",
+              "mainTopic": "The nature and variety of living organisms",
+              "section": "Variety of living organisms",
+              "topicKey": "edexcel-igcse-biology:common-features-prokaryotic-organisms",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Pathogens",
+              "key": "pathogens",
+              "mainTopic": "The nature and variety of living organisms",
+              "section": "Variety of living organisms",
+              "topicKey": "edexcel-igcse-biology:pathogens",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unit": "Structure and functions in living organisms",
+      "key": "structure-and-functions-in-living-organisms",
+      "mainTopic": "Structure and functions in living organisms",
+      "topics": [],
+      "sections": [
+        {
+          "title": "Level of organisation",
+          "slug": "level-of-organisation",
+          "topics": [
+            {
+              "topic": "Levels of Organisation",
+              "key": "levels-of-organisation",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Level of organisation",
+              "topicKey": "edexcel-igcse-biology:levels-of-organisation",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Cell structure",
+          "slug": "cell-structure",
+          "topics": [
+            {
+              "topic": "Cell Structures",
+              "key": "cell-structures",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Cell structure",
+              "topicKey": "edexcel-igcse-biology:cell-structures",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Animal & Plant Cells: Similarities & Differences",
+              "key": "animal-and-plant-cells-similarities-and-differences",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Cell structure",
+              "topicKey": "edexcel-igcse-biology:animal-and-plant-cells-similarities-and-differences",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Importance of Cell Differentiation",
+              "key": "importance-of-cell-differentiation",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Cell structure",
+              "topicKey": "edexcel-igcse-biology:importance-of-cell-differentiation",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Stem Cells in Medicine: Advantages & Disadvantages",
+              "key": "stem-cells-in-medicine-advantages-and-disadvantages",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Cell structure",
+              "topicKey": "edexcel-igcse-biology:stem-cells-in-medicine-advantages-and-disadvantages",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Biological molecules",
+          "slug": "biological-molecules",
+          "topics": [
+            {
+              "topic": "Structure of Biological Molecules",
+              "key": "structure-of-biological-molecules",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Biological molecules",
+              "topicKey": "edexcel-igcse-biology:structure-of-biological-molecules",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Food Tests",
+              "key": "practical-food-tests",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Biological molecules",
+              "topicKey": "edexcel-igcse-biology:practical-food-tests",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "Role of Enzymes",
+              "key": "role-of-enzymes",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Biological molecules",
+              "topicKey": "edexcel-igcse-biology:role-of-enzymes",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Temperature & Enzyme Function",
+              "key": "temperature-and-enzyme-function",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Biological molecules",
+              "topicKey": "edexcel-igcse-biology:temperature-and-enzyme-function",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating Temperature & Enzyme Activity",
+              "key": "practical-investigating-temperature-and-enzyme-activity",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Biological molecules",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-temperature-and-enzyme-activity",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "pH & Enzyme Function",
+              "key": "ph-and-enzyme-function",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Biological molecules",
+              "topicKey": "edexcel-igcse-biology:ph-and-enzyme-function",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating pH & Enzyme Activity",
+              "key": "practical-investigating-ph-and-enzyme-activity",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Biological molecules",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-ph-and-enzyme-activity",
+              "tier": [],
+              "requiredPractical": true
+            }
+          ]
+        },
+        {
+          "title": "Movement of substances into and out of cells",
+          "slug": "movement-of-substances",
+          "topics": [
+            {
+              "topic": "Diffusion, Osmosis & Active Transport",
+              "key": "diffusion-osmosis-and-active-transport",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Movement of substances into and out of cells",
+              "topicKey": "edexcel-igcse-biology:diffusion-osmosis-and-active-transport",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Factors Affecting the Rate of Movement of Substances",
+              "key": "factors-affecting-the-rate-of-movement-of-substances",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Movement of substances into and out of cells",
+              "topicKey": "edexcel-igcse-biology:factors-affecting-the-rate-of-movement-of-substances",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating Diffusion & Osmosis",
+              "key": "practical-investigating-diffusion-and-osmosis",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Movement of substances into and out of cells",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-diffusion-and-osmosis",
+              "tier": [],
+              "requiredPractical": true
+            }
+          ]
+        },
+        {
+          "title": "Nutrition",
+          "slug": "nutrition",
+          "topics": [
+            {
+              "topic": "The Process of Photosynthesis",
+              "key": "the-process-of-photosynthesis",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:the-process-of-photosynthesis",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Factors Affecting the Rate of Photosynthesis",
+              "key": "factors-affecting-the-rate-of-photosynthesis",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:factors-affecting-the-rate-of-photosynthesis",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Leaf: Structure & Adaptations",
+              "key": "leaf-structure-and-adaptations",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:leaf-structure-and-adaptations",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Plants & Mineral Ions",
+              "key": "plants-and-mineral-ions",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:plants-and-mineral-ions",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating Photosynthesis",
+              "key": "practical-investigating-photosynthesis",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-photosynthesis",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "Balanced Diet",
+              "key": "balanced-diet",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:balanced-diet",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Human Alimentary Canal: Structure & Function",
+              "key": "human-alimentary-canal-structure-and-function",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:human-alimentary-canal-structure-and-function",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Peristalsis",
+              "key": "peristalsis",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:peristalsis",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Role of Digestive Enzymes",
+              "key": "role-of-digestive-enzymes",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:role-of-digestive-enzymes",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Bile",
+              "key": "bile",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:bile",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Small Intestine: Structure & Adaptations",
+              "key": "small-intestine-structure-and-adaptations",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:small-intestine-structure-and-adaptations",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Energy Content of a Food Sample",
+              "key": "practical-energy-content-of-a-food-sample",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Nutrition",
+              "topicKey": "edexcel-igcse-biology:practical-energy-content-of-a-food-sample",
+              "tier": [],
+              "requiredPractical": true
+            }
+          ]
+        },
+        {
+          "title": "Respiration",
+          "slug": "respiration",
+          "topics": [
+            {
+              "topic": "Process of Respiration",
+              "key": "process-of-respiration",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Respiration",
+              "topicKey": "edexcel-igcse-biology:process-of-respiration",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Aerobic & Anaerobic Respiration",
+              "key": "aerobic-and-anaerobic-respiration",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Respiration",
+              "topicKey": "edexcel-igcse-biology:aerobic-and-anaerobic-respiration",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating Respiration",
+              "key": "practical-investigating-respiration",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Respiration",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-respiration",
+              "tier": [],
+              "requiredPractical": true
+            }
+          ]
+        },
+        {
+          "title": "Gas exchange",
+          "slug": "gas-exchange",
+          "topics": [
+            {
+              "topic": "Gas Exchange in Plants",
+              "key": "gas-exchange-in-plants",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:gas-exchange-in-plants",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Leaf Adaptations for Gas Exchange",
+              "key": "leaf-adaptations-for-gas-exchange",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:leaf-adaptations-for-gas-exchange",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Gas Exchange: Night vs Day",
+              "key": "gas-exchange-night-vs-day",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:gas-exchange-night-vs-day",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: The Effect of Light on Gas Exchange in Plants",
+              "key": "practical-the-effect-of-light-on-gas-exchange-in-plants",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:practical-the-effect-of-light-on-gas-exchange-in-plants",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "Structure of the Respiratory System",
+              "key": "structure-of-the-respiratory-system",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:structure-of-the-respiratory-system",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Role of the Intercostal Muscles & Diaphragm",
+              "key": "role-of-the-intercostal-muscles-and-diaphragm",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:role-of-the-intercostal-muscles-and-diaphragm",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Alveoli: Adaptations for Gas Exchange",
+              "key": "alveoli-adaptations-for-gas-exchange",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:alveoli-adaptations-for-gas-exchange",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Smoking & the Gas Exchange System",
+              "key": "smoking-and-the-gas-exchange-system",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:smoking-and-the-gas-exchange-system",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: The Effect of Age on Breathing",
+              "key": "practical-the-effect-of-age-on-breathing",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Gas exchange",
+              "topicKey": "edexcel-igcse-biology:practical-the-effect-of-age-on-breathing",
+              "tier": [],
+              "requiredPractical": true
+            }
+          ]
+        },
+        {
+          "title": "Transport",
+          "slug": "transport",
+          "topics": [
+            {
+              "topic": "The Need for a Transport System",
+              "key": "the-need-for-a-transport-system",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:the-need-for-a-transport-system",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Role of the Xylem & Phloem",
+              "key": "role-of-the-xylem-and-phloem",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:role-of-the-xylem-and-phloem",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Absorption of Water by Root Hair Cells",
+              "key": "absorption-of-water-by-root-hair-cells",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:absorption-of-water-by-root-hair-cells",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Transpiration",
+              "key": "transpiration",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:transpiration",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Factors Affecting Transpiration",
+              "key": "practical-factors-affecting-transpiration",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:practical-factors-affecting-transpiration",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "The Blood",
+              "key": "the-blood",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:the-blood",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "White Blood Cells & Immunity",
+              "key": "white-blood-cells-and-immunity",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:white-blood-cells-and-immunity",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Vaccinations",
+              "key": "vaccinations",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:vaccinations",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Platelets & Blood Clotting",
+              "key": "platelets-and-blood-clotting",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:platelets-and-blood-clotting",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Structure & Function of the Heart",
+              "key": "structure-and-function-of-the-heart",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:structure-and-function-of-the-heart",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Heart Rate & Exercise",
+              "key": "heart-rate-and-exercise",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:heart-rate-and-exercise",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Risk Factors for Coronary Heart Disease",
+              "key": "risk-factors-for-coronary-heart-disease",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:risk-factors-for-coronary-heart-disease",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Blood Vessels: Structure & Function",
+              "key": "blood-vessels-structure-and-function",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:blood-vessels-structure-and-function",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Circulatory System: General Structure",
+              "key": "circulatory-system-general-structure",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Transport",
+              "topicKey": "edexcel-igcse-biology:circulatory-system-general-structure",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Excretion",
+          "slug": "excretion",
+          "topics": [
+            {
+              "topic": "Excretion in Plants",
+              "key": "excretion-in-plants",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Excretion",
+              "topicKey": "edexcel-igcse-biology:excretion-in-plants",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Excretion in Humans",
+              "key": "excretion-in-humans",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Excretion",
+              "topicKey": "edexcel-igcse-biology:excretion-in-humans",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Kidney: Excretion & Osmoregulation",
+              "key": "kidney-excretion-and-osmoregulation",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Excretion",
+              "topicKey": "edexcel-igcse-biology:kidney-excretion-and-osmoregulation",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Structure of the Urinary System",
+              "key": "structure-of-the-urinary-system",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Excretion",
+              "topicKey": "edexcel-igcse-biology:structure-of-the-urinary-system",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Nephron Structure",
+              "key": "nephron-structure",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Excretion",
+              "topicKey": "edexcel-igcse-biology:nephron-structure",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Nephron Function",
+              "key": "nephron-function",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Excretion",
+              "topicKey": "edexcel-igcse-biology:nephron-function",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "ADH & Composition of Urine",
+              "key": "adh-and-composition-of-urine",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Excretion",
+              "topicKey": "edexcel-igcse-biology:adh-and-composition-of-urine",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Co-ordination and response",
+          "slug": "coordination-and-response",
+          "topics": [
+            {
+              "topic": "Response to Changes in the Environment",
+              "key": "response-to-changes-in-the-environment",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:response-to-changes-in-the-environment",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Homeostasis",
+              "key": "homeostasis",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:homeostasis",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Co-ordinating Response",
+              "key": "co-ordinating-response",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:co-ordinating-response",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Response to Stimuli: Plants",
+              "key": "response-to-stimuli-plants",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:response-to-stimuli-plants",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Nervous & Hormonal Control",
+              "key": "nervous-and-hormonal-control",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:nervous-and-hormonal-control",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Human Nervous System",
+              "key": "human-nervous-system",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:human-nervous-system",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Role of Neurotransmitters at Synapses",
+              "key": "role-of-neurotransmitters-at-synapses",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:role-of-neurotransmitters-at-synapses",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Simple Reflex Arc",
+              "key": "simple-reflex-arc",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:simple-reflex-arc",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "The Human Eye: Structure",
+              "key": "the-human-eye-structure",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:the-human-eye-structure",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "The Human Eye: Function",
+              "key": "the-human-eye-function",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:the-human-eye-function",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "The Role of Skin in Temperature Regulation",
+              "key": "the-role-of-skin-in-temperature-regulation",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:the-role-of-skin-in-temperature-regulation",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Hormones: Adrenaline, Insulin, Testosterone, Progesterone & Oestrogen",
+              "key": "hormones-adrenaline-insulin-testosterone-progesterone-and-oestrogen",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:hormones-adrenaline-insulin-testosterone-progesterone-and-oestrogen",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "The Role of Hormones: ADH, FSH & LH",
+              "key": "the-role-of-hormones-adh-fsh-and-lh",
+              "mainTopic": "Structure and functions in living organisms",
+              "section": "Co-ordination and response",
+              "topicKey": "edexcel-igcse-biology:the-role-of-hormones-adh-fsh-and-lh",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unit": "Reproduction and inheritance",
+      "key": "reproduction-and-inheritance",
+      "mainTopic": "Reproduction and inheritance",
+      "topics": [],
+      "sections": [
+        {
+          "title": "Reproduction",
+          "slug": "reproduction",
+          "topics": [
+            {
+              "topic": "Sexual & Asexual Reproduction: Differences",
+              "key": "sexual-and-asexual-reproduction-differences",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:sexual-and-asexual-reproduction-differences",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Gametes & Fertilisation",
+              "key": "gametes-and-fertilisation",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:gametes-and-fertilisation",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Adaptations for Pollination",
+              "key": "adaptations-for-pollination",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:adaptations-for-pollination",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "The Process of Fertilisation in Plants",
+              "key": "the-process-of-fertilisation-in-plants",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:the-process-of-fertilisation-in-plants",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Conditions for Germination",
+              "key": "practical-conditions-for-germination",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:practical-conditions-for-germination",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "Germinating Seeds",
+              "key": "germinating-seeds",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:germinating-seeds",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Asexual Plant Reproduction",
+              "key": "asexual-plant-reproduction",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:asexual-plant-reproduction",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Human Male & Female Reproductive Systems",
+              "key": "human-male-and-female-reproductive-systems",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:human-male-and-female-reproductive-systems",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Roles of Oestrogen & Progesterone in the Menstrual Cycle",
+              "key": "roles-of-oestrogen-and-progesterone-in-the-menstrual-cycle",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:roles-of-oestrogen-and-progesterone-in-the-menstrual-cycle",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Roles of FSH & LH in the Menstrual Cycle",
+              "key": "roles-of-fsh-and-lh-in-the-menstrual-cycle",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:roles-of-fsh-and-lh-in-the-menstrual-cycle",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Role of the Placenta",
+              "key": "role-of-the-placenta",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:role-of-the-placenta",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Amniotic Fluid",
+              "key": "amniotic-fluid",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:amniotic-fluid",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Development of Secondary Sexual Characteristics",
+              "key": "development-of-secondary-sexual-characteristics",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Reproduction",
+              "topicKey": "edexcel-igcse-biology:development-of-secondary-sexual-characteristics",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Inheritance",
+          "slug": "inheritance",
+          "topics": [
+            {
+              "topic": "The Genome & Genes",
+              "key": "the-genome-and-genes",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:the-genome-and-genes",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "DNA Structure",
+              "key": "dna-structure",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:dna-structure",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "RNA Structure",
+              "key": "rna-structure",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:rna-structure",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Stages of Protein Synthesis",
+              "key": "stages-of-protein-synthesis",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:stages-of-protein-synthesis",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Alleles",
+              "key": "alleles",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:alleles",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Key Terms in Genetics",
+              "key": "key-terms-in-genetics",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:key-terms-in-genetics",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Codominance",
+              "key": "codominance",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:codominance",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Polygenic Inheritance",
+              "key": "polygenic-inheritance",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:polygenic-inheritance",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Monohybrid Inheritance: Genetic Diagrams",
+              "key": "monohybrid-inheritance-genetic-diagrams",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:monohybrid-inheritance-genetic-diagrams",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Family Pedigrees",
+              "key": "family-pedigrees",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:family-pedigrees",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Sex Chromosomes",
+              "key": "sex-chromosomes",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:sex-chromosomes",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Mitosis",
+              "key": "mitosis",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:mitosis",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Meiosis",
+              "key": "meiosis",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:meiosis",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Random Fertilisation & Genetic Variation",
+              "key": "random-fertilisation-and-genetic-variation",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:random-fertilisation-and-genetic-variation",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Diploid vs Haploid",
+              "key": "diploid-vs-haploid",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:diploid-vs-haploid",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Variation within a Species",
+              "key": "variation-within-a-species",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:variation-within-a-species",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Mutation",
+              "key": "mutation",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:mutation",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Mutation: Advanced",
+              "key": "mutation-advanced",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:mutation-advanced",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Darwin's Theory of Evolution by Natural Selection",
+              "key": "darwins-theory-of-evolution-by-natural-selection",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:darwins-theory-of-evolution-by-natural-selection",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Antibiotic Resistance",
+              "key": "antibiotic-resistance",
+              "mainTopic": "Reproduction and inheritance",
+              "section": "Inheritance",
+              "topicKey": "edexcel-igcse-biology:antibiotic-resistance",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unit": "Ecology and the environment",
+      "key": "ecology-and-the-environment",
+      "mainTopic": "Ecology and the environment",
+      "topics": [],
+      "sections": [
+        {
+          "title": "The organism in the environment",
+          "slug": "the-organism-in-the-environment",
+          "topics": [
+            {
+              "topic": "Population, Community, Habitat & Ecosystem",
+              "key": "population-community-habitat-and-ecosystem",
+              "mainTopic": "Ecology and the environment",
+              "section": "The organism in the environment",
+              "topicKey": "edexcel-igcse-biology:population-community-habitat-and-ecosystem",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating Population Size",
+              "key": "practical-investigating-population-size",
+              "mainTopic": "Ecology and the environment",
+              "section": "The organism in the environment",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-population-size",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "Biodiversity",
+              "key": "biodiversity",
+              "mainTopic": "Ecology and the environment",
+              "section": "The organism in the environment",
+              "topicKey": "edexcel-igcse-biology:biodiversity",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating the Distribution of Organisms",
+              "key": "practical-investigating-the-distribution-of-organisms",
+              "mainTopic": "Ecology and the environment",
+              "section": "The organism in the environment",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-the-distribution-of-organisms",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "Abiotic & Biotic Factors",
+              "key": "abiotic-and-biotic-factors",
+              "mainTopic": "Ecology and the environment",
+              "section": "The organism in the environment",
+              "topicKey": "edexcel-igcse-biology:abiotic-and-biotic-factors",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Feeding relationships",
+          "slug": "feeding-relationships",
+          "topics": [
+            {
+              "topic": "Trophic Levels",
+              "key": "trophic-levels",
+              "mainTopic": "Ecology and the environment",
+              "section": "Feeding relationships",
+              "topicKey": "edexcel-igcse-biology:trophic-levels",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Food Chains, Food Webs & Pyramids",
+              "key": "food-chains-food-webs-and-pyramids",
+              "mainTopic": "Ecology and the environment",
+              "section": "Feeding relationships",
+              "topicKey": "edexcel-igcse-biology:food-chains-food-webs-and-pyramids",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Transfers Along a Food Chain",
+              "key": "transfers-along-a-food-chain",
+              "mainTopic": "Ecology and the environment",
+              "section": "Feeding relationships",
+              "topicKey": "edexcel-igcse-biology:transfers-along-a-food-chain",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Cycles within ecosystems",
+          "slug": "cycles-within-ecosystems",
+          "topics": [
+            {
+              "topic": "Carbon Cycle",
+              "key": "carbon-cycle",
+              "mainTopic": "Ecology and the environment",
+              "section": "Cycles within ecosystems",
+              "topicKey": "edexcel-igcse-biology:carbon-cycle",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Nitrogen Cycle",
+              "key": "nitrogen-cycle",
+              "mainTopic": "Ecology and the environment",
+              "section": "Cycles within ecosystems",
+              "topicKey": "edexcel-igcse-biology:nitrogen-cycle",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Human influences on the environment",
+          "slug": "human-influences-on-the-environment",
+          "topics": [
+            {
+              "topic": "Biological Consequences of Air Pollution",
+              "key": "biological-consequences-of-air-pollution",
+              "mainTopic": "Ecology and the environment",
+              "section": "Human influences on the environment",
+              "topicKey": "edexcel-igcse-biology:biological-consequences-of-air-pollution",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Greenhouse Gases",
+              "key": "greenhouse-gases",
+              "mainTopic": "Ecology and the environment",
+              "section": "Human influences on the environment",
+              "topicKey": "edexcel-igcse-biology:greenhouse-gases",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Enhanced Greenhouse Effect",
+              "key": "enhanced-greenhouse-effect",
+              "mainTopic": "Ecology and the environment",
+              "section": "Human influences on the environment",
+              "topicKey": "edexcel-igcse-biology:enhanced-greenhouse-effect",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Biological Consequences of Water Pollution",
+              "key": "biological-consequences-of-water-pollution",
+              "mainTopic": "Ecology and the environment",
+              "section": "Human influences on the environment",
+              "topicKey": "edexcel-igcse-biology:biological-consequences-of-water-pollution",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "The Effects of Deforestation",
+              "key": "the-effects-of-deforestation",
+              "mainTopic": "Ecology and the environment",
+              "section": "Human influences on the environment",
+              "topicKey": "edexcel-igcse-biology:the-effects-of-deforestation",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unit": "Use of biological resources",
+      "key": "use-of-biological-resources",
+      "mainTopic": "Use of biological resources",
+      "topics": [],
+      "sections": [
+        {
+          "title": "Food production",
+          "slug": "food-production",
+          "topics": [
+            {
+              "topic": "Crop Plants: Glasshouses & Polythene Tunnels",
+              "key": "crop-plants-glasshouses-and-polythene-tunnels",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:crop-plants-glasshouses-and-polythene-tunnels",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Crop Plants: Increasing Carbon Dioxide & Temperature",
+              "key": "crop-plants-increasing-carbon-dioxide-and-temperature",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:crop-plants-increasing-carbon-dioxide-and-temperature",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Crop Plants: Fertiliser",
+              "key": "crop-plants-fertiliser",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:crop-plants-fertiliser",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Crop Plants: Pest Control",
+              "key": "crop-plants-pest-control",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:crop-plants-pest-control",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Yeast in Food Production",
+              "key": "yeast-in-food-production",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:yeast-in-food-production",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Practical: Investigating Anaerobic Respiration in Yeast",
+              "key": "practical-investigating-anaerobic-respiration-in-yeast",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:practical-investigating-anaerobic-respiration-in-yeast",
+              "tier": [],
+              "requiredPractical": true
+            },
+            {
+              "topic": "Role of Bacteria in Yoghurt Production",
+              "key": "role-of-bacteria-in-yoghurt-production",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:role-of-bacteria-in-yoghurt-production",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Industrial Fermenters",
+              "key": "industrial-fermenters",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:industrial-fermenters",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Fish Farming",
+              "key": "fish-farming",
+              "mainTopic": "Use of biological resources",
+              "section": "Food production",
+              "topicKey": "edexcel-igcse-biology:fish-farming",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Selective breeding",
+          "slug": "selective-breeding",
+          "topics": [
+            {
+              "topic": "Selective Breeding in Plants",
+              "key": "selective-breeding-in-plants",
+              "mainTopic": "Use of biological resources",
+              "section": "Selective breeding",
+              "topicKey": "edexcel-igcse-biology:selective-breeding-in-plants",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Selective Breeding in Animals",
+              "key": "selective-breeding-in-animals",
+              "mainTopic": "Use of biological resources",
+              "section": "Selective breeding",
+              "topicKey": "edexcel-igcse-biology:selective-breeding-in-animals",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Genetic modification (genetic engineering)",
+          "slug": "genetic-modification",
+          "topics": [
+            {
+              "topic": "The Process of Genetic Modification",
+              "key": "the-process-of-genetic-modification",
+              "mainTopic": "Use of biological resources",
+              "section": "Genetic modification (genetic engineering)",
+              "topicKey": "edexcel-igcse-biology:the-process-of-genetic-modification",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Manufacturing Human Insulin",
+              "key": "manufacturing-human-insulin",
+              "mainTopic": "Use of biological resources",
+              "section": "Genetic modification (genetic engineering)",
+              "topicKey": "edexcel-igcse-biology:manufacturing-human-insulin",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "GM Plants & Food Production",
+              "key": "gm-plants-and-food-production",
+              "mainTopic": "Use of biological resources",
+              "section": "Genetic modification (genetic engineering)",
+              "topicKey": "edexcel-igcse-biology:gm-plants-and-food-production",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "Transgenic",
+              "key": "transgenic",
+              "mainTopic": "Use of biological resources",
+              "section": "Genetic modification (genetic engineering)",
+              "topicKey": "edexcel-igcse-biology:transgenic",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        },
+        {
+          "title": "Cloning",
+          "slug": "cloning",
+          "topics": [
+            {
+              "topic": "Micropropagation",
+              "key": "micropropagation",
+              "mainTopic": "Use of biological resources",
+              "section": "Cloning",
+              "topicKey": "edexcel-igcse-biology:micropropagation",
+              "tier": [],
+              "requiredPractical": false
+            },
+            {
+              "topic": "The Production of Cloned Mammals",
+              "key": "the-production-of-cloned-mammals",
+              "mainTopic": "Use of biological resources",
+              "section": "Cloning",
+              "topicKey": "edexcel-igcse-biology:the-production-of-cloned-mammals",
+              "tier": [],
+              "requiredPractical": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

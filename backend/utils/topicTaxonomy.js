@@ -14,6 +14,7 @@ let _mathsHigherTaxonomy = null;
 let _furtherMathsTaxonomy = null;
 let _englishLiteratureTaxonomy = null;
 let _englishLanguageTaxonomy = null;
+let _edexcelIgcseBiologyTaxonomy = null;
 
 function loadBiologyTaxonomy() {
   if (_biologyTaxonomy) return _biologyTaxonomy;
@@ -77,6 +78,14 @@ function loadEnglishLanguageTaxonomy() {
   const raw = fs.readFileSync(filePath, "utf8");
   _englishLanguageTaxonomy = JSON.parse(raw);
   return _englishLanguageTaxonomy;
+}
+
+function loadEdexcelIgcseBiologyTaxonomy() {
+  if (_edexcelIgcseBiologyTaxonomy) return _edexcelIgcseBiologyTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "edexcel_igcse_biology_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _edexcelIgcseBiologyTaxonomy = JSON.parse(raw);
+  return _edexcelIgcseBiologyTaxonomy;
 }
 
 /** @deprecated use loadBiologyTaxonomy */
@@ -146,6 +155,92 @@ function getEnglishLiteratureTopics() {
  */
 function getEnglishLanguageTopics() {
   return loadEnglishLanguageTaxonomy();
+}
+
+/**
+ * Get full Edexcel IGCSE Biology taxonomy (main topic → section → lesson topic).
+ * @returns {Object} { subject, examBoard, level, specKey, displayName, units }
+ */
+function getEdexcelIgcseBiologyTopics() {
+  return loadEdexcelIgcseBiologyTaxonomy();
+}
+
+function topicSlugMatches(topic, slug, specKey) {
+  if (!topic || !slug) return false;
+  const k = String(slug).trim().toLowerCase();
+  const topicKey = String(topic.key || "").trim().toLowerCase();
+  if (topicKey && topicKey === k) return true;
+  const namespaced = String(topic.topicKey || "").trim().toLowerCase();
+  if (!namespaced) return false;
+  const parsed = parseTopicKey(namespaced);
+  if (parsed.topicKey && parsed.topicKey.toLowerCase() === k) return true;
+  if (specKey && namespaced === `${String(specKey).trim().toLowerCase()}:${k}`) return true;
+  return false;
+}
+
+function taxonomyHasSections(taxonomy) {
+  return (taxonomy?.units || []).some((u) => Array.isArray(u.sections) && u.sections.length > 0);
+}
+
+function isTaxonomyHierarchySlug(taxonomy, slug) {
+  if (!taxonomyHasSections(taxonomy)) return false;
+  const k = String(slug || "").trim().toLowerCase();
+  if (!k) return false;
+  for (const u of taxonomy.units || []) {
+    const unitKey = String(u.key || "").trim().toLowerCase();
+    if (unitKey && unitKey === k) return true;
+    for (const sec of u.sections || []) {
+      const secSlug = String(sec.slug || "").trim().toLowerCase();
+      if (secSlug && secSlug === k) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Find a leaf lesson topic in a taxonomy (flat unit.topics or sectioned unit.sections[].topics).
+ * Rejects main-topic unit keys and section slugs for sectioned taxonomies.
+ * @param {Object|null|undefined} taxonomy
+ * @param {string} slug - Unprefixed topic slug or full namespaced topicKey suffix
+ * @returns {Object|null}
+ */
+function findLeafTopicInTaxonomy(taxonomy, slug) {
+  if (!taxonomy || !Array.isArray(taxonomy.units)) return null;
+  const k = String(slug || "").trim().toLowerCase();
+  if (!k) return null;
+  if (isTaxonomyHierarchySlug(taxonomy, k)) return null;
+
+  const specKey = taxonomy.specKey || "";
+  for (const u of taxonomy.units) {
+    for (const t of u.topics || []) {
+      if (topicSlugMatches(t, k, specKey)) {
+        if (isTopicGroup(t)) return null;
+        return { unit: u.unit, ...t };
+      }
+    }
+    for (const sec of u.sections || []) {
+      for (const t of sec.topics || []) {
+        if (topicSlugMatches(t, k, specKey)) {
+          if (isTopicGroup(t)) return null;
+          return { unit: u.unit, section: sec.title || t.section, ...t };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Find an Edexcel IGCSE Biology leaf topic by slug or namespaced topicKey.
+ * @param {string} key
+ * @returns {Object|null}
+ */
+function findEdexcelIgcseBiologyTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const { topicKey: raw } = parseTopicKey(key);
+  const slug = (raw || key).trim().toLowerCase();
+  if (!slug) return null;
+  return findLeafTopicInTaxonomy(loadEdexcelIgcseBiologyTaxonomy(), slug);
 }
 
 /**
@@ -336,6 +431,9 @@ function isValidTopicForSpec(specKey, topicKey) {
   if (specKey === "aqa-gcse-english-language") {
     return findEnglishLanguageTopicByKey(k) !== null;
   }
+  if (specKey === "edexcel-igcse-biology") {
+    return findEdexcelIgcseBiologyTopicByKey(k) !== null;
+  }
   return false;
 }
 
@@ -373,6 +471,9 @@ function findTopicBySpecAndKey(specKey, topicKey) {
   }
   if (specKey === "aqa-gcse-english-language") {
     return findEnglishLanguageTopicByKey(k);
+  }
+  if (specKey === "edexcel-igcse-biology") {
+    return findEdexcelIgcseBiologyTopicByKey(k);
   }
   return null;
 }
@@ -507,6 +608,8 @@ function getTaxonomyBySpecKey(specKey) {
       return getEnglishLiteratureTopics();
     case "aqa-gcse-english-language":
       return getEnglishLanguageTopics();
+    case "edexcel-igcse-biology":
+      return getEdexcelIgcseBiologyTopics();
     default:
       return null;
   }
@@ -521,6 +624,7 @@ module.exports = {
   getFurtherMathsTopics,
   getEnglishLiteratureTopics,
   getEnglishLanguageTopics,
+  getEdexcelIgcseBiologyTopics,
   getTaxonomyBySpecKey,
   isTopicGroup,
   findTopicByKey,
@@ -531,6 +635,9 @@ module.exports = {
   findFurtherMathsTopicByKey,
   findEnglishLiteratureTopicByKey,
   findEnglishLanguageTopicByKey,
+  findEdexcelIgcseBiologyTopicByKey,
+  findLeafTopicInTaxonomy,
+  taxonomyHasSections,
   findTopicBySpecAndKey,
   isValidTopicForSpec,
   topicToKey,
@@ -544,4 +651,5 @@ module.exports = {
   loadFurtherMathsTaxonomy,
   loadEnglishLiteratureTaxonomy,
   loadEnglishLanguageTaxonomy,
+  loadEdexcelIgcseBiologyTaxonomy,
 };

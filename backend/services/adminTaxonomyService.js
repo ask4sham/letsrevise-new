@@ -4,7 +4,7 @@
  */
 const AdminTaxonomyItem = require("../models/AdminTaxonomyItem");
 const AdminTopicPlacement = require("../models/AdminTopicPlacement");
-const { getTaxonomyBySpecKey, isValidTopicForSpec, isTopicGroup } = require("../utils/topicTaxonomy");
+const { getTaxonomyBySpecKey, isValidTopicForSpec, isTopicGroup, findLeafTopicInTaxonomy } = require("../utils/topicTaxonomy");
 const { buildTopicKey, parseTopicKey, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 
 /** Generate slug from display name */
@@ -347,11 +347,7 @@ function isValidTopicForSpecWithItems(specKey, topicKey, adminItems = []) {
   const merged = mergeTaxonomySync(staticTaxonomy, adminItems || []);
   if (!merged || !Array.isArray(merged.units)) return false;
 
-  for (const u of merged.units) {
-    const topics = Array.isArray(u.topics) ? u.topics : [];
-    if (topics.some((t) => (t.key || "").toLowerCase() === k)) return true;
-  }
-  return false;
+  return findLeafTopicInTaxonomy(merged, k) !== null;
 }
 
 module.exports = {

@@ -64,4 +64,21 @@ describe("GET /api/taxonomy/create-lesson-options", () => {
     expect(cellStructure.title).toBe("Cell structure");
     expect(cellStructure.topicKey).toMatch(/^aqa-gcse-biology:cell-structure$/);
   });
+
+  test("includes Edexcel IGCSE Biology spec with section-scoped sub-topics", async () => {
+    const res = await request(app).get("/api/taxonomy/create-lesson-options").expect(200);
+    const biology = res.body.subjects.find((s) => s.subject === "Biology");
+    expect(biology).toBeDefined();
+    const edexcel = biology.specs.find((s) => s.specKey === "edexcel-igcse-biology");
+    expect(edexcel).toBeDefined();
+    expect(edexcel.specLabel).toMatch(/Edexcel.*IGCSE.*Biology.*4BI1/i);
+    const allEdexcelSubs = edexcel.mainTopics.flatMap((m) => m.subTopics || []);
+    const humanRepro = allEdexcelSubs.find(
+      (s) => s.topicSlug === "human-male-and-female-reproductive-systems"
+    );
+    expect(humanRepro).toBeDefined();
+    expect(humanRepro.topicKey).toBe(
+      "edexcel-igcse-biology:human-male-and-female-reproductive-systems"
+    );
+  });
 });
