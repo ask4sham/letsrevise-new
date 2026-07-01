@@ -3600,6 +3600,21 @@ const LessonViewPage: React.FC = () => {
               You're viewing a free preview (first page only).
             </div>
           )}
+          {accessDecision?.reason === "SHARED_REVIEW" && (
+            <div
+              style={{
+                padding: "10px 14px",
+                border: "1px solid #c4b5fd",
+                borderRadius: 10,
+                marginBottom: v12StudentPresentation ? 8 : 12,
+                fontSize: "0.9rem",
+                color: "#5b21b6",
+                background: "#f5f3ff",
+              }}
+            >
+              Review request — preview only. You cannot edit, publish, or delete this lesson.
+            </div>
+          )}
           {!hasFullLessonAccess && (
             <div
               style={{

@@ -139,6 +139,7 @@ app.use("/api/me", require("./routes/me"));
 
 // ✅ Add lessons route for Phase 9 content-access integration tests
 app.use("/api/lessons", require("./routes/lessons"));
+app.use("/api/teachers", require("./routes/teachers"));
 
 // Phase 9D: reviews (lesson workflow approve/reject)
 app.use("/api/reviews", require("./routes/reviews"));

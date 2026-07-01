@@ -48,6 +48,15 @@ const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 const { sendInternalError } = require("../utils/safeErrorResponse");
+const {
+  canManageShares,
+  grantViewShare,
+  revokeShare,
+  listSharesForLesson,
+  listReviewRequestsForTeacher,
+  findActiveViewShare,
+  isLessonShareable,
+} = require("../services/lessonShareService");
 const { normalizeLessonDescription } = require("../utils/lessonDescriptionLimits");
 const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
 const { hydrateDiagramAssetsOnPages } = require("../services/diagramAssetService");
@@ -2283,6 +2292,130 @@ router.get("/teacher", auth, async (req, res) => {
 });
 
 /* =========================================
+   Share for Review — review requests for receiving teacher
+   GET /api/lessons/review-requests
+   ========================================= */
+router.get("/review-requests", auth, async (req, res) => {
+  try {
+    if (req.user.userType !== "teacher") {
+      return res.status(403).json({ msg: "Only teachers can view review requests" });
+    }
+    const items = await listReviewRequestsForTeacher(req.user._id);
+    return res.json(items);
+  } catch (err) {
+    return sendInternalError("lessons/review-requests", err, res);
+  }
+});
+
+/* =========================================
+   Share for Review — manage grants on a lesson
+   GET/POST /api/lessons/:id/shares
+   DELETE /api/lessons/:id/shares/:teacherId
+   ========================================= */
+router.get("/:id/shares", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("teacherId").lean();
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+    if (!canManageShares(req.user, lesson)) {
+      return res.status(403).json({ error: "Not authorized to manage shares for this lesson" });
+    }
+    const includeRevoked = req.query.includeRevoked === "true";
+    const shares = await listSharesForLesson(lessonId, { includeRevoked });
+    return res.json({ shares });
+  } catch (err) {
+    return sendInternalError("lessons/shares-list", err, res);
+  }
+});
+
+router.post("/:id/shares", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("teacherId").lean();
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+    if (!canManageShares(req.user, lesson)) {
+      return res.status(403).json({ error: "Not authorized to share this lesson" });
+    }
+
+    let teacherId = typeof req.body?.teacherId === "string" ? req.body.teacherId.trim() : "";
+    if (!teacherId && typeof req.body?.email === "string") {
+      const { lookupTeacherByEmail } = require("../services/lessonShareService");
+      const lookup = await lookupTeacherByEmail(req.body.email);
+      if (!lookup.user) {
+        if (lookup.reason === "not_teacher") {
+          return res.status(400).json({
+            error:
+              "That email is registered but not as a teacher. Reviewers need a teacher account (not student/parent).",
+          });
+        }
+        return res.status(404).json({
+          error:
+            "No teacher account found for that email. Ask them to register as a teacher first, then try again.",
+        });
+      }
+      teacherId = lookup.user.id;
+    }
+    if (!teacherId || !mongoose.Types.ObjectId.isValid(teacherId)) {
+      return res.status(400).json({ error: "teacherId or email is required" });
+    }
+
+    const share = await grantViewShare({
+      lessonId,
+      teacherId,
+      sharedBy: req.user._id,
+    });
+    const shares = await listSharesForLesson(lessonId);
+    const formatted =
+      shares.find((row) => String(row.teacherId) === String(teacherId)) ||
+      shares[0] ||
+      null;
+    return res.status(201).json({
+      share: formatted || share,
+      reviewer: formatted
+        ? {
+            name: formatted.teacherName,
+            schoolName: formatted.schoolName || "",
+            email: formatted.teacherEmail,
+          }
+        : null,
+      msg: "Review access granted",
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    return sendInternalError("lessons/shares-create", err, res);
+  }
+});
+
+router.delete("/:id/shares/:teacherId", auth, async (req, res) => {
+  try {
+    const { id: lessonId, teacherId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(lessonId) || !mongoose.Types.ObjectId.isValid(teacherId)) {
+      return res.status(400).json({ error: "Invalid lesson or teacher id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("teacherId").lean();
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+    if (!canManageShares(req.user, lesson)) {
+      return res.status(403).json({ error: "Not authorized to revoke shares for this lesson" });
+    }
+    const share = await revokeShare({
+      lessonId,
+      teacherId,
+      revokedBy: req.user._id,
+    });
+    return res.json({ share, msg: "Review access revoked" });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    return sendInternalError("lessons/shares-revoke", err, res);
+  }
+});
+
+/* =========================================
    Phase 2: ranked draft lessons for manual curriculum AI (no batch jobs)
    GET /api/lessons/high-priority-for-review
    ========================================= */
@@ -2941,6 +3074,31 @@ function isOwnerOrAdminForPractice(user, lesson) {
   return teacherId != null && String(teacherId) === String(user._id ?? user.id);
 }
 
+async function isSharedReviewerForPractice(user, lessonId) {
+  if (!user || user.userType !== "teacher") return false;
+  const userId = user._id ?? user.id;
+  if (!userId) return false;
+  const share = await findActiveViewShare(lessonId, userId);
+  return !!share;
+}
+
+async function applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson) {
+  if (!isLessonShareable(lesson)) {
+    return applyLessonAccess({ requirePublished: true })(req, res, next);
+  }
+  if (isOwnerOrAdminForPractice(req.user, lesson)) {
+    req.lesson = lesson;
+    req.accessDecision = { allowed: true, reason: "OWNER" };
+    return next();
+  }
+  if (await isSharedReviewerForPractice(req.user, lessonId)) {
+    req.lesson = lesson;
+    req.accessDecision = { allowed: true, reason: "SHARED_REVIEW" };
+    return next();
+  }
+  return applyLessonAccess({ requirePublished: true })(req, res, next);
+}
+
 router.get(
   "/:id/practice",
   auth,
@@ -2952,12 +3110,7 @@ router.get(
       }
       const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-      if (isOwnerOrAdminForPractice(req.user, lesson)) {
-        req.lesson = lesson;
-        req.accessDecision = { allowed: true, reason: "OWNER" };
-        return next();
-      }
-      return applyLessonAccess({ requirePublished: true })(req, res, next);
+      return applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson);
     } catch (err) {
       console.error("practice precheck error:", err);
       return res.status(500).json({ error: "Failed to check access" });
@@ -3215,12 +3368,7 @@ router.get(
       }
       const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-      if (isOwnerOrAdminForPractice(req.user, lesson)) {
-        req.lesson = lesson;
-        req.accessDecision = { allowed: true, reason: "OWNER" };
-        return next();
-      }
-      return applyLessonAccess({ requirePublished: true })(req, res, next);
+      return applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson);
     } catch (err) {
       console.error("targeted-practice precheck error:", err);
       return res.status(500).json({ error: "Failed to check access" });
@@ -3372,12 +3520,7 @@ router.get(
       }
       const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-      if (isOwnerOrAdminForPractice(req.user, lesson)) {
-        req.lesson = lesson;
-        req.accessDecision = { allowed: true, reason: "OWNER" };
-        return next();
-      }
-      return applyLessonAccess({ requirePublished: true })(req, res, next);
+      return applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson);
     } catch (err) {
       console.error("next-steps precheck error:", err);
       return res.status(500).json({ error: "Failed to check access" });
@@ -3544,7 +3687,8 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
       return res.json({ ...payload, accessDecision });
     }
     const isOwner = String(lesson.teacherId) === String(req.user._id);
-    const isPrivilegedViewer = isAdmin(req.user) || isOwner;
+    const isSharedReviewer = decision?.reason === "SHARED_REVIEW";
+    const isPrivilegedViewer = isAdmin(req.user) || isOwner || isSharedReviewer;
     const lessonForResponse =
       !isPrivilegedViewer && req.user?.userType === "student"
         ? stripCheckpointAutoMarkFromLesson(lesson)

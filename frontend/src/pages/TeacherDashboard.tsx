@@ -16,6 +16,7 @@ import {
   formatPublishWithQualityWarningsMessage,
   type PublishWarningSummary,
 } from "../utils/formatPublishWarningMessage";
+import ShareForReviewModal from "../components/teacher/ShareForReviewModal";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -57,6 +58,15 @@ type LessonRow = {
   /** Phase 3: student practice signals suggest reviewing curriculum (manual AI only). */
   needsCurriculumReview?: boolean;
 };
+
+type ReviewRequestRow = LessonRow & {
+  accessRole?: string;
+  sharedByName?: string;
+  sharedAt?: string;
+  teacherName?: string;
+};
+
+type LessonsTab = "mine" | "review-requests";
 
 /** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
 type TaxonomyTopicInfo = { topic: string; unit: string; requiredPractical: boolean };
@@ -147,6 +157,10 @@ const CountBadge: React.FC<{ n: number }> = ({ n }) => {
 
 const TeacherDashboard: React.FC = () => {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
+  const [lessonsTab, setLessonsTab] = useState<LessonsTab>("mine");
+  const [reviewRequests, setReviewRequests] = useState<ReviewRequestRow[]>([]);
+  const [reviewRequestsLoading, setReviewRequestsLoading] = useState(false);
+  const [shareModalLesson, setShareModalLesson] = useState<{ id: string; title: string } | null>(null);
   const [stats, setStats] = useState({
     totalLessons: 0,
     publishedLessons: 0,
@@ -317,6 +331,7 @@ const TeacherDashboard: React.FC = () => {
         // 1) User from useCurrentUser hook (no localStorage read here)
         // 2) Load lessons from BACKEND (Mongo) — includes drafts
         await fetchLessonsFromBackend();
+        await fetchReviewRequests();
 
         // 3) Load teacher stats (earnings, purchases, etc.) from BACKEND
         await fetchTeacherStatsFromBackend();
@@ -412,6 +427,48 @@ const TeacherDashboard: React.FC = () => {
       }));
     }
   };
+
+  const fetchReviewRequests = async () => {
+    setReviewRequestsLoading(true);
+    try {
+      const res = await api.get("/lessons/review-requests");
+      const raw: any[] = Array.isArray(res.data) ? res.data : [];
+      setReviewRequests(
+        raw.map((l) => ({
+          _id: String(l._id || l.id),
+          id: String(l._id || l.id),
+          title: l.title ?? "Untitled Lesson",
+          subject: l.subject ?? "Not set",
+          level: l.level ?? "Not set",
+          topic: l.topic ?? undefined,
+          board: l.board ?? undefined,
+          examBoard: l.examBoard ?? l.board ?? undefined,
+          tier: l.tier ?? undefined,
+          isPublished: Boolean(l.isPublished),
+          createdAt: l.createdAt ?? new Date().toISOString(),
+          purchaseCount: 0,
+          totalEarnings: 0,
+          averageRating: 0,
+          views: 0,
+          accessRole: l.accessRole,
+          sharedByName: l.sharedByName,
+          sharedAt: l.sharedAt,
+          teacherName: l.teacherName,
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching review requests:", err);
+      setReviewRequests([]);
+    } finally {
+      setReviewRequestsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (lessonsTab === "review-requests") {
+      void fetchReviewRequests();
+    }
+  }, [lessonsTab]);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -1382,16 +1439,114 @@ const TeacherDashboard: React.FC = () => {
               justifyContent: "space-between",
               alignItems: "center",
               marginTop: taxonomyUnits.length > 0 ? 16 : 0,
-              marginBottom: "20px",
+              marginBottom: "12px",
+              flexWrap: "wrap",
+              gap: 12,
             }}
           >
-            <h2 style={{ color: "#333", margin: 0 }}>My Lessons</h2>
-            <div style={{ color: "#666" }}>
-              {lessons.length} lesson{lessons.length !== 1 ? "s" : ""}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => setLessonsTab("mine")}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: lessonsTab === "mine" ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                  background: lessonsTab === "mine" ? "#eef2ff" : "#fff",
+                  color: lessonsTab === "mine" ? "#4338ca" : "#374151",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                My Lessons
+              </button>
+              <button
+                type="button"
+                onClick={() => setLessonsTab("review-requests")}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: lessonsTab === "review-requests" ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                  background: lessonsTab === "review-requests" ? "#eef2ff" : "#fff",
+                  color: lessonsTab === "review-requests" ? "#4338ca" : "#374151",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Review Requests
+                {reviewRequests.length > 0 ? (
+                  <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>({reviewRequests.length})</span>
+                ) : null}
+              </button>
+            </div>
+            <div style={{ color: "#666", fontSize: 14 }}>
+              {lessonsTab === "mine"
+                ? `${lessons.length} lesson${lessons.length !== 1 ? "s" : ""}`
+                : `${reviewRequests.length} request${reviewRequests.length !== 1 ? "s" : ""}`}
             </div>
           </div>
 
-          {lessons.length === 0 ? (
+          {lessonsTab === "review-requests" ? (
+            reviewRequestsLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>Loading review requests…</div>
+            ) : reviewRequests.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px" }}>
+                <div style={{ fontSize: "3rem", color: "#e2e8f0", marginBottom: "20px" }}>📋</div>
+                <h3 style={{ color: "#666", marginBottom: "10px" }}>No review requests</h3>
+                <p style={{ color: "#999" }}>
+                  When another teacher shares a lesson with you for quality review, it will appear here.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {reviewRequests.map((lesson) => (
+                  <div
+                    key={lesson._id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 16,
+                      padding: 16,
+                      background: "#fff",
+                      borderRadius: 12,
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <div>
+                      <h3 style={{ margin: "0 0 6px", fontSize: "1.05rem", fontWeight: 700, color: "#111827" }}>
+                        {lesson.title}
+                      </h3>
+                      <p style={{ margin: "0 0 4px", fontSize: 14, color: "#374151", fontWeight: 600 }}>
+                        From: {lesson.sharedByName || lesson.teacherName || "another teacher"}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+                        {lesson.subject} · {lesson.level}
+                        {lesson.isPublished ? " · Published" : " · Draft"}
+                      </p>
+                    </div>
+                    <Link to={`/lesson/${lesson._id}?entry=review-request`}>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "8px 16px",
+                          background: "#4f46e5",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 8,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Review lesson
+                      </button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : lessons.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px" }}>
               <div style={{ fontSize: "3rem", color: "#e2e8f0", marginBottom: "20px" }}>📚</div>
               <h3 style={{ color: "#666", marginBottom: "10px" }}>No lessons yet</h3>
@@ -1602,6 +1757,24 @@ const TeacherDashboard: React.FC = () => {
                         flexShrink: 0,
                       }}
                     >
+                      <button
+                        type="button"
+                        onClick={() => setShareModalLesson({ id: lesson._id, title: lesson.title })}
+                        style={{
+                          width: 100,
+                          height: 32,
+                          padding: "0 12px",
+                          background: "#ede9fe",
+                          color: "#5b21b6",
+                          border: "1px solid #c4b5fd",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          fontSize: 13,
+                          fontWeight: 500,
+                        }}
+                      >
+                        Share for Review
+                      </button>
                       <Link to={`/lesson/${lesson._id}?entry=preview`}>
                         <button
                           style={{
@@ -2337,6 +2510,13 @@ const TeacherDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ShareForReviewModal
+        lessonId={shareModalLesson?.id ?? ""}
+        lessonTitle={shareModalLesson?.title ?? ""}
+        open={!!shareModalLesson}
+        onClose={() => setShareModalLesson(null)}
+      />
     </div>
   );
 };
