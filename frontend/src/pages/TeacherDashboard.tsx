@@ -66,7 +66,9 @@ type ReviewRequestRow = LessonRow & {
   teacherName?: string;
 };
 
-type LessonsTab = "mine" | "review-requests";
+type TeachingLibraryRow = ReviewRequestRow;
+
+type LessonsTab = "mine" | "review-requests" | "teaching-library";
 
 /** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
 type TaxonomyTopicInfo = { topic: string; unit: string; requiredPractical: boolean };
@@ -160,6 +162,8 @@ const TeacherDashboard: React.FC = () => {
   const [lessonsTab, setLessonsTab] = useState<LessonsTab>("mine");
   const [reviewRequests, setReviewRequests] = useState<ReviewRequestRow[]>([]);
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState(false);
+  const [teachingLibrary, setTeachingLibrary] = useState<TeachingLibraryRow[]>([]);
+  const [teachingLibraryLoading, setTeachingLibraryLoading] = useState(false);
   const [shareModalLesson, setShareModalLesson] = useState<{ id: string; title: string } | null>(null);
   const [stats, setStats] = useState({
     totalLessons: 0,
@@ -464,9 +468,48 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
+  const fetchTeachingLibrary = async () => {
+    setTeachingLibraryLoading(true);
+    try {
+      const res = await api.get("/lessons/teaching-library");
+      const raw: any[] = Array.isArray(res.data) ? res.data : [];
+      setTeachingLibrary(
+        raw.map((l) => ({
+          _id: String(l._id || l.id),
+          id: String(l._id || l.id),
+          title: l.title ?? "Untitled Lesson",
+          subject: l.subject ?? "Not set",
+          level: l.level ?? "Not set",
+          topic: l.topic ?? undefined,
+          board: l.board ?? undefined,
+          examBoard: l.examBoard ?? l.board ?? undefined,
+          tier: l.tier ?? undefined,
+          isPublished: Boolean(l.isPublished),
+          createdAt: l.createdAt ?? new Date().toISOString(),
+          purchaseCount: 0,
+          totalEarnings: 0,
+          averageRating: 0,
+          views: 0,
+          accessRole: l.accessRole,
+          sharedByName: l.sharedByName,
+          sharedAt: l.sharedAt,
+          teacherName: l.teacherName,
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching teaching library:", err);
+      setTeachingLibrary([]);
+    } finally {
+      setTeachingLibraryLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (lessonsTab === "review-requests") {
       void fetchReviewRequests();
+    }
+    if (lessonsTab === "teaching-library") {
+      void fetchTeachingLibrary();
     }
   }, [lessonsTab]);
 
@@ -1478,11 +1521,31 @@ const TeacherDashboard: React.FC = () => {
                   <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>({reviewRequests.length})</span>
                 ) : null}
               </button>
+              <button
+                type="button"
+                onClick={() => setLessonsTab("teaching-library")}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: lessonsTab === "teaching-library" ? "2px solid #059669" : "1px solid #e5e7eb",
+                  background: lessonsTab === "teaching-library" ? "#ecfdf5" : "#fff",
+                  color: lessonsTab === "teaching-library" ? "#047857" : "#374151",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Teaching Library
+                {teachingLibrary.length > 0 ? (
+                  <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>({teachingLibrary.length})</span>
+                ) : null}
+              </button>
             </div>
             <div style={{ color: "#666", fontSize: 14 }}>
               {lessonsTab === "mine"
                 ? `${lessons.length} lesson${lessons.length !== 1 ? "s" : ""}`
-                : `${reviewRequests.length} request${reviewRequests.length !== 1 ? "s" : ""}`}
+                : lessonsTab === "review-requests"
+                  ? `${reviewRequests.length} request${reviewRequests.length !== 1 ? "s" : ""}`
+                  : `${teachingLibrary.length} lesson${teachingLibrary.length !== 1 ? "s" : ""}`}
             </div>
           </div>
 
@@ -1540,6 +1603,66 @@ const TeacherDashboard: React.FC = () => {
                         }}
                       >
                         Review lesson
+                      </button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : lessonsTab === "teaching-library" ? (
+            teachingLibraryLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>Loading teaching library…</div>
+            ) : teachingLibrary.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px" }}>
+                <div style={{ fontSize: "3rem", color: "#e2e8f0", marginBottom: "20px" }}>🎓</div>
+                <h3 style={{ color: "#666", marginBottom: "10px" }}>No shared lessons to teach</h3>
+                <p style={{ color: "#999" }}>
+                  When another teacher shares a lesson with you for classroom teaching, it will appear here.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {teachingLibrary.map((lesson) => (
+                  <div
+                    key={lesson._id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 16,
+                      padding: 16,
+                      background: "#fff",
+                      borderRadius: 12,
+                      border: "1px solid #d1fae5",
+                    }}
+                  >
+                    <div>
+                      <h3 style={{ margin: "0 0 6px", fontSize: "1.05rem", fontWeight: 700, color: "#111827" }}>
+                        {lesson.title}
+                      </h3>
+                      <p style={{ margin: "0 0 4px", fontSize: 14, color: "#374151", fontWeight: 600 }}>
+                        From: {lesson.sharedByName || lesson.teacherName || "another teacher"}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+                        {lesson.subject} · {lesson.level}
+                        {lesson.isPublished ? " · Published" : " · Draft"}
+                      </p>
+                    </div>
+                    <Link to={`/teacher/classroom/${lesson._id}`}>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "8px 16px",
+                          background: "#059669",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 8,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Start Teaching
                       </button>
                     </Link>
                   </div>

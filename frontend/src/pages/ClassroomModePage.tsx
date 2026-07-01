@@ -494,6 +494,8 @@ const ClassroomModePage: React.FC = () => {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accessDecision, setAccessDecision] = useState<{ allowed?: boolean; reason?: string } | null>(null);
+  const [shareMeta, setShareMeta] = useState<{ sharedByName?: string; permission?: string } | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestionLite[]>([]);
   const [practiceLoading, setPracticeLoading] = useState(false);
@@ -516,13 +518,15 @@ const ClassroomModePage: React.FC = () => {
     setLoading(true);
     setError(null);
     api
-      .get(`/lessons/${lessonId}`)
+      .get(`/lessons/${lessonId}`, { params: { present: "classroom" } })
       .then((res) => {
         const d = res?.data;
         if (!d) {
           setError("Lesson not found");
           return;
         }
+        setAccessDecision(d.accessDecision || null);
+        setShareMeta(d.shareMeta || null);
         setLesson({
           id: String(d._id ?? d.id ?? lessonId),
           title: safeStr(d.title, "Untitled"),
@@ -740,6 +744,22 @@ const ClassroomModePage: React.FC = () => {
     <LessonImageLightboxProvider>
     <div style={{ minHeight: "100vh", background: "#f5f7fa", padding: 18, fontSize: BASE_FONT }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        {accessDecision?.reason === "SHARED_TEACH" && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 16px",
+              borderRadius: 10,
+              border: "1px solid #6ee7b7",
+              background: "#ecfdf5",
+              color: "#065f46",
+              fontSize: "0.95rem",
+              lineHeight: 1.5,
+            }}
+          >
+            Shared for teaching by {shareMeta?.sharedByName || "the lesson owner"} — view only. You are teaching the master lesson.
+          </div>
+        )}
         {/* Top bar: Lesson | Reteach tabs + nav */}
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 20, padding: "12px 16px", background: "white", borderRadius: 12, border: "2px solid rgba(59,130,246,0.25)", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
           <div style={{ flex: "1 1 200px" }}>

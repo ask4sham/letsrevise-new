@@ -50,12 +50,18 @@ const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 const { sendInternalError } = require("../utils/safeErrorResponse");
 const {
   canManageShares,
+  grantShare,
   grantViewShare,
   revokeShare,
   listSharesForLesson,
   listReviewRequestsForTeacher,
+  listTeachingLibraryForTeacher,
   findActiveViewShare,
+  findActiveTeachShare,
+  getShareMetaForAccess,
   isLessonShareable,
+  VIEW_PERMISSION,
+  TEACH_PERMISSION,
 } = require("../services/lessonShareService");
 const { normalizeLessonDescription } = require("../utils/lessonDescriptionLimits");
 const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
@@ -2308,6 +2314,22 @@ router.get("/review-requests", auth, async (req, res) => {
 });
 
 /* =========================================
+   Teaching Access — lessons shared for classroom teaching
+   GET /api/lessons/teaching-library
+   ========================================= */
+router.get("/teaching-library", auth, async (req, res) => {
+  try {
+    if (req.user.userType !== "teacher") {
+      return res.status(403).json({ msg: "Only teachers can view the teaching library" });
+    }
+    const items = await listTeachingLibraryForTeacher(req.user._id);
+    return res.json(items);
+  } catch (err) {
+    return sendInternalError("lessons/teaching-library", err, res);
+  }
+});
+
+/* =========================================
    Share for Review — manage grants on a lesson
    GET/POST /api/lessons/:id/shares
    DELETE /api/lessons/:id/shares/:teacherId
@@ -2365,10 +2387,14 @@ router.post("/:id/shares", auth, async (req, res) => {
       return res.status(400).json({ error: "teacherId or email is required" });
     }
 
-    const share = await grantViewShare({
+    const rawPermission = typeof req.body?.permission === "string" ? req.body.permission.trim().toUpperCase() : VIEW_PERMISSION;
+    const permission = rawPermission === TEACH_PERMISSION ? TEACH_PERMISSION : VIEW_PERMISSION;
+
+    const share = await grantShare({
       lessonId,
       teacherId,
       sharedBy: req.user._id,
+      permission,
     });
     const shares = await listSharesForLesson(lessonId);
     const formatted =
@@ -2384,7 +2410,8 @@ router.post("/:id/shares", auth, async (req, res) => {
             email: formatted.teacherEmail,
           }
         : null,
-      msg: "Review access granted",
+      permission,
+      msg: permission === TEACH_PERMISSION ? "Teaching access granted" : "Review access granted",
     });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
@@ -3082,13 +3109,26 @@ async function isSharedReviewerForPractice(user, lessonId) {
   return !!share;
 }
 
-async function applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson) {
+async function isSharedTeacherForPractice(user, lessonId) {
+  if (!user || user.userType !== "teacher") return false;
+  const userId = user._id ?? user.id;
+  if (!userId) return false;
+  const share = await findActiveTeachShare(lessonId, userId);
+  return !!share;
+}
+
+async function applySharedTeacherPracticeAccess(req, res, next, lessonId, lesson) {
   if (!isLessonShareable(lesson)) {
     return applyLessonAccess({ requirePublished: true })(req, res, next);
   }
   if (isOwnerOrAdminForPractice(req.user, lesson)) {
     req.lesson = lesson;
     req.accessDecision = { allowed: true, reason: "OWNER" };
+    return next();
+  }
+  if (await isSharedTeacherForPractice(req.user, lessonId)) {
+    req.lesson = lesson;
+    req.accessDecision = { allowed: true, reason: "SHARED_TEACH" };
     return next();
   }
   if (await isSharedReviewerForPractice(req.user, lessonId)) {
@@ -3110,7 +3150,7 @@ router.get(
       }
       const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-      return applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson);
+      return applySharedTeacherPracticeAccess(req, res, next, lessonId, lesson);
     } catch (err) {
       console.error("practice precheck error:", err);
       return res.status(500).json({ error: "Failed to check access" });
@@ -3368,7 +3408,7 @@ router.get(
       }
       const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-      return applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson);
+      return applySharedTeacherPracticeAccess(req, res, next, lessonId, lesson);
     } catch (err) {
       console.error("targeted-practice precheck error:", err);
       return res.status(500).json({ error: "Failed to check access" });
@@ -3520,7 +3560,7 @@ router.get(
       }
       const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-      return applySharedReviewerPracticeAccess(req, res, next, lessonId, lesson);
+      return applySharedTeacherPracticeAccess(req, res, next, lessonId, lesson);
     } catch (err) {
       console.error("next-steps precheck error:", err);
       return res.status(500).json({ error: "Failed to check access" });
@@ -3688,13 +3728,22 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
     }
     const isOwner = String(lesson.teacherId) === String(req.user._id);
     const isSharedReviewer = decision?.reason === "SHARED_REVIEW";
-    const isPrivilegedViewer = isAdmin(req.user) || isOwner || isSharedReviewer;
+    const isSharedTeacher = decision?.reason === "SHARED_TEACH";
+    const isPrivilegedViewer = isAdmin(req.user) || isOwner || isSharedReviewer || isSharedTeacher;
     const lessonForResponse =
       !isPrivilegedViewer && req.user?.userType === "student"
         ? stripCheckpointAutoMarkFromLesson(lesson)
         : lesson;
     const payload = toLessonFullPayload(lessonForResponse);
     payload.readiness = computeLessonReadiness(lesson);
+    if (isSharedReviewer || isSharedTeacher) {
+      const shareMeta = await getShareMetaForAccess(
+        lessonId,
+        req.user._id,
+        decision?.reason
+      );
+      if (shareMeta) payload.shareMeta = shareMeta;
+    }
     return res.json({ ...payload, accessDecision });
   } catch (err) {
     console.error("Get lesson error:", err);

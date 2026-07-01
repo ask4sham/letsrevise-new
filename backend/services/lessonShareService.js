@@ -1,5 +1,5 @@
 /**
- * Share for Review — grant/revoke/list active VIEW shares via LessonShare collection.
+ * LessonShare grants — review (VIEW) and classroom teaching (TEACH).
  */
 const mongoose = require("mongoose");
 const LessonShare = require("../models/LessonShare");
@@ -7,8 +7,14 @@ const Lesson = require("../models/Lesson");
 const User = require("../models/User");
 
 const VIEW_PERMISSION = "VIEW";
+const TEACH_PERMISSION = "TEACH";
 const ACTIVE_STATUS = "active";
 const REVOKED_STATUS = "revoked";
+
+const SHARE_PERMISSION_LABELS = {
+  [VIEW_PERMISSION]: "VIEW ONLY",
+  [TEACH_PERMISSION]: "TEACH IN CLASSROOM",
+};
 
 const BLOCKED_SHARE_LESSON_STATUSES = ["archived", "flagged"];
 
@@ -26,7 +32,7 @@ function assertLessonShareable(lesson) {
   }
   if (!isLessonShareable(lesson)) {
     throw Object.assign(
-      new Error("Archived or moderated lessons cannot be shared for review"),
+      new Error("Archived or moderated lessons cannot be shared for review or teaching"),
       { status: 400, code: "LESSON_NOT_SHAREABLE" }
     );
   }
@@ -44,19 +50,36 @@ function canManageShares(user, lesson) {
   return ownerId != null && String(ownerId) === String(user._id);
 }
 
-async function findActiveViewShare(lessonId, teacherUserId) {
+function normalizeSharePermission(permission) {
+  const p = String(permission || VIEW_PERMISSION).trim().toUpperCase();
+  if (p === TEACH_PERMISSION) return TEACH_PERMISSION;
+  return VIEW_PERMISSION;
+}
+
+async function findActiveShare(lessonId, teacherUserId, permission) {
   if (!lessonId || !teacherUserId) return null;
   if (!mongoose.Types.ObjectId.isValid(String(lessonId))) return null;
   if (!mongoose.Types.ObjectId.isValid(String(teacherUserId))) return null;
-  return LessonShare.findOne({
+  const query = {
     lessonId,
     teacherId: teacherUserId,
     status: ACTIVE_STATUS,
-    permission: VIEW_PERMISSION,
-  }).lean();
+  };
+  if (permission) query.permission = permission;
+  return LessonShare.findOne(query).lean();
 }
 
-async function grantViewShare({ lessonId, teacherId, sharedBy }) {
+async function findActiveViewShare(lessonId, teacherUserId) {
+  return findActiveShare(lessonId, teacherUserId, VIEW_PERMISSION);
+}
+
+async function findActiveTeachShare(lessonId, teacherUserId) {
+  return findActiveShare(lessonId, teacherUserId, TEACH_PERMISSION);
+}
+
+async function grantShare({ lessonId, teacherId, sharedBy, permission = VIEW_PERMISSION }) {
+  const normalizedPermission = normalizeSharePermission(permission);
+
   if (!mongoose.Types.ObjectId.isValid(String(lessonId))) {
     throw Object.assign(new Error("Invalid lesson id"), { status: 400 });
   }
@@ -69,7 +92,7 @@ async function grantViewShare({ lessonId, teacherId, sharedBy }) {
 
   const target = await User.findById(teacherId).select("userType email firstName lastName").lean();
   if (!target || target.userType !== "teacher") {
-    throw Object.assign(new Error("Reviewer must be a teacher account"), { status: 400 });
+    throw Object.assign(new Error("Recipient must be a teacher account"), { status: 400 });
   }
 
   const lesson = await Lesson.findById(lessonId).select("teacherId title status isPublished").lean();
@@ -85,7 +108,7 @@ async function grantViewShare({ lessonId, teacherId, sharedBy }) {
   const existing = await LessonShare.findOne({ lessonId, teacherId });
   if (existing) {
     existing.status = ACTIVE_STATUS;
-    existing.permission = VIEW_PERMISSION;
+    existing.permission = normalizedPermission;
     existing.sharedBy = sharedBy;
     existing.sharedAt = now;
     existing.revokedBy = null;
@@ -97,12 +120,16 @@ async function grantViewShare({ lessonId, teacherId, sharedBy }) {
   const created = await LessonShare.create({
     lessonId,
     teacherId,
-    permission: VIEW_PERMISSION,
+    permission: normalizedPermission,
     sharedBy,
     sharedAt: now,
     status: ACTIVE_STATUS,
   });
   return created.toObject();
+}
+
+async function grantViewShare(args) {
+  return grantShare({ ...args, permission: VIEW_PERMISSION });
 }
 
 async function revokeShare({ lessonId, teacherId, revokedBy }) {
@@ -150,6 +177,7 @@ function formatShareRow(share, userMap) {
   const teacherName = reviewer
     ? [reviewer.firstName, reviewer.lastName].filter(Boolean).join(" ").trim() || reviewer.email
     : "";
+  const permission = share.permission || VIEW_PERMISSION;
   return {
     id: String(share._id),
     lessonId: String(share.lessonId),
@@ -157,9 +185,14 @@ function formatShareRow(share, userMap) {
     teacherName,
     teacherEmail: reviewer?.email || "",
     schoolName: reviewerSchoolLabel(reviewer),
-    permission: share.permission,
-    permissionLabel: "VIEW ONLY",
-    reviewStatus: share.status === ACTIVE_STATUS ? "waiting_for_review" : "revoked",
+    permission,
+    permissionLabel: SHARE_PERMISSION_LABELS[permission] || String(permission),
+    reviewStatus:
+      share.status === ACTIVE_STATUS
+        ? permission === TEACH_PERMISSION
+          ? "ready_to_teach"
+          : "waiting_for_review"
+        : "revoked",
     status: share.status,
     sharedBy: String(share.sharedBy),
     sharedByName: sharer
@@ -194,11 +227,11 @@ function toListSafeLesson(lesson) {
   };
 }
 
-async function listReviewRequestsForTeacher(teacherUserId) {
+async function listSharedLessonsForTeacher(teacherUserId, permission) {
   const shares = await LessonShare.find({
     teacherId: teacherUserId,
     status: ACTIVE_STATUS,
-    permission: VIEW_PERMISSION,
+    permission,
   })
     .sort({ sharedAt: -1 })
     .lean();
@@ -222,6 +255,8 @@ async function listReviewRequestsForTeacher(teacherUserId) {
     : [];
   const sharerMap = new Map(sharers.map((u) => [String(u._id), u]));
 
+  const accessRole = permission === TEACH_PERMISSION ? "shared_teach" : "shared_review";
+
   return shares
     .map((share) => {
       const lesson = lessonMap.get(String(share.lessonId));
@@ -229,7 +264,7 @@ async function listReviewRequestsForTeacher(teacherUserId) {
       const sharer = sharerMap.get(String(share.sharedBy));
       return {
         ...toListSafeLesson(lesson),
-        accessRole: "shared_review",
+        accessRole,
         shareId: String(share._id),
         permission: share.permission,
         sharedAt: share.sharedAt,
@@ -240,6 +275,14 @@ async function listReviewRequestsForTeacher(teacherUserId) {
       };
     })
     .filter(Boolean);
+}
+
+async function listReviewRequestsForTeacher(teacherUserId) {
+  return listSharedLessonsForTeacher(teacherUserId, VIEW_PERMISSION);
+}
+
+async function listTeachingLibraryForTeacher(teacherUserId) {
+  return listSharedLessonsForTeacher(teacherUserId, TEACH_PERMISSION);
 }
 
 async function lookupTeacherByEmail(email) {
@@ -268,17 +311,46 @@ async function lookupTeacherByEmail(email) {
   };
 }
 
+async function getShareMetaForAccess(lessonId, teacherUserId, accessReason) {
+  if (!lessonId || !teacherUserId || !accessReason) return null;
+  const permission =
+    accessReason === "SHARED_TEACH"
+      ? TEACH_PERMISSION
+      : accessReason === "SHARED_REVIEW"
+        ? VIEW_PERMISSION
+        : null;
+  if (!permission) return null;
+  const share = await findActiveShare(lessonId, teacherUserId, permission);
+  if (!share) return null;
+  const sharer = await User.findById(share.sharedBy).select("firstName lastName email").lean();
+  const sharedByName = sharer
+    ? [sharer.firstName, sharer.lastName].filter(Boolean).join(" ").trim() || sharer.email
+    : "";
+  return {
+    permission: share.permission,
+    sharedAt: share.sharedAt,
+    sharedBy: String(share.sharedBy),
+    sharedByName,
+  };
+}
+
 module.exports = {
   VIEW_PERMISSION,
+  TEACH_PERMISSION,
   ACTIVE_STATUS,
   BLOCKED_SHARE_LESSON_STATUSES,
   getLessonWorkflowStatus,
   isLessonShareable,
   canManageShares,
+  findActiveShare,
   findActiveViewShare,
+  findActiveTeachShare,
+  grantShare,
   grantViewShare,
   revokeShare,
   listSharesForLesson,
   listReviewRequestsForTeacher,
+  listTeachingLibraryForTeacher,
   lookupTeacherByEmail,
+  getShareMetaForAccess,
 };
