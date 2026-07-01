@@ -841,6 +841,23 @@ const AdminDashboardPage: React.FC = () => {
         >
           Content Coverage →
         </Link>
+        {isAdmin && (
+          <Link
+            to="/admin/teacher-library"
+            style={{
+              padding: "0.5rem 1rem",
+              backgroundColor: "#ecfdf5",
+              color: "#047857",
+              borderRadius: 6,
+              textDecoration: "none",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              border: "1px solid #6ee7b7",
+            }}
+          >
+            Teacher Library →
+          </Link>
+        )}
         <Link
           to="/admin/autopilot-approval"
           style={{

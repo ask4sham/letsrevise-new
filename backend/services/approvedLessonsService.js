@@ -101,6 +101,8 @@ function buildApprovedLessonsQuery(filters = {}) {
 }
 
 function toApprovedLessonCard(lesson) {
+  const tl = lesson.teacherLibrary || {};
+  const libraryStatus = getTeacherLibraryStatus(lesson);
   return {
     _id: lesson._id,
     id: String(lesson._id),
@@ -115,14 +117,52 @@ function toApprovedLessonCard(lesson) {
     isPublished: !!lesson.isPublished,
     teacherId: lesson.teacherId ? String(lesson.teacherId) : "",
     teacherName: lesson.teacherName || "",
-    letsReviseApproved: true,
-    teacherLibraryStatus: getTeacherLibraryStatus(lesson),
-    catalogueVersion: lesson.teacherLibrary?.version ?? null,
+    letsReviseApproved: libraryStatus === "approved",
+    teacherLibraryStatus: libraryStatus,
+    catalogueVersion: tl.version ?? null,
+    submittedAt: tl.submittedAt || null,
+    submittedBy: tl.submittedBy ? String(tl.submittedBy) : null,
+    approvedAt: tl.approvedAt || null,
+    approvedBy: tl.approvedBy ? String(tl.approvedBy) : null,
+    rejectedAt: tl.rejectedAt || null,
+    rejectionNotes: tl.rejectionNotes || "",
+    retiredAt: tl.retiredAt || null,
     updatedAt: lesson.updatedAt,
     createdAt: lesson.createdAt,
     averageRating: lesson.averageRating ?? 0,
     totalRatings: lesson.totalRatings ?? 0,
   };
+}
+
+const ADMIN_CATALOGUE_TAB_STATUSES = {
+  pending: "pending_review",
+  pending_review: "pending_review",
+  approved: "approved",
+  rejected: "rejected",
+  retired: "retired",
+};
+
+function normalizeAdminCatalogueTabStatus(tab) {
+  const key = String(tab || "pending").toLowerCase();
+  return ADMIN_CATALOGUE_TAB_STATUSES[key] || null;
+}
+
+function buildAdminCatalogueSort(libraryStatus, sort) {
+  if (libraryStatus === "pending_review") {
+    return sort === "oldest"
+      ? { "teacherLibrary.submittedAt": 1, updatedAt: -1 }
+      : { "teacherLibrary.submittedAt": -1, updatedAt: -1 };
+  }
+  if (libraryStatus === "approved") {
+    return { "teacherLibrary.approvedAt": -1, updatedAt: -1 };
+  }
+  if (libraryStatus === "rejected") {
+    return { "teacherLibrary.rejectedAt": -1, updatedAt: -1 };
+  }
+  if (libraryStatus === "retired") {
+    return { "teacherLibrary.retiredAt": -1, updatedAt: -1 };
+  }
+  return { updatedAt: -1 };
 }
 
 async function listApprovedLessons(filters = {}) {
@@ -142,25 +182,50 @@ async function listApprovedLessons(filters = {}) {
   return lessons.map(toApprovedLessonCard);
 }
 
-async function listPendingCatalogueApprovals() {
+async function listPendingCatalogueApprovals(options = {}) {
+  return listCatalogueLessonsForAdmin("pending_review", options);
+}
+
+async function listCatalogueLessonsForAdmin(libraryStatus, options = {}) {
+  const sort = options.sort === "oldest" ? "oldest" : "newest";
+  const limit = Math.min(Math.max(parseInt(String(options.limit || "100"), 10) || 100, 1), 200);
+  const offset = Math.max(parseInt(String(options.offset || "0"), 10) || 0, 0);
+
   const lessons = await Lesson.find({
-    "teacherLibrary.status": "pending_review",
+    "teacherLibrary.status": libraryStatus,
     status: { $nin: BLOCKED_LESSON_STATUSES },
   })
     .select(
-      "title subject level board topic tier status isPublished teacherId teacherName teacherLibrary createdAt updatedAt"
+      "title subject level board topic tier status isPublished teacherId teacherName teacherLibrary averageRating totalRatings createdAt updatedAt"
     )
-    .sort({ "teacherLibrary.submittedAt": -1, updatedAt: -1 })
+    .sort(buildAdminCatalogueSort(libraryStatus, sort))
+    .skip(offset)
+    .limit(limit)
     .lean();
 
-  return lessons.map((lesson) => ({
-    ...toApprovedLessonCard(lesson),
-    teacherLibraryStatus: "pending_review",
-    submittedAt: lesson.teacherLibrary?.submittedAt || null,
-    submittedBy: lesson.teacherLibrary?.submittedBy
-      ? String(lesson.teacherLibrary.submittedBy)
-      : null,
-  }));
+  return lessons.map(toApprovedLessonCard);
+}
+
+async function getCatalogueStatusCounts() {
+  const statuses = ["pending_review", "approved", "rejected", "retired"];
+  const baseFilter = { status: { $nin: BLOCKED_LESSON_STATUSES } };
+  const entries = await Promise.all(
+    statuses.map(async (libraryStatus) => {
+      const count = await Lesson.countDocuments({
+        ...baseFilter,
+        "teacherLibrary.status": libraryStatus,
+      });
+      return [libraryStatus, count];
+    })
+  );
+  const counts = Object.fromEntries(entries);
+  return {
+    pending_review: counts.pending_review || 0,
+    approved: counts.approved || 0,
+    rejected: counts.rejected || 0,
+    retired: counts.retired || 0,
+    pending: counts.pending_review || 0,
+  };
 }
 
 async function recordApprovalAudit({ lessonId, action, actorId, notes, internalNotes, previousStatus, newStatus }) {
@@ -388,6 +453,9 @@ module.exports = {
   buildApprovedLessonsQuery,
   listApprovedLessons,
   listPendingCatalogueApprovals,
+  listCatalogueLessonsForAdmin,
+  getCatalogueStatusCounts,
+  normalizeAdminCatalogueTabStatus,
   submitLessonForApproval,
   approveLessonForCatalogue,
   rejectLessonForCatalogue,

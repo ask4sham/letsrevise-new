@@ -66,6 +66,9 @@ const {
 const {
   listApprovedLessons,
   listPendingCatalogueApprovals,
+  listCatalogueLessonsForAdmin,
+  getCatalogueStatusCounts,
+  normalizeAdminCatalogueTabStatus,
   submitLessonForApproval,
   approveLessonForCatalogue,
   rejectLessonForCatalogue,
@@ -2368,20 +2371,41 @@ router.get("/approved-lessons", auth, async (req, res) => {
 });
 
 /* =========================================
-   Admin catalogue approval queue
-   GET /api/lessons/catalogue-approvals?status=pending
+   Admin Teacher Library catalogue (teacher-library-admin-v1)
+   GET /api/lessons/catalogue-approvals/summary
+   GET /api/lessons/catalogue-approvals?status=pending|approved|rejected|retired
    ========================================= */
+router.get("/catalogue-approvals/summary", auth, async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only admin can view catalogue approvals" });
+    }
+    const counts = await getCatalogueStatusCounts();
+    return res.json({ counts });
+  } catch (err) {
+    return sendInternalError("lessons/catalogue-approvals-summary", err, res);
+  }
+});
+
 router.get("/catalogue-approvals", auth, async (req, res) => {
   try {
     if (!isAdmin(req.user)) {
       return res.status(403).json({ error: "Only admin can view catalogue approvals" });
     }
-    const status = String(req.query.status || "pending").toLowerCase();
-    if (status !== "pending") {
-      return res.status(400).json({ error: "Only status=pending is supported in v1" });
+    const tabStatus = normalizeAdminCatalogueTabStatus(req.query.status || "pending");
+    if (!tabStatus) {
+      return res.status(400).json({
+        error: "Invalid status. Use pending, approved, rejected, or retired.",
+      });
     }
-    const lessons = await listPendingCatalogueApprovals();
-    return res.json({ lessons, count: lessons.length });
+    const { sort, limit, offset } = req.query;
+    const lessons = await listCatalogueLessonsForAdmin(tabStatus, { sort, limit, offset });
+    return res.json({
+      lessons,
+      count: lessons.length,
+      status: tabStatus,
+      sort: tabStatus === "pending_review" ? sort || "newest" : undefined,
+    });
   } catch (err) {
     return sendInternalError("lessons/catalogue-approvals", err, res);
   }

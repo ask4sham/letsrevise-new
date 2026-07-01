@@ -72,6 +72,7 @@ import AutopilotOutcomesPage from "./pages/AutopilotOutcomesPage";
 import AutopilotFeedbackPage from "./pages/AutopilotFeedbackPage";
 import AutopilotExperimentsPage from "./pages/AutopilotExperimentsPage";
 import DraftLibraryPage from "./pages/DraftLibraryPage";
+import AdminTeacherLibraryPage from "./pages/AdminTeacherLibraryPage";
 import SpecStatementsPage from "./pages/SpecStatementsPage";
 
 // ✅ Settings page (new)
@@ -928,6 +929,14 @@ function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <TopicCommandCenterPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/teacher-library"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminTeacherLibraryPage />
               </ProtectedRoute>
             }
           />
