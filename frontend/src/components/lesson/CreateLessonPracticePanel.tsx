@@ -8,6 +8,8 @@ import type { SpecKey } from "../../api/taxonomy";
 export type CreateLessonPracticePanelProps = {
   /** Server lesson id once a draft has been saved */
   lessonId: string | null;
+  /** When set, practice bank uses the same spec as the lesson syllabus picker */
+  lessonSpecKey?: string;
   /** Show spinner on parent while creating draft */
   parentEnsuring?: boolean;
   /** Create draft lesson if needed; returns id or error message */
@@ -22,10 +24,13 @@ type AttachedQ = { _id: string; question: string; type?: string; marks?: number;
  */
 export function CreateLessonPracticePanel({
   lessonId,
+  lessonSpecKey,
   parentEnsuring = false,
   ensureLessonId,
 }: CreateLessonPracticePanelProps) {
-  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const [specKey, setSpecKey] = useState<SpecKey>(
+    (lessonSpecKey as SpecKey) || getStoredSpecKey()
+  );
   const { data: taxonomyData } = useTaxonomy(specKey);
   const taxonomyUnits = Array.isArray(taxonomyData?.units) ? taxonomyData!.units : [];
 
@@ -40,6 +45,14 @@ export function CreateLessonPracticePanel({
   const [localError, setLocalError] = useState<string | null>(null);
   /** Id returned from last ensure (parent state may lag one frame) */
   const [activeLessonIdForModal, setActiveLessonIdForModal] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (lessonSpecKey && lessonSpecKey !== specKey) {
+      setSpecKey(lessonSpecKey as SpecKey);
+      setStoredSpecKey(lessonSpecKey as SpecKey);
+      setBankTopicKey("");
+    }
+  }, [lessonSpecKey, specKey]);
 
   const onSpecChange = useCallback((v: SpecKey) => {
     setSpecKey(v);
