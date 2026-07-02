@@ -8,14 +8,24 @@ import { getErrorMessageFromData } from "../utils/apiErrorMessage";
 export type ExamQuestion = {
   _id: string;
   specKey?: string;
-  topicKey: string;
+  topicKey?: string;
+  topic?: string;
+  subject?: string;
+  examBoard?: string;
+  level?: string;
   question: string;
   marks?: number | null;
   markScheme?: string[];
   type?: string;
+  options?: string[];
+  correctIndex?: number | null;
+  correctAnswer?: string | null;
+  imageUrl?: string | null;
+  status?: "draft" | "published" | string;
   difficulty?: number | null;
   skill?: string | null;
   estimatedTimeSec?: number | null;
+  metadata?: Record<string, unknown>;
 };
 
 export type ExamQuestionFilters = {
@@ -55,6 +65,74 @@ export async function fetchMyExamQuestions(params: {
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error || "Failed to load exam questions");
   return data as { items: ExamQuestion[] };
+}
+
+export type ExamQuestionListFilters = {
+  subject?: string;
+  examBoard?: string;
+  level?: string;
+  topic?: string;
+  topicKey?: string;
+  specKey?: string;
+  type?: string;
+  status?: string;
+  mineOnly?: boolean;
+  q?: string;
+  limit?: number;
+  page?: number;
+};
+
+export async function fetchExamQuestionsList(
+  filters: ExamQuestionListFilters = {}
+): Promise<{ questions: ExamQuestion[] }> {
+  const params: Record<string, string> = {};
+  if (filters.subject) params.subject = filters.subject;
+  if (filters.examBoard) params.examBoard = filters.examBoard;
+  if (filters.level) params.level = filters.level;
+  if (filters.topic) params.topic = filters.topic;
+  if (filters.topicKey) params.topicKey = filters.topicKey;
+  if (filters.specKey) params.specKey = filters.specKey;
+  if (filters.type) params.type = filters.type;
+  if (filters.status) params.status = filters.status;
+  if (filters.mineOnly) params.mineOnly = "1";
+  if (filters.limit != null) params.limit = String(filters.limit);
+  if (filters.page != null) params.page = String(filters.page);
+
+  const res = await api.get<{ success?: boolean; questions?: ExamQuestion[] }>("/exam-questions", { params });
+  const questions = Array.isArray(res.data?.questions) ? res.data.questions : [];
+  let list = questions;
+  const q = filters.q?.trim().toLowerCase();
+  if (q) {
+    list = list.filter((row) => String(row.question ?? "").toLowerCase().includes(q));
+  }
+  return { questions: list };
+}
+
+export async function fetchExamQuestionById(
+  id: string,
+  opts?: { lessonId?: string; classroomMode?: boolean }
+): Promise<ExamQuestion | null> {
+  const params: Record<string, string> = {};
+  if (opts?.lessonId) params.lessonId = opts.lessonId;
+  if (opts?.classroomMode) params.present = "classroom";
+  const res = await api.get<{ success?: boolean; question?: ExamQuestion }>(`/exam-questions/${id}`, { params });
+  return res.data?.question ?? null;
+}
+
+export async function fetchExamQuestionsByIds(
+  ids: string[],
+  opts?: { lessonId?: string; classroomMode?: boolean }
+): Promise<ExamQuestion[]> {
+  if (!ids.length) return [];
+  const body: { ids: string[]; lessonId?: string } = { ids };
+  if (opts?.lessonId) body.lessonId = opts.lessonId;
+  const params = opts?.classroomMode ? { present: "classroom" } : undefined;
+  const res = await api.post<{ success?: boolean; questions?: ExamQuestion[] }>(
+    "/exam-questions/by-ids",
+    body,
+    { params }
+  );
+  return Array.isArray(res.data?.questions) ? res.data.questions : [];
 }
 
 export async function attachFromBank(params: {

@@ -14,7 +14,8 @@ export type StudentLessonBlockType =
   | "interactiveSequence"
   | "interactiveDiagram"
   | "dragDropMatch"
-  | "graph";
+  | "graph"
+  | "examQuestion";
 
 export type InteractiveSequenceStepPersisted = {
   testQuestion?: string;
@@ -119,6 +120,7 @@ export type StudentLessonPageBlock = {
     pointIndex?: number;
   }>;
   examQuestion?: string;
+  examQuestionId?: string;
   markScheme?: string | string[];
   examinerTip?: string;
 };

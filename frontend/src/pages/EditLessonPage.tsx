@@ -61,6 +61,7 @@ import {
   LessonImageFrame,
   lessonImageFrameImgStyle,
 } from "../components/lesson/LessonImageFrame";
+import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import {
   diagramImageUrlForPreview,
   diagramMarkdownContentForPreview,
@@ -109,6 +110,10 @@ import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
 import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
 import { AttachPageQuizModal } from "../components/lesson/AttachPageQuizModal";
+import { ExamQuestionBlock } from "../components/lesson/ExamQuestionBlock";
+import { SelectExamQuestionModal } from "../components/lesson/SelectExamQuestionModal";
+import { fetchExamQuestionsByIds, type ExamQuestion } from "../api/examQuestions";
+import { collectExamQuestionIdsFromPages } from "../utils/collectExamQuestionIdsFromPages";
 import { AddKeyTermDialog } from "../components/lesson/AddKeyTermDialog";
 import { SuggestKeyTermsDialog } from "../components/lesson/SuggestKeyTermsDialog";
 import { generateDragDropPairsFromText, type SuggestedKeyTermRow } from "../api/ai";
@@ -337,6 +342,8 @@ interface LessonPageBlock {
   }>;
   examQuestion?: string;
   examinerTip?: string;
+  /** type === "examQuestion" — bank reference only */
+  examQuestionId?: string;
 }
 
 /** Hotspot with coordinates — only these render on the editor preview image (unplaced omitted). */
@@ -900,6 +907,13 @@ const EditLessonPage: React.FC = () => {
   const [attachPaperModalOpen, setAttachPaperModalOpen] = useState(false);
   const [attachPageQuizModalOpen, setAttachPageQuizModalOpen] = useState(false);
   const [attachPageQuizModalMode, setAttachPageQuizModalMode] = useState<"published" | "aiDrafts">("published");
+  const [examQuestionCache, setExamQuestionCache] = useState<Record<string, ExamQuestion>>({});
+  const [examQuestionPickTarget, setExamQuestionPickTarget] = useState<{
+    pageId: string;
+    insertAt?: number;
+    role?: string;
+    replaceBlockIdx?: number;
+  } | null>(null);
   const [attachPageQuizToast, setAttachPageQuizToast] = useState<string | null>(null);
   /** PR20: Publish gate modal + Make classroom-ready + Post-publish CTA */
   const [publishGateOpen, setPublishGateOpen] = useState(false);
@@ -1124,6 +1138,28 @@ const EditLessonPage: React.FC = () => {
       setLesson((prev) => (prev ? { ...prev, topicKey: topicKeyForBank } : prev));
     }
   }, [topicKeyForBank, lesson?.id]);
+
+  useEffect(() => {
+    const ids = collectExamQuestionIdsFromPages(lesson?.pages);
+    if (!ids.length) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const questions = await fetchExamQuestionsByIds(ids, id ? { lessonId: id } : undefined);
+        if (cancelled) return;
+        setExamQuestionCache((prev) => {
+          const next = { ...prev };
+          for (const q of questions) next[String(q._id)] = q;
+          return next;
+        });
+      } catch {
+        /* preview shows safe fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lesson?.pages, id]);
 
   const refreshAiLessonDraftCounts = useCallback(async () => {
     if (!id || !topicKeyForBank) {
@@ -1749,6 +1785,13 @@ const EditLessonPage: React.FC = () => {
                 }
                 if (resolveLessonDisplayBlockType(b) === "graph") {
                   return normalizeGraphBlockForDisplay(b);
+                }
+                if (normalizeBlockType(String(b?.type ?? "")) === "examQuestion") {
+                  const rawId = b?.examQuestionId ?? b?.examQuestionID;
+                  const eqOut: Record<string, unknown> = { type: "examQuestion" };
+                  if (rawId && String(rawId).trim()) eqOut.examQuestionId = String(rawId).trim();
+                  if (typeof b?.role === "string" && b.role.trim()) eqOut.role = b.role.trim();
+                  return eqOut;
                 }
                 /** Recover blocks mis-saved as `text` while `pairs` survived (legacy client/API mismatch). */
                 const nbForRepair = normalizeBlockType(String(b?.type ?? ""));
@@ -2382,6 +2425,34 @@ const EditLessonPage: React.FC = () => {
         blocks.splice(insertAt, 0, block);
       } else {
         blocks.push(block);
+      }
+      pages[pIdx] = { ...pages[pIdx], blocks };
+      return { ...prev, pages };
+    });
+  };
+
+  const addExamQuestionBlock = (
+    pageId: string,
+    examQuestionId: string,
+    opts?: { role?: string; insertAt?: number; replaceBlockIdx?: number }
+  ) => {
+    setLesson((prev) => {
+      if (!prev) return prev;
+      const pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
+      const pIdx = pages.findIndex((p) => String(p.pageId) === String(pageId));
+      if (pIdx < 0) return prev;
+      const blocks = Array.isArray(pages[pIdx].blocks) ? [...(pages[pIdx].blocks as any[])] : [];
+      const block: Record<string, unknown> = { type: "examQuestion", examQuestionId };
+      if (opts?.role?.trim()) block.role = opts.role.trim();
+      if (typeof opts?.replaceBlockIdx === "number" && opts.replaceBlockIdx >= 0 && opts.replaceBlockIdx < blocks.length) {
+        blocks[opts.replaceBlockIdx] = block;
+      } else {
+        const insertAt = opts?.insertAt;
+        if (typeof insertAt === "number" && insertAt >= 0 && insertAt <= blocks.length) {
+          blocks.splice(insertAt, 0, block);
+        } else {
+          blocks.push(block);
+        }
       }
       pages[pIdx] = { ...pages[pIdx], blocks };
       return { ...prev, pages };
@@ -3653,6 +3724,13 @@ const EditLessonPage: React.FC = () => {
           if (normalizeBlockType(String(b?.type ?? "")) === "graph") {
             return graphBlockForPersist(b);
           }
+          if (normalizeBlockType(String(b?.type ?? "")) === "examQuestion") {
+            const rawId = b?.examQuestionId ?? b?.examQuestionID;
+            const eqOut: Record<string, unknown> = { type: "examQuestion" };
+            if (rawId && String(rawId).trim()) eqOut.examQuestionId = String(rawId).trim();
+            if (typeof b?.role === "string" && b.role.trim()) eqOut.role = b.role.trim();
+            return eqOut;
+          }
           if (b.type === "checkpoint") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
             const markSchemeBlk = checkpointMarkSchemeForBlockPersist(
@@ -4867,6 +4945,7 @@ const EditLessonPage: React.FC = () => {
   );
 
   return (
+    <LessonImageLightboxProvider>
     <div
       data-lesson-editor="true"
       style={{
@@ -5950,6 +6029,13 @@ const EditLessonPage: React.FC = () => {
                               }}
                               onChoose={(opt) => {
                                 if (opt.type === "checkpoint" && hasPageCheckpoint) return;
+                                if (opt.type === "examQuestion") {
+                                  setExamQuestionPickTarget({
+                                    pageId: currentPage!.pageId,
+                                    role: opt.role,
+                                  });
+                                  return;
+                                }
                                 if (isInteractiveCreationType(opt.type)) {
                                   setInteractiveBlockCreation({ pageId: currentPage!.pageId, option: opt });
                                   return;
@@ -6097,6 +6183,7 @@ const EditLessonPage: React.FC = () => {
                       const isInteractiveDiagram = blockType === "interactiveDiagram";
                       const isDragDropMatch = blockType === "dragDropMatch";
                       const isGraph = blockType === "graph";
+                      const isExamQuestion = blockType === "examQuestion";
                       const cp = isCheckpoint || isSelfCheck ? b : null;
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
@@ -6263,6 +6350,14 @@ const EditLessonPage: React.FC = () => {
                                 disableCheckpointBlocks={hasPageCheckpointContent}
                                 onChoose={(opt) => {
                                   if (opt.type === "checkpoint" && hasPageCheckpointContent) return;
+                                  if (opt.type === "examQuestion") {
+                                    setExamQuestionPickTarget({
+                                      pageId: currentPage!.pageId,
+                                      role: opt.role,
+                                      insertAt: idx + 1,
+                                    });
+                                    return;
+                                  }
                                   if (isInteractiveCreationType(opt.type)) {
                                     setInteractiveBlockCreation({
                                       pageId: currentPage!.pageId,
@@ -6285,7 +6380,8 @@ const EditLessonPage: React.FC = () => {
                                 !isInteractiveSequence &&
                                 !isInteractiveDiagram &&
                                 !isDragDropMatch &&
-                                !isGraph && (
+                                !isGraph &&
+                                !isExamQuestion && (
                                 <button
                                   onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
                                   disabled={isUploading}
@@ -9475,6 +9571,75 @@ const EditLessonPage: React.FC = () => {
                                 );
                               })}
                             </div>
+                          ) : isExamQuestion ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              {(() => {
+                                const eqId = String((b as LessonPageBlock).examQuestionId ?? "").trim();
+                                const cached = eqId ? examQuestionCache[eqId] : undefined;
+                                return (
+                                  <>
+                                    {!eqId ? (
+                                      <p style={{ margin: 0, color: "#6b7280", fontWeight: 600 }}>
+                                        Select from Exam Question Bank
+                                      </p>
+                                    ) : (
+                                      <ExamQuestionBlock
+                                        question={cached}
+                                        loading={!cached}
+                                        missing={!cached}
+                                        mode="editor"
+                                      />
+                                    )}
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setExamQuestionPickTarget({
+                                            pageId: currentPage!.pageId,
+                                            replaceBlockIdx: idx,
+                                            role: (b as { role?: string }).role,
+                                          })
+                                        }
+                                        style={{
+                                          padding: "8px 14px",
+                                          borderRadius: 8,
+                                          border: "2px solid rgba(126,34,206,0.35)",
+                                          background: "rgba(250,245,255,0.9)",
+                                          cursor: "pointer",
+                                          fontWeight: 700,
+                                          fontSize: "0.875rem",
+                                          color: "#6b21a8",
+                                        }}
+                                      >
+                                        {eqId ? "Replace question" : "Select from Exam Question Bank"}
+                                      </button>
+                                      {eqId ? (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateBlock(currentPage!.pageId, idx, {
+                                              examQuestionId: undefined,
+                                            } as Partial<LessonPageBlock>)
+                                          }
+                                          style={{
+                                            padding: "8px 14px",
+                                            borderRadius: 8,
+                                            border: "2px solid rgba(239,68,68,0.35)",
+                                            background: "rgba(254,242,242,0.8)",
+                                            cursor: "pointer",
+                                            fontWeight: 700,
+                                            fontSize: "0.875rem",
+                                            color: "#b91c1c",
+                                          }}
+                                        >
+                                          Remove linked question
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </div>
                           ) : isGraph ? (
                             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
                               <label style={{ display: "block" }}>
@@ -11187,6 +11352,38 @@ const EditLessonPage: React.FC = () => {
         }}
       />
 
+      <SelectExamQuestionModal
+        isOpen={examQuestionPickTarget != null}
+        onClose={() => setExamQuestionPickTarget(null)}
+        taxonomy={taxonomyData ?? null}
+        defaultSubject={lesson?.subject ?? ""}
+        defaultExamBoard={lesson?.examBoardName ?? ""}
+        defaultLevel={lesson?.level ?? ""}
+        defaultTopicKey={topicKeyForBank ?? ""}
+        defaultSpecKey={
+          (lesson as { specKey?: string })?.specKey?.trim() ||
+          (topicKeyForBank?.includes(":") ? topicKeyForBank.split(":")[0] : "") ||
+          getStoredSpecKey()
+        }
+        onSelect={(q) => {
+          const target = examQuestionPickTarget;
+          if (!target) return;
+          if (typeof target.replaceBlockIdx === "number") {
+            updateBlock(target.pageId, target.replaceBlockIdx, {
+              type: "examQuestion",
+              examQuestionId: q._id,
+            } as Partial<LessonPageBlock>);
+          } else {
+            addExamQuestionBlock(target.pageId, q._id, {
+              role: target.role,
+              insertAt: target.insertAt,
+            });
+          }
+          setExamQuestionCache((prev) => ({ ...prev, [q._id]: q }));
+          setExamQuestionPickTarget(null);
+        }}
+      />
+
       {addKeyTermDialog && lesson ? (
         <AddKeyTermDialog
           open
@@ -11680,6 +11877,7 @@ const EditLessonPage: React.FC = () => {
 
     </div>
     </div>
+    </LessonImageLightboxProvider>
   );
 };
 

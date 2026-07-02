@@ -40,6 +40,9 @@ import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequen
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { GraphBlock } from "../components/lesson/GraphBlock";
+import { ExamQuestionBlock } from "../components/lesson/ExamQuestionBlock";
+import { fetchExamQuestionsByIds, type ExamQuestion } from "../api/examQuestions";
+import { collectExamQuestionIdsFromPages } from "../utils/collectExamQuestionIdsFromPages";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -1482,6 +1485,8 @@ const LessonViewPage: React.FC = () => {
   // PR-F1: Load flashcards from bank (teacher, when lesson has none)
   const [loadFromBankLoading, setLoadFromBankLoading] = useState(false);
   const [loadFromBankError, setLoadFromBankError] = useState<string | null>(null);
+  const [embeddedExamQuestions, setEmbeddedExamQuestions] = useState<Record<string, ExamQuestion>>({});
+  const [embeddedExamQuestionsLoading, setEmbeddedExamQuestionsLoading] = useState(false);
 
   // PR-FE-FLASHCARDS-COLLAPSE-1: flashcards section collapsed by default, expand on click
   const [showFlashcards, setShowFlashcards] = useState(false);
@@ -1839,6 +1844,36 @@ const LessonViewPage: React.FC = () => {
     fetchLessonSmart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isClassroomPresentation]);
+
+  useEffect(() => {
+    const ids = collectExamQuestionIdsFromPages(lesson?.pages);
+    if (!ids.length || !id) {
+      setEmbeddedExamQuestions({});
+      setEmbeddedExamQuestionsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setEmbeddedExamQuestionsLoading(true);
+    void fetchExamQuestionsByIds(ids, {
+      lessonId: id,
+      classroomMode: isClassroomPresentation,
+    })
+      .then((questions) => {
+        if (cancelled) return;
+        const map: Record<string, ExamQuestion> = {};
+        for (const q of questions) map[String(q._id)] = q;
+        setEmbeddedExamQuestions(map);
+      })
+      .catch(() => {
+        if (!cancelled) setEmbeddedExamQuestions({});
+      })
+      .finally(() => {
+        if (!cancelled) setEmbeddedExamQuestionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lesson?.pages, id, isClassroomPresentation]);
 
   useEffect(() => {
     if (!id) return;
@@ -4176,6 +4211,9 @@ const LessonViewPage: React.FC = () => {
                                 studentPresentation={
                                   v12StudentPresentation ? "v12" : "default"
                                 }
+                                embeddedExamQuestionsById={embeddedExamQuestions}
+                                embeddedExamQuestionsLoading={embeddedExamQuestionsLoading}
+                                classroomMode={isClassroomPresentation}
                               />
                               {user && id && !isClassroomPresentation && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
@@ -4294,6 +4332,20 @@ const LessonViewPage: React.FC = () => {
                                       : undefined
                                   }
                                   entitled={Boolean(accessDecision?.allowed)}
+                                  presentation={v12StudentPresentation ? "v12" : "default"}
+                                />
+                              );
+                            })()
+                          ) : blockKind === "examQuestion" ? (
+                            (() => {
+                              const eqId = String((b as { examQuestionId?: string }).examQuestionId ?? "").trim();
+                              const cached = eqId ? embeddedExamQuestions[eqId] : undefined;
+                              return (
+                                <ExamQuestionBlock
+                                  question={cached}
+                                  loading={embeddedExamQuestionsLoading && !!eqId && !cached}
+                                  missing={!!eqId && !embeddedExamQuestionsLoading && !cached}
+                                  mode={isClassroomPresentation ? "classroom" : "student"}
                                   presentation={v12StudentPresentation ? "v12" : "default"}
                                 />
                               );

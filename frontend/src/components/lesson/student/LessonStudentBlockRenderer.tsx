@@ -25,6 +25,8 @@ import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../Inter
 import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../DragDropMatchBlock";
 import { GraphBlock } from "../GraphBlock";
+import { ExamQuestionBlock } from "../ExamQuestionBlock";
+import type { ExamQuestion } from "../../../api/examQuestions";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
 import {
@@ -74,6 +76,9 @@ export type LessonStudentBlockRendererProps = {
   pageId?: string;
   checkpointEntitled?: boolean;
   studentPresentation?: "default" | "v12";
+  embeddedExamQuestionsById?: Record<string, ExamQuestion>;
+  embeddedExamQuestionsLoading?: boolean;
+  classroomMode?: boolean;
 };
 
 function withStudentBlockHeading(
@@ -116,6 +121,9 @@ export function LessonStudentBlockRenderer({
   pageId,
   checkpointEntitled = false,
   studentPresentation = "default",
+  embeddedExamQuestionsById = {},
+  embeddedExamQuestionsLoading = false,
+  classroomMode = false,
 }: LessonStudentBlockRendererProps): React.ReactElement | null {
   /** Interactive + diagram routing (handles mis-tagged drag-drop). */
   const routed = resolveLessonDisplayBlockType(block as { type?: unknown; pairs?: unknown });
@@ -290,6 +298,21 @@ export function LessonStudentBlockRenderer({
     );
     const ddmAttr = getVisualTeachingDataAttribute(routed, block);
     return ddmAttr ? <div data-visual-block={ddmAttr}>{ddm}</div> : ddm;
+  }
+
+  if (routed === "examQuestion") {
+    const eqId = String((block as { examQuestionId?: string }).examQuestionId ?? "").trim();
+    const cached = eqId ? embeddedExamQuestionsById[eqId] : undefined;
+    const eq = (
+      <ExamQuestionBlock
+        question={cached}
+        loading={embeddedExamQuestionsLoading && !!eqId && !cached}
+        missing={!!eqId && !embeddedExamQuestionsLoading && !cached}
+        mode={classroomMode ? "classroom" : "student"}
+        presentation={studentPresentation === "v12" ? "v12" : "default"}
+      />
+    );
+    return withStudentBlockHeading(eq, block, "");
   }
 
   if (routed === "graph") {

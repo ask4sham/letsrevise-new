@@ -169,6 +169,7 @@ const LessonPageBlockSchema = new mongoose.Schema(
         "interactiveDiagram",
         "dragDropMatch",
         "graph",
+        "examQuestion",
       ],
       default: "text",
     },
@@ -242,6 +243,12 @@ const LessonPageBlockSchema = new mongoose.Schema(
     examQuestion: { type: String, default: undefined },
     markScheme: { type: String, default: undefined },
     examinerTip: { type: String, default: undefined },
+    /** type === "examQuestion" — reference to ExamQuestion bank (single source of truth) */
+    examQuestionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ExamQuestion",
+      default: undefined,
+    },
   },
   { _id: false }
 );

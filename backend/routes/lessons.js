@@ -408,6 +408,7 @@ function sanitisePageInput(p, isUpdate = false) {
     "interactiveDiagram",
     "dragDropMatch",
     "graph",
+    "examQuestion",
   ];
   const blocks = Array.isArray(p?.blocks)
     ? p.blocks.map((b) => {
@@ -419,6 +420,7 @@ function sanitisePageInput(p, isUpdate = false) {
         else if (compactType === "graph" || compactType === "graphblock") rawType = "graph";
         else if (compactType === "keywords") rawType = "keyWords";
         else if (compactType === "selfcheck") rawType = "selfCheck";
+        else if (compactType === "examquestion") rawType = "examQuestion";
         const type = allowedBlockTypes.includes(rawType) ? rawType : "text";
         if (type === "checkpoint") {
           const prompt = typeof b?.prompt === "string" ? b.prompt : "";
@@ -869,6 +871,17 @@ function sanitisePageInput(p, isUpdate = false) {
             if (imageUrl) ddmOut.imageUrl = imageUrl;
           }
           return ddmOut;
+        }
+        if (type === "examQuestion") {
+          const rawId = b?.examQuestionId ?? b?.examQuestionID;
+          const examQuestionId =
+            rawId && mongoose.Types.ObjectId.isValid(String(rawId))
+              ? String(rawId).trim()
+              : undefined;
+          const eqOut = { type: "examQuestion" };
+          if (examQuestionId) eqOut.examQuestionId = examQuestionId;
+          if (typeof b?.role === "string" && b.role.trim()) eqOut.role = b.role.trim();
+          return eqOut;
         }
         const hydratedGraph = hydrateGraphBlockFromInput(b);
         if (hydratedGraph) {

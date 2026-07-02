@@ -14,11 +14,12 @@ import { aiRewriteExamQuestion, publishExamQuestion } from "../api/examQuestions
 import { getApiClientErrorMessage } from "../utils/apiErrorMessage";
 import { getExamPublishReadinessUi } from "../utils/examQuestionPublishReadinessUi";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
+import { examBankDefaultFormFields, resolveExamQuestionLevelForSave } from "../utils/examQuestionLevelFilter";
 
 const QUESTION_TYPES = ["mcq", "short", "label", "table", "data"] as const;
 const SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science", "Other"];
 const EXAM_BOARDS = ["AQA", "Edexcel", "OCR", "CIE", "WJEC", "Other"];
-const LEVELS = ["GCSE", "A-Level", "IB", "KS3", "Other"];
+const LEVELS = ["GCSE", "IGCSE", "A-Level", "IB", "KS3", "Other"];
 
 /** Set `REACT_APP_DEBUG_EXAM_BANK=true` in `.env.local` to enable fetch logging (only when `NODE_ENV === "development"`). */
 const DEBUG_EXAM_BANK = process.env.REACT_APP_DEBUG_EXAM_BANK === "true";
@@ -79,23 +80,44 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
-  const [form, setForm] = useState({
-    subject: "Biology",
-    examBoard: "AQA",
-    level: "GCSE",
-    topic: "",
-    topicKey: "",
-    questionType: "short" as (typeof QUESTION_TYPES)[number],
-    marks: 2,
-    questionText: "",
-    correctAnswerMarkScheme: "",
-    mcqOptions: ["", "", "", "", ""] as string[],
-    correctIndex: 0,
-    imageUrl: "",
+  const [form, setForm] = useState(() => {
+    const d = examBankDefaultFormFields(getStoredSpecKey());
+    return {
+      subject: d.subject,
+      examBoard: d.examBoard,
+      level: d.level,
+      topic: "",
+      topicKey: "",
+      questionType: "short" as (typeof QUESTION_TYPES)[number],
+      marks: 2,
+      questionText: "",
+      correctAnswerMarkScheme: "",
+      mcqOptions: ["", "", "", "", ""] as string[],
+      correctIndex: 0,
+      imageUrl: "",
+    };
   });
 
   const topicOptionGroups = React.useMemo(() => getTaxonomyOptionGroups(taxonomy), [taxonomy]);
   const keyToTopic = React.useMemo(() => getTaxonomyKeyToTopic(taxonomy), [taxonomy]);
+
+  const defaultForm = React.useMemo(() => {
+    const d = examBankDefaultFormFields(specKey);
+    return {
+      subject: d.subject,
+      examBoard: d.examBoard,
+      level: d.level,
+      topic: "",
+      topicKey: "",
+      questionType: "short" as (typeof QUESTION_TYPES)[number],
+      marks: 2,
+      questionText: "",
+      correctAnswerMarkScheme: "",
+      mcqOptions: ["", "", "", "", ""] as string[],
+      correctIndex: 0,
+      imageUrl: "",
+    };
+  }, [specKey]);
 
   const fetchQuestions = useCallback(async () => {
     const gen = ++fetchGenRef.current;
@@ -190,21 +212,6 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     if (!pub.ok) return pub.reasons[0] || "Does not meet publish rules for the Exam Bank yet.";
     return null;
   }
-
-  const defaultForm = {
-    subject: "Biology",
-    examBoard: "AQA",
-    level: "GCSE",
-    topic: "",
-    topicKey: "",
-    questionType: "short" as (typeof QUESTION_TYPES)[number],
-    marks: 2,
-    questionText: "",
-    correctAnswerMarkScheme: "",
-    mcqOptions: ["", "", "", "", ""] as string[],
-    correctIndex: 0,
-    imageUrl: "",
-  };
 
   const onExamQuestionImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -375,10 +382,15 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       const correctAnswerVal = form.questionType === "mcq"
         ? (mcqOpts[correctIdx!] ?? null)
         : (form.correctAnswerMarkScheme.trim() || null);
+      const levelForSave = resolveExamQuestionLevelForSave({
+        specKey,
+        topicKey: form.topicKey,
+        level: form.level,
+      });
       const payload: Record<string, unknown> = {
         subject: form.subject,
         examBoard: form.examBoard || undefined,
-        level: form.level || undefined,
+        level: levelForSave || form.level || undefined,
         topic: form.topic || undefined,
         topicKey: form.topicKey?.trim() || undefined,
         specKey: specKey || undefined,

@@ -1,0 +1,62 @@
+/* Image-based exam questions: side-by-side on tablet+, stacked on narrow screens */
+.exam-question-block__split {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.exam-question-block__image-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
+  padding: 16px 18px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+/*
+ * Higher specificity (0,2,0) than the global `.lesson-content img` (0,1,1),
+ * which otherwise applies `margin: 20px auto` and pads blank space around the
+ * image inside the centred flex panel.
+ */
+.exam-question-block__image-panel .exam-question-block__image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 260px;
+  margin: 0;
+  object-fit: contain;
+}
+
+@media (min-width: 640px) {
+  .exam-question-block__split {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .exam-question-block__image-panel {
+    flex: 0 0 auto;
+    width: fit-content;
+    max-width: 40%;
+    align-self: flex-start;
+  }
+
+  .exam-question-block__content {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+.exam-question-block__below-split {
+  margin-top: 16px;
+  width: 100%;
+}

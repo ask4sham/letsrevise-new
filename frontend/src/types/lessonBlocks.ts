@@ -48,7 +48,8 @@ export type LessonBlockType =
   | "interactiveSequence"
   | "interactiveDiagram"
   | "dragDropMatch"
-  | "graph";
+  | "graph"
+  | "examQuestion";
 
 /** Legacy block type strings that may come from the API. */
 export type LegacyBlockType =
@@ -193,6 +194,15 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
       background: "rgba(239,246,255,0.65)",
     },
   },
+  examQuestion: {
+    label: "Exam Question",
+    subtitle: "Link a question from the Exam Question Bank (single source of truth)",
+    icon: "📋",
+    style: {
+      border: "1px solid rgba(126,34,206,0.35)",
+      background: "rgba(250,245,255,0.75)",
+    },
+  },
 };
 
 /** Collapse spaces/underscores/hyphens so API variants (drag_drop_match, Drag-Drop-Match) match. */
@@ -213,6 +223,7 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
   if (compact === "interactivesequence") return "interactiveSequence";
   if (compact === "graph" || compact === "graphblock" || compact === "datavisualisation") return "graph";
   if (compact === "pagequiz") return "pageQuiz";
+  if (compact === "examquestion") return "examQuestion";
   /** Some exports/clients use SCREAMING_SNAKE or snake_case for the same block. */
   if (compact === "selfcheck") return "selfCheck";
 
@@ -239,6 +250,7 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
     case "interactiveDiagram":
     case "dragDropMatch":
     case "graph":
+    case "examQuestion":
       return t0 as LessonBlockType;
     default:
       return "text";
@@ -295,6 +307,7 @@ export function resolveLessonDisplayBlockType(block: unknown): LessonBlockType {
     });
   if (looksLikeDragDrop) return "dragDropMatch";
   if (blockLooksLikeGraph(b)) return "graph";
+  if (String(b.type ?? "").trim() === "examQuestion" || b.examQuestionId) return "examQuestion";
   const role = String(b.role ?? "").trim().toLowerCase();
   if (role === "sequence" || role === "process") return "interactiveSequence";
   return "text";
@@ -330,6 +343,8 @@ export function toLegacyBlockType(t: LessonBlockType): string {
       return "dragDropMatch";
     case "graph":
       return "graph";
+    case "examQuestion":
+      return "examQuestion";
     case "text":
     case "keyWords":
       return t;
@@ -457,6 +472,7 @@ export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
   { role: "hotspot", type: "interactiveDiagram", label: "Interactive diagram" },
   { role: "match", type: "dragDropMatch", label: "Drag and drop match" },
   { role: "graph", type: "graph", label: "Graph / data visualisation" },
+  { role: "examQuestion", type: "examQuestion", label: "Exam Question" },
 ];
 
 /** Button style for "+ Block" add buttons (same colours as block, slightly stronger border). */
@@ -494,6 +510,8 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(14,165,233,0.4)", background: "rgba(224,242,254,0.55)" };
     case "graph":
       return { ...base, border: "2px solid rgba(30,58,138,0.4)", background: "rgba(239,246,255,0.75)" };
+    case "examQuestion":
+      return { ...base, border: "2px solid rgba(126,34,206,0.4)", background: "rgba(250,245,255,0.8)" };
     case "text":
     default:
       return { ...base, border: "2px solid rgba(0,0,0,0.14)", background: "white" };

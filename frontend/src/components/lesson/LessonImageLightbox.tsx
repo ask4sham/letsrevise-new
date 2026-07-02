@@ -12,7 +12,8 @@ import {
   indexOfLightboxSrc,
 } from "./lessonLightboxCollect";
 import type { LessonLightboxItem } from "./lessonLightboxCollect";
-import { LessonLightboxPanel } from "./LessonLightboxPanel";
+import { makeAbsoluteAssetUrl } from "../../utils/assetUrl";
+import { ZoomableImageLightbox } from "./ZoomableImageLightbox";
 import "./lessonImageCard.css";
 
 export type { LessonLightboxItem } from "./lessonLightboxCollect";
@@ -32,7 +33,7 @@ export function useLessonImageLightbox(): LightboxContextValue | null {
 
 /**
  * Provides click-to-enlarge for lesson images ({@link LessonImageFrame} with `lightboxSrc`).
- * Collects visible `[data-lesson-lightbox-src]` frames for gallery mode; full-screen static image panel.
+ * Collects visible `[data-lesson-lightbox-src]` frames for gallery mode; opens {@link ZoomableImageLightbox}.
  */
 export function LessonImageLightboxProvider({ children }: { children: React.ReactNode }) {
   const [openState, setOpenState] = useState<OpenState | null>(null);
@@ -85,15 +86,31 @@ export function LessonImageLightboxProvider({ children }: { children: React.Reac
 
   const overlay =
     openState &&
-    openState.items.length > 0 && (
-      <LessonLightboxPanel
-        items={openState.items}
-        activeIndex={openState.index}
-        onClose={close}
-        onPrev={goPrev}
-        onNext={goNext}
-      />
-    );
+    openState.items.length > 0 &&
+    (() => {
+      const item = openState.items[openState.index];
+      const resolvedSrc = makeAbsoluteAssetUrl(item.src) ?? item.src;
+      const gallery =
+        openState.items.length > 1
+          ? {
+              items: openState.items.map((i) => ({
+                src: makeAbsoluteAssetUrl(i.src) ?? i.src,
+                alt: i.alt,
+              })),
+              activeIndex: openState.index,
+              onPrev: goPrev,
+              onNext: goNext,
+            }
+          : undefined;
+      return (
+        <ZoomableImageLightbox
+          src={resolvedSrc}
+          alt={item.alt ?? ""}
+          onClose={close}
+          gallery={gallery}
+        />
+      );
+    })();
 
   return (
     <LessonImageLightboxContext.Provider value={value}>

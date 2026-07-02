@@ -13,6 +13,15 @@ const {
   validateExamQuestionPublishReadiness,
   validateNewExamQuestionBankDraft,
 } = require("../utils/examQuestionPublishValidation");
+const {
+  fetchEmbeddedExamQuestionsForLesson,
+  fetchTeacherOwnedExamQuestionsByIds,
+} = require("../services/examQuestionLessonEmbedService");
+const {
+  buildExamQuestionLevelQuery,
+  resolveExamQuestionLevelForSave,
+} = require("../utils/examQuestionLevelFilter");
+const { buildTopicSelectorQueryClause } = require("../utils/examQuestionTopicSelectorMatch");
 
 /** In-memory score-on-read, optional band filter, sort (matches topic flashcards/quiz list). */
 function finalizeExamQuestionsForList(items, query) {
@@ -68,9 +77,15 @@ router.post("/", auth, async (req, res) => {
     if (!bankReady.ok) {
       return res.status(400).json({ success: false, msg: bankReady.msg || "Invalid exam question" });
     }
+    const levelForSave = resolveExamQuestionLevelForSave({
+      specKey: specKeyBody,
+      topicKey: req.body.topicKey,
+      level: req.body.level,
+    });
     const teacherId = req.user.userId || req.user._id;
     const question = await ExamQuestion.create({
       ...req.body,
+      ...(levelForSave ? { level: levelForSave } : {}),
       teacherId,
       status: "draft",
     });
@@ -278,13 +293,22 @@ router.get("/", auth, async (req, res) => {
     }
     if (subject) query.subject = subject;
     if (examBoard) query.examBoard = examBoard;
-    if (level) query.level = level;
+    const levelFilter = buildExamQuestionLevelQuery(level, {
+      specKey: specKeyQ,
+      topicKey,
+      examBoard,
+      subject,
+    });
+    if (levelFilter) query.level = levelFilter;
     if (topic) query.topic = topic;
     if (topicKey) {
-      const spec = (specKeyQ && String(specKeyQ).trim()) || DEFAULT_SPEC_LEGACY;
-      const parsed = parseTopicKey(String(topicKey).trim());
-      const candidates = queryCandidates(spec, parsed.topicKey || String(topicKey).trim());
-      query.topicKey = candidates.length ? { $in: candidates } : String(topicKey).trim().toLowerCase();
+      const { clause } = buildTopicSelectorQueryClause({ specKey: specKeyQ, topicKey });
+      if (clause.$or) {
+        query.$and = query.$and || [];
+        query.$and.push({ $or: clause.$or });
+      } else if (clause.topicKey !== undefined) {
+        query.topicKey = clause.topicKey;
+      }
     }
     if (type) query.type = type;
 
@@ -382,6 +406,79 @@ router.post("/bulk/purge-invalid-ai-exam-drafts", auth, async (req, res) => {
   }
 });
 
+// POST /api/exam-questions/by-ids — batch fetch with lesson embed or teacher-owner scope
+router.post("/by-ids", auth, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const lessonId = req.body?.lessonId ?? req.query?.lessonId;
+    const classroomMode = req.query?.present === "classroom";
+
+    if (lessonId && mongoose.Types.ObjectId.isValid(String(lessonId))) {
+      const result = await fetchEmbeddedExamQuestionsForLesson(req.user, lessonId, ids, { classroomMode });
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ success: false, msg: result.error, error: result.error });
+      }
+      const enriched = enrichExamItems(result.questions || []);
+      return res.json({
+        success: true,
+        questions: enriched.map(toResponseQuestion),
+      });
+    }
+
+    const owned = await fetchTeacherOwnedExamQuestionsByIds(req.user, ids);
+    if (!owned.ok) {
+      return res.status(owned.status || 403).json({ success: false, msg: owned.error, error: owned.error });
+    }
+    const enriched = enrichExamItems(owned.questions || []);
+    return res.json({
+      success: true,
+      questions: enriched.map(toResponseQuestion),
+    });
+  } catch (err) {
+    console.error("ExamQuestions POST /by-ids error:", err);
+    return res.status(500).json({ success: false, msg: "Server error" });
+  }
+});
+
+// GET /api/exam-questions/:id — single fetch with lesson embed or teacher-owner scope
+router.get("/:id", auth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, msg: "Invalid ID" });
+    }
+    const lessonId = req.query?.lessonId;
+    const classroomMode = req.query?.present === "classroom";
+
+    if (lessonId && mongoose.Types.ObjectId.isValid(String(lessonId))) {
+      const result = await fetchEmbeddedExamQuestionsForLesson(req.user, lessonId, [id], { classroomMode });
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ success: false, msg: result.error, error: result.error });
+      }
+      const q = (result.questions || []).find((row) => String(row._id) === String(id));
+      if (!q) {
+        return res.status(404).json({ success: false, msg: "Question not found" });
+      }
+      const enriched = enrichExamItems([q])[0];
+      return res.json({ success: true, question: toResponseQuestion(enriched) });
+    }
+
+    const owned = await fetchTeacherOwnedExamQuestionsByIds(req.user, [id]);
+    if (!owned.ok) {
+      return res.status(owned.status || 403).json({ success: false, msg: owned.error, error: owned.error });
+    }
+    const q = (owned.questions || []).find((row) => String(row._id) === String(id));
+    if (!q) {
+      return res.status(404).json({ success: false, msg: "Question not found" });
+    }
+    const enriched = enrichExamItems([q])[0];
+    return res.json({ success: true, question: toResponseQuestion(enriched) });
+  } catch (err) {
+    console.error("ExamQuestions GET /:id error:", err);
+    return res.status(500).json({ success: false, msg: "Server error" });
+  }
+});
+
 // PATCH /api/exam-questions/:id — partial update (teacher owner or admin)
 router.patch("/:id", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
@@ -451,10 +548,24 @@ router.put("/:id", auth, async (req, res) => {
       content,
       status,
       imageUrl,
+      specKey: specKeyBody,
     } = req.body;
     if (subject !== undefined) question.subject = subject;
     if (examBoard !== undefined) question.examBoard = examBoard;
-    if (level !== undefined) question.level = level;
+    const resolvedSpecKey =
+      (specKeyBody && String(specKeyBody).trim()) ||
+      (question.topicKey && String(question.topicKey).includes(":")
+        ? String(question.topicKey).split(":")[0]
+        : undefined);
+    if (level !== undefined || specKeyBody !== undefined || req.body.topicKey != null) {
+      const levelForSave = resolveExamQuestionLevelForSave({
+        specKey: resolvedSpecKey,
+        topicKey: question.topicKey,
+        level: level !== undefined ? level : question.level,
+      });
+      if (levelForSave) question.level = levelForSave;
+      else if (level !== undefined) question.level = level;
+    }
     if (topic !== undefined) question.topic = topic;
     if (unitKey !== undefined) question.unitKey = unitKey || undefined;
     if (type !== undefined) question.type = type;
