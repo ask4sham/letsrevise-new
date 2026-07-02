@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { SpecSelector } from "../components/SpecSelector";
@@ -68,6 +68,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const saveErrorRef = useRef<HTMLDivElement | null>(null);
   const [filterTopicKey, setFilterTopicKey] = useState<string>(topicKeyFromUrl);
   const [aiLessonAssetsOnly, setAiLessonAssetsOnly] = useState(false);
   const [lessonIdFilter, setLessonIdFilter] = useState("");
@@ -188,9 +189,6 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     }
     const q = form.questionText.trim();
     if (!q) return "Question text is required.";
-    if (!editingId && form.questionType === "mcq") {
-      return "New Exam Bank items cannot be multiple choice. Use the Topic Quiz Bank for MCQs.";
-    }
     if (form.marks < 2) return "Marks must be at least 2 for Exam Question Bank entries.";
     if (form.questionType === "mcq") {
       const opts = form.mcqOptions.map((s) => s.trim()).filter(Boolean);
@@ -198,18 +196,8 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       if (opts.length > 5) return "MCQ allows at most 5 options.";
       if (form.correctIndex < 0 || form.correctIndex >= opts.length) return "Please select the correct option.";
     }
-    const markSchemeLines = form.correctAnswerMarkScheme
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const pub = getExamPublishReadinessUi({
-      type: form.questionType,
-      marks: form.marks,
-      question: q,
-      markScheme: form.questionType === "mcq" ? [] : markSchemeLines,
-      correctAnswer: form.questionType === "mcq" ? form.mcqOptions[form.correctIndex]?.trim() ?? null : form.correctAnswerMarkScheme.trim() || null,
-    });
-    if (!pub.ok) return pub.reasons[0] || "Does not meet publish rules for the Exam Bank yet.";
+    // Draft save is intentionally lenient: publish-readiness (detailed mark scheme,
+    // model answer, etc.) is enforced only when publishing, not when saving a draft.
     return null;
   }
 
@@ -366,6 +354,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     const err = validateForm();
     if (err) {
       setFormError(err);
+      requestAnimationFrame(() => {
+        saveErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
       return;
     }
     setFormError(null);
@@ -958,7 +949,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                   onChange={(e) => setForm((f) => ({ ...f, questionType: e.target.value as (typeof QUESTION_TYPES)[number] }))}
                   style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                 >
-                  {(editingId ? QUESTION_TYPES : QUESTION_TYPES.filter((t) => t !== "mcq")).map((t) => (
+                  {QUESTION_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
@@ -967,9 +958,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Marks</label>
                 <input
                   type="number"
-                  min={form.questionType === "mcq" ? 1 : 2}
+                  min={2}
                   value={form.marks}
-                  onChange={(e) => setForm((f) => ({ ...f, marks: Math.max(f.questionType === "mcq" ? 1 : 2, parseInt(e.target.value, 10) || (f.questionType === "mcq" ? 1 : 2)) }))}
+                  onChange={(e) => setForm((f) => ({ ...f, marks: Math.max(2, parseInt(e.target.value, 10) || 2) }))}
                   style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                 />
               </div>
@@ -1082,6 +1073,15 @@ const TeacherExamQuestionBankPage: React.FC = () => {
               </div>
             </div>
 
+            {formError && (
+              <div
+                ref={saveErrorRef}
+                role="alert"
+                style={{ marginTop: "1.25rem", padding: "10px 12px", background: "#fef2f2", color: "#991b1b", borderRadius: "8px", fontSize: "0.9rem" }}
+              >
+                {formError}
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "1.5rem" }}>
               <button
                 type="button"
