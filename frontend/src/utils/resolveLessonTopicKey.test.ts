@@ -1,3 +1,8 @@
+jest.mock("../services/api", () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
+}));
+
 /**
  * Regression tests for topicKeyForBank resolution.
  * Ensures: Biology GCSE with/without board enables attach; invalid mapping disables.
@@ -59,6 +64,26 @@ describe("resolveLessonTopicKey", () => {
         })
       ).toBe(null);
     });
+
+    it("returns edexcel-igcse-biology for Biology IGCSE Edexcel", () => {
+      expect(
+        getSpecKeyFromLesson({
+          subject: "Biology",
+          level: "IGCSE",
+          examBoardName: "Edexcel",
+        })
+      ).toBe("edexcel-igcse-biology");
+    });
+
+    it("returns null for Edexcel IGCSE non-Biology subjects", () => {
+      expect(
+        getSpecKeyFromLesson({
+          subject: "Chemistry",
+          level: "IGCSE",
+          examBoardName: "Edexcel",
+        })
+      ).toBe(null);
+    });
   });
 
   describe("resolveLessonTopicKeyForBankFromLesson", () => {
@@ -111,6 +136,27 @@ describe("resolveLessonTopicKey", () => {
           examBoardName: "AQA",
         })
       ).toBe(null);
+    });
+
+    it("returns namespaced topicKey for Edexcel IGCSE Biology with stored topicKey", () => {
+      const result = resolveLessonTopicKeyForBankFromLesson({
+        subject: "Biology",
+        level: "IGCSE",
+        examBoardName: "Edexcel",
+        specKey: "edexcel-igcse-biology",
+        topicKey: "edexcel-igcse-biology:human-male-and-female-reproductive-systems",
+      });
+      expect(result).toBe("edexcel-igcse-biology:human-male-and-female-reproductive-systems");
+    });
+
+    it("derives specKey for Edexcel IGCSE Biology when only board/level/subject are set", () => {
+      const result = resolveLessonTopicKeyForBankFromLesson({
+        subject: "Biology",
+        level: "IGCSE",
+        examBoardName: "Edexcel",
+        topicKey: "edexcel-igcse-biology:human-male-and-female-reproductive-systems",
+      });
+      expect(result).toBe("edexcel-igcse-biology:human-male-and-female-reproductive-systems");
     });
   });
 });

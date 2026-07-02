@@ -270,6 +270,8 @@ interface Lesson {
   };
   /** Lesson Integrity: topicKey for bank linkage (from backend) */
   topicKey?: string;
+  /** Namespaced spec identity (from backend) — gates AI tutor, banks, taxonomy */
+  specKey?: string;
   /** Assessment questions (from topic bank snapshot) */
   assessment?: { questions?: Array<unknown> };
   /** Lesson↔AssessmentPaper: IDs of attached assessment papers */
@@ -2429,6 +2431,7 @@ const LessonViewPage: React.FC = () => {
           questions: Array.isArray(quizData.questions) ? quizData.questions : []
         },
         topicKey: typeof data.topicKey === "string" ? data.topicKey : undefined,
+        specKey: typeof data.specKey === "string" ? data.specKey.trim() : undefined,
         assessment: data.assessment,
         assessmentPaperIds: Array.isArray(data.assessmentPaperIds)
           ? data.assessmentPaperIds.map((id: any) => String(id))

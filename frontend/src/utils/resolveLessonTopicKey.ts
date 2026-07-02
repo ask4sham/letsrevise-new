@@ -18,7 +18,7 @@ export type ResolveSpecKey =
   | "aqa-gcse-english-language"
   | string;
 
-/** Derive specKey from lesson metadata (same mapping as topic picker). */
+/** Derive specKey from lesson metadata (same mapping as topic picker / backend specRegistry). */
 export function getSpecKeyFromLesson(lesson: {
   examBoardName?: string | null;
   level?: string | null;
@@ -28,6 +28,12 @@ export function getSpecKeyFromLesson(lesson: {
   const board = (lesson.examBoardName || "").trim();
   const level = (lesson.level || "").trim();
   const sub = (lesson.subject || "").trim().toLowerCase();
+  const boardLower = board.toLowerCase();
+
+  if (boardLower === "edexcel" && /igcse/i.test(level) && sub === "biology") {
+    return "edexcel-igcse-biology";
+  }
+
   if (level !== "GCSE") return null;
   // Explicit AQA or empty board (derive AQA for UK GCSE when subject matches)
   const isAqa = board === "AQA" || board === "";
