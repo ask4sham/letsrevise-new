@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { ExamQuestion } from "../../api/examQuestions";
+import type { ExamQuestion, ExamQuestionPart } from "../../api/examQuestions";
 import { InlineSelfCheckBlock } from "./InlineSelfCheckBlock";
 import { ZoomableImageTrigger } from "./ZoomableImageLightbox";
 import "./ExamQuestionBlock.css";
@@ -44,6 +44,357 @@ function ExamQuestionImagePanel({ imageUrl }: { imageUrl: string }) {
         alt="Question diagram"
         imageClassName="exam-question-block__image"
       />
+    </div>
+  );
+}
+
+function isCompositeQuestion(q: ExamQuestion): boolean {
+  return (
+    (String(q.questionMode ?? "").toLowerCase() === "composite" ||
+      String(q.type ?? "").toLowerCase() === "composite") &&
+    Array.isArray(q.parts) &&
+    q.parts.length > 0
+  );
+}
+
+function partLabel(part: ExamQuestionPart, index: number): string {
+  return part.label ? String(part.label).trim() : String.fromCharCode(97 + index);
+}
+
+/** Exam-paper answer space: lines scale with mark demand. */
+function answerLineCount(marks: number | null | undefined): number {
+  const m = Number(marks);
+  if (!Number.isFinite(m) || m < 1) return 2;
+  if (m === 1) return 1;
+  if (m === 2) return 3;
+  if (m === 3) return 4;
+  if (m === 4) return 5;
+  if (m >= 6) return Math.max(6, m);
+  return m + 1;
+}
+
+function formatMarksBadge(marks: number | null | undefined): string {
+  if (marks == null || !Number.isFinite(Number(marks))) return "";
+  return `[${marks}]`;
+}
+
+function CompositePartMarks({ marks }: { marks: number | null | undefined }) {
+  const badge = formatMarksBadge(marks);
+  if (!badge) return null;
+  return <span className="exam-composite__marks">{badge}</span>;
+}
+
+function CompositeMcqOptions({
+  options,
+  partIndex,
+  selectedIndex,
+  onSelect,
+  interactive,
+}: {
+  options: string[];
+  partIndex: number;
+  selectedIndex?: number;
+  onSelect?: (index: number) => void;
+  interactive: boolean;
+}) {
+  const name = `exam-composite-mcq-${partIndex}`;
+  return (
+    <ul className="exam-composite__mcq-options" role="list">
+      {options.map((opt, i) => {
+        const letter = String.fromCharCode(65 + i);
+        const id = `${name}-opt-${i}`;
+        if (interactive) {
+          return (
+            <li key={i} className="exam-composite__mcq-option">
+              <label htmlFor={id} className="exam-composite__mcq-label">
+                <input
+                  id={id}
+                  type="radio"
+                  name={name}
+                  className="exam-composite__mcq-radio"
+                  checked={selectedIndex === i}
+                  onChange={() => onSelect?.(i)}
+                />
+                <span className="exam-composite__mcq-letter" aria-hidden>
+                  {letter}
+                </span>
+                <span className="exam-composite__mcq-text">{opt}</span>
+              </label>
+            </li>
+          );
+        }
+        return (
+          <li key={i} className="exam-composite__mcq-option exam-composite__mcq-option--static">
+            <span className="exam-composite__mcq-box" aria-hidden />
+            <span className="exam-composite__mcq-letter">{letter}</span>
+            <span className="exam-composite__mcq-text">{opt}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function CompositeAnswerLines({
+  marks,
+  value,
+  onChange,
+  interactive,
+}: {
+  marks: number | null | undefined;
+  value?: string;
+  onChange?: (value: string) => void;
+  interactive: boolean;
+}) {
+  const lines = answerLineCount(marks);
+  if (!interactive) {
+    return (
+      <div className="exam-composite__answer-lines exam-composite__answer-lines--static" aria-hidden>
+        {Array.from({ length: lines }, (_, i) => (
+          <div key={i} className="exam-composite__answer-line" />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <textarea
+      className="exam-composite__answer-input"
+      value={value ?? ""}
+      onChange={(e) => onChange?.(e.target.value)}
+      rows={lines}
+      placeholder=""
+      spellCheck
+      aria-label="Your answer"
+    />
+  );
+}
+
+function CompositeWrittenPart({
+  part,
+  index,
+  showAnswerSpace,
+  answerValue,
+  onAnswerChange,
+  mcqSelectedIndex,
+  onMcqSelect,
+}: {
+  part: ExamQuestionPart;
+  index: number;
+  showAnswerSpace: boolean;
+  answerValue?: string;
+  onAnswerChange?: (value: string) => void;
+  mcqSelectedIndex?: number;
+  onMcqSelect?: (index: number) => void;
+}) {
+  const label = partLabel(part, index);
+  const isMcq = String(part.type).toLowerCase() === "mcq";
+  const options = Array.isArray(part.options) ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean) : [];
+
+  return (
+    <section className="exam-composite__part exam-composite__part--written">
+      <div className="exam-composite__part-prompt">
+        <span className="exam-composite__part-label">({label})</span>
+        <p className="exam-composite__part-text">{part.questionText}</p>
+        <CompositePartMarks marks={part.marks} />
+      </div>
+      {isMcq && options.length > 0 ? (
+        <CompositeMcqOptions
+          options={options}
+          partIndex={index}
+          interactive={showAnswerSpace}
+          selectedIndex={mcqSelectedIndex}
+          onSelect={onMcqSelect}
+        />
+      ) : showAnswerSpace ? (
+        <CompositeAnswerLines
+          marks={part.marks}
+          value={answerValue}
+          onChange={onAnswerChange}
+          interactive
+        />
+      ) : (
+        <CompositeAnswerLines marks={part.marks} interactive={false} />
+      )}
+    </section>
+  );
+}
+
+function CompositeExamQuestion({
+  question,
+  mode,
+  boxStyle,
+}: {
+  question: ExamQuestion;
+  mode: ExamQuestionBlockMode;
+  presentation: "default" | "v12";
+  boxStyle: React.CSSProperties;
+}): React.ReactElement {
+  const [revealed, setRevealed] = useState(false);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [mcqSelections, setMcqSelections] = useState<Record<number, number>>({});
+  const isClassroom = mode === "classroom";
+  const isEditor = mode === "editor";
+  const showAnswerSpaces = !isClassroom && !isEditor;
+
+  const parts: ExamQuestionPart[] = Array.isArray(question.parts) ? question.parts : [];
+  const totalMarks =
+    typeof question.totalMarks === "number"
+      ? question.totalMarks
+      : parts.reduce((sum, p) => sum + (Number.isFinite(Number(p.marks)) ? Number(p.marks) : 0), 0);
+  const sharedStem =
+    (question.sharedStem && String(question.sharedStem).trim()) ||
+    (question.question && String(question.question).trim()) ||
+    "";
+  const imageUrl = question.imageUrl && String(question.imageUrl).trim() ? String(question.imageUrl).trim() : "";
+  const metaBits = [question.subject, question.examBoard, question.level, question.topic]
+    .map((s) => (typeof s === "string" ? s.trim() : ""))
+    .filter(Boolean);
+
+  const firstPart = parts[0];
+  const restParts = parts.slice(1);
+  const firstLabel = firstPart ? partLabel(firstPart, 0) : "";
+  const firstOptions =
+    firstPart && Array.isArray(firstPart.options)
+      ? firstPart.options.map((o) => String(o ?? "").trim()).filter(Boolean)
+      : [];
+  const firstIsMcq = firstPart && String(firstPart.type).toLowerCase() === "mcq" && firstOptions.length > 0;
+
+  return (
+    <div
+      style={boxStyle}
+      className={`exam-question-block exam-question-block--composite exam-composite${isClassroom ? " exam-composite--classroom" : ""}`}
+    >
+      <header className="exam-composite__header">
+        <div className="exam-composite__header-row">
+          <h3 className="exam-composite__title">Exam question</h3>
+          <span className="exam-composite__total-marks">
+            {totalMarks} {totalMarks === 1 ? "mark" : "marks"}
+          </span>
+        </div>
+        {metaBits.length > 0 && <p className="exam-composite__meta">{metaBits.join(" · ")}</p>}
+        {question.status === "draft" && isEditor && (
+          <span className="exam-composite__draft-badge">Draft</span>
+        )}
+      </header>
+
+      <div className={`exam-composite__context${imageUrl ? " exam-composite__context--with-image" : ""}`}>
+        {imageUrl && (
+          <div className="exam-composite__image-col">
+            <div className="exam-composite__image-panel">
+              <ZoomableImageTrigger
+                src={imageUrl}
+                alt="Question diagram"
+                imageClassName="exam-composite__image"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="exam-composite__stem-col">
+          {sharedStem && <p className="exam-composite__stem">{sharedStem}</p>}
+
+          {firstPart && (
+            <section className="exam-composite__part exam-composite__part--inline">
+              <div className="exam-composite__part-prompt">
+                <span className="exam-composite__part-label">({firstLabel})</span>
+                <p className="exam-composite__part-text">{firstPart.questionText}</p>
+                <CompositePartMarks marks={firstPart.marks} />
+              </div>
+              {firstIsMcq ? (
+                <CompositeMcqOptions
+                  options={firstOptions}
+                  partIndex={0}
+                  interactive={showAnswerSpaces}
+                  selectedIndex={mcqSelections[0]}
+                  onSelect={(i) => setMcqSelections((prev) => ({ ...prev, 0: i }))}
+                />
+              ) : showAnswerSpaces ? (
+                <CompositeAnswerLines
+                  marks={firstPart.marks}
+                  value={answers[0]}
+                  onChange={(v) => setAnswers((prev) => ({ ...prev, 0: v }))}
+                  interactive
+                />
+              ) : (
+                <CompositeAnswerLines marks={firstPart.marks} interactive={false} />
+              )}
+            </section>
+          )}
+        </div>
+      </div>
+
+      {restParts.length > 0 && (
+        <div className="exam-composite__written-parts">
+          {restParts.map((part, i) => {
+            const idx = i + 1;
+            return (
+              <CompositeWrittenPart
+                key={idx}
+                part={part}
+                index={idx}
+                showAnswerSpace={showAnswerSpaces}
+                answerValue={answers[idx]}
+                onAnswerChange={(v) => setAnswers((prev) => ({ ...prev, [idx]: v }))}
+                mcqSelectedIndex={mcqSelections[idx]}
+                onMcqSelect={(i) => setMcqSelections((prev) => ({ ...prev, [idx]: i }))}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      <footer className="exam-composite__footer">
+        <button
+          type="button"
+          className="exam-composite__reveal-btn"
+          onClick={() => setRevealed((v) => !v)}
+        >
+          {revealed ? "Hide answers / mark scheme" : "Reveal answers / mark scheme"}
+        </button>
+
+        {revealed && (
+          <div className="exam-composite__reveal">
+            {parts.map((part, idx) => {
+              const label = partLabel(part, idx);
+              const options = Array.isArray(part.options)
+                ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
+                : [];
+              const isMcqPart = String(part.type).toLowerCase() === "mcq" && options.length > 0;
+              const correctIdx = typeof part.correctIndex === "number" ? part.correctIndex : -1;
+              const correctOption =
+                isMcqPart && correctIdx >= 0 && options[correctIdx] != null ? options[correctIdx] : "";
+              const markScheme = Array.isArray(part.markScheme)
+                ? part.markScheme.map((l) => String(l ?? "").trim()).filter(Boolean)
+                : [];
+
+              return (
+                <div key={idx} className="exam-composite__reveal-part">
+                  <div className="exam-composite__reveal-part-label">({label})</div>
+                  {isMcqPart && correctOption ? (
+                    <p className="exam-composite__reveal-answer">
+                      Correct answer: <strong>{String.fromCharCode(65 + correctIdx)}</strong> — {correctOption}
+                    </p>
+                  ) : null}
+                  {markScheme.length > 0 ? (
+                    <div className="exam-composite__reveal-scheme">
+                      {!isMcqPart && <span className="exam-composite__reveal-scheme-label">Mark scheme:</span>}
+                      <ul className="exam-composite__reveal-list">
+                        {markScheme.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    !isMcqPart && (
+                      <p className="exam-composite__reveal-empty">No mark scheme provided.</p>
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </footer>
     </div>
   );
 }
@@ -98,6 +449,12 @@ export function ExamQuestionBlock({
           This exam question is no longer available. It may have been removed or is not published yet.
         </p>
       </div>
+    );
+  }
+
+  if (isCompositeQuestion(question)) {
+    return (
+      <CompositeExamQuestion question={question} mode={mode} presentation={presentation} boxStyle={boxStyle} />
     );
   }
 

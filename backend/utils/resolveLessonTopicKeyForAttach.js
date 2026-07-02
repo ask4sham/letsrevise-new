@@ -4,7 +4,7 @@
  */
 const { parseTopicKey, buildTopicKey, DEFAULT_SPEC_LEGACY } = require("./topicKey");
 const { normalizeNamespacedLessonTopicKey } = require("./normalizeLessonTopicKey");
-const { findTopicByKey } = require("./topicTaxonomy");
+const { isValidTopicForSpec } = require("./topicTaxonomy");
 
 function lessonSpecKey(lesson) {
   const spec = lesson?.specKey && String(lesson.specKey).trim();
@@ -27,9 +27,18 @@ function lessonFieldsForNormalize(lesson) {
   };
 }
 
-function slugInTaxonomy(slug) {
+/**
+ * Spec-aware taxonomy check. Validates the topic slug against the lesson's own
+ * spec taxonomy (AQA GCSE Biology, Edexcel IGCSE Biology, Chemistry, Physics, …)
+ * rather than defaulting every subject to AQA GCSE Biology.
+ * @param {string} specKey
+ * @param {string} slug - unprefixed topic slug
+ * @returns {boolean}
+ */
+function slugInSpecTaxonomy(specKey, slug) {
   if (!slug || typeof slug !== "string") return false;
-  return Boolean(findTopicByKey(slug.trim().toLowerCase()));
+  const spec = (specKey && String(specKey).trim()) || DEFAULT_SPEC_LEGACY;
+  return isValidTopicForSpec(spec, slug.trim().toLowerCase());
 }
 
 /**
@@ -55,12 +64,13 @@ function resolveLessonTopicKeyForAttach(lesson, overrideTopicKey = null) {
         ...lessonFieldsForNormalize(lesson),
       }) || (override.includes(":") ? override : null);
     if (namespaced) {
-      const slug = parseTopicKey(namespaced).topicKey;
-      if (slugInTaxonomy(slug)) return namespaced;
+      const nsParsed = parseTopicKey(namespaced);
+      const slug = nsParsed.topicKey;
+      if (slugInSpecTaxonomy(nsParsed.specKey || spec, slug)) return namespaced;
     }
     const parsed = parseTopicKey(override);
     const slug = (parsed.topicKey || override).toLowerCase();
-    if (slugInTaxonomy(slug)) {
+    if (slugInSpecTaxonomy(parsed.specKey || spec, slug)) {
       return buildTopicKey(parsed.specKey || spec, slug);
     }
     return null;
@@ -68,8 +78,9 @@ function resolveLessonTopicKeyForAttach(lesson, overrideTopicKey = null) {
 
   const namespaced = normalizeNamespacedLessonTopicKey(spec, lessonFieldsForNormalize(lesson));
   if (!namespaced) return null;
-  const slug = parseTopicKey(namespaced).topicKey;
-  return slugInTaxonomy(slug) ? namespaced : null;
+  const nsParsed = parseTopicKey(namespaced);
+  const slug = nsParsed.topicKey;
+  return slugInSpecTaxonomy(nsParsed.specKey || spec, slug) ? namespaced : null;
 }
 
 module.exports = {

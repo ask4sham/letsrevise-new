@@ -1,6 +1,26 @@
 // backend/models/ExamQuestion.js
 const mongoose = require("mongoose");
 
+/**
+ * Composite Exam Question V1 — a single exam question that has one shared stem/image
+ * and multiple sub-parts (a), (b), (c)…, each with its own type/marks/answer.
+ * Single-question records leave `questionMode` as "single" and ignore `parts`.
+ */
+const ExamQuestionPartSchema = new mongoose.Schema(
+  {
+    /** Part label shown to students, e.g. "a", "b", "c". */
+    label: { type: String, trim: true, default: "" },
+    type: { type: String, enum: ["mcq", "short"], default: "short" },
+    marks: { type: Number, default: 1 },
+    questionText: { type: String, trim: true, default: "" },
+    /** MCQ parts only. */
+    options: { type: [String], default: [] },
+    correctIndex: { type: Number, default: null },
+    markScheme: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
 const ExamQuestionSchema = new mongoose.Schema(
   {
     teacherId: {
@@ -61,7 +81,36 @@ const ExamQuestionSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["mcq", "short", "label", "table", "data"],
+      enum: ["mcq", "short", "label", "table", "data", "composite"],
+    },
+    /** "single" (default) or "composite" (multi-part exam-paper question). */
+    questionMode: {
+      type: String,
+      enum: ["single", "composite"],
+      default: "single",
+      index: true,
+    },
+    /** Composite only: optional short title for the question in the bank. */
+    title: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    /** Composite only: shared stem shown once above all parts. */
+    sharedStem: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    /** Composite only: sum of part marks (computed on save). */
+    totalMarks: {
+      type: Number,
+      default: null,
+    },
+    /** Composite only: ordered sub-parts (a), (b), (c)… */
+    parts: {
+      type: [ExamQuestionPartSchema],
+      default: undefined,
     },
     marks: {
       type: Number,

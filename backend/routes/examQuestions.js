@@ -14,6 +14,10 @@ const {
   validateNewExamQuestionBankDraft,
 } = require("../utils/examQuestionPublishValidation");
 const {
+  isCompositePayload,
+  buildCompositeFields,
+} = require("../utils/compositeExamQuestion");
+const {
   fetchEmbeddedExamQuestionsForLesson,
   fetchTeacherOwnedExamQuestionsByIds,
 } = require("../services/examQuestionLessonEmbedService");
@@ -83,8 +87,11 @@ router.post("/", auth, async (req, res) => {
       level: req.body.level,
     });
     const teacherId = req.user.userId || req.user._id;
+    const createDoc = isCompositePayload(req.body)
+      ? { ...req.body, ...buildCompositeFields(req.body) }
+      : { ...req.body };
     const question = await ExamQuestion.create({
-      ...req.body,
+      ...createDoc,
       ...(levelForSave ? { level: levelForSave } : {}),
       teacherId,
       status: "draft",
@@ -579,6 +586,32 @@ router.put("/:id", auth, async (req, res) => {
     if (imageUrl !== undefined) {
       question.imageUrl = imageUrl != null && String(imageUrl).trim() ? String(imageUrl).trim() : null;
     }
+
+    // Composite update: rebuild shared stem / parts / total marks together so
+    // question + marks stay in sync. Runs after the single-field assignments so
+    // it overrides any stray type/marks values for composite records.
+    const wantsComposite =
+      isCompositePayload(req.body) ||
+      (question.questionMode === "composite" &&
+        (req.body.parts !== undefined ||
+          req.body.sharedStem !== undefined ||
+          req.body.title !== undefined));
+    if (wantsComposite) {
+      const composite = buildCompositeFields({
+        parts: req.body.parts !== undefined ? req.body.parts : question.parts,
+        sharedStem: req.body.sharedStem !== undefined ? req.body.sharedStem : question.sharedStem,
+        title: req.body.title !== undefined ? req.body.title : question.title,
+      });
+      question.questionMode = "composite";
+      question.type = "composite";
+      question.title = composite.title;
+      question.sharedStem = composite.sharedStem;
+      question.parts = composite.parts;
+      question.totalMarks = composite.totalMarks;
+      question.question = composite.question;
+      question.marks = composite.marks;
+    }
+
     let justPublished = false;
     if (status !== undefined) {
       const newStatus = String(status).trim().toLowerCase();

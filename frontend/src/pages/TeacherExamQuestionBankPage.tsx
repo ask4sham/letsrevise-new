@@ -21,6 +21,257 @@ const SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "
 const EXAM_BOARDS = ["AQA", "Edexcel", "OCR", "CIE", "WJEC", "Other"];
 const LEVELS = ["GCSE", "IGCSE", "A-Level", "IB", "KS3", "Other"];
 
+const PART_TYPES = ["short", "mcq"] as const;
+const PART_LABELS = "abcdefghijklmnopqrstuvwxyz".split("");
+
+type CompositePartForm = {
+  label: string;
+  type: (typeof PART_TYPES)[number];
+  marks: number;
+  questionText: string;
+  options: string[];
+  correctIndex: number;
+  markScheme: string;
+};
+
+function makeEmptyPart(index: number): CompositePartForm {
+  return {
+    label: PART_LABELS[index] ?? String(index + 1),
+    type: "short",
+    marks: 2,
+    questionText: "",
+    options: ["", "", "", ""],
+    correctIndex: 0,
+    markScheme: "",
+  };
+}
+
+type ExamBankForm = {
+  subject: string;
+  examBoard: string;
+  level: string;
+  topic: string;
+  topicKey: string;
+  questionType: (typeof QUESTION_TYPES)[number];
+  marks: number;
+  questionText: string;
+  correctAnswerMarkScheme: string;
+  mcqOptions: string[];
+  correctIndex: number;
+  imageUrl: string;
+  questionMode: "single" | "composite";
+  sharedStem: string;
+  title: string;
+  parts: CompositePartForm[];
+};
+
+/** Composite Exam Question editor — shared stem + add/edit/remove sub-parts, auto total marks. */
+function CompositePartsEditor({
+  form,
+  setForm,
+}: {
+  form: ExamBankForm;
+  setForm: React.Dispatch<React.SetStateAction<ExamBankForm>>;
+}): React.ReactElement {
+  const totalMarks = form.parts.reduce((sum, p) => sum + (Number.isFinite(p.marks) ? p.marks : 0), 0);
+
+  const updatePart = (index: number, patch: Partial<CompositePartForm>) => {
+    setForm((f) => ({
+      ...f,
+      parts: f.parts.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    }));
+  };
+  const addPart = () => setForm((f) => ({ ...f, parts: [...f.parts, makeEmptyPart(f.parts.length)] }));
+  const removePart = (index: number) =>
+    setForm((f) => {
+      const next = f.parts.filter((_, i) => i !== index);
+      return { ...f, parts: next.map((p, i) => ({ ...p, label: PART_LABELS[i] ?? String(i + 1) })) };
+    });
+
+  const fieldStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "8px 10px",
+    borderRadius: "6px",
+    border: "1px solid #d1d5db",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <>
+      <div>
+        <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>
+          Title (optional)
+        </label>
+        <input
+          type="text"
+          value={form.title}
+          onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+          placeholder="e.g. Sperm cell — structure and reproduction"
+          style={fieldStyle}
+        />
+      </div>
+      <div>
+        <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>
+          Shared stem
+        </label>
+        <p style={{ margin: "0 0 6px", fontSize: 12, color: "#6b7280" }}>
+          Shown once above all parts, alongside the shared image.
+        </p>
+        <textarea
+          value={form.sharedStem}
+          onChange={(e) => setForm((f) => ({ ...f, sharedStem: e.target.value }))}
+          placeholder="e.g. The diagram shows a human sperm cell."
+          rows={3}
+          style={{ ...fieldStyle, resize: "vertical" }}
+        />
+      </div>
+
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <label style={{ fontSize: "0.875rem", fontWeight: 600 }}>Parts</label>
+          <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+            Total: {totalMarks} {totalMarks === 1 ? "mark" : "marks"}
+          </span>
+        </div>
+
+        {form.parts.map((part, index) => (
+          <div
+            key={index}
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 12,
+              background: "#fafafa",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <strong style={{ fontSize: 14 }}>Part ({part.label})</strong>
+              <button
+                type="button"
+                onClick={() => removePart(index)}
+                disabled={form.parts.length <= 1}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: form.parts.length <= 1 ? "#9ca3af" : "#b91c1c",
+                  background: form.parts.length <= 1 ? "#f3f4f6" : "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: 6,
+                  padding: "4px 10px",
+                  cursor: form.parts.length <= 1 ? "not-allowed" : "pointer",
+                }}
+              >
+                Remove
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Type</label>
+                <select
+                  value={part.type}
+                  onChange={(e) => updatePart(index, { type: e.target.value as (typeof PART_TYPES)[number] })}
+                  style={fieldStyle}
+                >
+                  {PART_TYPES.map((t) => (
+                    <option key={t} value={t}>{t === "mcq" ? "Multiple choice" : "Short answer"}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Marks</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={part.marks}
+                  onChange={(e) => updatePart(index, { marks: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                  style={fieldStyle}
+                />
+              </div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Question text</label>
+              <textarea
+                value={part.questionText}
+                onChange={(e) => updatePart(index, { questionText: e.target.value })}
+                placeholder="Enter this part's question…"
+                rows={2}
+                style={{ ...fieldStyle, resize: "vertical" }}
+              />
+            </div>
+            {part.type === "mcq" && (
+              <>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Options (2–4)</label>
+                  {["A", "B", "C", "D"].map((letter, i) => (
+                    <input
+                      key={letter}
+                      type="text"
+                      value={part.options[i] ?? ""}
+                      onChange={(e) => {
+                        const next = [...part.options];
+                        while (next.length < 4) next.push("");
+                        next[i] = e.target.value;
+                        updatePart(index, { options: next });
+                      }}
+                      placeholder={`Option ${letter}`}
+                      style={{ ...fieldStyle, marginBottom: 6 }}
+                    />
+                  ))}
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>Correct option</label>
+                  <select
+                    value={part.correctIndex}
+                    onChange={(e) => updatePart(index, { correctIndex: parseInt(e.target.value, 10) })}
+                    style={fieldStyle}
+                  >
+                    {["A", "B", "C", "D"].map((letter, i) => (
+                      <option key={letter} value={i}>
+                        Option {letter}
+                        {part.options[i]?.trim() ? ` — ${part.options[i].trim().slice(0, 40)}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+            <div>
+              <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>
+                Mark scheme {part.type === "mcq" ? "(optional)" : ""}
+              </label>
+              <textarea
+                value={part.markScheme}
+                onChange={(e) => updatePart(index, { markScheme: e.target.value })}
+                placeholder="One mark-scheme point per line…"
+                rows={2}
+                style={{ ...fieldStyle, resize: "vertical" }}
+              />
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={addPart}
+          style={{
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#4f46e5",
+            background: "white",
+            border: "1px dashed #4f46e5",
+            borderRadius: 8,
+            cursor: "pointer",
+          }}
+        >
+          + Add part
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** Set `REACT_APP_DEBUG_EXAM_BANK=true` in `.env.local` to enable fetch logging (only when `NODE_ENV === "development"`). */
 const DEBUG_EXAM_BANK = process.env.REACT_APP_DEBUG_EXAM_BANK === "true";
 
@@ -42,6 +293,19 @@ type ExamQuestion = {
   correctAnswer?: string | null;
   markScheme?: string[];
   status: string;
+  questionMode?: "single" | "composite" | string;
+  title?: string | null;
+  sharedStem?: string | null;
+  totalMarks?: number | null;
+  parts?: Array<{
+    label?: string;
+    type?: string;
+    marks?: number;
+    questionText?: string;
+    options?: string[];
+    correctIndex?: number | null;
+    markScheme?: string[];
+  }>;
   reviewFlags?: string[];
   metadata?: {
     qualityScore?: number;
@@ -81,7 +345,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
-  const [form, setForm] = useState(() => {
+  const [form, setForm] = useState<ExamBankForm>(() => {
     const d = examBankDefaultFormFields(getStoredSpecKey());
     return {
       subject: d.subject,
@@ -96,13 +360,17 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       mcqOptions: ["", "", "", "", ""] as string[],
       correctIndex: 0,
       imageUrl: "",
+      questionMode: "single" as "single" | "composite",
+      sharedStem: "",
+      title: "",
+      parts: [] as CompositePartForm[],
     };
   });
 
   const topicOptionGroups = React.useMemo(() => getTaxonomyOptionGroups(taxonomy), [taxonomy]);
   const keyToTopic = React.useMemo(() => getTaxonomyKeyToTopic(taxonomy), [taxonomy]);
 
-  const defaultForm = React.useMemo(() => {
+  const defaultForm = React.useMemo<ExamBankForm>(() => {
     const d = examBankDefaultFormFields(specKey);
     return {
       subject: d.subject,
@@ -117,6 +385,10 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       mcqOptions: ["", "", "", "", ""] as string[],
       correctIndex: 0,
       imageUrl: "",
+      questionMode: "single" as "single" | "composite",
+      sharedStem: "",
+      title: "",
+      parts: [] as CompositePartForm[],
     };
   }, [specKey]);
 
@@ -187,6 +459,22 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     if (!form.topicKey?.trim()) {
       return "Cannot save: select a topic from the taxonomy list (canonical topicKey required for Exam Practice to match lessons).";
     }
+    if (form.questionMode === "composite") {
+      if (!form.sharedStem.trim()) return "Add a shared question stem for the composite question.";
+      if (!form.parts.length) return "Add at least one part (a, b, c…).";
+      for (const part of form.parts) {
+        if (!part.questionText.trim()) return `Part (${part.label}) needs question text.`;
+        if (!(part.marks > 0)) return `Part (${part.label}) needs at least 1 mark.`;
+        if (part.type === "mcq") {
+          const opts = part.options.map((s) => s.trim()).filter(Boolean);
+          if (opts.length < 2) return `Part (${part.label}) MCQ needs at least 2 options.`;
+          if (part.correctIndex < 0 || part.correctIndex >= opts.length) {
+            return `Part (${part.label}) MCQ needs a selected correct option.`;
+          }
+        }
+      }
+      return null;
+    }
     const q = form.questionText.trim();
     if (!q) return "Question text is required.";
     if (form.marks < 2) return "Marks must be at least 2 for Exam Question Bank entries.";
@@ -231,30 +519,54 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     }
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = (mode: "single" | "composite" = "single") => {
     setEditingId(null);
     setFormError(null);
     setImageUploadError(null);
-    setForm(defaultForm);
+    setForm(
+      mode === "composite"
+        ? { ...defaultForm, questionMode: "composite", parts: [makeEmptyPart(0)] }
+        : defaultForm
+    );
     setModalOpen(true);
   };
 
   const openEditModal = (q: ExamQuestion) => {
     const opts = Array.isArray(q.options) ? q.options : [];
     const mcqOptions = [...opts, "", "", "", "", ""].slice(0, 5) as [string, string, string, string, string];
+    const isComposite = String(q.questionMode ?? "").toLowerCase() === "composite" || String(q.type ?? "") === "composite";
+    const parts: CompositePartForm[] = isComposite && Array.isArray(q.parts)
+      ? q.parts.map((p, i) => {
+          const pOpts = Array.isArray(p.options) ? p.options.map((o) => String(o ?? "")) : [];
+          return {
+            label: p.label || (PART_LABELS[i] ?? String(i + 1)),
+            type: (String(p.type).toLowerCase() === "mcq" ? "mcq" : "short") as (typeof PART_TYPES)[number],
+            marks: typeof p.marks === "number" ? p.marks : 1,
+            questionText: p.questionText || "",
+            options: [...pOpts, "", "", "", ""].slice(0, Math.max(4, pOpts.length)),
+            correctIndex: typeof p.correctIndex === "number" && p.correctIndex >= 0 ? p.correctIndex : 0,
+            markScheme: Array.isArray(p.markScheme) ? p.markScheme.join("\n") : "",
+          };
+        })
+      : [];
     setForm({
+      ...defaultForm,
       subject: q.subject || "Biology",
       examBoard: q.examBoard || "AQA",
       level: q.level || "GCSE",
       topic: q.topic || "",
       topicKey: q.topicKey || "",
-      questionType: (q.type || "mcq") as (typeof QUESTION_TYPES)[number],
+      questionType: (isComposite ? "short" : (q.type || "mcq")) as (typeof QUESTION_TYPES)[number],
       marks: q.marks ?? 1,
-      questionText: q.question || "",
+      questionText: isComposite ? "" : (q.question || ""),
       correctAnswerMarkScheme: Array.isArray(q.markScheme) ? q.markScheme.join("\n") : (q.correctAnswer != null ? String(q.correctAnswer) : ""),
       mcqOptions,
       correctIndex: q.correctIndex != null && q.correctIndex >= 0 ? q.correctIndex : 0,
       imageUrl: typeof q.imageUrl === "string" ? q.imageUrl : "",
+      questionMode: isComposite ? "composite" : "single",
+      sharedStem: isComposite ? (q.sharedStem || q.question || "") : "",
+      title: isComposite ? (q.title || "") : "",
+      parts,
     });
     setFormError(null);
     setImageUploadError(null);
@@ -362,37 +674,63 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     setFormError(null);
     try {
       setSaving(true);
-      const markScheme = form.correctAnswerMarkScheme
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const mcqOpts = form.questionType === "mcq"
-        ? form.mcqOptions.map((s) => s.trim()).filter(Boolean)
-        : [];
-      const correctIdx = form.questionType === "mcq" ? form.correctIndex : undefined;
-      const correctAnswerVal = form.questionType === "mcq"
-        ? (mcqOpts[correctIdx!] ?? null)
-        : (form.correctAnswerMarkScheme.trim() || null);
       const levelForSave = resolveExamQuestionLevelForSave({
         specKey,
         topicKey: form.topicKey,
         level: form.level,
       });
-      const payload: Record<string, unknown> = {
+      const sharedMeta = {
         subject: form.subject,
         examBoard: form.examBoard || undefined,
         level: levelForSave || form.level || undefined,
         topic: form.topic || undefined,
         topicKey: form.topicKey?.trim() || undefined,
         specKey: specKey || undefined,
-        type: form.questionType,
-        marks: form.marks,
-        question: form.questionText.trim(),
-        correctAnswer: correctAnswerVal,
-        correctIndex: correctIdx,
-        markScheme: form.questionType === "mcq" ? [] : (markScheme.length ? markScheme : []),
-        options: form.questionType === "mcq" ? mcqOpts : [],
       };
+      let payload: Record<string, unknown>;
+      if (form.questionMode === "composite") {
+        payload = {
+          ...sharedMeta,
+          questionMode: "composite",
+          title: form.title.trim() || undefined,
+          sharedStem: form.sharedStem.trim(),
+          parts: form.parts.map((p) => {
+            const opts = p.options.map((s) => s.trim()).filter(Boolean);
+            const ms = p.markScheme.split("\n").map((s) => s.trim()).filter(Boolean);
+            return {
+              label: p.label,
+              type: p.type,
+              marks: p.marks,
+              questionText: p.questionText.trim(),
+              options: p.type === "mcq" ? opts : [],
+              correctIndex: p.type === "mcq" ? p.correctIndex : null,
+              markScheme: ms,
+            };
+          }),
+        };
+      } else {
+        const markScheme = form.correctAnswerMarkScheme
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const mcqOpts = form.questionType === "mcq"
+          ? form.mcqOptions.map((s) => s.trim()).filter(Boolean)
+          : [];
+        const correctIdx = form.questionType === "mcq" ? form.correctIndex : undefined;
+        const correctAnswerVal = form.questionType === "mcq"
+          ? (mcqOpts[correctIdx!] ?? null)
+          : (form.correctAnswerMarkScheme.trim() || null);
+        payload = {
+          ...sharedMeta,
+          type: form.questionType,
+          marks: form.marks,
+          question: form.questionText.trim(),
+          correctAnswer: correctAnswerVal,
+          correctIndex: correctIdx,
+          markScheme: form.questionType === "mcq" ? [] : (markScheme.length ? markScheme : []),
+          options: form.questionType === "mcq" ? mcqOpts : [],
+        };
+      }
       const trimmedImg = form.imageUrl.trim();
       if (trimmedImg) payload.imageUrl = trimmedImg;
       else if (editingId) payload.imageUrl = null;
@@ -455,21 +793,38 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             . Publishing requires a solid mark scheme (see publish rules).
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          style={{
-            padding: "10px 18px",
-            background: "#4f46e5",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            fontWeight: "bold",
-            cursor: "pointer",
-          }}
-        >
-          + Create Question
-        </button>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => openCreateModal("single")}
+            style={{
+              padding: "10px 18px",
+              background: "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              cursor: "pointer",
+            }}
+          >
+            + Create Question
+          </button>
+          <button
+            type="button"
+            onClick={() => openCreateModal("composite")}
+            style={{
+              padding: "10px 18px",
+              background: "white",
+              color: "#4f46e5",
+              border: "1px solid #4f46e5",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              cursor: "pointer",
+            }}
+          >
+            + Create Composite Question
+          </button>
+        </div>
       </div>
 
       <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
@@ -870,7 +1225,15 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}>{editingId ? "Edit Question" : "Create Question"}</h2>
+            <h2 style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}>
+              {form.questionMode === "composite"
+                ? editingId
+                  ? "Edit Composite Question"
+                  : "Create Composite Question"
+                : editingId
+                ? "Edit Question"
+                : "Create Question"}
+            </h2>
 
             {formError && (
               <div style={{ marginBottom: "1rem", padding: "10px 12px", background: "#fef2f2", color: "#991b1b", borderRadius: "8px", fontSize: "0.9rem" }}>
@@ -942,82 +1305,89 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                   style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                 />
               </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Question type</label>
-                <select
-                  value={form.questionType}
-                  onChange={(e) => setForm((f) => ({ ...f, questionType: e.target.value as (typeof QUESTION_TYPES)[number] }))}
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
-                >
-                  {QUESTION_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Marks</label>
-                <input
-                  type="number"
-                  min={2}
-                  value={form.marks}
-                  onChange={(e) => setForm((f) => ({ ...f, marks: Math.max(2, parseInt(e.target.value, 10) || 2) }))}
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Question text</label>
-                <textarea
-                  value={form.questionText}
-                  onChange={(e) => setForm((f) => ({ ...f, questionText: e.target.value }))}
-                  placeholder="Enter the question stem..."
-                  rows={3}
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }}
-                />
-              </div>
-              {form.questionType === "mcq" && (
+              {form.questionMode !== "composite" && (
                 <>
                   <div>
-                    <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Options (2–5)</label>
-                    {["A", "B", "C", "D", "E"].map((letter, i) => (
-                      <input
-                        key={letter}
-                        type="text"
-                        value={form.mcqOptions[i] ?? ""}
-                        onChange={(e) => setForm((f) => {
-                          const next = [...(f.mcqOptions ?? ["", "", "", "", ""])];
-                          next[i] = e.target.value;
-                          return { ...f, mcqOptions: next };
-                        })}
-                        placeholder={`Option ${letter}`}
-                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", marginBottom: "6px" }}
-                      />
-                    ))}
-                  </div>
-                  <div>
-                    <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Correct option</label>
+                    <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Question type</label>
                     <select
-                      value={form.correctIndex}
-                      onChange={(e) => setForm((f) => ({ ...f, correctIndex: parseInt(e.target.value, 10) }))}
+                      value={form.questionType}
+                      onChange={(e) => setForm((f) => ({ ...f, questionType: e.target.value as (typeof QUESTION_TYPES)[number] }))}
                       style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                     >
-                      {["A", "B", "C", "D", "E"].map((letter, i) => (
-                        <option key={letter} value={i}>Option {letter}{form.mcqOptions[i]?.trim() ? ` — ${form.mcqOptions[i].trim().slice(0, 40)}${(form.mcqOptions[i].trim().length > 40 ? "…" : "")}` : ""}</option>
+                      {QUESTION_TYPES.map((t) => (
+                        <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
                   </div>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Marks</label>
+                    <input
+                      type="number"
+                      min={2}
+                      value={form.marks}
+                      onChange={(e) => setForm((f) => ({ ...f, marks: Math.max(2, parseInt(e.target.value, 10) || 2) }))}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Question text</label>
+                    <textarea
+                      value={form.questionText}
+                      onChange={(e) => setForm((f) => ({ ...f, questionText: e.target.value }))}
+                      placeholder="Enter the question stem..."
+                      rows={3}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }}
+                    />
+                  </div>
+                  {form.questionType === "mcq" && (
+                    <>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Options (2–5)</label>
+                        {["A", "B", "C", "D", "E"].map((letter, i) => (
+                          <input
+                            key={letter}
+                            type="text"
+                            value={form.mcqOptions[i] ?? ""}
+                            onChange={(e) => setForm((f) => {
+                              const next = [...(f.mcqOptions ?? ["", "", "", "", ""])];
+                              next[i] = e.target.value;
+                              return { ...f, mcqOptions: next };
+                            })}
+                            placeholder={`Option ${letter}`}
+                            style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", marginBottom: "6px" }}
+                          />
+                        ))}
+                      </div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Correct option</label>
+                        <select
+                          value={form.correctIndex}
+                          onChange={(e) => setForm((f) => ({ ...f, correctIndex: parseInt(e.target.value, 10) }))}
+                          style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                        >
+                          {["A", "B", "C", "D", "E"].map((letter, i) => (
+                            <option key={letter} value={i}>Option {letter}{form.mcqOptions[i]?.trim() ? ` — ${form.mcqOptions[i].trim().slice(0, 40)}${(form.mcqOptions[i].trim().length > 40 ? "…" : "")}` : ""}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                  {form.questionType !== "mcq" && (
+                    <div>
+                      <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Correct answer / mark scheme</label>
+                      <textarea
+                        value={form.correctAnswerMarkScheme}
+                        onChange={(e) => setForm((f) => ({ ...f, correctAnswerMarkScheme: e.target.value }))}
+                        placeholder="Model answer or mark scheme points..."
+                        rows={3}
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
-              {form.questionType !== "mcq" && (
-                <div>
-                  <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Correct answer / mark scheme</label>
-                  <textarea
-                    value={form.correctAnswerMarkScheme}
-                    onChange={(e) => setForm((f) => ({ ...f, correctAnswerMarkScheme: e.target.value }))}
-                    placeholder="Model answer or mark scheme points..."
-                    rows={3}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }}
-                  />
-                </div>
+              {form.questionMode === "composite" && (
+                <CompositePartsEditor form={form} setForm={setForm} />
               )}
               <div>
                 <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>

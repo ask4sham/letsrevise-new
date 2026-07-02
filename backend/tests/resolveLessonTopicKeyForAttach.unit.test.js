@@ -18,4 +18,30 @@ describe("resolveLessonTopicKeyForAttach", () => {
     );
     expect(key).toBe("aqa-gcse-biology:respiration");
   });
+
+  it("resolves an Edexcel IGCSE Biology lesson against its own taxonomy (not AQA)", () => {
+    const lesson = {
+      specKey: "edexcel-igcse-biology",
+      topicKey: "edexcel-igcse-biology:human-male-and-female-reproductive-systems",
+      subTopic: "Human Reproductive Systems",
+      topic: "Human Reproductive Systems (Edexcel IGCSE Biology) Exam code: 4BI1 (Higher Tier)",
+    };
+    expect(resolveLessonTopicKeyForAttach(lesson)).toBe(
+      "edexcel-igcse-biology:human-male-and-female-reproductive-systems"
+    );
+    expect(
+      resolveLessonTopicKeyForAttach(
+        lesson,
+        "edexcel-igcse-biology:human-male-and-female-reproductive-systems"
+      )
+    ).toBe("edexcel-igcse-biology:human-male-and-female-reproductive-systems");
+  });
+
+  it("still rejects an invalid slug within a known spec", () => {
+    const key = resolveLessonTopicKeyForAttach({
+      specKey: "edexcel-igcse-biology",
+      topicKey: "edexcel-igcse-biology:not-a-real-topic-xyz",
+    });
+    expect(key).toBeNull();
+  });
 });

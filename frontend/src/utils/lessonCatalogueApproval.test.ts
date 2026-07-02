@@ -45,6 +45,23 @@ describe("lessonCatalogueApproval", () => {
     expect(ui.showSubmit).toBe(false);
   });
 
+  test("unpublished lesson never surfaces stale approval metadata", () => {
+    const ui = getCatalogueApprovalUi({
+      isPublished: false,
+      teacherLibraryStatus: "approved",
+      catalogueVersion: 2,
+      approvedAt: "2026-07-01T12:00:00.000Z",
+    });
+    expect(ui.showCertifiedBadge).toBe(false);
+    expect(ui.version).toBeNull();
+    expect(ui.approvedDateLabel).toBeNull();
+    expect(ui.showDraftHelper).toBe(true);
+    expect(ui.headline).toBeNull();
+    expect(ui.description).toMatch(/Publish this lesson before submitting/);
+    expect(ui.showSubmit).toBe(false);
+    expect(ui.showResubmit).toBe(false);
+  });
+
   test("rejected published lesson allows resubmit", () => {
     const ui = getCatalogueApprovalUi({
       isPublished: true,

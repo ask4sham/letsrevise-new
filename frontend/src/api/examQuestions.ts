@@ -5,6 +5,16 @@
 import api from "../services/api";
 import { getErrorMessageFromData } from "../utils/apiErrorMessage";
 
+export type ExamQuestionPart = {
+  label: string;
+  type: "mcq" | "short" | string;
+  marks: number;
+  questionText: string;
+  options?: string[];
+  correctIndex?: number | null;
+  markScheme?: string[];
+};
+
 export type ExamQuestion = {
   _id: string;
   specKey?: string;
@@ -26,6 +36,12 @@ export type ExamQuestion = {
   skill?: string | null;
   estimatedTimeSec?: number | null;
   metadata?: Record<string, unknown>;
+  /** Composite Exam Question V1 */
+  questionMode?: "single" | "composite" | string;
+  title?: string | null;
+  sharedStem?: string | null;
+  totalMarks?: number | null;
+  parts?: ExamQuestionPart[];
 };
 
 export type ExamQuestionFilters = {

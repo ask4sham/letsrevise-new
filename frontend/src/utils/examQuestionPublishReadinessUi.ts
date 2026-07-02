@@ -2,6 +2,16 @@
  * Client-side mirror of backend/utils/examQuestionPublishValidation.js for badges and hints only.
  * Keep in sync when server rules change.
  */
+type CompositePartLike = {
+  label?: string;
+  type?: string;
+  marks?: number;
+  questionText?: string;
+  options?: string[];
+  correctIndex?: number | null;
+  markScheme?: string[];
+};
+
 export function getExamPublishReadinessUi(doc: {
   type?: string;
   marks?: number;
@@ -9,8 +19,37 @@ export function getExamPublishReadinessUi(doc: {
   markScheme?: string[];
   correctAnswer?: string | null;
   metadata?: Record<string, unknown>;
+  questionMode?: string;
+  sharedStem?: string | null;
+  parts?: CompositePartLike[];
 }): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  const isComposite =
+    String(doc.questionMode || "").toLowerCase() === "composite" ||
+    String(doc.type || "").toLowerCase() === "composite";
+  if (isComposite) {
+    const parts = Array.isArray(doc.parts) ? doc.parts : [];
+    if (!String(doc.sharedStem || doc.question || "").trim()) {
+      reasons.push("Add a shared question stem.");
+    }
+    if (parts.length < 1) {
+      reasons.push("Add at least one part (a, b, c…).");
+    }
+    parts.forEach((part) => {
+      const label = part.label ? `(${part.label})` : "";
+      const pType = String(part.type || "short").toLowerCase();
+      if (!String(part.questionText || "").trim()) reasons.push(`Part ${label} needs question text.`);
+      if (pType === "mcq") {
+        const opts = Array.isArray(part.options) ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean) : [];
+        if (opts.length < 2) reasons.push(`Part ${label} MCQ needs at least 2 options.`);
+        if (part.correctIndex == null || part.correctIndex < 0) reasons.push(`Part ${label} MCQ needs a correct option.`);
+      } else {
+        const ms = Array.isArray(part.markScheme) ? part.markScheme.map((l) => String(l ?? "").trim()).filter((l) => l.length >= 10) : [];
+        if (ms.length < 1) reasons.push(`Part ${label} needs a substantive mark-scheme point.`);
+      }
+    });
+    return { ok: reasons.length === 0, reasons };
+  }
   const type = String(doc.type || "short").toLowerCase();
   const marks = Number(doc.marks);
   const qText = String(doc.question || "").trim();

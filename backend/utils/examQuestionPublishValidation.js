@@ -2,12 +2,20 @@
  * Exam Question Bank — publish readiness (distinct from Topic Quiz Bank quick-check MCQs).
  * Applied on PUT when status → published.
  */
+const {
+  isCompositePayload,
+  validateCompositeDraft,
+  validateCompositePublish,
+} = require("./compositeExamQuestion");
 
 /**
  * @param {Object} doc - ExamQuestion-like (type, marks, markScheme, question, correctAnswer, metadata)
  * @returns {{ ok: boolean, msg?: string }}
  */
 function validateExamQuestionPublishReadiness(doc) {
+  if (isCompositePayload(doc)) {
+    return validateCompositePublish(doc);
+  }
   const topicKey = String(doc.topicKey || "").trim();
   if (!topicKey) {
     return {
@@ -58,6 +66,9 @@ function validateExamQuestionPublishReadiness(doc) {
  * @returns {{ ok: boolean, msg?: string }}
  */
 function validateNewExamQuestionBankDraft(body) {
+  if (isCompositePayload(body)) {
+    return validateCompositeDraft(body);
+  }
   const topicKey = String(body?.topicKey || "").trim();
   if (!topicKey) {
     return {

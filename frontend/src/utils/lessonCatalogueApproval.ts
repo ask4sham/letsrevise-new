@@ -107,10 +107,6 @@ function resolveStatusCopy(
   }
 }
 
-function resolveBadge(status: CatalogueApprovalStatus): { showCertifiedBadge: boolean } {
-  return { showCertifiedBadge: status === "approved" };
-}
-
 export function getCatalogueApprovalUi(input: {
   isPublished: boolean;
   teacherLibraryStatus?: string | null;
@@ -118,18 +114,30 @@ export function getCatalogueApprovalUi(input: {
   approvedAt?: string | null;
   rejectionNotes?: string | null;
 }): CatalogueApprovalUi {
+  const isPublished = Boolean(input.isPublished);
   const status = normalizeCatalogueApprovalStatus(input.teacherLibraryStatus);
   const rejectionNotes = (input.rejectionNotes || "").trim();
+  const copy = resolveStatusCopy(status, isPublished);
+
+  // Business rule: a lesson cannot be Draft and Approved at once. Approval
+  // metadata (certified badge, version, approved date) may only be presented
+  // for published lessons. If a previously-approved lesson is edited and
+  // unpublished, it must fall back to the draft state rather than surface its
+  // stale approval record.
+  const canPresentApproval = isPublished && status === "approved";
   const version =
-    typeof input.catalogueVersion === "number" && Number.isFinite(input.catalogueVersion)
+    canPresentApproval &&
+    typeof input.catalogueVersion === "number" &&
+    Number.isFinite(input.catalogueVersion)
       ? input.catalogueVersion
       : null;
-  const approvedDateLabel = formatCatalogueApprovalDate(input.approvedAt);
-  const copy = resolveStatusCopy(status, input.isPublished);
-  const { showCertifiedBadge } = resolveBadge(status);
+  const approvedDateLabel = canPresentApproval
+    ? formatCatalogueApprovalDate(input.approvedAt)
+    : null;
+  const showCertifiedBadge = canPresentApproval;
 
-  const showSubmit = input.isPublished && status === "none";
-  const showResubmit = input.isPublished && status === "rejected";
+  const showSubmit = isPublished && status === "none";
+  const showResubmit = isPublished && status === "rejected";
 
   return {
     status,

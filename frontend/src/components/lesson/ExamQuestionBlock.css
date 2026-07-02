@@ -60,3 +60,368 @@
   margin-top: 16px;
   width: 100%;
 }
+
+/* ── Composite Exam Question V2 — GCSE exam-paper layout ── */
+
+.exam-question-block.exam-composite {
+  border: 2px solid #8a8f99 !important;
+  border-radius: 7px !important;
+}
+
+.exam-composite {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  color: #111827;
+}
+
+.exam-composite--classroom {
+  font-size: 1.0625rem;
+}
+
+.exam-composite__header {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #b5bcc7;
+}
+
+.exam-composite__header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exam-composite__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+}
+
+.exam-composite__total-marks {
+  flex-shrink: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.exam-composite__meta {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.exam-composite__draft-badge {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-family: system-ui, sans-serif;
+}
+
+/* Context row: image + stem + part (a) */
+.exam-composite__context {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.exam-composite__context--with-image {
+  align-items: flex-start;
+}
+
+.exam-composite__image-col {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.exam-composite__image-panel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #9aa3b2;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.exam-composite__image-panel .exam-composite__image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 220px;
+  margin: 0;
+  object-fit: contain;
+}
+
+.exam-composite__stem-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.exam-composite__stem {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* Part prompt row: label + text + marks right */
+.exam-composite__part {
+  margin-bottom: 0;
+}
+
+.exam-composite__part--written {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #b5bcc7;
+}
+
+.exam-composite__part-prompt {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px 10px;
+  align-items: start;
+  margin-bottom: 10px;
+}
+
+.exam-composite__part-label {
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.55;
+}
+
+.exam-composite__part-text {
+  margin: 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.exam-composite__marks {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1f2937;
+  white-space: nowrap;
+  text-align: right;
+  font-family: system-ui, sans-serif;
+  border: 1px solid #7f8794;
+  padding: 1px 6px;
+  line-height: 1.35;
+  background: #f8f9fa;
+}
+
+/* MCQ options — exam paper style */
+.exam-composite__mcq-options {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0 0 0 4px;
+}
+
+.exam-composite__mcq-option {
+  margin-bottom: 6px;
+}
+
+.exam-composite__mcq-option--static {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.exam-composite__mcq-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.exam-composite__mcq-radio {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #4f46e5;
+}
+
+.exam-composite__mcq-box {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #374151;
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.exam-composite__mcq-letter {
+  font-weight: 700;
+  min-width: 1.1em;
+}
+
+.exam-composite__mcq-text {
+  color: #1f2937;
+}
+
+/* Answer lines — lined paper style */
+.exam-composite__answer-lines--static {
+  margin-top: 4px;
+}
+
+.exam-composite__answer-line {
+  height: 28px;
+  border-bottom: 1px solid #7f8794;
+  margin-bottom: 2px;
+}
+
+.exam-composite__answer-input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 4px;
+  padding: 4px 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 27px,
+    #7f8794 27px,
+    #7f8794 28px
+  );
+  background-attachment: local;
+  line-height: 28px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #111827;
+  resize: none;
+  overflow: hidden;
+}
+
+.exam-composite__answer-input:focus {
+  outline: none;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 27px,
+    #4f46e5 27px,
+    #4f46e5 28px
+  );
+}
+
+.exam-composite__written-parts {
+  margin-top: 4px;
+}
+
+/* Footer: reveal */
+.exam-composite__footer {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.exam-composite__reveal-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #7c3aed;
+  background: #fff;
+  color: #5b21b6;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.exam-composite__reveal-btn:hover {
+  background: #f5f3ff;
+}
+
+.exam-composite__reveal {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.exam-composite__reveal-part {
+  margin-bottom: 14px;
+}
+
+.exam-composite__reveal-part:last-child {
+  margin-bottom: 0;
+}
+
+.exam-composite__reveal-part-label {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.exam-composite__reveal-answer {
+  margin: 0 0 6px;
+}
+
+.exam-composite__reveal-scheme-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #374151;
+}
+
+.exam-composite__reveal-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.exam-composite__reveal-list li {
+  margin-bottom: 4px;
+}
+
+.exam-composite__reveal-empty {
+  margin: 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Desktop/tablet: two-column context row */
+@media (min-width: 640px) {
+  .exam-composite__context--with-image {
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  .exam-composite__image-col {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 42%;
+  }
+
+  .exam-composite__image-panel .exam-composite__image {
+    max-height: 240px;
+  }
+
+  .exam-composite__stem-col {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 900px) {
+  .exam-composite__image-col {
+    max-width: 38%;
+  }
+}
