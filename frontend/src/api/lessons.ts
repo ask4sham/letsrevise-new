@@ -52,6 +52,13 @@ export type AutoGenerateResult = {
   lesson: any;
 };
 
+export async function submitLessonForApproval(lessonId: string): Promise<{ success: boolean; msg?: string }> {
+  const res = await api.post<{ success: boolean; msg?: string }>(
+    `/lessons/${lessonId}/submit-for-approval`
+  );
+  return res.data!;
+}
+
 export async function autoGenerateFromBanks(
   lessonId: string,
   topicKey?: string | null

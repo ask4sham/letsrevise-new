@@ -1667,6 +1667,7 @@ const LessonViewPage: React.FC = () => {
 
   // entry=preview: force content-first render (page 1) — overrides URL until we clean it
   const entry = searchParams.get("entry") ?? "";
+  const isApprovalPreview = searchParams.get("mode") === "approval";
   const hasExplicitTarget =
     (location.hash || "").trim() !== "" ||
     searchParams.has("openPractice") ||
@@ -3613,6 +3614,56 @@ const LessonViewPage: React.FC = () => {
               }}
             >
               Review request — preview only. You cannot edit, publish, or delete this lesson.
+            </div>
+          )}
+          {accessDecision?.reason === "APPROVED_PREVIEW" && (
+            <div
+              style={{
+                padding: "10px 14px",
+                border: "1px solid #86efac",
+                borderRadius: 10,
+                marginBottom: v12StudentPresentation ? 8 : 12,
+                fontSize: "0.9rem",
+                color: "#166534",
+                background: "#ecfdf5",
+                lineHeight: 1.45,
+              }}
+            >
+              LetsRevise Approved lesson — preview only. You cannot edit this master lesson.
+            </div>
+          )}
+          {isApprovalPreview && (
+            <div
+              style={{
+                padding: "12px 16px",
+                border: "1px solid #86efac",
+                borderRadius: 10,
+                marginBottom: v12StudentPresentation ? 8 : 12,
+                fontSize: "0.9rem",
+                color: "#166534",
+                background: "#ecfdf5",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ lineHeight: 1.45 }}>
+                <strong>LetsRevise Approval Preview</strong> — This is how the lesson will appear to
+                teachers and students.
+              </div>
+              <Link
+                to="/admin/teacher-library"
+                style={{
+                  color: "#047857",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                ← Back to Teacher Library
+              </Link>
             </div>
           )}
           {!hasFullLessonAccess && (

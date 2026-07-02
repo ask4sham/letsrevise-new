@@ -96,7 +96,7 @@ const ShareForReviewModal: React.FC<Props> = ({ lessonId, lessonTitle, open, onC
       const grantedPermission = (res.data?.permission as SharePermission) || permission;
       if (grantedPermission === "TEACH") {
         setSuccess(
-          `Teaching access granted to ${displayName}.\n\n${firstName} will now see this lesson under Teaching Library on their Teacher Dashboard.`
+          `Teaching access granted to ${displayName}.\n\n${firstName} will now see this lesson under Shared with Me on their Teacher Dashboard.`
         );
       } else {
         setSuccess(

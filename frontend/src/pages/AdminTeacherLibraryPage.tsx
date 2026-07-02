@@ -270,7 +270,7 @@ const AdminTeacherLibraryPage: React.FC = () => {
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
                   <Link
-                    to={`/admin/lesson/${lesson.id}`}
+                    to={`/lesson/${lesson.id}?mode=approval`}
                     style={{
                       padding: "8px 14px",
                       borderRadius: 8,

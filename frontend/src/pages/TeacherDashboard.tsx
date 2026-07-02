@@ -17,6 +17,9 @@ import {
   type PublishWarningSummary,
 } from "../utils/formatPublishWarningMessage";
 import ShareForReviewModal from "../components/teacher/ShareForReviewModal";
+import LessonCatalogueApprovalSection from "../components/teacher/LessonCatalogueApprovalSection";
+import { submitLessonForApproval } from "../api/lessons";
+import { fetchApprovedLessons, type ApprovedLessonCard } from "../api/approvedLessons";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -57,6 +60,13 @@ type LessonRow = {
   recommendedForCurriculumCheck?: boolean;
   /** Phase 3: student practice signals suggest reviewing curriculum (manual AI only). */
   needsCurriculumReview?: boolean;
+  /** LetsRevise Approved catalogue workflow (teacher-submit-for-approval-v1). */
+  teacherLibrary?: {
+    status?: string;
+    version?: number | null;
+    approvedAt?: string | null;
+    rejectionNotes?: string;
+  };
 };
 
 type ReviewRequestRow = LessonRow & {
@@ -68,7 +78,9 @@ type ReviewRequestRow = LessonRow & {
 
 type TeachingLibraryRow = ReviewRequestRow;
 
-type LessonsTab = "mine" | "review-requests" | "teaching-library";
+type ApprovedLessonRow = ApprovedLessonCard;
+
+type LessonsTab = "mine" | "review-requests" | "teaching-library" | "approved-lessons";
 
 /** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
 type TaxonomyTopicInfo = { topic: string; unit: string; requiredPractical: boolean };
@@ -164,7 +176,10 @@ const TeacherDashboard: React.FC = () => {
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState(false);
   const [teachingLibrary, setTeachingLibrary] = useState<TeachingLibraryRow[]>([]);
   const [teachingLibraryLoading, setTeachingLibraryLoading] = useState(false);
+  const [approvedLessons, setApprovedLessons] = useState<ApprovedLessonRow[]>([]);
+  const [approvedLessonsLoading, setApprovedLessonsLoading] = useState(false);
   const [shareModalLesson, setShareModalLesson] = useState<{ id: string; title: string } | null>(null);
+  const [catalogueSubmittingLessonId, setCatalogueSubmittingLessonId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalLessons: 0,
     publishedLessons: 0,
@@ -405,6 +420,14 @@ const TeacherDashboard: React.FC = () => {
         readiness: l.readiness ?? undefined,
         examQuestions: l.examQuestions,
         reviewedAt: l.reviewedAt,
+        teacherLibrary: l.teacherLibrary
+          ? {
+              status: l.teacherLibrary.status,
+              version: l.teacherLibrary.version ?? null,
+              approvedAt: l.teacherLibrary.approvedAt ?? null,
+              rejectionNotes: l.teacherLibrary.rejectionNotes,
+            }
+          : undefined,
       }));
 
       setLessons(mapped);
@@ -504,12 +527,28 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
+  const fetchApprovedLessonsList = async () => {
+    setApprovedLessonsLoading(true);
+    try {
+      const rows = await fetchApprovedLessons();
+      setApprovedLessons(rows);
+    } catch (err) {
+      console.error("Error fetching approved lessons:", err);
+      setApprovedLessons([]);
+    } finally {
+      setApprovedLessonsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (lessonsTab === "review-requests") {
       void fetchReviewRequests();
     }
     if (lessonsTab === "teaching-library") {
       void fetchTeachingLibrary();
+    }
+    if (lessonsTab === "approved-lessons") {
+      void fetchApprovedLessonsList();
     }
   }, [lessonsTab]);
 
@@ -627,6 +666,21 @@ const TeacherDashboard: React.FC = () => {
         return;
       }
       alert(base);
+    }
+  };
+
+  const handleSubmitForApproval = async (lessonId: string) => {
+    setCatalogueSubmittingLessonId(lessonId);
+    try {
+      await submitLessonForApproval(lessonId);
+      alert("Lesson submitted for LetsRevise approval.");
+      await fetchLessonsFromBackend();
+    } catch (err: any) {
+      console.error("Submit for approval error:", err);
+      const data = err?.data || err?.response?.data;
+      alert(data?.error || err?.message || "Failed to submit lesson for approval.");
+    } finally {
+      setCatalogueSubmittingLessonId(null);
     }
   };
 
@@ -1534,9 +1588,27 @@ const TeacherDashboard: React.FC = () => {
                   cursor: "pointer",
                 }}
               >
-                Teaching Library
+                Shared with Me
                 {teachingLibrary.length > 0 ? (
                   <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>({teachingLibrary.length})</span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLessonsTab("approved-lessons")}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: lessonsTab === "approved-lessons" ? "2px solid #48bb78" : "1px solid #e5e7eb",
+                  background: lessonsTab === "approved-lessons" ? "#ecfdf5" : "#fff",
+                  color: lessonsTab === "approved-lessons" ? "#166534" : "#374151",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Approved Lessons
+                {approvedLessons.length > 0 ? (
+                  <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>({approvedLessons.length})</span>
                 ) : null}
               </button>
             </div>
@@ -1545,7 +1617,9 @@ const TeacherDashboard: React.FC = () => {
                 ? `${lessons.length} lesson${lessons.length !== 1 ? "s" : ""}`
                 : lessonsTab === "review-requests"
                   ? `${reviewRequests.length} request${reviewRequests.length !== 1 ? "s" : ""}`
-                  : `${teachingLibrary.length} lesson${teachingLibrary.length !== 1 ? "s" : ""}`}
+                  : lessonsTab === "approved-lessons"
+                    ? `${approvedLessons.length} lesson${approvedLessons.length !== 1 ? "s" : ""}`
+                    : `${teachingLibrary.length} lesson${teachingLibrary.length !== 1 ? "s" : ""}`}
             </div>
           </div>
 
@@ -1611,11 +1685,11 @@ const TeacherDashboard: React.FC = () => {
             )
           ) : lessonsTab === "teaching-library" ? (
             teachingLibraryLoading ? (
-              <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>Loading teaching library…</div>
+              <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>Loading shared lessons…</div>
             ) : teachingLibrary.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px" }}>
                 <div style={{ fontSize: "3rem", color: "#e2e8f0", marginBottom: "20px" }}>🎓</div>
-                <h3 style={{ color: "#666", marginBottom: "10px" }}>No shared lessons to teach</h3>
+                <h3 style={{ color: "#666", marginBottom: "10px" }}>No shared lessons</h3>
                 <p style={{ color: "#999" }}>
                   When another teacher shares a lesson with you for classroom teaching, it will appear here.
                 </p>
@@ -1667,6 +1741,114 @@ const TeacherDashboard: React.FC = () => {
                     </Link>
                   </div>
                 ))}
+              </div>
+            )
+          ) : lessonsTab === "approved-lessons" ? (
+            approvedLessonsLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>Loading approved lessons…</div>
+            ) : approvedLessons.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px" }}>
+                <div style={{ fontSize: "3rem", color: "#e2e8f0", marginBottom: "20px" }}>✓</div>
+                <h3 style={{ color: "#666", marginBottom: "10px" }}>No approved lessons yet</h3>
+                <p style={{ color: "#999" }}>
+                  Approved lessons will appear here once LetsRevise has reviewed and approved them.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {approvedLessons.map((lesson) => {
+                  const boardLabel = lesson.examBoard || lesson.board || "Board not set";
+                  return (
+                    <div
+                      key={lesson._id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 16,
+                        padding: 16,
+                        background: "#fff",
+                        borderRadius: 12,
+                        border: "1px solid #bbf7d0",
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                          <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#111827" }}>
+                            {lesson.title}
+                          </h3>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              padding: "4px 10px",
+                              borderRadius: 8,
+                              background: "#48bb78",
+                              color: "#fff",
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            ✓ LetsRevise Approved
+                          </span>
+                          {lesson.catalogueVersion != null ? (
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "#166534" }}>
+                              Version {lesson.catalogueVersion}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p style={{ margin: "0 0 4px", fontSize: 14, color: "#374151" }}>
+                          {lesson.subject} · {lesson.level} · {boardLabel}
+                          {lesson.topic ? ` · ${lesson.topic}` : ""}
+                        </p>
+                        {lesson.teacherName ? (
+                          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+                            By {lesson.teacherName}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+                        <Link to={`/lesson/${lesson._id}?mode=approved-preview`}>
+                          <button
+                            type="button"
+                            style={{
+                              width: 130,
+                              padding: "8px 14px",
+                              background: "#fff",
+                              color: "#374151",
+                              border: "1px solid #d1d5db",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontSize: 13,
+                              fontWeight: 600,
+                            }}
+                          >
+                            Preview
+                          </button>
+                        </Link>
+                        <Link to={`/teacher/classroom/${lesson._id}`}>
+                          <button
+                            type="button"
+                            style={{
+                              width: 130,
+                              padding: "8px 14px",
+                              background: "#48bb78",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontSize: 13,
+                              fontWeight: 700,
+                            }}
+                          >
+                            Open Classroom
+                          </button>
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )
           ) : lessons.length === 0 ? (
@@ -1869,6 +2051,15 @@ const TeacherDashboard: React.FC = () => {
                           </span>
                         )}
                       </div>
+                      <LessonCatalogueApprovalSection
+                        isPublished={lesson.isPublished}
+                        teacherLibraryStatus={lesson.teacherLibrary?.status}
+                        catalogueVersion={lesson.teacherLibrary?.version}
+                        approvedAt={lesson.teacherLibrary?.approvedAt}
+                        rejectionNotes={lesson.teacherLibrary?.rejectionNotes}
+                        submitting={catalogueSubmittingLessonId === lesson._id}
+                        onSubmit={() => handleSubmitForApproval(lesson._id)}
+                      />
                     </div>
                     {/* Right: actions (vertical stack) */}
                     <div

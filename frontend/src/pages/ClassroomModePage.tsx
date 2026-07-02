@@ -760,6 +760,22 @@ const ClassroomModePage: React.FC = () => {
             Shared for teaching by {shareMeta?.sharedByName || "the lesson owner"} — view only. You are teaching the master lesson.
           </div>
         )}
+        {accessDecision?.reason === "APPROVED_TEACH" && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 16px",
+              borderRadius: 10,
+              border: "1px solid #86efac",
+              background: "#ecfdf5",
+              color: "#166534",
+              fontSize: "0.95rem",
+              lineHeight: 1.5,
+            }}
+          >
+            LetsRevise Approved lesson — you are teaching the master lesson.
+          </div>
+        )}
         {/* Top bar: Lesson | Reteach tabs + nav */}
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 20, padding: "12px 16px", background: "white", borderRadius: 12, border: "2px solid rgba(59,130,246,0.25)", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
           <div style={{ flex: "1 1 200px" }}>
@@ -769,7 +785,11 @@ const ClassroomModePage: React.FC = () => {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
             <button type="button" onClick={() => setTab("lesson")} style={{ padding: "8px 14px", borderRadius: 8, border: tab === "lesson" ? "2px solid #2563eb" : "2px solid #e2e8f0", background: tab === "lesson" ? "rgba(37,99,235,0.1)" : "white", color: tab === "lesson" ? "#1d4ed8" : "#64748b", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>Lesson</button>
             <button type="button" onClick={() => setTab("reteach")} style={{ padding: "8px 14px", borderRadius: 8, border: tab === "reteach" ? "2px solid #2563eb" : "2px solid #e2e8f0", background: tab === "reteach" ? "rgba(37,99,235,0.1)" : "white", color: tab === "reteach" ? "#1d4ed8" : "#64748b", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>Reteach</button>
-            <Link to={`/teacher/lesson/${lesson.id}`} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #94a3b8", background: "#f1f5f9", color: "#334155", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Back to editor</Link>
+            {accessDecision?.reason !== "APPROVED_TEACH" && accessDecision?.reason !== "SHARED_TEACH" ? (
+              <Link to={`/teacher/lesson/${lesson.id}`} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #94a3b8", background: "#f1f5f9", color: "#334155", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Back to editor</Link>
+            ) : (
+              <Link to="/teacher-dashboard" style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #94a3b8", background: "#f1f5f9", color: "#334155", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Back to dashboard</Link>
+            )}
             {tab === "lesson" && <a href="#practice" style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.1)", color: "#1d4ed8", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Practice</a>}
             {tab === "lesson" && prevPage && <button type="button" onClick={() => setPageIndex((i) => i - 1)} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #94a3b8", background: "white", cursor: "pointer", fontWeight: 700 }}>← Previous</button>}
             {tab === "lesson" && nextPage && <button type="button" onClick={() => setPageIndex((i) => i + 1)} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "#22c55e", color: "white", cursor: "pointer", fontWeight: 700 }}>Next →</button>}
