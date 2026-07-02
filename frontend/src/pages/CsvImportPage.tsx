@@ -10,7 +10,11 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
-import type { SpecKey } from "../api/taxonomy";
+import {
+  getUnitTopics,
+  getTaxonomyTopicsFlat,
+  type SpecKey,
+} from "../api/taxonomy";
 import {
   importFlashcardsCsv,
   importExamQuestionsCsv,
@@ -20,8 +24,6 @@ import {
 } from "../api/csvImport";
 
 type ImportType = "flashcards" | "exam-questions";
-
-type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 export default function CsvImportPage() {
   const { user } = useCurrentUser();
@@ -64,8 +66,8 @@ export default function CsvImportPage() {
     const tk = searchParams.get("topicKey");
     if (!tk || !taxonomy?.units) return;
     const units = taxonomy.units ?? [];
-    const unitContaining = units.find((u: TaxonomyUnit) =>
-      (u.topics || []).some((t: { topic: string; key: string }) => t.key === tk)
+    const unitContaining = units.find((u) =>
+      getUnitTopics(u).some((t) => t.key === tk)
     );
     if (unitContaining) setSelectedUnit(unitContaining.unit);
   }, [searchParams, taxonomy?.units]);
@@ -75,15 +77,15 @@ export default function CsvImportPage() {
     if (!topicKey.trim() || !taxonomy?.units) return;
     if (selectedUnit) return;
     const units = taxonomy.units ?? [];
-    const unitContaining = units.find((u: TaxonomyUnit) =>
-      (u.topics || []).some((t: { topic: string; key: string }) => t.key === topicKey)
+    const unitContaining = units.find((u) =>
+      getUnitTopics(u).some((t) => t.key === topicKey)
     );
     if (unitContaining) setSelectedUnit(unitContaining.unit);
   }, [topicKey, selectedUnit, taxonomy?.units]);
 
   const units = taxonomy?.units ?? [];
-  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
-  const allTopics = units.flatMap((u) => u.topics || []);
+  const topicsInUnit = selectedUnit ? getUnitTopics(units.find((u) => u.unit === selectedUnit)) : [];
+  const allTopics = getTaxonomyTopicsFlat(taxonomy);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];

@@ -3,6 +3,7 @@
  * Keep matching rules in sync with backend/utils/resolveTopicLabelToKey.js
  */
 import type { TaxonomyUnit } from "../api/taxonomy";
+import { getUnitTopics } from "../api/taxonomy";
 import { normalizeTopicString } from "./normalizeLessonTopicKey";
 
 export type TopicLabelMatch =
@@ -81,7 +82,7 @@ function flattenTopics(units: TaxonomyUnit[] | undefined) {
   const topics: Array<{ topic?: string; key?: string }> = [];
   if (!units) return topics;
   for (const u of units) {
-    for (const t of u.topics || []) topics.push(t);
+    for (const t of getUnitTopics(u)) topics.push(t);
   }
   return topics;
 }

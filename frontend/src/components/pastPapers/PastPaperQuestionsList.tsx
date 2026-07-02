@@ -3,7 +3,7 @@
  */
 import React, { useState } from "react";
 import type { PastPaperQuestionItem } from "../../api/pastPaperQuestions";
-import type { TaxonomyResponse } from "../../api/taxonomy";
+import { getTaxonomyKeyToTopic, type TaxonomyResponse } from "../../api/taxonomy";
 
 function topicSlugFromStoredKey(storedKey: string): string {
   if (!storedKey) return "";
@@ -12,13 +12,8 @@ function topicSlugFromStoredKey(storedKey: string): string {
 }
 
 function topicDisplayName(slug: string, taxonomy: TaxonomyResponse | null): string {
-  if (!taxonomy?.units) return slug;
-  for (const u of taxonomy.units) {
-    for (const t of u.topics || []) {
-      if (t.key === slug) return t.topic || slug;
-    }
-  }
-  return slug;
+  if (!taxonomy) return slug;
+  return getTaxonomyKeyToTopic(taxonomy)[slug] || slug;
 }
 
 type Props = {

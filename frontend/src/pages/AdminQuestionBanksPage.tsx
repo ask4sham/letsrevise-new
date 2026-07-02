@@ -7,6 +7,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useTaxonomy } from "../hooks/useTaxonomy";
+import { getUnitTopics, getTaxonomyOptionGroups } from "../api/taxonomy";
 import { reassignTopicFlashcard } from "../api/topicFlashcards";
 import { getStoredSpecKey } from "../utils/specKey";
 
@@ -81,7 +82,7 @@ export default function AdminQuestionBanksPage() {
   const specKey = getStoredSpecKey();
   const { data: taxonomy } = useTaxonomy(specKey);
   const units = taxonomy?.units ?? [];
-  const allTopics = units.flatMap((u) => (u.topics || []).map((t) => ({ ...t, unit: u.unit })));
+  const allTopics = units.flatMap((u) => getUnitTopics(u).map((t) => ({ ...t, unit: u.unit })));
 
   // Filters
   const [filters, setFilters] = useState({
@@ -385,10 +386,10 @@ export default function AdminQuestionBanksPage() {
               style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", marginBottom: "1rem" }}
             >
               <option value="">— Select topic —</option>
-              {units.map((u) => (
-                <optgroup key={u.unit} label={u.unit}>
-                  {(u.topics || []).map((t) => (
-                    <option key={t.key} value={t.key}>{t.topic}</option>
+              {getTaxonomyOptionGroups(taxonomy).map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.topics.map((t) => (
+                    <option key={`${g.label}:${t.key}`} value={t.key}>{t.topic}</option>
                   ))}
                 </optgroup>
               ))}

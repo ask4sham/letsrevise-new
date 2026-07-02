@@ -31,10 +31,12 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import type { SpecKey } from "../api/taxonomy";
+import {
+  getUnitTopics,
+  getTaxonomyTopicsFlat,
+  type SpecKey,
+} from "../api/taxonomy";
 import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
-
-type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 type Tab = "urls" | "upload" | "list" | "mine";
 type ExamBoard = "" | "AQA" | "OCR" | "Edexcel" | "Other";
@@ -407,8 +409,8 @@ const TeacherPastPapersBankPage: React.FC = () => {
   };
 
   const units = taxonomy?.units ?? [];
-  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
-  const allTopics = units.flatMap((u) => u.topics || []);
+  const topicsInUnit = selectedUnit ? getUnitTopics(units.find((u) => u.unit === selectedUnit)) : [];
+  const allTopics = getTaxonomyTopicsFlat(taxonomy);
 
   const sourceLabel = (p: TopicPastPaper) => (p.sourceType === "url" ? "URL" : "File");
   const sourceValue = (p: TopicPastPaper) =>

@@ -27,10 +27,13 @@ import { getQuestionAnalytics } from "../api/teacherAnalytics";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
-import type { SpecKey } from "../api/taxonomy";
+import {
+  getUnitTopics,
+  getTaxonomyTopicsFlat,
+  type SpecKey,
+} from "../api/taxonomy";
 import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
 
-type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 const TeacherQuizBankPage: React.FC = () => {
   const { user } = useCurrentUser({ watchLocation: true });
@@ -85,7 +88,7 @@ const TeacherQuizBankPage: React.FC = () => {
     if (!topicKeyFromUrl || !taxonomy?.units) return;
     const units = taxonomy.units ?? [];
     setTopicKey(topicKeyFromUrl);
-    const unitContaining = units.find((u: TaxonomyUnit) => (u.topics || []).some((t: { topic: string; key: string }) => t.key === topicKeyFromUrl));
+    const unitContaining = units.find((u) => getUnitTopics(u).some((t) => t.key === topicKeyFromUrl));
     if (unitContaining) setSelectedUnit(unitContaining.unit);
   }, [topicKeyFromUrl, taxonomy?.units]);
   const [questions, setQuestions] = useState<TopicQuizQuestion[]>([]);
@@ -510,8 +513,8 @@ const TeacherQuizBankPage: React.FC = () => {
   };
 
   const units = taxonomy?.units ?? [];
-  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
-  const allTopics = units.flatMap((u) => u.topics || []);
+  const topicsInUnit = selectedUnit ? getUnitTopics(units.find((u) => u.unit === selectedUnit)) : [];
+  const allTopics = getTaxonomyTopicsFlat(taxonomy);
 
   function getCorrectLabel(q: TopicQuizQuestion) {
     const labels = "ABCDEF";

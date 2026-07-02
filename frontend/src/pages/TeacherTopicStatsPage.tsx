@@ -7,7 +7,7 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { fetchTopicStats } from "../api/practice";
-import type { SpecKey } from "../api/taxonomy";
+import { getTaxonomyTopicsFlat, type SpecKey } from "../api/taxonomy";
 import type { TopicStat } from "../api/practice";
 
 export default function TeacherTopicStatsPage() {
@@ -36,16 +36,12 @@ export default function TeacherTopicStatsPage() {
 
   const topicKeyToName = React.useMemo(() => {
     const map: Record<string, string> = {};
-    if (taxonomy?.units) {
-      for (const u of taxonomy.units) {
-        for (const t of u.topics || []) {
-          const key = t.key;
-          const short = key.includes(":") ? key.split(":")[1] : key;
-          map[key] = t.topic;
-          map[short] = t.topic;
-          map[`${specKey}:${short}`] = t.topic;
-        }
-      }
+    for (const t of getTaxonomyTopicsFlat(taxonomy)) {
+      const key = t.key;
+      const short = key.includes(":") ? key.split(":")[1] : key;
+      map[key] = t.topic;
+      map[short] = t.topic;
+      map[`${specKey}:${short}`] = t.topic;
     }
     return map;
   }, [taxonomy, specKey]);

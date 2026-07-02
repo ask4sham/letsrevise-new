@@ -6,7 +6,11 @@ import { SpecSelector } from "../SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../../utils/specKey";
 import { useTaxonomy } from "../../hooks/useTaxonomy";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
-import type { SpecKey } from "../../api/taxonomy";
+import {
+  getTaxonomyOptionGroups,
+  getTaxonomyTopicsFlat,
+  type SpecKey,
+} from "../../api/taxonomy";
 import { getApiClientErrorMessage, getErrorMessageFromData } from "../../utils/apiErrorMessage";
 import { getApiBaseUrl } from "../../utils/apiBaseUrl";
 
@@ -363,7 +367,7 @@ export default function FlashcardsEditor({
     const raw = String(topicKeyForBankProp).trim();
     if (!raw) return;
     const topicSlug = raw.includes(":") ? raw.slice(raw.indexOf(":") + 1) : raw;
-    const allKeys = (taxonomy.units || []).flatMap((u) => (u.topics || []).map((t) => t.key));
+    const allKeys = getTaxonomyTopicsFlat(taxonomy).map((t) => t.key);
     if (topicSlug && allKeys.includes(topicSlug)) {
       setTopicKeyForBank(topicSlug);
     }
@@ -1017,13 +1021,15 @@ export default function FlashcardsEditor({
                 style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
               >
                 <option value="">Select topic…</option>
-                {taxonomy?.units?.flatMap((u) =>
-                  (u.topics || []).map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {u.unit} — {t.topic}
-                    </option>
-                  ))
-                )}
+                {getTaxonomyOptionGroups(taxonomy).map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.topics.map((t) => (
+                      <option key={`${g.label}:${t.key}`} value={t.key}>
+                        {t.topic}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
               <button
                 type="button"
@@ -1058,13 +1064,15 @@ export default function FlashcardsEditor({
                   style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
                 >
                   <option value="">Select topic…</option>
-                  {taxonomy?.units?.flatMap((u) =>
-                    (u.topics || []).map((t) => (
-                      <option key={t.key} value={t.key}>
-                        {u.unit} — {t.topic}
-                      </option>
-                    ))
-                  )}
+                  {getTaxonomyOptionGroups(taxonomy).map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.topics.map((t) => (
+                        <option key={`${g.label}:${t.key}`} value={t.key}>
+                          {t.topic}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
                 <input
                   type="text"

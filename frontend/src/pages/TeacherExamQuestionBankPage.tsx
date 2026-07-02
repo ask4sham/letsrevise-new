@@ -4,7 +4,12 @@ import api from "../services/api";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
-import type { SpecKey } from "../api/taxonomy";
+import {
+  getTaxonomyOptionGroups,
+  getTaxonomyKeyToTopic,
+  getSpecTopicFieldLabel,
+  type SpecKey,
+} from "../api/taxonomy";
 import { aiRewriteExamQuestion, publishExamQuestion } from "../api/examQuestions";
 import { getApiClientErrorMessage } from "../utils/apiErrorMessage";
 import { getExamPublishReadinessUi } from "../utils/examQuestionPublishReadinessUi";
@@ -46,8 +51,6 @@ type ExamQuestion = {
   createdAt?: string;
   updatedAt?: string;
 };
-
-type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 const TeacherExamQuestionBankPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -91,17 +94,8 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     imageUrl: "",
   });
 
-  const keyToTopic = React.useMemo(() => {
-    const map: Record<string, string> = {};
-    if (taxonomy?.units) {
-      for (const u of taxonomy.units) {
-        for (const t of u.topics || []) {
-          map[t.key] = t.topic;
-        }
-      }
-    }
-    return map;
-  }, [taxonomy]);
+  const topicOptionGroups = React.useMemo(() => getTaxonomyOptionGroups(taxonomy), [taxonomy]);
+  const keyToTopic = React.useMemo(() => getTaxonomyKeyToTopic(taxonomy), [taxonomy]);
 
   const fetchQuestions = useCallback(async () => {
     const gen = ++fetchGenRef.current;
@@ -484,10 +478,10 @@ const TeacherExamQuestionBankPage: React.FC = () => {
           style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #d1d5db", minWidth: "220px" }}
         >
           <option value="">All topics</option>
-          {taxonomy?.units?.map((u) => (
-            <optgroup key={u.unit} label={u.unit}>
-              {(u.topics || []).map((t) => (
-                <option key={t.key} value={t.key}>{t.topic}</option>
+          {topicOptionGroups.map((g) => (
+            <optgroup key={g.label} label={g.label}>
+              {g.topics.map((t) => (
+                <option key={`${g.label}:${t.key}`} value={t.key}>{t.topic}</option>
               ))}
             </optgroup>
           ))}
@@ -919,17 +913,17 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Topic (AQA Biology)</label>
+                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>{getSpecTopicFieldLabel(specKey)}</label>
                 <select
                   value={form.topicKey}
                   onChange={(e) => setForm((f) => ({ ...f, topicKey: e.target.value, topic: e.target.value ? (keyToTopic[e.target.value] ?? "") : "" }))}
                   style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                 >
                   <option value="">— Select topic —</option>
-                  {taxonomy?.units?.map((u) => (
-                    <optgroup key={u.unit} label={u.unit}>
-                      {(u.topics || []).map((t) => (
-                        <option key={t.key} value={t.key}>{t.topic}</option>
+                  {topicOptionGroups.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.topics.map((t) => (
+                        <option key={`${g.label}:${t.key}`} value={t.key}>{t.topic}</option>
                       ))}
                     </optgroup>
                   ))}

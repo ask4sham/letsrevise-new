@@ -11,7 +11,7 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
 import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
 import { ExistingLessonsPanel } from "../components/ExistingLessonsPanel";
-import type { SpecKey } from "../api/taxonomy";
+import { getUnitTopics, type SpecKey } from "../api/taxonomy";
 import {
   formatPublishWithQualityWarningsMessage,
   type PublishWarningSummary,
@@ -253,7 +253,7 @@ const TeacherDashboard: React.FC = () => {
     const map: Record<string, TaxonomyTopicInfo> = {};
     for (const u of units) {
       const unitName = u?.unit ?? "";
-      const topics = Array.isArray(u?.topics) ? u.topics : [];
+      const topics = getUnitTopics(u);
       for (const t of topics) {
         const key = t?.key ?? topicToKey(t?.topic);
         if (key) {
@@ -267,7 +267,7 @@ const TeacherDashboard: React.FC = () => {
     }
     const taxonomyUnitsMapped: TaxonomyUnit[] = units.map((u: any) => ({
       unit: u?.unit ?? "",
-      topics: (Array.isArray(u?.topics) ? u.topics : []).map((t: any) => ({
+      topics: getUnitTopics(u).map((t: any) => ({
         topic: t?.topic ?? "",
         key: t?.key ?? topicToKey(t?.topic),
         requiredPractical: !!t?.requiredPractical,

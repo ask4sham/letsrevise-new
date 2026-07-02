@@ -4,7 +4,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { fetchMyExamQuestions, attachFromBank, type ExamQuestion } from "../../api/examQuestions";
-import type { TaxonomyResponse } from "../../api/taxonomy";
+import { getUnitTopics, type TaxonomyResponse } from "../../api/taxonomy";
 import { DifficultySkillFilter, type DifficultySkillFilterValues } from "../filters/DifficultySkillFilter";
 
 type Props = {
@@ -40,7 +40,7 @@ export function AttachFromBankModal({
     () => units.find((u) => u.unit === selectedUnitName) ?? units[0],
     [units, selectedUnitName]
   );
-  const topics = selectedUnit?.topics ?? [];
+  const topics = getUnitTopics(selectedUnit);
 
   if (!isOpen) return null;
 

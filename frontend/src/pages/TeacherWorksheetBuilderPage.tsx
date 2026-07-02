@@ -19,7 +19,11 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import type { SpecKey } from "../api/taxonomy";
+import {
+  getTaxonomyKeyToTopic,
+  getTaxonomyOptionGroups,
+  type SpecKey,
+} from "../api/taxonomy";
 
 type ExamQuestion = {
   _id: string;
@@ -167,15 +171,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     if (filterTopicKey) setFilterTopicKey("");
   };
 
-  const keyToTopic = React.useMemo(() => {
-    const map: Record<string, string> = {};
-    taxonomy?.units?.forEach((u) => {
-      u.topics?.forEach((t) => {
-        map[t.key] = t.topic;
-      });
-    });
-    return map;
-  }, [taxonomy]);
+  const keyToTopic = React.useMemo(() => getTaxonomyKeyToTopic(taxonomy), [taxonomy]);
 
   const fetchQuestions = useCallback(() => {
     setQuestionsLoading(true);
@@ -520,13 +516,15 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
               style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #d1d5db" }}
             >
               <option value="">All topics</option>
-              {taxonomy?.units?.flatMap((u) =>
-                (u.topics || []).map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {u.unit} — {t.topic}
-                  </option>
-                ))
-              )}
+              {getTaxonomyOptionGroups(taxonomy).map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.topics.map((t) => (
+                    <option key={`${g.label}:${t.key}`} value={t.key}>
+                      {t.topic}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px", alignItems: "center" }}>
               <button

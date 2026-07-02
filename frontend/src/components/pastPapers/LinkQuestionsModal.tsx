@@ -2,7 +2,7 @@
  * PR-PAST-PAPERS-UI-2: Manual add past paper question (topic + question + mark scheme).
  */
 import React, { useState } from "react";
-import type { TaxonomyResponse } from "../../api/taxonomy";
+import { getTaxonomyTopicsFlat, type TaxonomyResponse } from "../../api/taxonomy";
 import { linkPastPaperQuestions, type LinkQuestionItem } from "../../api/pastPaperQuestions";
 
 type Props = {
@@ -42,14 +42,10 @@ export function LinkQuestionsModal({
 
   if (!isOpen) return null;
 
-  const topics: { key: string; topic: string }[] = [];
-  if (taxonomy?.units) {
-    for (const u of taxonomy.units) {
-      for (const t of u.topics || []) {
-        topics.push({ key: t.key, topic: t.topic || t.key });
-      }
-    }
-  }
+  const topics = getTaxonomyTopicsFlat(taxonomy).map((t) => ({
+    key: t.key,
+    topic: t.topic || t.key,
+  }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

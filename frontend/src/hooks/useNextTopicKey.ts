@@ -4,7 +4,8 @@
  */
 import { useMemo } from "react";
 import { useTaxonomy } from "./useTaxonomy";
-import type { SpecKey, TaxonomyTopic } from "../api/taxonomy";
+import type { SpecKey } from "../api/taxonomy";
+import { getTaxonomyTopicsFlat } from "../api/taxonomy";
 
 function topicKeyWithoutSpecPrefix(key: string): string {
   const s = (key || "").trim();
@@ -20,12 +21,9 @@ export function useNextTopicKey(specKey: SpecKey | string, currentTopicKey: stri
 
   return useMemo(() => {
     if (!taxonomy?.units?.length || !currentTopicKey?.trim()) return null;
-    const ordered: { key: string }[] = [];
-    for (const u of taxonomy.units) {
-      for (const t of (u.topics || []) as TaxonomyTopic[]) {
-        ordered.push({ key: (t.key ?? "").trim() });
-      }
-    }
+    const ordered = getTaxonomyTopicsFlat(taxonomy).map((t) => ({
+      key: (t.key ?? "").trim(),
+    }));
     const currentRaw = topicKeyWithoutSpecPrefix(currentTopicKey);
     if (!currentRaw) return null;
     const index = ordered.findIndex((t) => t.key === currentRaw || topicKeyWithoutSpecPrefix(t.key) === currentRaw);

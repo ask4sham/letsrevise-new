@@ -103,6 +103,74 @@ export function getSpecTopicFieldLabel(specKey: SpecKey): string {
   return label ? `Topic (${label})` : "Topic";
 }
 
+export type TaxonomyOptionGroup = { label: string; topics: TaxonomyTopic[] };
+
+/**
+ * All selectable topics for a single unit, regardless of taxonomy shape.
+ *
+ * Specs differ: some (e.g. AQA GCSE Biology) put topics directly on
+ * `unit.topics`, while others (e.g. Edexcel IGCSE Biology) nest them under
+ * `unit.sections[].topics` and leave `unit.topics` empty. Always use this to
+ * read a unit's topics so section-based specs are not silently dropped.
+ */
+export function getUnitTopics(
+  unit: Pick<TaxonomyUnit, "topics" | "sections"> | null | undefined
+): TaxonomyTopic[] {
+  if (!unit) return [];
+  const flat = Array.isArray(unit.topics) ? unit.topics : [];
+  const sectioned: TaxonomyTopic[] = [];
+  for (const s of unit.sections || []) {
+    if (Array.isArray(s.topics)) sectioned.push(...s.topics);
+  }
+  return [...flat, ...sectioned];
+}
+
+/** Flat list of every selectable topic across all units (flat + section-nested). */
+export function getTaxonomyTopicsFlat(
+  taxonomy: Pick<TaxonomyResponse, "units"> | null | undefined
+): TaxonomyTopic[] {
+  const out: TaxonomyTopic[] = [];
+  for (const u of taxonomy?.units || []) out.push(...getUnitTopics(u));
+  return out;
+}
+
+/**
+ * Flatten a taxonomy into selectable option groups for a <select>.
+ *
+ * Native <select> cannot nest <optgroup>s, so section topics are surfaced as
+ * "Unit — Section" groups. Groups with no topics are omitted so we never render
+ * an empty, non-selectable <optgroup> label (the Edexcel dropdown bug).
+ */
+export function getTaxonomyOptionGroups(
+  taxonomy: Pick<TaxonomyResponse, "units"> | null | undefined
+): TaxonomyOptionGroup[] {
+  const groups: TaxonomyOptionGroup[] = [];
+  for (const u of taxonomy?.units || []) {
+    const flatTopics = Array.isArray(u.topics) ? u.topics : [];
+    if (flatTopics.length > 0) {
+      groups.push({ label: u.unit, topics: flatTopics });
+    }
+    for (const s of u.sections || []) {
+      const sectionTopics = Array.isArray(s.topics) ? s.topics : [];
+      if (sectionTopics.length > 0) {
+        groups.push({ label: `${u.unit} — ${s.title}`, topics: sectionTopics });
+      }
+    }
+  }
+  return groups;
+}
+
+/** Map of topicKey → display name across flat and section-nested taxonomy topics. */
+export function getTaxonomyKeyToTopic(
+  taxonomy: Pick<TaxonomyResponse, "units"> | null | undefined
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const t of getTaxonomyTopicsFlat(taxonomy)) {
+    if (t.key) map[t.key] = t.topic;
+  }
+  return map;
+}
+
 /** Subject / exam board / level for question forms — derived from active taxonomy. */
 export function getSpecFormMetadataFromTaxonomy(
   taxonomy: Pick<TaxonomyResponse, "subject" | "examBoard" | "level"> | null | undefined

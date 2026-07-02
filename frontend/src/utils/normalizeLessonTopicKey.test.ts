@@ -1,3 +1,8 @@
+jest.mock("../services/api", () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
+}));
+
 import {
   canonicalSlugFromText,
   isLikelyInvalidTopicSlug,

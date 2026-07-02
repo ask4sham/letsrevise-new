@@ -3,7 +3,7 @@
  * PR-METADATA-1: Optional difficulty, skill, estimatedTimeSec.
  */
 import React, { useMemo, useState } from "react";
-import type { TaxonomyResponse } from "../../api/taxonomy";
+import { getUnitTopics, type TaxonomyResponse } from "../../api/taxonomy";
 import { SKILLS, SKILL_LABELS, type Skill } from "../../constants/metadata";
 
 export type AddPastPaperQuestionPayload = {
@@ -41,7 +41,7 @@ export function AddPastPaperQuestionModal({ isOpen, onClose, taxonomy, onSubmit 
     () => units.find((u) => u.unit === selectedUnitName) ?? units[0],
     [units, selectedUnitName]
   );
-  const topics = selectedUnit?.topics ?? [];
+  const topics = getUnitTopics(selectedUnit);
 
   if (!isOpen) return null;
 

@@ -26,7 +26,12 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import type { SpecKey } from "../api/taxonomy";
+import {
+  getUnitTopics,
+  getTaxonomyTopicsFlat,
+  getTaxonomyOptionGroups,
+  type SpecKey,
+} from "../api/taxonomy";
 import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
 
 /** Minimal auto-detect for backend format: "csv" | "newline". */
@@ -442,8 +447,8 @@ const TeacherFlashcardBankPage: React.FC = () => {
 
   // Collections from taxonomy (full list; do not filter by existing flashcards)
   const units = taxonomy?.units ?? [];
-  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
-  const allTopics = units.flatMap((u) => u.topics || []);
+  const topicsInUnit = selectedUnit ? getUnitTopics(units.find((u) => u.unit === selectedUnit)) : [];
+  const allTopics = getTaxonomyTopicsFlat(taxonomy);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
@@ -983,10 +988,10 @@ const TeacherFlashcardBankPage: React.FC = () => {
               style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", marginBottom: "1rem" }}
             >
               <option value="">— Select topic —</option>
-              {units.map((u) => (
-                <optgroup key={u.unit} label={u.unit}>
-                  {(u.topics || []).map((t) => (
-                    <option key={t.key} value={t.key}>
+              {getTaxonomyOptionGroups(taxonomy).map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.topics.map((t) => (
+                    <option key={`${g.label}:${t.key}`} value={t.key}>
                       {t.topic}
                     </option>
                   ))}

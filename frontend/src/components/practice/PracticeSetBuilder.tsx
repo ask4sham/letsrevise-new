@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { SpecSelector } from "../SpecSelector";
-import type { SpecKey } from "../../api/taxonomy";
+import { getTaxonomyTopicsFlat, type SpecKey } from "../../api/taxonomy";
 import { useTaxonomy } from "../../hooks/useTaxonomy";
 
 export type PracticeSetBuilderProps = {
@@ -36,14 +36,10 @@ export function PracticeSetBuilder({
   const [simpleTopicKey, setSimpleTopicKey] = useState("");
 
   const topicOptions = useMemo(() => {
-    const out: { key: string; label: string }[] = [];
-    if (!taxonomy?.units) return out;
-    for (const u of taxonomy.units) {
-      for (const t of u.topics || []) {
-        if (t?.key) out.push({ key: t.key, label: t.topic || t.key });
-      }
-    }
-    return out.sort((a, b) => a.label.localeCompare(b.label));
+    return getTaxonomyTopicsFlat(taxonomy)
+      .filter((t) => t?.key)
+      .map((t) => ({ key: t.key, label: t.topic || t.key }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [taxonomy]);
 
   const prefix = `${specKey}:`;

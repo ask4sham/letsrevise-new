@@ -5,7 +5,7 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { getSpecKeyFromLesson } from "../utils/resolveLessonTopicKey";
-import type { SpecKey } from "../api/taxonomy";
+import { getTaxonomyOptionGroups, type SpecKey } from "../api/taxonomy";
 
 type PaperItem = {
   _id: string;
@@ -375,10 +375,10 @@ const AssessmentPaperEditPage: React.FC = () => {
                   style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #d1d5db", minWidth: "220px" }}
                 >
                   <option value="">All topics</option>
-                  {taxonomy?.units?.map((u) => (
-                    <optgroup key={u.unit} label={u.unit}>
-                      {(u.topics || []).map((t) => (
-                        <option key={t.key} value={t.key}>
+                  {getTaxonomyOptionGroups(taxonomy).map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.topics.map((t) => (
+                        <option key={`${g.label}:${t.key}`} value={t.key}>
                           {t.topic}
                         </option>
                       ))}

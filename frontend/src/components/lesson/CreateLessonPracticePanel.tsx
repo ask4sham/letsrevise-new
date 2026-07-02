@@ -3,7 +3,7 @@ import api from "../../services/api";
 import { SpecSelector } from "../SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../../utils/specKey";
 import { useTaxonomy } from "../../hooks/useTaxonomy";
-import type { SpecKey } from "../../api/taxonomy";
+import { getTaxonomyOptionGroups, type SpecKey } from "../../api/taxonomy";
 
 export type CreateLessonPracticePanelProps = {
   /** Server lesson id once a draft has been saved */
@@ -302,10 +302,10 @@ export function CreateLessonPracticePanel({
               style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "2px solid #e2e8f0", marginBottom: 14 }}
             >
               <option value="">— Select topic —</option>
-              {taxonomyUnits.map((u) => (
-                <optgroup key={u.unit} label={u.unit}>
-                  {(u.topics || []).map((t) => (
-                    <option key={t.key} value={t.key}>
+              {getTaxonomyOptionGroups({ units: taxonomyUnits }).map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.topics.map((t) => (
+                    <option key={`${g.label}:${t.key}`} value={t.key}>
                       {t.topic}
                     </option>
                   ))}

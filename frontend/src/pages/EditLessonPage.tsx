@@ -46,7 +46,7 @@ import {
   normalizeLessonTopicSlugFromLesson,
 } from "../utils/normalizeLessonTopicKey";
 import { logTopicMappingDebug } from "../utils/resolveTopicLabelToKey";
-import { resolveTopicDisplayToKey } from "../api/taxonomy";
+import { resolveTopicDisplayToKey, getTaxonomyOptionGroups } from "../api/taxonomy";
 import { getSpecKeyFromLesson } from "../utils/resolveLessonTopicKey";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import {
@@ -11040,10 +11040,10 @@ const EditLessonPage: React.FC = () => {
               style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "2px solid #e2e8f0", marginBottom: 14 }}
             >
               <option value="">— Select topic —</option>
-              {taxonomyUnits.map((u) => (
-                <optgroup key={u.unit} label={u.unit}>
-                  {(u.topics || []).map((t) => (
-                    <option key={t.key} value={t.key}>{t.topic}</option>
+              {getTaxonomyOptionGroups({ units: taxonomyUnits }).map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.topics.map((t) => (
+                    <option key={`${g.label}:${t.key}`} value={t.key}>{t.topic}</option>
                   ))}
                 </optgroup>
               ))}

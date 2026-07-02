@@ -6,7 +6,17 @@ jest.mock("../services/api", () => ({
 }));
 
 import api from "../services/api";
-import { fetchTaxonomy, getSpecFormMetadataFromTaxonomy, getSpecIdentity, getSpecTopicFieldLabel } from "./taxonomy";
+import {
+  fetchTaxonomy,
+  getSpecFormMetadataFromTaxonomy,
+  getSpecIdentity,
+  getSpecTopicFieldLabel,
+  getTaxonomyKeyToTopic,
+  getTaxonomyOptionGroups,
+  getTaxonomyTopicsFlat,
+  getUnitTopics,
+  type TaxonomyResponse,
+} from "./taxonomy";
 
 describe("fetchTaxonomy", () => {
   beforeEach(() => {
@@ -82,5 +92,71 @@ describe("getSpecIdentity", () => {
 
   it("returns null for unknown spec", () => {
     expect(getSpecIdentity("unknown-spec")).toBeNull();
+  });
+});
+
+const edexcelLikeTaxonomy = {
+  units: [
+    {
+      unit: "The nature and variety of living organisms",
+      topics: [],
+      sections: [
+        {
+          title: "Characteristics of living organisms",
+          slug: "characteristics",
+          topics: [
+            {
+              topic: "Characteristics of Living Organisms",
+              key: "characteristics-of-living-organisms",
+              tier: ["foundation"],
+              requiredPractical: false,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      unit: "Cell Biology",
+      topics: [
+        {
+          topic: "Cell structure",
+          key: "cell-structure",
+          tier: ["foundation"],
+          requiredPractical: false,
+        },
+      ],
+      sections: [],
+    },
+  ],
+} as TaxonomyResponse;
+
+describe("section-aware taxonomy helpers", () => {
+  it("getUnitTopics merges flat and section-nested topics", () => {
+    expect(getUnitTopics(edexcelLikeTaxonomy.units[0]).map((t) => t.key)).toEqual([
+      "characteristics-of-living-organisms",
+    ]);
+    expect(getUnitTopics(edexcelLikeTaxonomy.units[1]).map((t) => t.key)).toEqual(["cell-structure"]);
+  });
+
+  it("getTaxonomyOptionGroups omits empty unit-only groups and surfaces section topics", () => {
+    const groups = getTaxonomyOptionGroups(edexcelLikeTaxonomy);
+    expect(groups.map((g) => g.label)).toEqual([
+      "The nature and variety of living organisms — Characteristics of living organisms",
+      "Cell Biology",
+    ]);
+    expect(groups[0].topics[0].key).toBe("characteristics-of-living-organisms");
+    expect(groups[1].topics[0].key).toBe("cell-structure");
+  });
+
+  it("getTaxonomyTopicsFlat and getTaxonomyKeyToTopic include section topics", () => {
+    const flat = getTaxonomyTopicsFlat(edexcelLikeTaxonomy);
+    expect(flat.map((t) => t.key)).toEqual([
+      "characteristics-of-living-organisms",
+      "cell-structure",
+    ]);
+    expect(getTaxonomyKeyToTopic(edexcelLikeTaxonomy)).toEqual({
+      "characteristics-of-living-organisms": "Characteristics of Living Organisms",
+      "cell-structure": "Cell structure",
+    });
   });
 });

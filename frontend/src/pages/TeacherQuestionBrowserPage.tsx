@@ -6,7 +6,11 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { SpecSelector } from "../components/SpecSelector";
 import { useTaxonomy } from "../hooks/useTaxonomy";
-import type { SpecKey } from "../api/taxonomy";
+import {
+  getUnitTopics,
+  getTaxonomyTopicsFlat,
+  type SpecKey,
+} from "../api/taxonomy";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { listTopicQuizQuestions } from "../api/topicQuizQuestions";
 import type { TopicQuizQuestion as QuizQ } from "../api/topicQuizQuestions";
@@ -120,8 +124,8 @@ const TeacherQuestionBrowserPage: React.FC = () => {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
-  const allTopics = units.flatMap((u) => u.topics || []);
+  const topicsInUnit = selectedUnit ? getUnitTopics(taxonomy?.units?.find((u) => u.unit === selectedUnit)) : [];
+  const allTopics = getTaxonomyTopicsFlat(taxonomy);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
