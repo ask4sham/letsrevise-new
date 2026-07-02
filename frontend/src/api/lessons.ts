@@ -24,8 +24,12 @@ export type LessonResponse =
  * Uses same auth token as api (localStorage) and same base URL.
  * Uses raw fetch (not api.get) so 401 does not trigger global redirect — we show "Please sign in" in-page.
  */
-export async function fetchLessonById(lessonId: string): Promise<LessonResponse> {
-  const url = API_BASE ? `${API_BASE}/lessons/${lessonId}` : `/api/lessons/${lessonId}`;
+export async function fetchLessonById(
+  lessonId: string,
+  options?: { present?: "classroom" }
+): Promise<LessonResponse> {
+  const query = options?.present ? `?present=${encodeURIComponent(options.present)}` : "";
+  const url = API_BASE ? `${API_BASE}/lessons/${lessonId}${query}` : `/api/lessons/${lessonId}${query}`;
   const token = typeof localStorage !== "undefined" ? localStorage.getItem("token") : null;
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

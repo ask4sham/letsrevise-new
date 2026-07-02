@@ -1,6 +1,6 @@
 /**
  * PR9: Teacher-only classroom delivery view.
- * Lesson pages + checkpoints + practice, no paywall, no admin clutter.
+ * @deprecated Open Classroom now redirects to LessonViewPage (?mode=classroom) — student renderer.
  */
 import React, { useMemo, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";

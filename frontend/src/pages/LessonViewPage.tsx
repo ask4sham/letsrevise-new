@@ -1668,6 +1668,7 @@ const LessonViewPage: React.FC = () => {
   // entry=preview: force content-first render (page 1) — overrides URL until we clean it
   const entry = searchParams.get("entry") ?? "";
   const isApprovalPreview = searchParams.get("mode") === "approval";
+  const isClassroomPresentation = searchParams.get("mode") === "classroom";
   const hasExplicitTarget =
     (location.hash || "").trim() !== "" ||
     searchParams.has("openPractice") ||
@@ -1835,7 +1836,7 @@ const LessonViewPage: React.FC = () => {
   useEffect(() => {
     fetchLessonSmart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, isClassroomPresentation]);
 
   useEffect(() => {
     if (!id) return;
@@ -2305,7 +2306,10 @@ const LessonViewPage: React.FC = () => {
    */
   const fetchLessonFromBackend = async (lessonId: string) => {
     try {
-      const result = await fetchLessonById(lessonId);
+      const result = await fetchLessonById(
+        lessonId,
+        isClassroomPresentation ? { present: "classroom" } : undefined
+      );
 
       if (isLessonError(result)) {
         const { status, reason, error } = result.apiError;
@@ -3270,6 +3274,7 @@ const LessonViewPage: React.FC = () => {
     user?.userType === "admin" ||
     user?.userType === "teacher" ||
     (user as any)?.isAdmin === true;
+  const showTeacherLessonChrome = isTeacherOrAdmin && !isClassroomPresentation;
 
   // ============================
   // Render states
@@ -3528,14 +3533,68 @@ const LessonViewPage: React.FC = () => {
         }}>
           {/* ✅ PROOF PANEL REMOVED FROM HERE */}
 
-          <div style={{ marginBottom: v12StudentPresentation ? 6 : 12 }}>
-            <Link
-              to="/dashboard"
-              style={{ color: "#667eea", textDecoration: "none" }}
+          {isClassroomPresentation ? (
+            <div
+              style={{
+                marginBottom: v12StudentPresentation ? 10 : 14,
+                padding: "12px 16px",
+                borderRadius: 10,
+                border: "1px solid #86efac",
+                background: "#ecfdf5",
+                color: "#166534",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
             >
-              ← Back to Dashboard
-            </Link>
-          </div>
+              <div style={{ lineHeight: 1.45, fontSize: "0.9rem" }}>
+                <strong>Classroom presentation</strong> — This is how students see this lesson.
+                {accessDecision?.reason === "APPROVED_TEACH" ? (
+                  <> You are teaching the LetsRevise Approved master lesson.</>
+                ) : null}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Link
+                  to="/teacher-dashboard"
+                  style={{
+                    color: "#047857",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ← Back to Teacher Dashboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => navigate("/teacher-dashboard")}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #86efac",
+                    background: "#fff",
+                    color: "#047857",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  End Classroom
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginBottom: v12StudentPresentation ? 6 : 12 }}>
+              <Link
+                to="/dashboard"
+                style={{ color: "#667eea", textDecoration: "none" }}
+              >
+                ← Back to Dashboard
+              </Link>
+            </div>
+          )}
 
           {/* [Dev] Access panel — REACT_APP_DEV_TOOLS=1 */}
           {process.env.REACT_APP_DEV_TOOLS === "1" && (
@@ -3564,7 +3623,7 @@ const LessonViewPage: React.FC = () => {
           )}
 
           {/* Lesson Integrity debug panel — teacher/admin only */}
-          {isTeacherOrAdmin && lesson && (
+          {showTeacherLessonChrome && lesson && (
             <div
               style={{
                 marginBottom: v12StudentPresentation ? 8 : 16,
@@ -3587,7 +3646,7 @@ const LessonViewPage: React.FC = () => {
             </div>
           )}
 
-          {!hasFullLessonAccess && accessDecision?.reason === "FREE_PREVIEW" && (
+          {!isClassroomPresentation && !hasFullLessonAccess && accessDecision?.reason === "FREE_PREVIEW" && (
             <div
               style={{
                 padding: 8,
@@ -3601,7 +3660,7 @@ const LessonViewPage: React.FC = () => {
               You're viewing a free preview (first page only).
             </div>
           )}
-          {accessDecision?.reason === "SHARED_REVIEW" && (
+          {!isClassroomPresentation && accessDecision?.reason === "SHARED_REVIEW" && (
             <div
               style={{
                 padding: "10px 14px",
@@ -3616,7 +3675,7 @@ const LessonViewPage: React.FC = () => {
               Review request — preview only. You cannot edit, publish, or delete this lesson.
             </div>
           )}
-          {accessDecision?.reason === "APPROVED_PREVIEW" && (
+          {!isClassroomPresentation && accessDecision?.reason === "APPROVED_PREVIEW" && (
             <div
               style={{
                 padding: "10px 14px",
@@ -3632,7 +3691,7 @@ const LessonViewPage: React.FC = () => {
               LetsRevise Approved lesson — preview only. You cannot edit this master lesson.
             </div>
           )}
-          {isApprovalPreview && (
+          {!isClassroomPresentation && isApprovalPreview && (
             <div
               style={{
                 padding: "12px 16px",
@@ -3666,7 +3725,7 @@ const LessonViewPage: React.FC = () => {
               </Link>
             </div>
           )}
-          {!hasFullLessonAccess && (
+          {!isClassroomPresentation && !hasFullLessonAccess && (
             <div
               style={{
                 marginBottom: v12StudentPresentation ? 8 : 14,
@@ -4115,7 +4174,7 @@ const LessonViewPage: React.FC = () => {
                                   v12StudentPresentation ? "v12" : "default"
                                 }
                               />
-                              {user && id && (
+                              {user && id && !isClassroomPresentation && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
                                   <button
                                     type="button"
@@ -4296,7 +4355,7 @@ const LessonViewPage: React.FC = () => {
                               safeStr((b as { role?: string }).role, "")
                             );
                           })()}
-                          {user && id && (
+                          {user && id && !isClassroomPresentation && (
                             <div style={{ marginTop: 6, fontSize: 12 }}>
                               <button
                                 type="button"
@@ -4345,7 +4404,7 @@ const LessonViewPage: React.FC = () => {
                       entitled={Boolean(accessDecision?.allowed)}
                       presentation={v12StudentPresentation ? "v12" : "default"}
                     />
-                    {user && id && (
+                    {user && id && !isClassroomPresentation && (
                       <div style={{ marginTop: 6, fontSize: 12 }}>
                         <button
                           type="button"
@@ -4381,7 +4440,7 @@ const LessonViewPage: React.FC = () => {
                 )}
 
                 {/* Preview / paywall — subscription (no coin unlock) */}
-                {!hasFullLessonAccess && (
+                {!isClassroomPresentation && !hasFullLessonAccess && (
                   <div
                     style={{
                       marginTop: "32px",
@@ -4458,7 +4517,7 @@ const LessonViewPage: React.FC = () => {
                 )}
 
                 {/* PR-005: Ask AI about this topic — teacher/admin only */}
-                {isTeacherOrAdmin && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+                {showTeacherLessonChrome && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
                   <AskAiPanel
                     specKey={specKey}
                     topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
@@ -4503,7 +4562,7 @@ const LessonViewPage: React.FC = () => {
                     </div>
                   ) : pageQuizQuestions.length === 0 && endOfLessonQuizQuestions.length === 0 ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
-                      {isTeacherOrAdmin ? (
+                      {showTeacherLessonChrome ? (
                         id ? (
                           <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
                         ) : (
@@ -4517,7 +4576,7 @@ const LessonViewPage: React.FC = () => {
                     <>
                       {pageQuizQuestions.length === 0 ? (
                         <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
-                          {isTeacherOrAdmin ? (
+                          {showTeacherLessonChrome ? (
                             id ? (
                               <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
                             ) : (
@@ -4648,7 +4707,7 @@ const LessonViewPage: React.FC = () => {
                 {/* PR-FE-FLASHCARDS-COLLAPSE-1: Flashcards collapsed by default; button expands viewer */}
                 <Section
                   title="Flashcards"
-                  right={isTeacherOrAdmin ? (
+                  right={showTeacherLessonChrome ? (
                       <button
                         onClick={handleAIGenerate}
                         disabled={isGenerating || !topicKeyForBank}
@@ -4750,7 +4809,7 @@ const LessonViewPage: React.FC = () => {
                             )}
                           </div>
                         )}
-                        {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
+                        {showTeacherLessonChrome && flashcards.length === 0 && topicKeyForBank ? (
                           <div style={{ marginBottom: 8 }}>
                             <button
                               type="button"
@@ -5168,14 +5227,60 @@ const LessonViewPage: React.FC = () => {
       )}
       {/* ✅ PROOF PANEL REMOVED FROM LEGACY VIEW TOO */}
 
-      <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
-        ← Back to Dashboard
-      </Link>
+      {isClassroomPresentation ? (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: "12px 16px",
+            borderRadius: 10,
+            border: "1px solid #86efac",
+            background: "#ecfdf5",
+            color: "#166534",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ lineHeight: 1.45, fontSize: "0.9rem" }}>
+            <strong>Classroom presentation</strong> — This is how students see this lesson.
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link
+              to="/teacher-dashboard"
+              style={{ color: "#047857", fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}
+            >
+              ← Back to Teacher Dashboard
+            </Link>
+            <button
+              type="button"
+              onClick={() => navigate("/teacher-dashboard")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: "1px solid #86efac",
+                background: "#fff",
+                color: "#047857",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontSize: 13,
+              }}
+            >
+              End Classroom
+            </button>
+          </div>
+        </div>
+      ) : (
+        <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
+          ← Back to Dashboard
+        </Link>
+      )}
 
       {/* [Dev] Access panel renders once in structured view only (REACT_APP_DEV_TOOLS=1) */}
 
       {/* Lesson Integrity debug panel — teacher/admin only, dev tools or non-prod (legacy view) */}
-      {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && lesson && (
+      {showTeacherLessonChrome && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && lesson && (
         <div
           style={{
             marginTop: 16,
@@ -5384,7 +5489,7 @@ const LessonViewPage: React.FC = () => {
         )}
 
         {/* PR-005: Ask AI about this topic — teacher/admin only */}
-        {isTeacherOrAdmin && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+        {showTeacherLessonChrome && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
           <AskAiPanel
             specKey={specKey}
             topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
@@ -5435,7 +5540,7 @@ const LessonViewPage: React.FC = () => {
             </div>
           ) : pageQuizQuestions.length === 0 ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
-              {isTeacherOrAdmin ? (
+              {showTeacherLessonChrome ? (
                 id ? (
                   <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
                 ) : (
@@ -5541,7 +5646,7 @@ const LessonViewPage: React.FC = () => {
         {/* PR-FE-FLASHCARDS-COLLAPSE-1: Flashcards collapsed by default; button expands viewer */}
         <Section
           title="Flashcards"
-          right={isTeacherOrAdmin ? (
+          right={showTeacherLessonChrome ? (
             <button
               onClick={handleAIGenerate}
               disabled={isGenerating || !topicKeyForBank}
@@ -5639,7 +5744,7 @@ const LessonViewPage: React.FC = () => {
                     )}
                   </div>
                 )}
-                {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
+                {showTeacherLessonChrome && flashcards.length === 0 && topicKeyForBank ? (
                   <div style={{ marginBottom: 8 }}>
                     <button
                       type="button"
