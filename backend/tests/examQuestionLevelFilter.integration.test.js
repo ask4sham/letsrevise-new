@@ -134,6 +134,23 @@ describe("GET /api/exam-questions level + topicKey selector", () => {
     expect(ids).not.toContain(aqaGcseId);
   });
 
+  test("GCSE + Edexcel IGCSE spec finds IGCSE-labelled Edexcel question", async () => {
+    const res = await request(app)
+      .get("/api/exam-questions")
+      .query({
+        level: "GCSE",
+        examBoard: "Edexcel",
+        specKey: "edexcel-igcse-biology",
+        topicKey: REPRO_TOPIC_KEY,
+        mineOnly: "1",
+      })
+      .set("Authorization", `Bearer ${teacherToken}`);
+    expect(res.status).toBe(200);
+    const ids = (res.body.questions || []).map((q) => String(q._id));
+    expect(ids).toContain(correctKeyId);
+    expect(ids).not.toContain(aqaGcseId);
+  });
+
   test("selector topicKey finds correct-key, mismatched-key AND missing-key questions via topic-text fallback", async () => {
     const res = await request(app)
       .get("/api/exam-questions")

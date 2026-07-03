@@ -27,6 +27,15 @@ describe("examQuestionLevelFilter", () => {
     ).toEqual({ $in: ["IGCSE", "GCSE"] });
   });
 
+  test("GCSE filter expands to IGCSE for Edexcel IGCSE Biology", () => {
+    expect(
+      buildExamQuestionLevelQuery("GCSE", {
+        specKey: "edexcel-igcse-biology",
+        topicKey: "edexcel-igcse-biology:roles-of-oestrogen-and-progesterone-in-the-menstrual-cycle",
+      })
+    ).toEqual({ $in: ["IGCSE", "GCSE"] });
+  });
+
   test("GCSE filter stays exact for AQA", () => {
     expect(
       buildExamQuestionLevelQuery("GCSE", {

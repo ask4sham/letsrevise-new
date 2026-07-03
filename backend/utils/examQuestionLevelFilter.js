@@ -22,13 +22,16 @@ function isEdexcelIgcseBiologyContext(ctx = {}) {
 
 /**
  * Mongo level filter for exam-question list queries.
- * Edexcel IGCSE Biology: IGCSE searches also match legacy GCSE-labelled rows.
+ * Edexcel IGCSE Biology: GCSE and IGCSE are equivalent (lessons may say GCSE; bank rows use IGCSE).
  * AQA GCSE and other specs: exact level match only.
  */
 function buildExamQuestionLevelQuery(level, ctx = {}) {
   const normalized = normalizeLevelLabel(level);
   if (!normalized) return undefined;
-  if (normalized === "IGCSE" && isEdexcelIgcseBiologyContext(ctx)) {
+  if (
+    isEdexcelIgcseBiologyContext(ctx) &&
+    (normalized === "IGCSE" || normalized === "GCSE")
+  ) {
     return { $in: ["IGCSE", "GCSE"] };
   }
   return normalized;

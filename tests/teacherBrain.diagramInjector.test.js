@@ -75,7 +75,7 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
 
     const dragDrop = pages[0].blocks[2];
     expect(dragDrop.note).toMatch(/DRAG & DROP BRIEF/i);
-    expect(dragDrop.note).toMatch(/Cards:/i);
+    expect(dragDrop.note).toMatch(/Suggested cards:/i);
     expect(dragDrop.note).toMatch(/Correct matches:/i);
     expect(dragDrop.note).not.toMatch(/Activity Type:/i);
 

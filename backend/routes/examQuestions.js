@@ -25,6 +25,7 @@ const {
   buildExamQuestionLevelQuery,
   resolveExamQuestionLevelForSave,
 } = require("../utils/examQuestionLevelFilter");
+const { applyExamQuestionTypeFilter } = require("../utils/examQuestionTypeFilter");
 const { buildTopicSelectorQueryClause } = require("../utils/examQuestionTopicSelectorMatch");
 
 /** In-memory score-on-read, optional band filter, sort (matches topic flashcards/quiz list). */
@@ -317,7 +318,7 @@ router.get("/", auth, async (req, res) => {
         query.topicKey = clause.topicKey;
       }
     }
-    if (type) query.type = type;
+    applyExamQuestionTypeFilter(query, type);
 
     const usePagination = pageQ != null && limitQ != null && String(pageQ).trim() !== "" && String(limitQ).trim() !== "";
     const page = usePagination ? clampInt(pageQ, { min: 1, max: 1000, fallback: 1 }) : 1;

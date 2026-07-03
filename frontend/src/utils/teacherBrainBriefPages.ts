@@ -110,6 +110,32 @@ export function pagesForTeacherBrainInjectionApi(
       if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
       if (typeof b.mode === "string" && b.mode.trim()) out.mode = b.mode.trim();
       if (typeof b.note === "string" && b.note.trim()) out.note = b.note.trim();
+      const contentKeys = [
+        "content",
+        "text",
+        "body",
+        "summary",
+        "keyIdea",
+        "explanation",
+        "caption",
+        "prompt",
+        "question",
+        "instructions",
+        "correctAnswer",
+        "questionType",
+        "marks",
+        "totalMarks",
+        "skill",
+        "questionText",
+      ];
+      for (const key of contentKeys) {
+        const v = b[key];
+        if (typeof v === "string" && v.trim()) out[key] = v.trim();
+      }
+      if (Array.isArray(b.items)) out.items = b.items;
+      if (Array.isArray(b.options)) out.options = b.options;
+      if (Array.isArray(b.keywords)) out.keywords = b.keywords;
+      if (Array.isArray(b.keyWords)) out.keyWords = b.keyWords;
       if (Array.isArray(b.pairs)) out.pairs = b.pairs;
       if (Array.isArray(b.sequenceSteps)) out.sequenceSteps = b.sequenceSteps;
       if (Array.isArray(b.hotspots)) out.hotspots = b.hotspots;

@@ -106,7 +106,10 @@ function CompositeMcqOptions({
         if (interactive) {
           return (
             <li key={i} className="exam-composite__mcq-option">
-              <label htmlFor={id} className="exam-composite__mcq-label">
+              {/* Input is nested inside the label, so the label is already the
+                  control's caption. Do NOT also set htmlFor -> that double-fires
+                  the click when the radio itself is clicked, cancelling selection. */}
+              <label className="exam-composite__mcq-label">
                 <input
                   id={id}
                   type="radio"
@@ -173,6 +176,7 @@ function CompositeWrittenPart({
   part,
   index,
   showAnswerSpace,
+  mcqInteractive,
   answerValue,
   onAnswerChange,
   mcqSelectedIndex,
@@ -181,6 +185,7 @@ function CompositeWrittenPart({
   part: ExamQuestionPart;
   index: number;
   showAnswerSpace: boolean;
+  mcqInteractive: boolean;
   answerValue?: string;
   onAnswerChange?: (value: string) => void;
   mcqSelectedIndex?: number;
@@ -201,7 +206,7 @@ function CompositeWrittenPart({
         <CompositeMcqOptions
           options={options}
           partIndex={index}
-          interactive={showAnswerSpace}
+          interactive={mcqInteractive}
           selectedIndex={mcqSelectedIndex}
           onSelect={onMcqSelect}
         />
@@ -235,6 +240,9 @@ function CompositeExamQuestion({
   const isClassroom = mode === "classroom";
   const isEditor = mode === "editor";
   const showAnswerSpaces = !isClassroom && !isEditor;
+  // MCQ options are always selectable (editor preview, lesson preview, classroom) —
+  // decoupled from written answer spaces which stay exam-paper static outside student mode.
+  const mcqInteractive = true;
 
   const parts: ExamQuestionPart[] = Array.isArray(question.parts) ? question.parts : [];
   const totalMarks =
@@ -304,7 +312,7 @@ function CompositeExamQuestion({
                 <CompositeMcqOptions
                   options={firstOptions}
                   partIndex={0}
-                  interactive={showAnswerSpaces}
+                  interactive={mcqInteractive}
                   selectedIndex={mcqSelections[0]}
                   onSelect={(i) => setMcqSelections((prev) => ({ ...prev, 0: i }))}
                 />
@@ -333,6 +341,7 @@ function CompositeExamQuestion({
                 part={part}
                 index={idx}
                 showAnswerSpace={showAnswerSpaces}
+                mcqInteractive={mcqInteractive}
                 answerValue={answers[idx]}
                 onAnswerChange={(v) => setAnswers((prev) => ({ ...prev, [idx]: v }))}
                 mcqSelectedIndex={mcqSelections[idx]}

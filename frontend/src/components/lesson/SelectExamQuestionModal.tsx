@@ -6,7 +6,7 @@ import { fetchExamQuestionsList, type ExamQuestion } from "../../api/examQuestio
 import { getTaxonomyOptionGroups, type TaxonomyResponse } from "../../api/taxonomy";
 import { makeAbsoluteAssetUrl } from "../../utils/assetUrl";
 
-const QUESTION_TYPES = ["mcq", "short", "label", "table", "data"] as const;
+const QUESTION_TYPES = ["mcq", "short", "label", "table", "data", "composite"] as const;
 
 type Props = {
   isOpen: boolean;
