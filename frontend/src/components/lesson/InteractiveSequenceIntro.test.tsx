@@ -76,9 +76,9 @@ describe("InteractiveSequenceIntro", () => {
   it("renders three visually separated sections when teaching markers are present", () => {
     const { container } = render(<InteractiveSequenceIntro intro={STRUCTURED_INTRO} />);
 
-    expect(screen.getByText("🔍 BIG QUESTION")).toBeInTheDocument();
-    expect(screen.getByText("🎯 YOUR MISSION")).toBeInTheDocument();
-    expect(screen.getByText("📝 EXAM LINK")).toBeInTheDocument();
+    expect(screen.getByText("Learning goal")).toBeInTheDocument();
+    expect(screen.getByText("What to do")).toBeInTheDocument();
+    expect(screen.getByText("Exam tip")).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", { level: 2, name: /how does your body react before you even think/i })
@@ -99,7 +99,7 @@ describe("InteractiveSequenceIntro", () => {
   it("falls back to legacy single-paragraph rendering without markers or step lines", () => {
     render(<InteractiveSequenceIntro intro="Follow each step carefully." />);
     expect(screen.getByTestId("lesson-rich-text")).toHaveTextContent("Follow each step carefully.");
-    expect(screen.queryByText("🔍 BIG QUESTION")).not.toBeInTheDocument();
+    expect(screen.queryByText("Learning goal")).not.toBeInTheDocument();
     expect(document.querySelector(".interactive-sequence__intro-step-list")).toBeNull();
   });
 });

@@ -1025,7 +1025,21 @@ h1.lesson-view-title-split .lesson-title-main {
 [data-lesson-presentation="v12"] .student-block--exam-technique .lesson-student-md {
   font-size: var(--lesson-md-body-size) !important;
   line-height: var(--lesson-md-body-lh) !important;
-  color: #78350f !important;
+  color: #111827 !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--exam-technique .lesson-student-md ul,
+[data-lesson-presentation="v12"] .student-block--exam-technique .lesson-student-md ol {
+  margin: 0.5em 0 0 !important;
+  padding-left: 1.35em !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--exam-technique .lesson-student-md li {
+  margin-bottom: 0.75em !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--exam-technique .lesson-student-md li:last-child {
+  margin-bottom: 0 !important;
 }
 
 [data-lesson-presentation="v12"] .student-block__role-badge {
