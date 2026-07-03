@@ -3,14 +3,16 @@
  * Exactly one checkpoint per page; identical typography and spacing.
  * No auto-reveal: user must click "Check answer" to see correctness.
  */
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import "./student/lessonStudentView.css";
 import { logAttempt } from "../../utils/attempts";
-import { mergeCheckpointExplanationParts } from "../../utils/checkpointFeedback";
+import { checkpointMarkSchemeLines, mergeCheckpointExplanationParts } from "../../utils/checkpointFeedback";
 import { SubscribeCTA } from "../SubscribeCTA";
 import { AssessmentFeedback } from "./AssessmentFeedback";
+import { AnswerFeedbackPanel } from "./AnswerFeedbackPanel";
 import { CheckpointDifficultyBadge } from "./CheckpointDifficultyBadge";
 import { parseDifficultyFromMarkScheme } from "../../utils/checkpointDifficulty";
+import { buildMcqFeedback, gradeMcq } from "../../utils/gradeMcq";
 
 const CONTENT_FONT = 16;
 const TITLE_STYLE: React.CSSProperties = {
@@ -76,6 +78,7 @@ export function LessonCheckpoint({
         options={options}
         correctAnswer={correctAnswer}
         explanation={mergedExplanation}
+        markScheme={markSchemeSansMeta}
         difficultyTier={difficultyTier}
         name={name}
         lessonId={lessonId}
@@ -106,6 +109,7 @@ function LessonCheckpointMCQ({
   options,
   correctAnswer,
   explanation,
+  markScheme,
   difficultyTier,
   name,
   lessonId,
@@ -118,6 +122,7 @@ function LessonCheckpointMCQ({
   options: string[];
   correctAnswer: string;
   explanation?: string;
+  markScheme?: string[];
   difficultyTier?: import("../../utils/checkpointDifficulty").CheckpointDifficultyTier;
   name: string;
   lessonId?: string;
@@ -131,7 +136,42 @@ function LessonCheckpointMCQ({
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
   const [recorded, setRecorded] = useState(false);
-  const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
+
+  const markSchemeLines = useMemo(() => checkpointMarkSchemeLines(markScheme), [markScheme]);
+  const correctIndex = useMemo(() => {
+    const ca = correctAnswer.trim();
+    if (!ca) return -1;
+    const idx = options.findIndex((o) => String(o ?? "").trim() === ca);
+    return idx >= 0 ? idx : -1;
+  }, [correctAnswer, options]);
+  const selectedIndex = useMemo(() => {
+    if (selected === null) return -1;
+    const sel = selected.trim();
+    const idx = options.findIndex((o) => String(o ?? "").trim() === sel);
+    return idx >= 0 ? idx : -1;
+  }, [options, selected]);
+
+  const mcqGrade = useMemo(() => {
+    if (!checked || selectedIndex < 0 || correctIndex < 0) return null;
+    return gradeMcq(selectedIndex, correctIndex, options, 1);
+  }, [checked, selectedIndex, correctIndex, options]);
+
+  const mcqFeedback = useMemo(() => {
+    if (!mcqGrade) return undefined;
+    return buildMcqFeedback({
+      grade: mcqGrade,
+      options,
+      markScheme: markSchemeLines,
+      explanation,
+      correctAnswer,
+    });
+  }, [mcqGrade, options, markSchemeLines, explanation, correctAnswer]);
+
+  const isCorrect =
+    checked &&
+    selected !== null &&
+    correctAnswer !== "" &&
+    selected.trim() === correctAnswer;
 
   const getOptionBg = (opt: string) => {
     const optTrim = String(opt ?? "").trim();
@@ -234,14 +274,31 @@ function LessonCheckpointMCQ({
           </button>
         ) : (
           <>
-            <div style={{ marginTop: 2 }}>
-              {isCorrect ? (
-                <span style={{ color: "#15803d", fontWeight: 800 }}>Correct</span>
-              ) : (
-                <span style={{ color: "#b91c1c", fontWeight: 800 }}>Try again</span>
-              )}
-            </div>
-            {entitled ? (
+            {entitled && mcqGrade && mcqFeedback ? (
+              <AnswerFeedbackPanel
+                status={mcqGrade.status}
+                marksAwarded={mcqGrade.marksAwarded}
+                totalMarks={mcqGrade.totalMarks}
+                correctAnswer={
+                  mcqGrade.correctLabel && mcqGrade.correctOption
+                    ? `${mcqGrade.correctLabel} — ${mcqGrade.correctOption}`
+                    : correctAnswer
+                }
+                markScheme={markSchemeLines}
+                mcqFeedback={mcqFeedback}
+                improvementTip={mcqFeedback.improvementTip}
+                variant={v12 ? "v12" : "default"}
+              />
+            ) : (
+              <div style={{ marginTop: 2 }}>
+                {isCorrect ? (
+                  <span style={{ color: "#15803d", fontWeight: 800 }}>Correct</span>
+                ) : (
+                  <span style={{ color: "#b91c1c", fontWeight: 800 }}>Try again</span>
+                )}
+              </div>
+            )}
+            {entitled && mcqGrade && mcqFeedback ? (
               <div style={{ marginTop: 10 }}>
                 <button
                   type="button"
@@ -257,9 +314,19 @@ function LessonCheckpointMCQ({
                     color: "#5b21b6",
                   }}
                 >
-                  {answerRevealed ? "Hide Answer" : "Reveal Answer"}
+                  {answerRevealed ? "Hide answer" : "Reveal answer"}
                 </button>
               </div>
+            ) : null}
+            {entitled && answerRevealed && mcqFeedback ? (
+              <AssessmentFeedback
+                variant={v12 ? "v12" : "default"}
+                answer={correctAnswer}
+                answerLabel="Answer"
+                explanation={explanation}
+                explanationLabel="Explanation"
+                status={isCorrect ? "correct" : "incorrect"}
+              />
             ) : null}
             {!recorded && (
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
@@ -300,15 +367,6 @@ function LessonCheckpointMCQ({
               </div>
             )}
             {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
-            {entitled && answerRevealed ? (
-              <AssessmentFeedback
-                variant={v12 ? "v12" : "default"}
-                answer={correctAnswer}
-                answerLabel="Answer"
-                explanation={explanation}
-                explanationLabel="Explanation"
-              />
-            ) : null}
             {checked && !entitled && (
               <div style={{ marginTop: 8, opacity: 0.85, fontSize: "0.9rem", color: "#6b7280" }}>Subscribe to see the full explanation.</div>
             )}
