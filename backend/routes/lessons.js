@@ -22,6 +22,11 @@ const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/
 const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
 const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
+const {
+  collectEmbeddedExamQuestionIds,
+  buildExamQuestionFingerprints,
+  filterDistinctPracticeExamQuestions,
+} = require("../../lib/teacherBrain/examAwarePractice");
 const { fetchTopicFlashcardsForSeed, fetchTopicFlashcardsForTopicOnly } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
@@ -3386,14 +3391,24 @@ router.get(
       const mode = req.query.mode === "bank-only" ? "bank-only" : "attached-first";
 
       const lesson = await Lesson.findById(lessonId)
-        .select("_id examQuestions teacherId topic topicKey subject level organisationId")
+        .select("_id examQuestions teacherId topic topicKey subject level organisationId pages")
         .populate({
           path: "examQuestions.questionId",
           model: "ExamQuestion",
-          select: "question type marks options correctAnswer correctIndex markScheme topicKey topic status",
+          select:
+            "question type marks options correctAnswer correctIndex markScheme topicKey topic status sharedStem parts imageUrl",
         })
         .lean();
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+
+      const embeddedIds = collectEmbeddedExamQuestionIds(lesson.pages);
+      let examFingerprints = [];
+      if (embeddedIds.size > 0) {
+        const embeddedDocs = await ExamQuestion.find({ _id: { $in: [...embeddedIds] } })
+          .select("_id question sharedStem parts markScheme imageUrl topic type")
+          .lean();
+        examFingerprints = buildExamQuestionFingerprints(embeddedDocs);
+      }
 
       // PR-CONTENT-TARGETING-1: prefer query topicKey (namespaced) when valid so practice is strictly scoped
       const queryTopicKey = typeof req.query.topicKey === "string" ? req.query.topicKey.trim() : null;
@@ -3448,8 +3463,11 @@ router.get(
             return mapQuestion(q);
           })
           .filter(Boolean);
-        questions = questions.slice(0, limit);
-        source = "attached";
+        questions = filterDistinctPracticeExamQuestions(
+          questions.map((q) => ({ ...q, _id: q.id })),
+          { embeddedIds, fingerprints: examFingerprints, limit }
+        ).map(({ _id, ...q }) => q);
+        if (questions.length > 0) source = "attached";
       }
 
       if (questions.length === 0 && validatedKey && examBankTopicFilter) {
@@ -3465,14 +3483,18 @@ router.get(
           status: "published",
           ...ownershipFilter,
         })
-          .select("_id question type marks options correctAnswer correctIndex markScheme topicKey topic")
+          .select("_id question type marks options correctAnswer correctIndex markScheme topicKey topic sharedStem parts imageUrl")
           .sort({ _id: 1 })
           .limit(200)
           .lean();
+        bankRaw = filterDistinctPracticeExamQuestions(bankRaw, {
+          embeddedIds,
+          fingerprints: examFingerprints,
+        });
         const effectiveSeed = seed || `${lessonId}:${req.user?._id ?? "anon"}:${new Date().toISOString().slice(0, 10)}`;
         bankRaw = deterministicShuffle(bankRaw, effectiveSeed);
         questions = bankRaw.slice(0, limit).map((q) => mapQuestion(q));
-        source = "bank";
+        if (questions.length > 0) source = "bank";
       }
 
       return res.status(200).json({

@@ -14,6 +14,11 @@ const contentGraphService = require("./contentGraphService");
 const { topicToKey, topicDisplayToCanonicalKey } = require("../utils/topicTaxonomy");
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
 const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
+const {
+  collectEmbeddedExamQuestionIds,
+  buildExamQuestionFingerprints,
+  filterDistinctPracticeExamQuestions,
+} = require("../../lib/teacherBrain/examAwarePractice");
 
 const FLASHCARD_LIMIT = 20;
 const QUIZ_MCQ_TARGET = 10;
@@ -278,6 +283,17 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
     const existingIds = new Set(
       (lesson.examQuestions || []).map((e) => String(e.questionId))
     );
+    const embeddedIds = collectEmbeddedExamQuestionIds(lesson.pages);
+    for (const eid of embeddedIds) existingIds.add(eid);
+
+    let examFingerprints = [];
+    if (embeddedIds.size > 0) {
+      const embeddedDocs = await ExamQuestion.find({ _id: { $in: [...embeddedIds] } })
+        .select("_id question sharedStem parts markScheme imageUrl topic type")
+        .lean();
+      examFingerprints = buildExamQuestionFingerprints(embeddedDocs);
+    }
+
     const eqBaseQuery = graphExamQuestionIds.length
       ? { _id: { $in: graphExamQuestionIds } }
       : { topicKey: topicQuery };
@@ -294,7 +310,11 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
       const draft = await ExamQuestion.find(draftQuery).lean();
       eqPool = [...eqPool, ...draft];
     }
-    const selected = deterministicTake(eqPool, seed + "exam", EXAM_QUESTION_LIMIT);
+    const distinctPool = filterDistinctPracticeExamQuestions(eqPool, {
+      embeddedIds,
+      fingerprints: examFingerprints,
+    });
+    const selected = deterministicTake(distinctPool, seed + "exam", EXAM_QUESTION_LIMIT);
     let added = 0;
     for (const q of selected) {
       const idStr = String(q._id);

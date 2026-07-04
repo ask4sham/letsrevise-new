@@ -109,6 +109,13 @@ const {
   formatCoveragePlanForPrompt,
   prependCoverageDirectiveToPrompt,
 } = require("../utils/teacherBrainCoverageGate");
+const {
+  collectEmbeddedExamQuestionIds,
+  buildExamQuestionFingerprints,
+  formatExamExclusionDirectiveForPrompt,
+  rejectDuplicatePracticeItems,
+} = require("../../lib/teacherBrain/examAwarePractice");
+const ExamQuestion = require("../models/ExamQuestion");
 
 const VALID_COVERAGE_GENERATION_KINDS = new Set([
   "activity",
@@ -7092,12 +7099,22 @@ For "mcq" also include "options": ["A", "B", "C", "D"] (exactly 4 options; corre
 Generate exactly ${numQuestions} questions. Mix of MCQ and short-answer. Return only a JSON array.`;
 
     let coverageDiagnostics = [];
+    let examFingerprints = [];
     const lessonId = req.body?.lessonId != null ? String(req.body.lessonId).trim() : "";
     if (lessonId) {
       const lesson = await Lesson.findById(lessonId)
         .select("pages quiz flashcards assessment topic subTopic subject board level topicKey title")
         .lean();
       if (lesson) {
+        const embeddedIds = collectEmbeddedExamQuestionIds(lesson.pages);
+        if (embeddedIds.size > 0) {
+          const embeddedDocs = await ExamQuestion.find({ _id: { $in: [...embeddedIds] } })
+            .select("_id question sharedStem parts markScheme imageUrl topic type")
+            .lean();
+          examFingerprints = buildExamQuestionFingerprints(embeddedDocs);
+          const exclusion = formatExamExclusionDirectiveForPrompt(examFingerprints);
+          if (exclusion) userPrompt = `${exclusion}\n${userPrompt}`;
+        }
         const gate = createCoverageGateFromLesson(lesson);
         const plans = planCoverageGatedQuestionBatch(gate, numQuestions, "practice");
         const section = formatCoveragePlanForPrompt(plans);
@@ -7122,10 +7139,15 @@ Generate exactly ${numQuestions} questions. Mix of MCQ and short-answer. Return 
       const q = normalizeQuizQuestion(parsed[i], i);
       if (q) questions.push(q);
     }
-    if (questions.length === 0) {
+    let finalQuestions = questions;
+    if (examFingerprints.length > 0) {
+      const { accepted } = rejectDuplicatePracticeItems(questions, examFingerprints);
+      finalQuestions = accepted;
+    }
+    if (finalQuestions.length === 0) {
       return res.status(502).json({ error: "No valid questions in AI response" });
     }
-    const questionsWithCoverage = questions.map((q, i) => {
+    const questionsWithCoverage = finalQuestions.map((q, i) => {
       const d = coverageDiagnostics[i];
       if (!d) return q;
       return {
