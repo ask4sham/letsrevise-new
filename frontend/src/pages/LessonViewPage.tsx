@@ -35,6 +35,13 @@ import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
 import { Section } from "../components/lesson/Section";
 import { LessonCheckpoint } from "../components/lesson/LessonCheckpoint";
+import { AnswerFeedbackPanel } from "../components/lesson/AnswerFeedbackPanel";
+import { buildMcqFeedback, gradeMcq } from "../utils/gradeMcq";
+import {
+  buildShortAnswerImprovementTip,
+  deriveShortAnswerFeedbackStatus,
+  gradeShortAnswer,
+} from "../utils/gradeShortAnswer";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
@@ -712,7 +719,23 @@ function DiagramBlockContent({
   );
 }
 
-// PR3b: Practice question components (entitled-only section; always show explanation after check)
+function practiceMcqOptionIndex(options: string[], value: string | null | undefined): number {
+  if (value == null) return -1;
+  const sel = String(value).trim();
+  if (!sel) return -1;
+  const idx = options.findIndex((o) => String(o ?? "").trim() === sel);
+  return idx >= 0 ? idx : -1;
+}
+
+function practiceMcqMarkSchemeLines(q: PracticeQuestionLite): string[] {
+  if (Array.isArray(q.markScheme) && q.markScheme.length > 0) {
+    return q.markScheme.map((l) => String(l ?? "").trim()).filter(Boolean);
+  }
+  const expl = q.explanation != null ? String(q.explanation).trim() : "";
+  return expl ? [expl] : [];
+}
+
+// PR3b: Practice question components (entitled-only section; deterministic marking after check)
 function PracticeMCQQuestion({
   q,
   lessonId,
@@ -727,30 +750,76 @@ function PracticeMCQQuestion({
   const [checked, setChecked] = useState(false);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
   const [recorded, setRecorded] = useState(false);
-  const options = Array.isArray(q.options) ? q.options : [];
+  const options = useMemo(
+    () => (Array.isArray(q.options) ? q.options.map((o) => String(o ?? "")) : []),
+    [q.options]
+  );
   const correctAnswer = (q.correctAnswer != null ? String(q.correctAnswer) : "").trim();
-  const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
+  const markSchemeLines = useMemo(() => practiceMcqMarkSchemeLines(q), [q]);
+  const totalMarks = Math.max(1, q.marks ?? 1);
+  const correctIndex = useMemo(
+    () => practiceMcqOptionIndex(options, correctAnswer),
+    [options, correctAnswer]
+  );
+  const selectedIndex = useMemo(
+    () => (checked ? practiceMcqOptionIndex(options, selected) : -1),
+    [checked, options, selected]
+  );
+  const mcqGrade = useMemo(() => {
+    if (!checked || selectedIndex < 0 || correctIndex < 0) return null;
+    return gradeMcq(selectedIndex, correctIndex, options, totalMarks);
+  }, [checked, selectedIndex, correctIndex, options, totalMarks]);
+  const mcqFeedback = useMemo(() => {
+    if (!mcqGrade) return undefined;
+    return buildMcqFeedback({
+      grade: mcqGrade,
+      options,
+      markScheme: markSchemeLines,
+      explanation: q.explanation,
+      correctAnswer,
+    });
+  }, [mcqGrade, options, markSchemeLines, q.explanation, correctAnswer]);
+  const isCorrect = mcqGrade?.status === "correct";
   const name = `practice-mcq-${q.id}`;
 
-  const getOptionBg = (opt: string) => {
-    const optTrim = String(opt ?? "").trim();
-    const isCorrectOpt = correctAnswer !== "" && optTrim === correctAnswer;
-    if (!checked) return "white";
-    if (isCorrectOpt) return "#dcfce7";
-    if (selected !== null && selected.trim() === optTrim && !isCorrect) return "#fee2e2";
-    return "white";
+  const formatMcqAnswerLine = (grade: typeof mcqGrade) => {
+    if (!grade) return "";
+    if (grade.selectedLabel && grade.selectedOption) {
+      return `${grade.selectedLabel} — ${grade.selectedOption}`;
+    }
+    return grade.selectedOption || selected || "";
+  };
+
+  const getPracticeMcqOptionStyle = (opt: string, index: number) => {
+    const baseBorder = "2px solid rgba(0,0,0,0.14)";
+    if (!checked || !mcqGrade) {
+      return { background: "white", border: baseBorder, icon: null as string | null };
+    }
+    if (index === mcqGrade.correctIndex) {
+      return { background: "#dcfce7", border: "2px solid #22c55e", icon: "✅" };
+    }
+    if (index === mcqGrade.selectedIndex && mcqGrade.status === "incorrect") {
+      return { background: "#fee2e2", border: "2px solid #ef4444", icon: "❌" };
+    }
+    return { background: "white", border: baseBorder, icon: null as string | null };
   };
 
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {options.map((opt, i) => (
+        {options.map((opt, i) => {
+          const optionStyle = getPracticeMcqOptionStyle(opt, i);
+          return (
           <div
             key={i}
             className="lr-mcq-option"
             role="button"
             tabIndex={0}
-            style={{ background: getOptionBg(opt), cursor: checked ? "default" : "pointer" }}
+            style={{
+              background: optionStyle.background,
+              border: optionStyle.border,
+              cursor: checked ? "default" : "pointer",
+            }}
             onClick={() => {
               if (!checked) setSelected(String(opt ?? "").trim());
             }}
@@ -761,8 +830,13 @@ function PracticeMCQQuestion({
               }
             }}
           >
-            <div className="lr-mcq-text" style={{ color: "#374151" }}>
-              {opt}
+            <div className="lr-mcq-text" style={{ color: "#374151", display: "flex", alignItems: "center", gap: 8 }}>
+              {optionStyle.icon ? (
+                <span aria-hidden style={{ fontSize: "1.1rem", flexShrink: 0 }}>
+                  {optionStyle.icon}
+                </span>
+              ) : null}
+              <span>{opt}</span>
             </div>
             <div className="lr-mcq-radio">
               <input
@@ -775,7 +849,8 @@ function PracticeMCQQuestion({
               />
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
         {!checked ? (
@@ -796,13 +871,27 @@ function PracticeMCQQuestion({
           </button>
         ) : (
           <>
-            <div style={{ marginTop: 2 }}>
-              {isCorrect ? (
-                <span style={{ color: "#16a34a", fontWeight: 700 }}>✅ Correct</span>
-              ) : (
-                <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>
-              )}
-            </div>
+            {mcqGrade && mcqFeedback ? (
+              <AnswerFeedbackPanel
+                layout="mcq"
+                status={mcqGrade.status}
+                marksAwarded={mcqGrade.marksAwarded}
+                totalMarks={mcqGrade.totalMarks}
+                yourAnswer={formatMcqAnswerLine(mcqGrade)}
+                correctAnswer={
+                  mcqGrade.correctLabel && mcqGrade.correctOption
+                    ? `${mcqGrade.correctLabel} — ${mcqGrade.correctOption}`
+                    : correctAnswer
+                }
+                markScheme={markSchemeLines}
+                mcqFeedback={mcqFeedback}
+                improvementTip={mcqFeedback.improvementTip}
+              />
+            ) : (
+              <div style={{ marginTop: 2, color: "#374151", fontSize: 14 }}>
+                Could not mark this question — the correct option is missing from the bank data.
+              </div>
+            )}
             {!recorded && (
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
@@ -842,22 +931,6 @@ function PracticeMCQQuestion({
               </div>
             )}
             {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
-            {q.explanation ? (
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
-                {!hideExplanationLabel ? (
-                  <strong style={{ color: "#374151" }}>Explanation:</strong>
-                ) : null}
-                <div
-                  style={{
-                    marginTop: hideExplanationLabel ? 0 : 4,
-                    color: "#4b5563",
-                    fontSize: BASE_FONT_SIZE,
-                  }}
-                >
-                  {q.explanation}
-                </div>
-              </div>
-            ) : null}
             <button
               type="button"
               onClick={() => { setSelected(null); setChecked(false); setConfidence(null); setRecorded(false); }}
@@ -891,24 +964,47 @@ function PracticeShortQuestion({
 }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
-  const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
   const [recorded, setRecorded] = useState(false);
   const hasAnswer = answer.trim() !== "";
+  const modelAnswer = q.correctAnswer != null ? String(q.correctAnswer).trim() : "";
+
+  const shortGrade = useMemo(() => {
+    if (!checked) return null;
+    return gradeShortAnswer({
+      userAnswer: answer,
+      markScheme: q.markScheme,
+      correctAnswer: q.correctAnswer,
+      marks: q.marks ?? 1,
+    });
+  }, [checked, answer, q.markScheme, q.correctAnswer, q.marks]);
+
+  const shortFeedbackStatus = shortGrade
+    ? deriveShortAnswerFeedbackStatus(shortGrade.score, shortGrade.maxMarks)
+    : "incorrect";
+
+  const shortImprovementTip = useMemo(() => {
+    if (!shortGrade) return undefined;
+    const missing = (shortGrade.missing || []).map((l) => String(l ?? "").trim()).filter(Boolean);
+    if (missing.length > 0) return `Revise: ${missing[0]}`;
+    return buildShortAnswerImprovementTip(shortGrade);
+  }, [shortGrade]);
+
+  const isFullyCorrect = shortGrade != null && shortGrade.score >= shortGrade.maxMarks;
 
   useEffect(() => {
-    if (!lessonId || !q.id || selfMarked === null || confidence === null || recorded) return;
+    if (!lessonId || !q.id || !checked || confidence === null || recorded || !shortGrade) return;
     logAttempt({
       lessonId,
       source: "practice",
       questionId: q.id,
       questionType: "short",
       answerText: answer.trim(),
-      isCorrect: selfMarked,
+      isCorrect: isFullyCorrect,
       confidence,
     });
     setRecorded(true);
-  }, [lessonId, q.id, selfMarked, confidence, recorded, answer]);
+  }, [lessonId, q.id, checked, confidence, recorded, answer, shortGrade, isFullyCorrect]);
 
   return (
     <div style={{ marginBottom: 16 }}>
@@ -948,34 +1044,26 @@ function PracticeShortQuestion({
           </button>
         ) : (
           <>
-            <div style={{ marginTop: 2, color: "#374151", fontSize: "0.95rem" }}>
-              Compare your answer to the model answer below.
-            </div>
+            {shortGrade ? (
+              <AnswerFeedbackPanel
+                status={shortFeedbackStatus}
+                marksAwarded={shortGrade.score}
+                totalMarks={shortGrade.maxMarks}
+                markScheme={q.markScheme}
+                modelAnswer={modelAnswer || undefined}
+                improvementTip={shortImprovementTip}
+                contradictionFeedback={shortGrade.contradictionFeedback}
+                markSchemeHits={shortGrade.hits}
+                markSchemeMissing={shortGrade.missing}
+              />
+            ) : null}
             <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
               <strong style={{ color: "#374151" }}>Model answer:</strong>
               <div style={{ marginTop: 6, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>
-                {q.correctAnswer != null ? String(q.correctAnswer).trim() : "—"}
+                {modelAnswer || "—"}
               </div>
             </div>
-            {selfMarked === null ? (
-              <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
-                <button
-                  type="button"
-                  onClick={() => setSelfMarked(true)}
-                  style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "rgba(34,197,94,0.1)", color: "#15803d", cursor: "pointer", fontWeight: 700 }}
-                >
-                  I was correct
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelfMarked(false)}
-                  style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #dc2626", background: "rgba(220,38,38,0.1)", color: "#b91c1c", cursor: "pointer", fontWeight: 700 }}
-                >
-                  I was incorrect
-                </button>
-              </div>
-            ) : !recorded ? (
+            {!recorded ? (
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
                 {([1, 2, 3] as const).map((c) => (
@@ -1018,7 +1106,7 @@ function PracticeShortQuestion({
             ) : null}
             <button
               type="button"
-              onClick={() => { setAnswer(""); setChecked(false); setSelfMarked(null); setConfidence(null); setRecorded(false); }}
+              onClick={() => { setAnswer(""); setChecked(false); setConfidence(null); setRecorded(false); }}
               style={{
                 marginTop: 12,
                 padding: "8px 14px",

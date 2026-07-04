@@ -9,6 +9,10 @@ export type AnswerFeedbackPanelProps = {
   marksAwarded: number;
   totalMarks: number;
   correctAnswer?: string;
+  /** Selected option text for structured MCQ feedback (e.g. "B — Mitochondria"). */
+  yourAnswer?: string;
+  /** Structured MCQ layout with ✅/❌ answer lines and revision target. */
+  layout?: "default" | "mcq";
   markScheme?: string[];
   modelAnswer?: string;
   improvementTip?: string;
@@ -20,10 +24,10 @@ export type AnswerFeedbackPanelProps = {
   className?: string;
 };
 
-function statusHeadline(status: AnswerFeedbackStatus): string {
-  if (status === "correct") return "Correct";
+function statusHeadline(status: AnswerFeedbackStatus, layout: "default" | "mcq"): string {
+  if (status === "correct") return layout === "mcq" ? "✅ Correct" : "Correct";
   if (status === "partial") return "Partially correct";
-  return "Incorrect";
+  return layout === "mcq" ? "❌ Incorrect" : "Incorrect";
 }
 
 function McqWrongOptionList({ items }: { items: McqOptionExplanation[] }) {
@@ -50,6 +54,8 @@ export function AnswerFeedbackPanel({
   marksAwarded,
   totalMarks,
   correctAnswer,
+  yourAnswer,
+  layout = "default",
   markScheme,
   modelAnswer,
   improvementTip,
@@ -66,13 +72,16 @@ export function AnswerFeedbackPanel({
   const hits = (markSchemeHits || []).map((l) => String(l ?? "").trim()).filter(Boolean);
   const missing = (markSchemeMissing || []).map((l) => String(l ?? "").trim()).filter(Boolean);
   const correct = String(correctAnswer ?? "").trim();
+  const yours = String(yourAnswer ?? "").trim();
   const model = String(modelAnswer ?? "").trim();
   const tip = String(improvementTip ?? mcqFeedback?.improvementTip ?? "").trim();
+  const isMcqLayout = layout === "mcq";
 
   const rootClass = [
     "answer-feedback-panel",
     `answer-feedback-panel--${status}`,
     variant === "v12" ? "answer-feedback-panel--v12" : "",
+    isMcqLayout ? "answer-feedback-panel--mcq-layout" : "",
     className,
   ]
     .filter(Boolean)
@@ -81,7 +90,7 @@ export function AnswerFeedbackPanel({
   return (
     <div className={rootClass} data-testid="answer-feedback-panel" data-status={status}>
       <div className="answer-feedback-panel__headline">
-        {statusHeadline(status)} — {awarded}/{max}
+        {statusHeadline(status, layout)} — {awarded}/{max}
       </div>
 
       {contradictionFeedback ? (
@@ -90,37 +99,117 @@ export function AnswerFeedbackPanel({
         </div>
       ) : null}
 
-      {correct ? (
-        <div className="answer-feedback-panel__row">
-          <span className="answer-feedback-panel__label">Correct answer</span>
-          <span className="answer-feedback-panel__value">{correct}</span>
-        </div>
-      ) : null}
+      {isMcqLayout ? (
+        <>
+          {yours ? (
+            <div
+              className={`answer-feedback-panel__answer-line answer-feedback-panel__answer-line--yours answer-feedback-panel__answer-line--${status}`}
+              data-testid="answer-feedback-your-answer"
+            >
+              <span className="answer-feedback-panel__label">
+                {status === "correct" ? "✅ Your answer" : "❌ Your answer"}
+              </span>
+              <span
+                className={`answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--${
+                  status === "correct" ? "correct" : "incorrect"
+                }`}
+              >
+                {yours}
+              </span>
+            </div>
+          ) : null}
 
-      {mcqFeedback?.whyCorrect ? (
-        <div className="answer-feedback-panel__section">
-          <div className="answer-feedback-panel__label">Why this is correct</div>
-          <div className="answer-feedback-panel__body">{mcqFeedback.whyCorrect}</div>
-        </div>
-      ) : null}
+          {status === "incorrect" && correct ? (
+            <div
+              className="answer-feedback-panel__answer-line answer-feedback-panel__answer-line--correct"
+              data-testid="answer-feedback-correct-answer"
+            >
+              <span className="answer-feedback-panel__label">✅ Correct answer</span>
+              <span className="answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--correct">
+                {correct}
+              </span>
+            </div>
+          ) : null}
 
-      {mcqFeedback?.whySelectedWrong ? (
-        <div className="answer-feedback-panel__section">
-          <div className="answer-feedback-panel__label">Why your answer is wrong</div>
-          <div className="answer-feedback-panel__body">{mcqFeedback.whySelectedWrong}</div>
-        </div>
-      ) : null}
+          {status === "correct" && mcqFeedback?.whyCorrect ? (
+            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-correct">
+              <div className="answer-feedback-panel__label">🎉 Why this is correct</div>
+              <div className="answer-feedback-panel__body">{mcqFeedback.whyCorrect}</div>
+            </div>
+          ) : null}
 
-      <McqWrongOptionList items={mcqFeedback?.wrongOptionExplanations ?? []} />
+          {status === "incorrect" && mcqFeedback?.whySelectedWrong ? (
+            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-wrong">
+              <div className="answer-feedback-panel__label">🔍 Why your answer is wrong</div>
+              <div className="answer-feedback-panel__body">{mcqFeedback.whySelectedWrong}</div>
+            </div>
+          ) : null}
 
-      {model ? (
+          {status === "incorrect" && tip ? (
+            <div className="answer-feedback-panel__tip" data-testid="answer-feedback-tip">
+              <span className="answer-feedback-panel__label">📘 Revise this concept</span>
+              <span className="answer-feedback-panel__body">{tip}</span>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {yours ? (
+            <div
+              className={`answer-feedback-panel__answer-line answer-feedback-panel__answer-line--yours answer-feedback-panel__answer-line--${status}`}
+              data-testid="answer-feedback-your-answer"
+            >
+              <span className="answer-feedback-panel__label">
+                {status === "correct" ? "✅ Your answer" : "❌ Your answer"}
+              </span>
+              <span
+                className={`answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--${
+                  status === "correct" ? "correct" : "incorrect"
+                }`}
+              >
+                {yours}
+              </span>
+            </div>
+          ) : null}
+
+          {correct && !(status === "correct" && yours) ? (
+            <div
+              className="answer-feedback-panel__answer-line answer-feedback-panel__answer-line--correct"
+              data-testid={status === "incorrect" ? "answer-feedback-correct-answer" : undefined}
+            >
+              <span className="answer-feedback-panel__label">✅ Correct answer</span>
+              <span className="answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--correct">
+                {correct}
+              </span>
+            </div>
+          ) : null}
+
+          {mcqFeedback?.whyCorrect ? (
+            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-correct">
+              <div className="answer-feedback-panel__label">🎉 Why this is correct</div>
+              <div className="answer-feedback-panel__body">{mcqFeedback.whyCorrect}</div>
+            </div>
+          ) : null}
+
+          {mcqFeedback?.whySelectedWrong ? (
+            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-wrong">
+              <div className="answer-feedback-panel__label">🔍 Why your answer is wrong</div>
+              <div className="answer-feedback-panel__body">{mcqFeedback.whySelectedWrong}</div>
+            </div>
+          ) : null}
+
+          <McqWrongOptionList items={mcqFeedback?.wrongOptionExplanations ?? []} />
+        </>
+      )}
+
+      {!isMcqLayout && model ? (
         <div className="answer-feedback-panel__section">
           <div className="answer-feedback-panel__label">Model answer</div>
           <div className="answer-feedback-panel__body">{model}</div>
         </div>
       ) : null}
 
-      {hits.length > 0 ? (
+      {!isMcqLayout && hits.length > 0 ? (
         <div className="answer-feedback-panel__section">
           <div className="answer-feedback-panel__label">Mark scheme points matched</div>
           <ul className="answer-feedback-panel__list">
@@ -131,7 +220,7 @@ export function AnswerFeedbackPanel({
         </div>
       ) : null}
 
-      {missing.length > 0 ? (
+      {!isMcqLayout && missing.length > 0 ? (
         <div className="answer-feedback-panel__section">
           <div className="answer-feedback-panel__label">Still needed for full marks</div>
           <ul className="answer-feedback-panel__list">
@@ -142,7 +231,7 @@ export function AnswerFeedbackPanel({
         </div>
       ) : null}
 
-      {schemeLines.length > 0 && hits.length === 0 && missing.length === 0 ? (
+      {!isMcqLayout && schemeLines.length > 0 && hits.length === 0 && missing.length === 0 ? (
         <div className="answer-feedback-panel__section">
           <div className="answer-feedback-panel__label">Mark scheme</div>
           <ul className="answer-feedback-panel__list">
@@ -153,9 +242,9 @@ export function AnswerFeedbackPanel({
         </div>
       ) : null}
 
-      {tip ? (
+      {!isMcqLayout && tip ? (
         <div className="answer-feedback-panel__tip" data-testid="answer-feedback-tip">
-          <span className="answer-feedback-panel__label">Tip</span>
+          <span className="answer-feedback-panel__label">📘 Revise this concept</span>
           <span className="answer-feedback-panel__body">{tip}</span>
         </div>
       ) : null}

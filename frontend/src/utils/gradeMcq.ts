@@ -148,8 +148,13 @@ export function buildMcqFeedback(input: {
     const selectedExpl =
       String(optionExplanations[grade.selectedIndex] ?? "").trim() ||
       wrongByLabel.get(grade.selectedLabel);
+    const fromList = wrongOptionExplanations.find((w) => w.label === grade.selectedLabel)?.explanation;
     if (selectedExpl) {
       whySelectedWrong = selectedExpl;
+    } else if (fromList) {
+      whySelectedWrong = fromList;
+    } else if (grade.selectedOption && grade.correctLabel && grade.correctOption) {
+      whySelectedWrong = `"${grade.selectedOption}" is not correct. The correct choice is ${grade.correctLabel} — ${grade.correctOption}.`;
     } else if (grade.correctLabel && grade.correctOption) {
       whySelectedWrong = `The correct answer is ${grade.correctLabel} — ${grade.correctOption}.`;
     }
@@ -157,11 +162,14 @@ export function buildMcqFeedback(input: {
 
   let improvementTip: string | undefined;
   if (grade.status === "incorrect") {
-    improvementTip =
-      whySelectedWrong ||
+    const reviseCore =
+      whyCorrectParts.find(Boolean) ||
       (grade.correctLabel && grade.correctOption
-        ? `Review why ${grade.correctLabel} (${grade.correctOption}) is correct.`
-        : "Review the correct answer and explanation.");
+        ? `${grade.correctLabel} — ${grade.correctOption}`
+        : "");
+    improvementTip = reviseCore
+      ? `Revise: ${reviseCore}`
+      : "Revise: review the key idea behind the correct answer.";
   }
 
   return {

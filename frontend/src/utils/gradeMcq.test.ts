@@ -56,7 +56,7 @@ describe("buildMcqFeedback", () => {
       options: OPTIONS,
       markScheme: ["Correct answer: B — 1"],
     });
-    expect(feedback.whySelectedWrong).toMatch(/correct answer is B/i);
-    expect(feedback.improvementTip).toBeTruthy();
+    expect(feedback.whySelectedWrong).toMatch(/not correct|correct answer is B/i);
+    expect(feedback.improvementTip).toMatch(/^Revise:/);
   });
 });

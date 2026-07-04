@@ -84,6 +84,97 @@
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.answer-feedback-panel--mcq-layout .answer-feedback-panel__headline {
+  font-size: 1.0625rem;
+}
+
+.answer-feedback-panel__answer-line {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+}
+
+.answer-feedback-panel__answer-line--yours.answer-feedback-panel__answer-line--correct {
+  background: #ecfdf5;
+  border-color: #22c55e;
+}
+
+.answer-feedback-panel__answer-line--yours.answer-feedback-panel__answer-line--incorrect {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+
+.answer-feedback-panel__answer-line--correct {
+  background: #f0fdf4;
+  border-color: #22c55e;
+}
+
+.answer-feedback-panel__answer-line .answer-feedback-panel__value {
+  display: block;
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.answer-feedback-panel__value-text--correct {
+  color: #15803d;
+}
+
+.answer-feedback-panel__value-text--incorrect {
+  color: #b91c1c;
+}
+
+/* Semantic feedback sections — heading colour + left accent */
+[data-testid="answer-feedback-why-correct"] {
+  border-left: 3px solid #15803d;
+  padding-left: 10px;
+}
+
+[data-testid="answer-feedback-why-correct"] > .answer-feedback-panel__label {
+  color: #15803d;
+  font-weight: 700;
+}
+
+[data-testid="answer-feedback-why-wrong"] {
+  border-left: 3px solid #991b1b;
+  padding-left: 10px;
+}
+
+[data-testid="answer-feedback-why-wrong"] > .answer-feedback-panel__label {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+[data-testid="answer-feedback-tip"] {
+  border-left: 3px solid #1d4ed8;
+  padding-left: 10px;
+}
+
+[data-testid="answer-feedback-tip"] > .answer-feedback-panel__label {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+[data-testid="answer-feedback-tip"] > .answer-feedback-panel__body {
+  color: #475569;
+  font-weight: 400;
+}
+
+.answer-feedback-panel__icon {
+  flex-shrink: 0;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.answer-feedback-panel--mcq-layout .answer-feedback-panel__tip {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 3px solid #1d4ed8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 12px;
+}
+
 .answer-feedback-panel--v12 {
   background: transparent;
   border: none;
