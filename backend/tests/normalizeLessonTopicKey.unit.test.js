@@ -61,4 +61,38 @@ describe("normalizeLessonTopicKey", () => {
     expect(r.slug).toBe("response-to-exercise");
     expect(r.namespaced).toBe("aqa-gcse-biology:response-to-exercise");
   });
+
+  it("accepts long stored slug when valid for Edexcel IGCSE spec", () => {
+    const longValid = "roles-of-oestrogen-and-progesterone-in-the-menstrual-cycle";
+    expect(longValid.length).toBeGreaterThan(48);
+    expect(isLikelyInvalidTopicSlug(longValid)).toBe(true);
+    expect(isValidTopicSlugForSpec("edexcel-igcse-biology", longValid)).toBe(true);
+    const r = normalizeLessonTopicSlug("edexcel-igcse-biology", {
+      topicKey: `edexcel-igcse-biology:${longValid}`,
+    });
+    expect(r.slug).toBe(longValid);
+    expect(r.namespaced).toBe(`edexcel-igcse-biology:${longValid}`);
+    expect(r.repaired).toBe(false);
+  });
+
+  it("still resolves human reproductive systems stored topicKey", () => {
+    const slug = "human-male-and-female-reproductive-systems";
+    const r = normalizeLessonTopicSlug("edexcel-igcse-biology", {
+      topicKey: `edexcel-igcse-biology:${slug}`,
+    });
+    expect(r.slug).toBe(slug);
+    expect(r.namespaced).toBe(`edexcel-igcse-biology:${slug}`);
+  });
+
+  it("rejects long random slug that is not in taxonomy", () => {
+    const bad = "totally-made-up-long-slug-that-is-not-in-the-edexcel-taxonomy-at-all";
+    expect(isLikelyInvalidTopicSlug(bad)).toBe(true);
+    expect(isValidTopicSlugForSpec("edexcel-igcse-biology", bad)).toBe(false);
+    const r = normalizeLessonTopicSlug("edexcel-igcse-biology", {
+      topicKey: `edexcel-igcse-biology:${bad}`,
+      title: bad,
+    });
+    expect(r.slug).toBeNull();
+    expect(r.namespaced).toBeNull();
+  });
 });

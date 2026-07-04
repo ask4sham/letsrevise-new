@@ -87,9 +87,10 @@ function normalizeLessonTopicSlug(specKey, fields = {}) {
     return s;
   };
 
-  let slug =
-    trySlug(canonicalHint) ||
-    (rawSlug && !isLikelyInvalidTopicSlug(rawSlug) ? trySlug(rawSlug) : null);
+  // Validate stored slug against taxonomy before applying length/heuristic guards.
+  // Long but valid Edexcel slugs (e.g. roles-of-oestrogen-and-progesterone-in-the-menstrual-cycle)
+  // must not be rejected solely because isLikelyInvalidTopicSlug is true.
+  let slug = trySlug(canonicalHint) || trySlug(rawSlug);
 
   let repaired = false;
 
@@ -127,10 +128,6 @@ function normalizeLessonTopicSlug(specKey, fields = {}) {
       slug = fromLegacyDisplay;
       repaired = true;
     }
-  }
-
-  if (!slug && rawSlug && !isLikelyInvalidTopicSlug(rawSlug)) {
-    slug = trySlug(rawSlug);
   }
 
   if (!slug) return { slug: null, namespaced: null, repaired };

@@ -59,7 +59,16 @@ function isValidTopicSlugForSpec(specKey, topicSlug) {
   if (!s || !k) return false;
   const taxonomy = getTaxonomyBySpecKey(s);
   if (!taxonomy) return false;
-  const staticKeys = (taxonomy.units || []).flatMap((u) => (u.topics || []).map((t) => t.key));
+  // Include both flat unit.topics[] (AQA layout) and section-nested
+  // unit.sections[].topics[] (Edexcel IGCSE layout). Mirrors the frontend
+  // getUnitTopics() so section leaves are not dropped from validation.
+  const staticKeys = (taxonomy.units || []).flatMap((u) => {
+    const flat = Array.isArray(u.topics) ? u.topics : [];
+    const sectioned = (Array.isArray(u.sections) ? u.sections : []).flatMap((sec) =>
+      Array.isArray(sec.topics) ? sec.topics : []
+    );
+    return [...flat, ...sectioned].map((t) => t.key);
+  });
   if (staticKeys.includes(k)) return true;
   const adminItems = adminSubtopicsBySpec.get(s) || [];
   return isValidTopicForSpecWithItems(s, k, adminItems);
