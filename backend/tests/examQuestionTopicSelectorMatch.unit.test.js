@@ -1,6 +1,7 @@
 const {
   normaliseTopicText,
   buildTopicTitleRegex,
+  resolveSpecKeyForTopicQuery,
   resolveSelectorTopicMatch,
   buildTopicSelectorQueryClause,
 } = require("../utils/examQuestionTopicSelectorMatch");
@@ -58,5 +59,27 @@ describe("examQuestionTopicSelectorMatch", () => {
     // No taxonomy title resolves, so we keep exact topicKey candidate matching only.
     expect(clause.$or).toBeUndefined();
     expect(clause.topicKey.$in).toBeDefined();
+  });
+
+  test("missing specKey defaults to AQA and does not match Edexcel namespaced rows (slug only)", () => {
+    const slug = "roles-of-oestrogen-and-progesterone-in-the-menstrual-cycle";
+    const saved = `edexcel-igcse-biology:${slug}`;
+    const withoutSpec = buildTopicSelectorQueryClause({ topicKey: slug });
+    const withEdexcel = buildTopicSelectorQueryClause({ specKey: "edexcel-igcse-biology", topicKey: slug });
+    const candidatesWithout = withoutSpec.clause.topicKey?.$in || withoutSpec.clause.$or?.[0]?.topicKey?.$in || [];
+    const candidatesWith = withEdexcel.clause.topicKey?.$in || withEdexcel.clause.$or?.[0]?.topicKey?.$in || [];
+    expect(candidatesWithout).toContain(`aqa-gcse-biology:${slug}`);
+    expect(candidatesWithout).not.toContain(saved);
+    expect(candidatesWith).toContain(saved);
+  });
+
+  test("namespaced topicKey infers Edexcel spec without explicit specKey query param", () => {
+    const slug = "roles-of-oestrogen-and-progesterone-in-the-menstrual-cycle";
+    const namespaced = `edexcel-igcse-biology:${slug}`;
+    expect(resolveSpecKeyForTopicQuery({ topicKey: namespaced })).toBe("edexcel-igcse-biology");
+    const { clause } = buildTopicSelectorQueryClause({ topicKey: namespaced });
+    const candidates = clause.topicKey?.$in || clause.$or?.[0]?.topicKey?.$in || [];
+    expect(candidates).toContain(namespaced);
+    expect(candidates).not.toContain(`aqa-gcse-biology:${slug}`);
   });
 });

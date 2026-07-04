@@ -4,6 +4,7 @@ import api from "../services/api";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
   getTaxonomyOptionGroups,
   getTaxonomyKeyToTopic,
@@ -318,6 +319,8 @@ type ExamQuestion = {
 };
 
 const TeacherExamQuestionBankPage: React.FC = () => {
+  const { user } = useCurrentUser({ watchLocation: true });
+  const isAdmin = !!(user?.userType === "admin" || (user as { role?: string; isAdmin?: boolean })?.role === "admin" || (user as { isAdmin?: boolean })?.isAdmin);
   const [searchParams] = useSearchParams();
   const topicKeyFromUrl = searchParams.get("topicKey") ?? "";
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
@@ -407,6 +410,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     try {
       const params: Record<string, string> = {};
       if (filterTopicKey) params.topicKey = filterTopicKey;
+      if (specKey) params.specKey = specKey;
       if (aiLessonAssetsOnly) {
         params.metadataSource = "ai_lesson_assets";
         params.generationType = "exam";
@@ -415,6 +419,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       if (statusFilter) params.status = statusFilter;
       if (sortBy === "qualityScore") params.sortBy = "qualityScore";
       if (qualityBand) params.qualityBand = qualityBand;
+      if (!isAdmin) params.mineOnly = "1";
       const res = await api.get("/exam-questions", { params });
       if (gen !== fetchGenRef.current) return;
       const data = res?.data;
@@ -427,21 +432,32 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     } finally {
       if (gen === fetchGenRef.current) setLoading(false);
     }
-  }, [filterTopicKey, aiLessonAssetsOnly, lessonIdFilter, statusFilter, sortBy, qualityBand]);
+  }, [filterTopicKey, specKey, aiLessonAssetsOnly, lessonIdFilter, statusFilter, sortBy, qualityBand, isAdmin]);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
     setStoredSpecKey(v);
   };
 
-  // Pre-set topic / AI filters from URL (e.g. "Review exam drafts"). Functional updates avoid redundant setState when already in sync.
+  // Pre-set topic / AI filters from URL (e.g. "Review exam drafts"). Mirrors flashcard/quiz bank deep links.
   useEffect(() => {
     const key = searchParams.get("topicKey");
     if (key) setFilterTopicKey((prev) => (prev === key ? prev : key));
+    const sk = searchParams.get("specKey");
+    if (sk) {
+      setSpecKey(sk as SpecKey);
+      setStoredSpecKey(sk as SpecKey);
+    }
     const ms = searchParams.get("metadataSource");
     if (ms === "ai_lesson_assets") {
       setAiLessonAssetsOnly((prev) => (prev ? prev : true));
       setSortBy((prev) => (prev === "qualityScore" ? prev : "qualityScore"));
+    }
+    const lid = searchParams.get("lessonId");
+    if (lid) setLessonIdFilter((prev) => (prev === lid ? prev : lid));
+    const st = searchParams.get("status");
+    if (st === "draft" || st === "published") {
+      setStatusFilter((prev) => (prev === st ? prev : st));
     }
   }, [searchParams]);
 

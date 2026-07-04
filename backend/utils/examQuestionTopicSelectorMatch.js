@@ -33,6 +33,22 @@ function buildTopicTitleRegex(title) {
 }
 
 /**
+ * Resolve specKey for exam-question topic filtering.
+ * Prefer explicit query param; else infer from a namespaced topicKey (e.g. edexcel-igcse-biology:slug).
+ * Only fall back to legacy AQA default when the topicKey is unprefixed.
+ *
+ * @param {{ specKey?: string, topicKey?: string }} input
+ * @returns {string}
+ */
+function resolveSpecKeyForTopicQuery(input = {}) {
+  const explicit = input.specKey && String(input.specKey).trim();
+  if (explicit) return explicit;
+  const parsed = parseTopicKey(String(input.topicKey || "").trim());
+  if (parsed.isNamespaced && parsed.specKey) return parsed.specKey;
+  return DEFAULT_SPEC_LEGACY;
+}
+
+/**
  * Resolve selector matching for a lesson topicKey.
  * Returns canonical topicKey candidates plus (when the topic resolves in the
  * taxonomy) title regexes + normalised titles used as a safe fallback for
@@ -42,8 +58,8 @@ function buildTopicTitleRegex(title) {
  * @returns {{ candidates: string[], titleRegexes: RegExp[], normalisedTitles: string[] }}
  */
 function resolveSelectorTopicMatch(input = {}) {
-  const spec = (input.specKey && String(input.specKey).trim()) || DEFAULT_SPEC_LEGACY;
   const parsed = parseTopicKey(String(input.topicKey || "").trim());
+  const spec = resolveSpecKeyForTopicQuery(input);
   const slug = parsed.topicKey || String(input.topicKey || "").trim();
   const candidates = queryCandidates(spec, slug);
 
@@ -94,6 +110,7 @@ function buildTopicSelectorQueryClause(input = {}) {
 module.exports = {
   normaliseTopicText,
   buildTopicTitleRegex,
+  resolveSpecKeyForTopicQuery,
   resolveSelectorTopicMatch,
   buildTopicSelectorQueryClause,
 };

@@ -26,7 +26,10 @@ const {
   resolveExamQuestionLevelForSave,
 } = require("../utils/examQuestionLevelFilter");
 const { applyExamQuestionTypeFilter } = require("../utils/examQuestionTypeFilter");
-const { buildTopicSelectorQueryClause } = require("../utils/examQuestionTopicSelectorMatch");
+const {
+  buildTopicSelectorQueryClause,
+  resolveSpecKeyForTopicQuery,
+} = require("../utils/examQuestionTopicSelectorMatch");
 
 /** In-memory score-on-read, optional band filter, sort (matches topic flashcards/quiz list). */
 function finalizeExamQuestionsForList(items, query) {
@@ -160,7 +163,7 @@ router.get("/mine", auth, async (req, res) => {
 
     // STRICT TAXONOMY: Only exact sub-topic matching. No specKey-only broadening.
     if (topicKeyQ && String(topicKeyQ).trim()) {
-      const spec = (specKey && String(specKey).trim()) || DEFAULT_SPEC_LEGACY;
+      const spec = resolveSpecKeyForTopicQuery({ specKey, topicKey: topicKeyQ });
       const candidates = queryCandidates(spec, parseTopicKey(String(topicKeyQ).trim()).topicKey || String(topicKeyQ).trim());
       if (candidates.length) query.topicKey = { $in: candidates };
     }
@@ -301,8 +304,14 @@ router.get("/", auth, async (req, res) => {
     }
     if (subject) query.subject = subject;
     if (examBoard) query.examBoard = examBoard;
+    const effectiveSpecKey =
+      topicKey && String(topicKey).trim()
+        ? resolveSpecKeyForTopicQuery({ specKey: specKeyQ, topicKey })
+        : specKeyQ && String(specKeyQ).trim()
+          ? String(specKeyQ).trim()
+          : undefined;
     const levelFilter = buildExamQuestionLevelQuery(level, {
-      specKey: specKeyQ,
+      specKey: effectiveSpecKey,
       topicKey,
       examBoard,
       subject,
