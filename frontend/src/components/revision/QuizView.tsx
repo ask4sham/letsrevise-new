@@ -1,9 +1,12 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { ExplainMyMistakeButton } from "../ai/ExplainMyMistakeButton";
+import { AnswerFeedbackPanel } from "../lesson/AnswerFeedbackPanel";
+import { buildMcqFeedback, gradeMcq, type McqGradeResult } from "../../utils/gradeMcq";
 import {
   gradeShortAnswer,
   type GradeShortAnswerResult,
 } from "../../utils/gradeShortAnswer";
+import "../lesson/student/lessonStudentView.css";
 
 export type { GradeShortAnswerResult };
 
@@ -41,6 +44,45 @@ export type QuizQuestion =
       marks?: number;
     };
 
+function quizMcqOptionIndex(options: string[], value: string | null | undefined): number {
+  if (value == null) return -1;
+  const sel = String(value).trim();
+  if (!sel) return -1;
+  const idx = options.findIndex((o) => String(o ?? "").trim() === sel);
+  return idx >= 0 ? idx : -1;
+}
+
+function quizMcqMarkSchemeLines(explanation?: string): string[] {
+  const expl = explanation != null ? String(explanation).trim() : "";
+  return expl ? [expl] : [];
+}
+
+function formatQuizMcqAnswerLine(grade: McqGradeResult | null, selected: string): string {
+  if (!grade) return "";
+  if (grade.selectedLabel && grade.selectedOption) {
+    return `${grade.selectedLabel} — ${grade.selectedOption}`;
+  }
+  return grade.selectedOption || selected || "";
+}
+
+function getQuizMcqOptionStyle(
+  checked: boolean,
+  mcqGrade: McqGradeResult | null,
+  index: number
+): { background: string; border: string; icon: string | null } {
+  const baseBorder = "2px solid rgba(0,0,0,0.14)";
+  if (!checked || !mcqGrade) {
+    return { background: "white", border: baseBorder, icon: null };
+  }
+  if (index === mcqGrade.correctIndex) {
+    return { background: "#dcfce7", border: "2px solid #22c55e", icon: "✅" };
+  }
+  if (index === mcqGrade.selectedIndex && mcqGrade.status === "incorrect") {
+    return { background: "#fee2e2", border: "2px solid #ef4444", icon: "❌" };
+  }
+  return { background: "white", border: baseBorder, icon: null };
+}
+
 export function QuizView({
   questions,
   title = "Quiz",
@@ -57,7 +99,7 @@ export function QuizView({
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showFeedback, setShowFeedback] = useState(false);
-  const [lastGrade, setLastGrade] = useState<any>(null);
+  const [lastGrade, setLastGrade] = useState<GradeShortAnswerResult | null>(null);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
   const [helpExpanded, setHelpExpanded] = useState<boolean>(() => {
     // Load user preference from localStorage; default collapsed so question is prominent
@@ -70,6 +112,39 @@ export function QuizView({
   });
 
   const q = questions[i];
+
+  const mcqOptions = useMemo(
+    () => (q?.type === "mcq" ? (q.options || []).map((o) => String(o ?? "")) : []),
+    [q]
+  );
+  const mcqSelectedAnswer = q?.type === "mcq" ? String(answers[q.id] ?? "").trim() : "";
+  const mcqCorrectAnswer = q?.type === "mcq" ? String(q.correctAnswer ?? "").trim() : "";
+  const mcqCorrectIndex = useMemo(
+    () => quizMcqOptionIndex(mcqOptions, mcqCorrectAnswer),
+    [mcqOptions, mcqCorrectAnswer]
+  );
+  const mcqSelectedIndex = useMemo(
+    () => (showFeedback && q?.type === "mcq" ? quizMcqOptionIndex(mcqOptions, mcqSelectedAnswer) : -1),
+    [showFeedback, q, mcqOptions, mcqSelectedAnswer]
+  );
+  const mcqMarkSchemeLines = useMemo(
+    () => (q?.type === "mcq" ? quizMcqMarkSchemeLines(q.explanation) : []),
+    [q]
+  );
+  const mcqGrade = useMemo(() => {
+    if (q?.type !== "mcq" || !showFeedback || mcqSelectedIndex < 0 || mcqCorrectIndex < 0) return null;
+    return gradeMcq(mcqSelectedIndex, mcqCorrectIndex, mcqOptions, q.marks ?? 1);
+  }, [q, showFeedback, mcqSelectedIndex, mcqCorrectIndex, mcqOptions]);
+  const mcqFeedback = useMemo(() => {
+    if (!mcqGrade || q?.type !== "mcq") return undefined;
+    return buildMcqFeedback({
+      grade: mcqGrade,
+      options: mcqOptions,
+      markScheme: mcqMarkSchemeLines,
+      explanation: q.explanation,
+      correctAnswer: mcqCorrectAnswer,
+    });
+  }, [mcqGrade, mcqOptions, mcqMarkSchemeLines, q, mcqCorrectAnswer]);
 
   // Save help state to localStorage when it changes
   useEffect(() => {
@@ -133,10 +208,12 @@ export function QuizView({
       return;
     }
     
-    // For MCQ questions, compare selected answer with correct
-    const correct = (answers[q.id] ?? "").trim() === (q.correctAnswer ?? "").trim();
+    // For MCQ questions, use shared gradeMcq engine
+    const selectedIndex = quizMcqOptionIndex(q.options, answers[q.id]);
+    const correctIndex = quizMcqOptionIndex(q.options, q.correctAnswer);
+    const grade = gradeMcq(selectedIndex, correctIndex, q.options, q.marks ?? 1);
     setShowFeedback(true);
-    onQuestionAnswered?.(correct);
+    onQuestionAnswered?.(grade.status === "correct");
   };
 
   const handleReset = () => {
@@ -391,31 +468,79 @@ export function QuizView({
             </div>
           ) : (
             <div className="mt-4 grid gap-2" style={{ display: "grid", gap: 12 }}>
-              {(q.options || []).map((opt: string, idx: number) => (
-                <label
-                  key={idx}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    cursor: "pointer",
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    border: answers[q.id] === opt ? "2px solid #2563eb" : "2px solid #e2e8f0",
-                    background: answers[q.id] === opt ? "#eff6ff" : "#fff",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name={`q-${q.id}`}
-                    value={opt}
-                    checked={answers[q.id] === opt}
-                    onChange={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
-                    style={{ width: 18, height: 18, accentColor: "#2563eb" }}
-                  />
-                  <span style={{ fontSize: 15, fontWeight: 500 }}>{opt}</span>
-                </label>
-              ))}
+              {(q.options || []).map((opt: string, idx: number) => {
+                const optionStyle = getQuizMcqOptionStyle(showFeedback, mcqGrade, idx);
+                const isSelected = answers[q.id] === opt;
+                return (
+                  <div
+                    key={idx}
+                    className="lr-mcq-option"
+                    role="button"
+                    tabIndex={0}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      cursor: showFeedback ? "default" : "pointer",
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      border: showFeedback
+                        ? optionStyle.border
+                        : isSelected
+                          ? "2px solid #2563eb"
+                          : "2px solid #e2e8f0",
+                      background: showFeedback
+                        ? optionStyle.background
+                        : isSelected
+                          ? "#eff6ff"
+                          : "#fff",
+                    }}
+                    onClick={() => {
+                      if (!showFeedback) setAnswers((a) => ({ ...a, [q.id]: opt }));
+                    }}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === " ") && !showFeedback) {
+                        e.preventDefault();
+                        setAnswers((a) => ({ ...a, [q.id]: opt }));
+                      }
+                    }}
+                  >
+                    <div
+                      className="lr-mcq-text"
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 15,
+                        fontWeight: 500,
+                        color: "#374151",
+                      }}
+                    >
+                      {optionStyle.icon ? (
+                        <span aria-hidden style={{ fontSize: "1.1rem", flexShrink: 0 }}>
+                          {optionStyle.icon}
+                        </span>
+                      ) : null}
+                      <span>{opt}</span>
+                    </div>
+                    <div className="lr-mcq-radio">
+                      <input
+                        type="radio"
+                        name={`q-${q.id}`}
+                        value={opt}
+                        checked={isSelected}
+                        onChange={() => {
+                          if (!showFeedback) setAnswers((a) => ({ ...a, [q.id]: opt }));
+                        }}
+                        disabled={showFeedback}
+                        aria-label={opt}
+                        style={{ width: 18, height: 18, accentColor: "#2563eb" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )
         ) : (
@@ -589,20 +714,44 @@ export function QuizView({
         </div>
       ) : null}
 
-      {showFeedback ? (
+      {showFeedback && q.type === "mcq" && mcqGrade && mcqFeedback ? (
+        <>
+          <AnswerFeedbackPanel
+            layout="mcq"
+            status={mcqGrade.status}
+            marksAwarded={mcqGrade.marksAwarded}
+            totalMarks={mcqGrade.totalMarks}
+            yourAnswer={formatQuizMcqAnswerLine(mcqGrade, mcqSelectedAnswer)}
+            correctAnswer={
+              mcqGrade.correctLabel && mcqGrade.correctOption
+                ? `${mcqGrade.correctLabel} — ${mcqGrade.correctOption}`
+                : mcqCorrectAnswer
+            }
+            markScheme={mcqMarkSchemeLines}
+            mcqFeedback={mcqFeedback}
+            improvementTip={mcqFeedback.improvementTip}
+          />
+          {mcqGrade.status === "incorrect" && (q.question || "").trim() && mcqCorrectAnswer ? (
+            <div className="mt-3">
+              <ExplainMyMistakeButton
+                questionText={(q.question || "").slice(0, 2000)}
+                userAnswer={mcqSelectedAnswer || "No answer given."}
+                correctAnswer={mcqCorrectAnswer}
+              />
+            </div>
+          ) : null}
+        </>
+      ) : showFeedback && q.type === "mcq" && !mcqGrade ? (
+        <div style={{ marginTop: 12, color: "#374151", fontSize: 14 }}>
+          Could not mark this question — the correct option is missing from the quiz data.
+        </div>
+      ) : null}
+
+      {showFeedback && q.type !== "mcq" ? (
         <div className="mt-4 rounded-2xl border p-4">
           <div className="text-sm font-semibold">Feedback</div>
 
-          {q.type === "mcq" ? (
-            <div className="mt-2 text-sm">
-              <div>
-                Your answer: <span className="font-medium">{answers[q.id] ?? "—"}</span>
-              </div>
-              <div>
-                Correct: <span className="font-medium">{q.correctAnswer}</span>
-              </div>
-            </div>
-          ) : q.type === "short" ? (
+          {q.type === "short" ? (
             (q.correctAnswer ?? "").trim() ? (
               <div className="mt-2 text-sm">
                 <div className="opacity-70">Suggested answer:</div>
@@ -622,14 +771,14 @@ export function QuizView({
 
           {q.explanation ? <div className="mt-3 text-sm opacity-80">{q.explanation}</div> : null}
 
-          {/* Step 2 LLM: Explain my mistake — only when answer was wrong */}
           {(() => {
             const userAns = (answers[q.id] ?? "").trim();
-            const correctAns = (q.type === "exam" ? (q.markScheme ?? []).join("\n") || (q.correctAnswer ?? "") : (q.correctAnswer ?? "")).trim();
-            const isWrongMcq = q.type === "mcq" && userAns !== (q.correctAnswer ?? "").trim();
-            const isWrongShortExam = (q.type === "short" || q.type === "exam") && lastGrade != null && lastGrade.score < lastGrade.maxMarks;
-            const isWrong = isWrongMcq || isWrongShortExam;
-            if (!isWrong || !(q.question || "").trim() || !correctAns) return null;
+            const correctAns = (
+              q.type === "exam" ? (q.markScheme ?? []).join("\n") || (q.correctAnswer ?? "") : (q.correctAnswer ?? "")
+            ).trim();
+            const isWrongShortExam =
+              (q.type === "short" || q.type === "exam") && lastGrade != null && lastGrade.score < lastGrade.maxMarks;
+            if (!isWrongShortExam || !(q.question || "").trim() || !correctAns) return null;
             return (
               <div className="mt-3">
                 <ExplainMyMistakeButton

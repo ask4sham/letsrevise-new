@@ -160,6 +160,26 @@
   font-weight: 400;
 }
 
+.answer-feedback-panel__memory-rule {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #eff6ff;
+  border-left: 3px solid #1d4ed8;
+  border-radius: 10px;
+}
+
+.answer-feedback-panel__memory-rule > .answer-feedback-panel__label {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.answer-feedback-panel__memory-rule > .answer-feedback-panel__body {
+  color: #1e3a8a;
+  font-weight: 650;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
 .answer-feedback-panel__icon {
   flex-shrink: 0;
   font-size: 1.05rem;

@@ -69,6 +69,49 @@ describe("AnswerFeedbackPanel", () => {
     expect(screen.getByTestId("answer-feedback-correct-answer").querySelector(".answer-feedback-panel__value-text--correct")).toBeTruthy();
   });
 
+  test("renders memory rule above revise tip when provided", () => {
+    render(
+      <AnswerFeedbackPanel
+        layout="mcq"
+        status="incorrect"
+        marksAwarded={0}
+        totalMarks={1}
+        yourAnswer="D — 23"
+        correctAnswer="B — 1"
+        mcqFeedback={{
+          whySelectedWrong: "23 is the total number of chromosomes, not X chromosomes.",
+          wrongOptionExplanations: [],
+          memoryRule: "Oestrogen rebuilds.\nProgesterone maintains.",
+          improvementTip: "Revise: After ovulation progesterone maintains the uterus lining.",
+        }}
+      />
+    );
+    const memoryRule = screen.getByTestId("answer-feedback-memory-rule");
+    const tip = screen.getByTestId("answer-feedback-tip");
+    expect(memoryRule).toHaveTextContent(/🧠 Memory rule/i);
+    expect(memoryRule).toHaveTextContent(/Oestrogen rebuilds\./);
+    expect(memoryRule.compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test("omits memory rule section when not provided", () => {
+    render(
+      <AnswerFeedbackPanel
+        layout="mcq"
+        status="incorrect"
+        marksAwarded={0}
+        totalMarks={1}
+        yourAnswer="D — 23"
+        correctAnswer="B — 1"
+        mcqFeedback={{
+          whySelectedWrong: "23 is the total number of chromosomes.",
+          wrongOptionExplanations: [],
+          improvementTip: "Revise: A sperm cell is haploid.",
+        }}
+      />
+    );
+    expect(screen.queryByTestId("answer-feedback-memory-rule")).not.toBeInTheDocument();
+  });
+
   test("renders structured MCQ layout for a correct answer", () => {
     render(
       <AnswerFeedbackPanel

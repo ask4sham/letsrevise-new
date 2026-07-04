@@ -145,6 +145,13 @@ export function AnswerFeedbackPanel({
             </div>
           ) : null}
 
+          {status === "incorrect" && mcqFeedback?.memoryRule ? (
+            <div className="answer-feedback-panel__memory-rule" data-testid="answer-feedback-memory-rule">
+              <span className="answer-feedback-panel__label">🧠 Memory rule</span>
+              <span className="answer-feedback-panel__body">{mcqFeedback.memoryRule}</span>
+            </div>
+          ) : null}
+
           {status === "incorrect" && tip ? (
             <div className="answer-feedback-panel__tip" data-testid="answer-feedback-tip">
               <span className="answer-feedback-panel__label">📘 Revise this concept</span>
@@ -195,6 +202,13 @@ export function AnswerFeedbackPanel({
             <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-wrong">
               <div className="answer-feedback-panel__label">🔍 Why your answer is wrong</div>
               <div className="answer-feedback-panel__body">{mcqFeedback.whySelectedWrong}</div>
+            </div>
+          ) : null}
+
+          {status === "incorrect" && mcqFeedback?.memoryRule ? (
+            <div className="answer-feedback-panel__memory-rule" data-testid="answer-feedback-memory-rule">
+              <span className="answer-feedback-panel__label">🧠 Memory rule</span>
+              <span className="answer-feedback-panel__body">{mcqFeedback.memoryRule}</span>
             </div>
           ) : null}
 
