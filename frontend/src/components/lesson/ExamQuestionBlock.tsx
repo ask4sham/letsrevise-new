@@ -239,10 +239,13 @@ function CompositeExamQuestion({
   const [mcqSelections, setMcqSelections] = useState<Record<number, number>>({});
   const isClassroom = mode === "classroom";
   const isEditor = mode === "editor";
-  const showAnswerSpaces = !isClassroom && !isEditor;
   // MCQ options are always selectable (editor preview, lesson preview, classroom) —
   // decoupled from written answer spaces which stay exam-paper static outside student mode.
   const mcqInteractive = true;
+  // Written answers use the lined exam-paper textarea and must be typeable in the
+  // student lesson view AND the teacher/editor preview (for testing). Classroom
+  // presentation mode keeps the static exam-paper lines.
+  const writtenInteractive = !isClassroom;
 
   const parts: ExamQuestionPart[] = Array.isArray(question.parts) ? question.parts : [];
   const totalMarks =
@@ -316,7 +319,7 @@ function CompositeExamQuestion({
                   selectedIndex={mcqSelections[0]}
                   onSelect={(i) => setMcqSelections((prev) => ({ ...prev, 0: i }))}
                 />
-              ) : showAnswerSpaces ? (
+              ) : writtenInteractive ? (
                 <CompositeAnswerLines
                   marks={firstPart.marks}
                   value={answers[0]}
@@ -340,7 +343,7 @@ function CompositeExamQuestion({
                 key={idx}
                 part={part}
                 index={idx}
-                showAnswerSpace={showAnswerSpaces}
+                showAnswerSpace={writtenInteractive}
                 mcqInteractive={mcqInteractive}
                 answerValue={answers[idx]}
                 onAnswerChange={(v) => setAnswers((prev) => ({ ...prev, [idx]: v }))}
