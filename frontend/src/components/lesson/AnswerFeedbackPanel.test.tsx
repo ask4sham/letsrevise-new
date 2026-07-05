@@ -14,9 +14,10 @@ describe("AnswerFeedbackPanel", () => {
       />
     );
     expect(screen.getByTestId("answer-feedback-panel")).toHaveAttribute("data-status", "correct");
-    expect(screen.getByText(/Correct — 1\/1/)).toBeInTheDocument();
+    expect(screen.getByTestId("answer-feedback-hero")).toHaveTextContent(/Correct/i);
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/1 \/ 1 marks/i);
     expect(screen.getByText(/Haploid cell with one sex chromosome/i)).toBeInTheDocument();
-    expect(screen.getByText(/🎉 Why this is correct/i)).toBeInTheDocument();
+    expect(screen.getByText(/why this is correct/i)).toBeInTheDocument();
   });
 
   test("renders incorrect state with wrong-answer explanation", () => {
@@ -35,9 +36,9 @@ describe("AnswerFeedbackPanel", () => {
         improvementTip="Revise: A sperm cell is haploid."
       />
     );
-    expect(screen.getByText(/Incorrect — 0\/1/)).toBeInTheDocument();
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/0 \/ 1 marks/i);
     expect(screen.getByText(/23 is the total number of chromosomes, not X chromosomes/i)).toBeInTheDocument();
-    expect(screen.getByText(/🔍 Why your answer is wrong/i)).toBeInTheDocument();
+    expect(screen.getByText(/why your answer is wrong/i)).toBeInTheDocument();
     expect(screen.getByTestId("answer-feedback-tip")).toHaveTextContent(/Revise:/i);
   });
 
@@ -57,10 +58,11 @@ describe("AnswerFeedbackPanel", () => {
         improvementTip="Revise: A sperm cell is haploid and contains one sex chromosome."
       />
     );
-    expect(screen.getByText(/❌ Incorrect — 0\/1/)).toBeInTheDocument();
-    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/❌ Your answer/);
+    expect(screen.getByTestId("answer-feedback-hero")).toHaveTextContent(/Incorrect/i);
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/0 \/ 1 marks/i);
+    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/❌ Your answer:/);
     expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/D — 23/);
-    expect(screen.getByTestId("answer-feedback-correct-answer")).toHaveTextContent(/✅ Correct answer/);
+    expect(screen.getByTestId("answer-feedback-correct-answer")).toHaveTextContent(/✅ Correct answer:/);
     expect(screen.getByTestId("answer-feedback-correct-answer")).toHaveTextContent(/B — 1/);
     expect(screen.getByTestId("answer-feedback-why-wrong")).toHaveTextContent(/23 is the total number of chromosomes/i);
     expect(screen.getByTestId("answer-feedback-tip")).toHaveTextContent(/Revise this concept/i);
@@ -123,9 +125,10 @@ describe("AnswerFeedbackPanel", () => {
         mcqFeedback={{ whyCorrect: "A sperm cell is haploid.", wrongOptionExplanations: [] }}
       />
     );
-    expect(screen.getByText(/✅ Correct — 1\/1/)).toBeInTheDocument();
-    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/✅ Your answer/);
-    expect(screen.getByText(/🎉 Why this is correct/i)).toBeInTheDocument();
+    expect(screen.getByTestId("answer-feedback-hero")).toHaveTextContent(/Correct/i);
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/1 \/ 1 marks/i);
+    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/✅ Your answer:/);
+    expect(screen.getByText(/why this is correct/i)).toBeInTheDocument();
     expect(screen.getByText(/haploid/i)).toBeInTheDocument();
     expect(screen.getByTestId("answer-feedback-your-answer").querySelector(".answer-feedback-panel__value-text--correct")).toBeTruthy();
   });
@@ -141,7 +144,8 @@ describe("AnswerFeedbackPanel", () => {
         improvementTip="Try to include: Energy allows the tail to move so the sperm can swim."
       />
     );
-    expect(screen.getByText(/Partially correct — 1\/2/)).toBeInTheDocument();
+    expect(screen.getByTestId("answer-feedback-hero")).toHaveTextContent(/Partially correct/i);
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/1 \/ 2 marks/i);
     expect(screen.getByText(/Release energy via aerobic respiration/)).toBeInTheDocument();
     expect(screen.getAllByText(/tail to move/i).length).toBeGreaterThan(0);
   });

@@ -24,28 +24,115 @@ export type AnswerFeedbackPanelProps = {
   className?: string;
 };
 
-function statusHeadline(status: AnswerFeedbackStatus, layout: "default" | "mcq"): string {
-  if (status === "correct") return layout === "mcq" ? "✅ Correct" : "Correct";
+function statusIcon(status: AnswerFeedbackStatus): string {
+  if (status === "correct") return "✅";
+  if (status === "partial") return "🟡";
+  return "❌";
+}
+
+function statusTitle(status: AnswerFeedbackStatus): string {
+  if (status === "correct") return "Correct";
   if (status === "partial") return "Partially correct";
-  return layout === "mcq" ? "❌ Incorrect" : "Incorrect";
+  return "Incorrect";
+}
+
+function FeedbackHero({
+  status,
+  awarded,
+  max,
+}: {
+  status: AnswerFeedbackStatus;
+  awarded: number;
+  max: number;
+}): React.ReactElement {
+  return (
+    <div className="answer-feedback-panel__hero" data-testid="answer-feedback-hero">
+      <div className="answer-feedback-panel__hero-status">
+        <span aria-hidden>{statusIcon(status)}</span>
+        <span>{statusTitle(status)}</span>
+      </div>
+      <div
+        className={`answer-feedback-panel__score-badge answer-feedback-panel__score-badge--${status}`}
+        data-testid="answer-feedback-score-badge"
+      >
+        {awarded} / {max} marks
+      </div>
+    </div>
+  );
+}
+
+function InlineAnswerLine({
+  prefix,
+  value,
+  valueTone,
+  testId,
+}: {
+  prefix: string;
+  value: string;
+  valueTone: "correct" | "incorrect";
+  testId?: string;
+}): React.ReactElement {
+  return (
+    <p className="answer-feedback-panel__inline-answer" data-testid={testId}>
+      <span className={`answer-feedback-panel__inline-prefix answer-feedback-panel__inline-prefix--${valueTone}`}>
+        {prefix}
+      </span>{" "}
+      <span className={`answer-feedback-panel__inline-value answer-feedback-panel__value-text--${valueTone}`}>
+        {value}
+      </span>
+    </p>
+  );
+}
+
+function FeedbackSection({
+  variant,
+  heading,
+  body,
+  testId,
+  uppercase = true,
+}: {
+  variant: "correct" | "wrong" | "memory" | "tip" | "neutral";
+  heading: string;
+  body: React.ReactNode;
+  testId?: string;
+  uppercase?: boolean;
+}): React.ReactElement {
+  return (
+    <div
+      className={`answer-feedback-panel__section answer-feedback-panel__section--${variant}`}
+      data-testid={testId}
+    >
+      <div
+        className="answer-feedback-panel__section-heading"
+        style={uppercase ? undefined : { textTransform: "none" }}
+      >
+        {heading}
+      </div>
+      <div className="answer-feedback-panel__body">{body}</div>
+    </div>
+  );
 }
 
 function McqWrongOptionList({ items }: { items: McqOptionExplanation[] }) {
   if (!items.length) return null;
   return (
-    <div className="answer-feedback-panel__section">
-      <div className="answer-feedback-panel__label">Why other options are wrong</div>
-      <ul className="answer-feedback-panel__list">
-        {items.map((item) => (
-          <li key={item.label}>
-            <strong>
-              {item.label} — {item.option}
-            </strong>
-            : {item.explanation}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <FeedbackSection
+      variant="neutral"
+      heading="Why other options are wrong"
+      uppercase={false}
+      body={
+        <ul className="answer-feedback-panel__list">
+          {items.map((item) => (
+            <li key={item.label}>
+              <strong>
+                {item.label} — {item.option}
+              </strong>
+              : {item.explanation}
+            </li>
+          ))}
+        </ul>
+      }
+    />
   );
 }
 
@@ -89,9 +176,7 @@ export function AnswerFeedbackPanel({
 
   return (
     <div className={rootClass} data-testid="answer-feedback-panel" data-status={status}>
-      <div className="answer-feedback-panel__headline">
-        {statusHeadline(status, layout)} — {awarded}/{max}
-      </div>
+      <FeedbackHero status={status} awarded={awarded} max={max} />
 
       {contradictionFeedback ? (
         <div className="answer-feedback-panel__alert" data-testid="answer-feedback-contradiction">
@@ -102,114 +187,107 @@ export function AnswerFeedbackPanel({
       {isMcqLayout ? (
         <>
           {yours ? (
-            <div
-              className={`answer-feedback-panel__answer-line answer-feedback-panel__answer-line--yours answer-feedback-panel__answer-line--${status}`}
-              data-testid="answer-feedback-your-answer"
-            >
-              <span className="answer-feedback-panel__label">
-                {status === "correct" ? "✅ Your answer" : "❌ Your answer"}
-              </span>
-              <span
-                className={`answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--${
-                  status === "correct" ? "correct" : "incorrect"
-                }`}
-              >
-                {yours}
-              </span>
-            </div>
+            <InlineAnswerLine
+              prefix={status === "correct" ? "✅ Your answer:" : "❌ Your answer:"}
+              value={yours}
+              valueTone={status === "correct" ? "correct" : "incorrect"}
+              testId="answer-feedback-your-answer"
+            />
           ) : null}
 
           {status === "incorrect" && correct ? (
-            <div
-              className="answer-feedback-panel__answer-line answer-feedback-panel__answer-line--correct"
-              data-testid="answer-feedback-correct-answer"
-            >
-              <span className="answer-feedback-panel__label">✅ Correct answer</span>
-              <span className="answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--correct">
-                {correct}
-              </span>
-            </div>
+            <InlineAnswerLine
+              prefix="✅ Correct answer:"
+              value={correct}
+              valueTone="correct"
+              testId="answer-feedback-correct-answer"
+            />
           ) : null}
 
           {status === "correct" && mcqFeedback?.whyCorrect ? (
-            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-correct">
-              <div className="answer-feedback-panel__label">🎉 Why this is correct</div>
-              <div className="answer-feedback-panel__body">{mcqFeedback.whyCorrect}</div>
-            </div>
+            <FeedbackSection
+              variant="correct"
+              heading="Why this is correct"
+              body={mcqFeedback.whyCorrect}
+              testId="answer-feedback-why-correct"
+            />
           ) : null}
 
           {status === "incorrect" && mcqFeedback?.whySelectedWrong ? (
-            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-wrong">
-              <div className="answer-feedback-panel__label">🔍 Why your answer is wrong</div>
-              <div className="answer-feedback-panel__body">{mcqFeedback.whySelectedWrong}</div>
-            </div>
+            <FeedbackSection
+              variant="wrong"
+              heading="Why your answer is wrong"
+              body={mcqFeedback.whySelectedWrong}
+              testId="answer-feedback-why-wrong"
+            />
           ) : null}
 
           {status === "incorrect" && mcqFeedback?.memoryRule ? (
-            <div className="answer-feedback-panel__memory-rule" data-testid="answer-feedback-memory-rule">
-              <span className="answer-feedback-panel__label">🧠 Memory rule</span>
-              <span className="answer-feedback-panel__body">{mcqFeedback.memoryRule}</span>
-            </div>
+            <FeedbackSection
+              variant="memory"
+              heading="🧠 Memory rule"
+              body={mcqFeedback.memoryRule}
+              testId="answer-feedback-memory-rule"
+              uppercase={false}
+            />
           ) : null}
 
           {status === "incorrect" && tip ? (
-            <div className="answer-feedback-panel__tip" data-testid="answer-feedback-tip">
-              <span className="answer-feedback-panel__label">📘 Revise this concept</span>
-              <span className="answer-feedback-panel__body">{tip}</span>
-            </div>
+            <FeedbackSection
+              variant="tip"
+              heading="📘 Revise this concept"
+              body={tip}
+              testId="answer-feedback-tip"
+              uppercase={false}
+            />
           ) : null}
         </>
       ) : (
         <>
           {yours ? (
-            <div
-              className={`answer-feedback-panel__answer-line answer-feedback-panel__answer-line--yours answer-feedback-panel__answer-line--${status}`}
-              data-testid="answer-feedback-your-answer"
-            >
-              <span className="answer-feedback-panel__label">
-                {status === "correct" ? "✅ Your answer" : "❌ Your answer"}
-              </span>
-              <span
-                className={`answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--${
-                  status === "correct" ? "correct" : "incorrect"
-                }`}
-              >
-                {yours}
-              </span>
-            </div>
+            <InlineAnswerLine
+              prefix={status === "correct" ? "✅ Your answer:" : "❌ Your answer:"}
+              value={yours}
+              valueTone={status === "correct" ? "correct" : "incorrect"}
+              testId="answer-feedback-your-answer"
+            />
           ) : null}
 
           {correct && !(status === "correct" && yours) ? (
-            <div
-              className="answer-feedback-panel__answer-line answer-feedback-panel__answer-line--correct"
-              data-testid={status === "incorrect" ? "answer-feedback-correct-answer" : undefined}
-            >
-              <span className="answer-feedback-panel__label">✅ Correct answer</span>
-              <span className="answer-feedback-panel__value answer-feedback-panel__value-text answer-feedback-panel__value-text--correct">
-                {correct}
-              </span>
-            </div>
+            <InlineAnswerLine
+              prefix="✅ Correct answer:"
+              value={correct}
+              valueTone="correct"
+              testId={status === "incorrect" ? "answer-feedback-correct-answer" : undefined}
+            />
           ) : null}
 
           {mcqFeedback?.whyCorrect ? (
-            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-correct">
-              <div className="answer-feedback-panel__label">🎉 Why this is correct</div>
-              <div className="answer-feedback-panel__body">{mcqFeedback.whyCorrect}</div>
-            </div>
+            <FeedbackSection
+              variant="correct"
+              heading="Why this is correct"
+              body={mcqFeedback.whyCorrect}
+              testId="answer-feedback-why-correct"
+            />
           ) : null}
 
           {mcqFeedback?.whySelectedWrong ? (
-            <div className="answer-feedback-panel__section" data-testid="answer-feedback-why-wrong">
-              <div className="answer-feedback-panel__label">🔍 Why your answer is wrong</div>
-              <div className="answer-feedback-panel__body">{mcqFeedback.whySelectedWrong}</div>
-            </div>
+            <FeedbackSection
+              variant="wrong"
+              heading="Why your answer is wrong"
+              body={mcqFeedback.whySelectedWrong}
+              testId="answer-feedback-why-wrong"
+            />
           ) : null}
 
           {status === "incorrect" && mcqFeedback?.memoryRule ? (
-            <div className="answer-feedback-panel__memory-rule" data-testid="answer-feedback-memory-rule">
-              <span className="answer-feedback-panel__label">🧠 Memory rule</span>
-              <span className="answer-feedback-panel__body">{mcqFeedback.memoryRule}</span>
-            </div>
+            <FeedbackSection
+              variant="memory"
+              heading="🧠 Memory rule"
+              body={mcqFeedback.memoryRule}
+              testId="answer-feedback-memory-rule"
+              uppercase={false}
+            />
           ) : null}
 
           <McqWrongOptionList items={mcqFeedback?.wrongOptionExplanations ?? []} />
@@ -217,50 +295,62 @@ export function AnswerFeedbackPanel({
       )}
 
       {!isMcqLayout && model ? (
-        <div className="answer-feedback-panel__section">
-          <div className="answer-feedback-panel__label">Model answer</div>
-          <div className="answer-feedback-panel__body">{model}</div>
-        </div>
+        <FeedbackSection variant="neutral" heading="Model answer" body={model} uppercase={false} />
       ) : null}
 
       {!isMcqLayout && hits.length > 0 ? (
-        <div className="answer-feedback-panel__section">
-          <div className="answer-feedback-panel__label">Mark scheme points matched</div>
-          <ul className="answer-feedback-panel__list">
-            {hits.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
+        <FeedbackSection
+          variant="correct"
+          heading="Mark scheme points matched"
+          uppercase={false}
+          body={
+            <ul className="answer-feedback-panel__list">
+              {hits.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          }
+        />
       ) : null}
 
       {!isMcqLayout && missing.length > 0 ? (
-        <div className="answer-feedback-panel__section">
-          <div className="answer-feedback-panel__label">Still needed for full marks</div>
-          <ul className="answer-feedback-panel__list">
-            {missing.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
+        <FeedbackSection
+          variant="wrong"
+          heading="Still needed for full marks"
+          uppercase={false}
+          body={
+            <ul className="answer-feedback-panel__list">
+              {missing.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          }
+        />
       ) : null}
 
       {!isMcqLayout && schemeLines.length > 0 && hits.length === 0 && missing.length === 0 ? (
-        <div className="answer-feedback-panel__section">
-          <div className="answer-feedback-panel__label">Mark scheme</div>
-          <ul className="answer-feedback-panel__list">
-            {schemeLines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
+        <FeedbackSection
+          variant="neutral"
+          heading="Mark scheme"
+          uppercase={false}
+          body={
+            <ul className="answer-feedback-panel__list">
+              {schemeLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          }
+        />
       ) : null}
 
       {!isMcqLayout && tip ? (
-        <div className="answer-feedback-panel__tip" data-testid="answer-feedback-tip">
-          <span className="answer-feedback-panel__label">📘 Revise this concept</span>
-          <span className="answer-feedback-panel__body">{tip}</span>
-        </div>
+        <FeedbackSection
+          variant="tip"
+          heading="📘 Revise this concept"
+          body={tip}
+          testId="answer-feedback-tip"
+          uppercase={false}
+        />
       ) : null}
     </div>
   );

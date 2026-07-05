@@ -61,6 +61,59 @@
   width: 100%;
 }
 
+.exam-question-score-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  background: #ffffff;
+  font-size: 0.875rem;
+}
+
+.exam-question-score-ribbon--correct {
+  border-left-color: #22c55e;
+}
+
+.exam-question-score-ribbon--partial {
+  border-left-color: #f59e0b;
+}
+
+.exam-question-score-ribbon--incorrect {
+  border-left-color: #ef4444;
+}
+
+.exam-question-score-ribbon__label {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.exam-question-score-ribbon__marks {
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.exam-question-score-ribbon--correct .exam-question-score-ribbon__marks {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.exam-question-score-ribbon--partial .exam-question-score-ribbon__marks {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.exam-question-score-ribbon--incorrect .exam-question-score-ribbon__marks {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 /* ── Composite Exam Question V2 — GCSE exam-paper layout ── */
 
 .exam-question-block.exam-composite {
@@ -330,6 +383,165 @@
   padding-top: 14px;
   border-top: 1px solid #e5e7eb;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.exam-composite__part-marking {
+  margin-top: 12px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.exam-composite__part-marking--error {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.exam-composite__part-check-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.12);
+  color: #1e3a8a;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.exam-composite__part-check-btn:disabled {
+  background: #f1f5f9;
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.exam-composite__total-score {
+  margin-bottom: 14px;
+}
+
+.exam-composite__total-score-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exam-composite__result-summary {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid #dbeafe;
+  border-top: 3px solid #6366f1;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.exam-composite__result-summary-title {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.exam-composite__result-summary-overall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.exam-composite__result-summary-overall-label {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.exam-composite__result-summary-overall-score {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.exam-composite__result-summary-overall-score--correct {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.exam-composite__result-summary-overall-score--partial {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.exam-composite__result-summary-overall-score--incorrect {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.exam-composite__result-summary-section {
+  margin-top: 14px;
+  padding-left: 12px;
+  border-left: 4px solid transparent;
+}
+
+.exam-composite__result-summary-section--strong {
+  border-left-color: #22c55e;
+}
+
+.exam-composite__result-summary-section--revise {
+  border-left-color: #f59e0b;
+}
+
+.exam-composite__result-summary-heading {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.exam-composite__result-summary-section--strong .exam-composite__result-summary-heading {
+  color: #15803d;
+}
+
+.exam-composite__result-summary-section--revise .exam-composite__result-summary-heading {
+  color: #b45309;
+}
+
+.exam-composite__result-summary-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  color: #475569;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.exam-composite__result-summary-list li {
+  margin-bottom: 6px;
+}
+
+.exam-composite__result-summary-section--strong .exam-composite__result-summary-list li:not(.exam-composite__result-summary-empty)::before {
+  content: "✔ ";
+  color: #15803d;
+  font-weight: 700;
+}
+
+.exam-composite__result-summary-list--revise li:not(.exam-composite__result-summary-empty)::before {
+  content: "• ";
+  color: #b45309;
+  font-weight: 700;
+}
+
+.exam-composite__result-summary-empty {
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .exam-composite__reveal-btn {

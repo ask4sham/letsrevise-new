@@ -31,7 +31,7 @@ describe("LessonCheckpoint MCQ feedback", () => {
     await userEvent.click(screen.getByRole("button", { name: /Check answer/i }));
 
     expect(screen.getByTestId("answer-feedback-panel")).toHaveAttribute("data-status", "correct");
-    expect(screen.getByText(/Correct — 1\/1/)).toBeInTheDocument();
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/1 \/ 1 marks/i);
     expect(screen.getByText(/haploid/i)).toBeInTheDocument();
   });
 
@@ -56,7 +56,7 @@ describe("LessonCheckpoint MCQ feedback", () => {
     await userEvent.click(screen.getByRole("button", { name: /Check answer/i }));
 
     expect(screen.getByTestId("answer-feedback-panel")).toHaveAttribute("data-status", "incorrect");
-    expect(screen.getByText(/Incorrect — 0\/1/)).toBeInTheDocument();
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/0 \/ 1 marks/i);
     expect(screen.getByText(/Why your answer is wrong/i)).toBeInTheDocument();
     expect(screen.getAllByText(/total chromosome number/i).length).toBeGreaterThan(0);
   });

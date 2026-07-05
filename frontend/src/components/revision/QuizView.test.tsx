@@ -32,10 +32,11 @@ describe("QuizView MCQ feedback", () => {
     fireEvent.click(screen.getByLabelText("Mitochondria"));
     fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
 
-    expect(screen.getByText(/✅ Correct — 1\/1/)).toBeInTheDocument();
-    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/✅ Your answer/);
+    expect(screen.getByTestId("answer-feedback-hero")).toHaveTextContent(/Correct/i);
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/1 \/ 1 marks/i);
+    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/✅ Your answer:/);
     expect(screen.getByTestId("answer-feedback-your-answer").querySelector(".answer-feedback-panel__value-text--correct")).toBeTruthy();
-    expect(screen.getByText(/🎉 Why this is correct/i)).toBeInTheDocument();
+    expect(screen.getByText(/why this is correct/i)).toBeInTheDocument();
   });
 
   test("shows red selected option, green correct option, and structured incorrect feedback", () => {
@@ -43,12 +44,13 @@ describe("QuizView MCQ feedback", () => {
     fireEvent.click(screen.getByLabelText("Nucleus"));
     fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
 
-    expect(screen.getByText(/❌ Incorrect — 0\/1/)).toBeInTheDocument();
-    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/❌ Your answer/);
+    expect(screen.getByTestId("answer-feedback-hero")).toHaveTextContent(/Incorrect/i);
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/0 \/ 1 marks/i);
+    expect(screen.getByTestId("answer-feedback-your-answer")).toHaveTextContent(/❌ Your answer:/);
     expect(screen.getByTestId("answer-feedback-your-answer").querySelector(".answer-feedback-panel__value-text--incorrect")).toBeTruthy();
-    expect(screen.getByTestId("answer-feedback-correct-answer")).toHaveTextContent(/✅ Correct answer/);
+    expect(screen.getByTestId("answer-feedback-correct-answer")).toHaveTextContent(/✅ Correct answer:/);
     expect(screen.getByTestId("answer-feedback-correct-answer").querySelector(".answer-feedback-panel__value-text--correct")).toBeTruthy();
-    expect(screen.getByText(/🔍 Why your answer is wrong/i)).toBeInTheDocument();
+    expect(screen.getByText(/why your answer is wrong/i)).toBeInTheDocument();
     expect(screen.getByTestId("answer-feedback-tip")).toHaveTextContent(/Revise this concept/i);
   });
 
