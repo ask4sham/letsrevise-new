@@ -50,6 +50,13 @@ import { GraphBlock } from "../components/lesson/GraphBlock";
 import { ExamQuestionBlock } from "../components/lesson/ExamQuestionBlock";
 import { fetchExamQuestionsByIds, type ExamQuestion } from "../api/examQuestions";
 import { collectExamQuestionIdsFromPages } from "../utils/collectExamQuestionIdsFromPages";
+import { examRemountLog, isExamRemountDebugEnabled } from "../utils/examRemountDebug";
+import {
+  embeddedExamQuestionIdsKey,
+  isSameLessonRouteRefresh,
+  lessonMatchesRoute,
+  shouldClearEmbeddedExamCache,
+} from "./lessonViewEmbeddedExamLifecycle";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -1535,6 +1542,12 @@ const LessonViewPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
+  const lessonRef = useRef<Lesson | null>(null);
+  const lessonFetchModeRef = useRef<"initial" | "background">("initial");
+  const embeddedExamIdsKeyRef = useRef("");
+  useEffect(() => {
+    lessonRef.current = lesson;
+  }, [lesson]);
   const { user, refresh, token } = useCurrentUser({ watchLocation: true });
 
   // PR-024.1: Student topic summary modal
@@ -1575,6 +1588,39 @@ const LessonViewPage: React.FC = () => {
   const [loadFromBankError, setLoadFromBankError] = useState<string | null>(null);
   const [embeddedExamQuestions, setEmbeddedExamQuestions] = useState<Record<string, ExamQuestion>>({});
   const [embeddedExamQuestionsLoading, setEmbeddedExamQuestionsLoading] = useState(false);
+  const embeddedExamDebugRef = useRef<{ cacheKeys: string[]; loading: boolean }>({
+    cacheKeys: [],
+    loading: false,
+  });
+
+  useEffect(() => {
+    const keys = Object.keys(embeddedExamQuestions);
+    const prevKeys = embeddedExamDebugRef.current.cacheKeys;
+    const keysChanged = keys.join("|") !== prevKeys.join("|");
+    if (keysChanged) {
+      let action = "REPLACED";
+      if (keys.length === 0 && prevKeys.length > 0) action = "CLEARED";
+      else if (keys.length === 0) action = "EMPTY";
+      else if (prevKeys.length === 0) action = "POPULATED";
+      examRemountLog(`embeddedExamQuestions ${action}`, {
+        ids: keys,
+        previousIds: prevKeys,
+        count: keys.length,
+      });
+      embeddedExamDebugRef.current.cacheKeys = keys;
+    }
+  }, [embeddedExamQuestions]);
+
+  useEffect(() => {
+    const prev = embeddedExamDebugRef.current.loading;
+    if (prev !== embeddedExamQuestionsLoading) {
+      examRemountLog("embeddedExamQuestionsLoading transition", {
+        from: prev,
+        to: embeddedExamQuestionsLoading,
+      });
+      embeddedExamDebugRef.current.loading = embeddedExamQuestionsLoading;
+    }
+  }, [embeddedExamQuestionsLoading]);
 
   // PR-FE-FLASHCARDS-COLLAPSE-1: flashcards section collapsed by default, expand on click
   const [showFlashcards, setShowFlashcards] = useState(false);
@@ -1933,14 +1979,71 @@ const LessonViewPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isClassroomPresentation]);
 
+  // Route change: reset embedded exam cache (only when lesson id in URL changes).
   useEffect(() => {
+    embeddedExamIdsKeyRef.current = "";
+    setEmbeddedExamQuestions({});
+    setEmbeddedExamQuestionsLoading(false);
+    examRemountLog("embeddedExamQuestions route id changed → CLEAR cache", {
+      lessonId: id ?? null,
+    });
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
     const ids = collectExamQuestionIdsFromPages(lesson?.pages);
-    if (!ids.length || !id) {
-      setEmbeddedExamQuestions({});
-      setEmbeddedExamQuestionsLoading(false);
+    const nextKey = embeddedExamQuestionIdsKey(ids);
+
+    if (!lessonMatchesRoute(id, lesson)) {
+      examRemountLog("embeddedExamQuestions effect → skip (lesson/route mismatch)", {
+        lessonId: id,
+        loadedLessonId: lesson?.id ?? null,
+      });
       return;
     }
+
+    if (!ids.length) {
+      if (shouldClearEmbeddedExamCache({
+        routeLessonId: id,
+        previousExamIdsKey: embeddedExamIdsKeyRef.current,
+        nextExamIds: ids,
+      })) {
+        examRemountLog("embeddedExamQuestions effect → CLEAR cache", {
+          reason: "no exam question ids in pages",
+          lessonId: id,
+        });
+        embeddedExamIdsKeyRef.current = "";
+        setEmbeddedExamQuestions({});
+        setEmbeddedExamQuestionsLoading(false);
+      }
+      return;
+    }
+
+    if (
+      shouldClearEmbeddedExamCache({
+        routeLessonId: id,
+        previousExamIdsKey: embeddedExamIdsKeyRef.current,
+        nextExamIds: ids,
+      })
+    ) {
+      examRemountLog("embeddedExamQuestions effect → CLEAR cache", {
+        reason: "embedded exam id set changed",
+        lessonId: id,
+        previousKey: embeddedExamIdsKeyRef.current,
+        nextKey,
+      });
+      setEmbeddedExamQuestions({});
+    }
+    embeddedExamIdsKeyRef.current = nextKey;
+
     let cancelled = false;
+    examRemountLog("embeddedExamQuestions effect → FETCH start", {
+      lessonId: id,
+      examIds: ids,
+      classroomMode: isClassroomPresentation,
+      background: lessonFetchModeRef.current === "background",
+    });
     setEmbeddedExamQuestionsLoading(true);
     void fetchExamQuestionsByIds(ids, {
       lessonId: id,
@@ -1950,18 +2053,39 @@ const LessonViewPage: React.FC = () => {
         if (cancelled) return;
         const map: Record<string, ExamQuestion> = {};
         for (const q of questions) map[String(q._id)] = q;
+        examRemountLog("embeddedExamQuestions effect → FETCH success", {
+          lessonId: id,
+          requestedIds: ids,
+          receivedIds: Object.keys(map),
+        });
         setEmbeddedExamQuestions(map);
       })
-      .catch(() => {
-        if (!cancelled) setEmbeddedExamQuestions({});
+      .catch((err) => {
+        if (!cancelled) {
+          examRemountLog("embeddedExamQuestions effect → FETCH error (keeping stale cache)", {
+            lessonId: id,
+            examIds: ids,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       })
       .finally(() => {
-        if (!cancelled) setEmbeddedExamQuestionsLoading(false);
+        if (!cancelled) {
+          examRemountLog("embeddedExamQuestions effect → FETCH finished", {
+            lessonId: id,
+            examIds: ids,
+          });
+          setEmbeddedExamQuestionsLoading(false);
+        }
       });
     return () => {
       cancelled = true;
+      examRemountLog("embeddedExamQuestions effect → cleanup (fetch cancelled)", {
+        lessonId: id,
+        examIds: ids,
+      });
     };
-  }, [lesson?.pages, id, isClassroomPresentation]);
+  }, [lesson?.pages, id, isClassroomPresentation, lesson?.id]);
 
   useEffect(() => {
     if (!id) return;
@@ -2390,15 +2514,29 @@ const LessonViewPage: React.FC = () => {
    * - UUID (legacy Supabase) => blocked (legacy slate is being cleared)
    */
   const fetchLessonSmart = async () => {
+    const isBackgroundRefresh = isSameLessonRouteRefresh(id, lessonRef.current?.id);
+    lessonFetchModeRef.current = isBackgroundRefresh ? "background" : "initial";
+    examRemountLog("fetchLessonSmart START", {
+      lessonId: id ?? null,
+      mode: lessonFetchModeRef.current,
+    });
     try {
-      setLoading(true);
-      setError("");
-      setLoadErrorDetails(null);
-      setLesson(null);
-       // Reset entitlement flags before each load
-      setSubscriptionRequired(false);
-      setPreviewMode(false);
-      setAccessDecision(null);
+      if (!isBackgroundRefresh) {
+        setLoading(true);
+        setError("");
+        setLoadErrorDetails(null);
+        examRemountLog("fetchLessonSmart setLesson(null)", { lessonId: id ?? null });
+        setLesson(null);
+        setSubscriptionRequired(false);
+        setPreviewMode(false);
+        setAccessDecision(null);
+      } else {
+        setError("");
+        setLoadErrorDetails(null);
+        examRemountLog("fetchLessonSmart background refresh (lesson stays mounted)", {
+          lessonId: id ?? null,
+        });
+      }
 
       if (!id) {
         setError("Lesson id missing");
@@ -2411,7 +2549,6 @@ const LessonViewPage: React.FC = () => {
       }
 
       if (isUuid(id)) {
-        // ✅ slate wipe: do not load legacy lessons anymore
         setError("This legacy lesson is no longer available.");
         return;
       }
@@ -2421,9 +2558,29 @@ const LessonViewPage: React.FC = () => {
       console.error("Error loading lesson:", err);
       setError(err?.message || "Failed to load lesson");
     } finally {
-      setLoading(false);
+      if (!isBackgroundRefresh) {
+        setLoading(false);
+      }
+      examRemountLog("fetchLessonSmart FINISH", {
+        lessonId: id ?? null,
+        mode: lessonFetchModeRef.current,
+      });
     }
   };
+
+  const fetchLessonSmartRef = useRef(fetchLessonSmart);
+  fetchLessonSmartRef.current = fetchLessonSmart;
+
+  useEffect(() => {
+    if (!isExamRemountDebugEnabled()) return;
+    const w = window as Window & { __lessonViewRefetch?: () => void };
+    w.__lessonViewRefetch = () => {
+      void fetchLessonSmartRef.current();
+    };
+    return () => {
+      delete w.__lessonViewRefetch;
+    };
+  }, []);
 
   /**
    * ✅ Mongo backend lesson fetch (new system)
@@ -2573,6 +2730,10 @@ const LessonViewPage: React.FC = () => {
       setPreviewMode(Boolean(previewFromBackend || previewFromDecision));
       setAccessDecision(result.accessDecision || null);
 
+      examRemountLog("fetchLessonSmart setLesson(mapped)", {
+        lessonId: mapped.id,
+        pageCount: mapped.pages?.length ?? 0,
+      });
       setLesson(mapped);
 
       // If lesson has pages but no URL param, ensure URL points to page 1 (stable deep-link)
@@ -2592,7 +2753,9 @@ const LessonViewPage: React.FC = () => {
       console.error("Backend lesson fetch error:", err);
       setLoadErrorDetails({ error: err?.message });
       setError(err?.message || "Failed to load lesson");
-      setLesson(null);
+      if (lessonFetchModeRef.current !== "background") {
+        setLesson(null);
+      }
     }
   };
 
