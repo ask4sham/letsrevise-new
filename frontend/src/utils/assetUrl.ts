@@ -106,6 +106,15 @@ export function resolveUploadedDiagramImageSrc(url: string): string {
 }
 
 /**
+ * Inline exam question diagrams: use the original uploaded PNG, not the 600×600 `.display.png`
+ * sibling (north-aligned contain padding). Lightbox already opens full-res; this removes
+ * baked-in whitespace from inline display. Drag-drop overlays intentionally keep `.display.png`.
+ */
+export function resolveExamQuestionImageSrc(url: string): string {
+  return resolveUploadedDiagramImageSrc(url);
+}
+
+/**
  * Step-by-step sequence step images (and similar lesson uploads): use full-res PNG, not `.display.png`.
  * Display variants are 600×600 with contain fit — wide diagrams get large transparent bands above/below.
  */

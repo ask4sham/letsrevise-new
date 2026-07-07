@@ -4,7 +4,15 @@ import { ExamQuestionBlock } from "./ExamQuestionBlock";
 import type { ExamQuestion } from "../../api/examQuestions";
 
 jest.mock("./ZoomableImageLightbox", () => ({
-  ZoomableImageTrigger: ({ alt }: { alt: string }) => <img alt={alt} data-testid="zoomable-image" />,
+  ZoomableImageTrigger: ({
+    alt,
+    src,
+    imageClassName,
+  }: {
+    alt: string;
+    src: string;
+    imageClassName?: string;
+  }) => <img alt={alt} src={src} className={imageClassName} data-testid="zoomable-image" />,
 }));
 
 const MCQ_QUESTION: ExamQuestion = {
@@ -197,5 +205,44 @@ describe("ExamQuestionBlock composite question marking", () => {
     render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="classroom" />);
     expect(screen.queryByRole("button", { name: /check answer/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId("exam-composite-result-summary")).not.toBeInTheDocument();
+  });
+});
+
+describe("ExamQuestionBlock inline exam images", () => {
+  const DISPLAY_URL = "https://cdn.example.com/exam-questions/fetus-in-uterus.display.png";
+  const ORIGINAL_URL = "https://cdn.example.com/exam-questions/fetus-in-uterus.png";
+
+  test("single exam question uses original .png inline when stored URL is .display.png", () => {
+    render(
+      <ExamQuestionBlock
+        question={{ ...SHORT_QUESTION, imageUrl: DISPLAY_URL }}
+        mode="student"
+      />
+    );
+    const img = screen.getByTestId("zoomable-image");
+    expect(img).toHaveAttribute("src", ORIGINAL_URL);
+    expect(img.getAttribute("src")).not.toContain(".display.png");
+  });
+
+  test("single exam question leaves non-display image URL unchanged", () => {
+    render(
+      <ExamQuestionBlock
+        question={{ ...SHORT_QUESTION, imageUrl: ORIGINAL_URL }}
+        mode="student"
+      />
+    );
+    expect(screen.getByTestId("zoomable-image")).toHaveAttribute("src", ORIGINAL_URL);
+  });
+
+  test("composite exam question uses original .png inline when stored URL is .display.png", () => {
+    render(
+      <ExamQuestionBlock
+        question={{ ...COMPOSITE_QUESTION, imageUrl: DISPLAY_URL }}
+        mode="student"
+      />
+    );
+    const img = screen.getByTestId("zoomable-image");
+    expect(img).toHaveAttribute("src", ORIGINAL_URL);
+    expect(img).toHaveClass("exam-composite__image");
   });
 });

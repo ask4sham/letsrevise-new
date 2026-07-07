@@ -1,4 +1,5 @@
 import {
+  resolveExamQuestionImageSrc,
   resolveFullResolutionImageUrlForLightbox,
   resolveLessonStepImageSrc,
   resolveUploadedDiagramImageSrc,
@@ -24,5 +25,18 @@ describe("resolveUploadedDiagramImageSrc", () => {
   it("resolveLessonStepImageSrc maps display.png for step-by-step images", () => {
     const display = "https://cdn.example.com/glycolysis.display.png";
     expect(resolveLessonStepImageSrc(display)).toBe("https://cdn.example.com/glycolysis.png");
+  });
+});
+
+describe("resolveExamQuestionImageSrc", () => {
+  it("maps .display.png to full-resolution .png for inline exam diagrams", () => {
+    const display = "https://example.com/exam-questions/fetus.display.png";
+    expect(resolveExamQuestionImageSrc(display)).toBe("https://example.com/exam-questions/fetus.png");
+    expect(resolveExamQuestionImageSrc(display)).toBe(resolveUploadedDiagramImageSrc(display));
+  });
+
+  it("leaves non-display URLs unchanged", () => {
+    const raw = "https://example.com/exam-questions/fetus.png";
+    expect(resolveExamQuestionImageSrc(raw)).toBe(raw);
   });
 });

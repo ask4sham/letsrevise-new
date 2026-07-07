@@ -12,6 +12,7 @@ import {
   deriveShortAnswerFeedbackStatus,
   gradeShortAnswer,
 } from "../../utils/gradeShortAnswer";
+import { makeAbsoluteAssetUrl, resolveExamQuestionImageSrc } from "../../utils/assetUrl";
 import "./ExamQuestionBlock.css";
 import "./answerFeedbackPanel.css";
 
@@ -369,11 +370,20 @@ function SingleExamMcqStudentBlock({
   );
 }
 
+/** Stored exam `imageUrl` → inline src (original PNG when a `.display.png` sibling exists). */
+function inlineExamQuestionImageSrc(storedUrl: string): string {
+  const trimmed = storedUrl.trim();
+  if (!trimmed) return "";
+  const absolute = makeAbsoluteAssetUrl(trimmed) ?? trimmed;
+  return resolveExamQuestionImageSrc(absolute);
+}
+
 function ExamQuestionImagePanel({ imageUrl }: { imageUrl: string }) {
+  const src = inlineExamQuestionImageSrc(imageUrl);
   return (
     <div className="exam-question-block__image-panel">
       <ZoomableImageTrigger
-        src={imageUrl}
+        src={src}
         alt="Question diagram"
         imageClassName="exam-question-block__image"
       />
@@ -1007,7 +1017,7 @@ function CompositeExamQuestion({
           <div className="exam-composite__image-col">
             <div className="exam-composite__image-panel">
               <ZoomableImageTrigger
-                src={imageUrl}
+                src={inlineExamQuestionImageSrc(imageUrl)}
                 alt="Question diagram"
                 imageClassName="exam-composite__image"
               />
