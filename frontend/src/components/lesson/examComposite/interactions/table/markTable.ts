@@ -1,4 +1,4 @@
-import type { AnswerFeedbackStatus } from "../../AnswerFeedbackPanel";
+import type { AnswerFeedbackStatus } from "../../../AnswerFeedbackPanel";
 import { deriveShortAnswerFeedbackStatus } from "../../../../../utils/gradeShortAnswer";
 import {
   listBlankCells,
