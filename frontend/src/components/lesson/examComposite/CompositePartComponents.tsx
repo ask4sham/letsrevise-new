@@ -17,6 +17,8 @@ import {
   partLabel,
   resolvePartMarkScheme,
 } from "./compositeUtils";
+import { CompositePartType } from "./types";
+import { gradeTablePart, tableHasStudentInput } from "./interactions/table/markTable";
 
 export function formatMcqAnswerLine(grade: ReturnType<typeof gradeMcq> | null): string {
   if (!grade) return "";
@@ -123,12 +125,18 @@ export function CompositePartMarkingSection({
   mcqSelectedIndex?: number;
   writtenAnswer?: string;
 }): React.ReactElement | null {
-  const isMcq = String(part.type).toLowerCase() === "mcq";
+  const type = String(part.type).toLowerCase();
+  const isMcq = type === CompositePartType.MCQ;
+  const isTable = type === CompositePartType.TABLE;
   const options = Array.isArray(part.options)
     ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
     : [];
   const markScheme = resolvePartMarkScheme(part);
-  const hasAnswer = isMcq ? mcqSelectedIndex !== undefined : Boolean(String(writtenAnswer ?? "").trim());
+  const hasAnswer = isMcq
+    ? mcqSelectedIndex !== undefined
+    : isTable
+      ? tableHasStudentInput(writtenAnswer)
+      : Boolean(String(writtenAnswer ?? "").trim());
 
   const mcqGrade = useMemo(() => {
     if (!checked || !isMcq || mcqSelectedIndex === undefined) return null;
@@ -148,14 +156,23 @@ export function CompositePartMarkingSection({
     });
   }, [mcqGrade, options, markScheme]);
 
+  const tableGrade = useMemo(() => {
+    if (!checked || !isTable) return null;
+    return gradeTablePart({
+      partData: part.partData,
+      studentAnswerJson: writtenAnswer,
+      marks: part.marks ?? 1,
+    });
+  }, [checked, isTable, part.partData, writtenAnswer, part.marks]);
+
   const shortGrade = useMemo(() => {
-    if (!checked || isMcq) return null;
+    if (!checked || isMcq || isTable) return null;
     return gradeShortAnswer({
       userAnswer: writtenAnswer ?? "",
       markScheme,
       marks: part.marks ?? 1,
     });
-  }, [checked, isMcq, writtenAnswer, markScheme, part.marks]);
+  }, [checked, isMcq, isTable, writtenAnswer, markScheme, part.marks]);
 
   const shortFeedbackStatus = shortGrade
     ? deriveShortAnswerFeedbackStatus(shortGrade.score, shortGrade.maxMarks)
@@ -207,6 +224,33 @@ export function CompositePartMarkingSection({
           markScheme={markScheme}
           mcqFeedback={mcqFeedback}
           improvementTip={mcqFeedback.improvementTip}
+        />
+      </div>
+    );
+  }
+
+  if (isTable) {
+    if (!tableGrade) {
+      return (
+        <div className="exam-composite__part-marking exam-composite__part-marking--error">
+          Could not mark this table — check the table data.
+        </div>
+      );
+    }
+    return (
+      <div className="exam-composite__part-marking" data-testid={`exam-composite-part-marking-${partIndex}`}>
+        <AnswerFeedbackPanel
+          status={tableGrade.status}
+          marksAwarded={tableGrade.marksAwarded}
+          totalMarks={tableGrade.maxMarks}
+          yourAnswer={tableGrade.yourAnswerLines.join("; ") || "(no answers entered)"}
+          correctAnswer={tableGrade.correctAnswerLines.join("; ")}
+          markScheme={markScheme}
+          improvementTip={
+            tableGrade.status === "correct"
+              ? undefined
+              : `Revise: check the blank cells (${tableGrade.incorrectKeys.length + tableGrade.missingKeys.length} to review).`
+          }
         />
       </div>
     );

@@ -385,6 +385,75 @@
   margin-top: 4px;
 }
 
+/* Phase 1 — Table interaction (exam-paper style) */
+.exam-composite__table-wrap {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.exam-composite__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.exam-composite__table th,
+.exam-composite__table td {
+  border: 1px solid #111827;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.exam-composite__table th {
+  background: #f3f4f6;
+  font-weight: 700;
+}
+
+.exam-composite__table-cell--blank {
+  min-width: 7rem;
+  background: #fafafa;
+}
+
+.exam-composite__table-blank-line {
+  display: block;
+  height: 1.25rem;
+  border-bottom: 1px solid #9ca3af;
+}
+
+.exam-composite__table-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.exam-composite__table-input:focus {
+  outline: 2px solid #4f46e5;
+  outline-offset: 1px;
+}
+
+.exam-composite__table-input--correct {
+  background: #dcfce7;
+  border-color: #22c55e;
+}
+
+.exam-composite__table-input--incorrect {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.exam-composite__table-fallback {
+  font-size: 0.875rem;
+  color: #6b7280;
+  padding: 8px 0;
+}
+
 /* Footer: reveal */
 .exam-composite__footer {
   margin-top: 20px;

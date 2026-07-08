@@ -7,12 +7,14 @@ import { getErrorMessageFromData } from "../utils/apiErrorMessage";
 
 export type ExamQuestionPart = {
   label: string;
-  type: "mcq" | "short" | string;
+  type: "mcq" | "short" | "table" | string;
   marks: number;
   questionText: string;
   options?: string[];
   correctIndex?: number | null;
   markScheme?: string[];
+  /** V2 interaction payload (e.g. table headers/rows). Absent on V1 parts. */
+  partData?: Record<string, unknown>;
 };
 
 export type ExamQuestion = {

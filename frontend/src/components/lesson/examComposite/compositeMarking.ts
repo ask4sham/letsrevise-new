@@ -10,6 +10,8 @@ import {
   resolvePartMarkScheme,
   uniqueSummaryLines,
 } from "./compositeUtils";
+import { CompositePartType } from "./types";
+import { gradeTablePart } from "./interactions/table/markTable";
 
 export type CompositeExamSummary = {
   marksAwarded: number;
@@ -36,7 +38,9 @@ export function buildCompositeExamSummary(
   for (let idx = 0; idx < parts.length; idx += 1) {
     const part = parts[idx];
     const label = partLabel(part, idx);
-    const isMcq = String(part.type).toLowerCase() === "mcq";
+    const type = String(part.type).toLowerCase();
+    const isMcq = type === CompositePartType.MCQ;
+    const isTable = type === CompositePartType.TABLE;
     const markScheme = resolvePartMarkScheme(part);
     const options = Array.isArray(part.options)
       ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
@@ -72,6 +76,27 @@ export function buildCompositeExamSummary(
       continue;
     }
 
+    if (isTable) {
+      const grade = gradeTablePart({
+        partData: part.partData,
+        studentAnswerJson: answers[idx],
+        marks: part.marks ?? 1,
+      });
+      if (!grade) continue;
+      marksAwarded += grade.marksAwarded;
+      for (const line of grade.yourAnswerLines) {
+        if (grade.correctKeys.length > 0 && grade.status !== "incorrect") {
+          strongAreas.push(`Part (${label}): ${line}`);
+        }
+      }
+      for (const line of grade.correctAnswerLines) {
+        if (grade.status !== "correct") {
+          needsRevision.push(`Part (${label}): ${line}`);
+        }
+      }
+      continue;
+    }
+
     const grade = gradeShortAnswer({
       userAnswer: answers[idx] ?? "",
       markScheme,
@@ -103,7 +128,9 @@ export function gradeCompositePartResult(
   mcqSelectedIndex: number | undefined,
   writtenAnswer: string | undefined
 ): { marksAwarded: number; maxMarks: number; status: AnswerFeedbackStatus } | null {
-  const isMcq = String(part.type).toLowerCase() === "mcq";
+  const type = String(part.type).toLowerCase();
+  const isMcq = type === CompositePartType.MCQ;
+  const isTable = type === CompositePartType.TABLE;
   const options = Array.isArray(part.options)
     ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
     : [];
@@ -116,6 +143,16 @@ export function gradeCompositePartResult(
     if (correctIndex < 0 || options.length === 0) return null;
     const grade = gradeMcq(mcqSelectedIndex, correctIndex, options, maxMarks);
     return { marksAwarded: grade.marksAwarded, maxMarks: grade.totalMarks, status: grade.status };
+  }
+
+  if (isTable) {
+    const grade = gradeTablePart({
+      partData: part.partData,
+      studentAnswerJson: writtenAnswer,
+      marks: maxMarks,
+    });
+    if (!grade) return null;
+    return { marksAwarded: grade.marksAwarded, maxMarks: grade.maxMarks, status: grade.status };
   }
 
   const answer = String(writtenAnswer ?? "").trim();

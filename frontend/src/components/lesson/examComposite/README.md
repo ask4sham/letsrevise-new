@@ -2,9 +2,23 @@
 
 **Canonical Architecture Specification (Stable)**
 
-Status: **FROZEN** — do not implement interaction plugins until Phase 0 is approved against this document.
+Status: **Phase 0 frozen. Phase 1 (Table) in progress on `feature/exam-composite-table`.**
 
 Primary objective: **zero regression**. No breaking of any existing stable functionality.
+
+---
+
+## Git milestones (recovery points)
+
+| Tag | Commit | Purpose |
+|-----|--------|---------|
+| `exam-composite-v2-spec` | `5af44e5c` | Canonical architecture + type contracts |
+| `exam-composite-v2-phase0` | `3db0276f` | Structural extract (no behavioural change) |
+| `exam-composite-v2-phase0-baseline` | `ec57056f` | Verified working Phase 0 — branch here for Phase 1 |
+
+Related: `lesson-lifecycle-stability-v1`
+
+**Phase 0 is frozen.** Do not modify Phase 0. Future phases branch from `exam-composite-v2-phase0-baseline`.
 
 ---
 
@@ -327,21 +341,43 @@ Surfaces: lesson exams, exam practice, homework, teacher tests, AI-generated pap
 
 ## Implementation roadmap
 
-### Phase 0 — Internal refactor (no visible changes)
+### Phase 0 — Internal refactor ✅ COMPLETE (frozen)
 
-- Extract `CompositeExamShell`
-- Extract `CompositePartRouter`
-- Create typed registry
-- Introduce `schemaVersion` (read path; default V1)
-- Add feature-flag infrastructure
-- **Regression testing only**
+Tag: `exam-composite-v2-phase0-baseline`
 
-Commit suggestion: `refactor(exam): extract composite part router (no behaviour change)`
+### Phase 1 — Table interaction **ONLY** (current)
 
-### Phase 1 — Table interaction
+**Scope:** one new interaction. Nothing else (no calculation, graph, or label).
 
-- Table editor, renderer, validator, marker, feedback
-- Flag **OFF** by default
+- Table headers, rows, editable cells, correct answers, mark scheme
+- Flag `TABLE_PARTS_ENABLED` — **OFF** by default until verified
+- **Must not affect** existing MCQ or Short parts
+
+### Phase Completion Checklist (every phase before merge)
+
+#### Functional
+- [ ] Existing MCQ unchanged
+- [ ] Existing Short Answer unchanged
+- [ ] Existing composite questions render identically
+- [ ] Existing mark schemes unchanged
+
+#### UI
+- [ ] Desktop
+- [ ] Tablet
+- [ ] Mobile
+- [ ] Lightbox
+- [ ] Original PNG policy
+
+#### Lesson integrity
+- [ ] Placenta lesson
+- [ ] FSH/LH lesson
+- [ ] At least one older Biology lesson using embedded exam questions
+
+#### Technical
+- [ ] Build passes
+- [ ] Existing tests pass
+- [ ] New interaction tests pass
+- [ ] Feature flag OFF = no visible behaviour change
 
 ### Phase 2 — Calculation interaction
 
