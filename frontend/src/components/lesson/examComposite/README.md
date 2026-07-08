@@ -8,6 +8,20 @@ Primary objective: **zero regression**. No breaking of any existing stable funct
 
 ---
 
+## Git milestones (recovery points)
+
+| Tag | Commit | Purpose |
+|-----|--------|---------|
+| `exam-composite-v2-spec` | `5af44e5c` | Canonical architecture + type contracts. **No runtime change.** Permanent design reference. |
+| `exam-composite-v2-phase0` | `3db0276f` | Structural extract: shell, router, registry, flags, schema reader. **No behavioural change.** |
+| `exam-composite-v2-phase0-baseline` | `ec57056f` | **Verified working** Phase 0 (includes compile-structure fixes). Recovery point before Phase 1 (Table). |
+
+Related stability tag: `lesson-lifecycle-stability-v1` (`1b30b536`).
+
+**Phase 0 is frozen.** Do not modify Phase 0 commits or structure. Every future phase branches from `exam-composite-v2-phase0-baseline`.
+
+---
+
 ## Design principles
 
 The architecture is governed by six non-negotiable principles:
@@ -327,21 +341,42 @@ Surfaces: lesson exams, exam practice, homework, teacher tests, AI-generated pap
 
 ## Implementation roadmap
 
-### Phase 0 — Internal refactor (no visible changes)
+### Phase 0 — Internal refactor ✅ COMPLETE (frozen)
 
 - Extract `CompositeExamShell`
 - Extract `CompositePartRouter`
-- Create typed registry
+- Create typed registry (`registry.tsx`)
 - Introduce `schemaVersion` (read path; default V1)
 - Add feature-flag infrastructure
-- **Regression testing only**
+- Unknown-type graceful fallback
+- **Regression testing only — zero behavioural change**
 
-Commit suggestion: `refactor(exam): extract composite part router (no behaviour change)`
+Tag: `exam-composite-v2-phase0-baseline`
 
-### Phase 1 — Table interaction
+### Phase 1 — Table interaction **ONLY** (next)
+
+**Scope:** one new interaction. Nothing else (no calculation, graph, or label).
 
 - Table editor, renderer, validator, marker, feedback
-- Flag **OFF** by default
+- Supports: `headers`, `rows`, editable cells, mark scheme
+- Flag `TABLE_PARTS_ENABLED` — **OFF** by default until verified
+
+**Must not affect:** existing MCQ or Short parts.
+
+#### Phase 1 acceptance (before merge)
+
+| Area | Requirement |
+|------|-------------|
+| Existing MCQ parts | Identical |
+| Existing Short parts | Identical |
+| New capability | Table interaction only |
+| Regression lessons | Role of the Placenta, FSH/LH menstrual cycle |
+| Lesson lifecycle | `lesson-lifecycle-stability-v1` |
+| Images | Original PNG inline policy |
+| Lightbox | Fit-to-viewport on open |
+| Mobile | Smoke test |
+
+Branch from: `exam-composite-v2-phase0-baseline`
 
 ### Phase 2 — Calculation interaction
 
@@ -373,16 +408,10 @@ frontend/src/components/lesson/examComposite/
 ├── CompositePartRouter.tsx
 ├── registry.ts
 ├── featureFlags.ts
-└── interactions/
-    ├── mcq/      { Render, Validate, Mark, Feedback }
-    ├── short/
-    ├── table/
-    ├── calculation/
-    ├── graph/
-    ├── matching/
-    ├── ordering/
-    ├── label/
-    └── extended/
+├── registry.tsx              ← typed registry + V1 plugins (mcq, short)
+├── featureFlags.ts
+└── interactions/             ← Phase 1+ plugins added here (table first)
+    └── table/                ← Phase 1 only
 
 backend/
 ├── constants/compositePartTypes.js   ← mirror of frontend enum
@@ -423,3 +452,4 @@ Before any new interaction ships:
 | Date | Change |
 |------|--------|
 | 2026-07-08 | Initial frozen specification (V2 architecture) |
+| 2026-07-08 | Phase 0 complete; milestones tagged; Phase 1 scope tightened (Table only) |
