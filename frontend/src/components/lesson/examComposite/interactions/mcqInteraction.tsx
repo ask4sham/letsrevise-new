@@ -1,7 +1,8 @@
+import React from "react";
 import type { ExamQuestionPart } from "../../../../api/examQuestions";
-import { CompositePartType } from "../../types";
-import type { CompositeInteractionPlugin } from "../../interactionTypes";
-import { CompositeMcqOptions } from "../../CompositePartComponents";
+import { CompositePartType } from "../types";
+import type { CompositeInteractionPlugin } from "../interactionTypes";
+import { CompositeMcqOptions } from "../CompositePartComponents";
 
 function partOptions(part: ExamQuestionPart): string[] {
   return Array.isArray(part.options)

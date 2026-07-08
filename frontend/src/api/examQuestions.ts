@@ -42,6 +42,8 @@ export type ExamQuestion = {
   sharedStem?: string | null;
   totalMarks?: number | null;
   parts?: ExamQuestionPart[];
+  /** Composite Exam Engine V2; omitted on legacy records (= schema V1). */
+  schemaVersion?: 1 | 2;
 };
 
 export type ExamQuestionFilters = {

@@ -1,9 +1,9 @@
 import type { ExamQuestionPart } from "../../../api/examQuestions";
 import { isCompositePartTypeEnabled } from "./featureFlags";
 import type { CompositeInteractionPlugin } from "./interactionTypes";
-import { mcqInteraction } from "./interactions/mcq";
-import { shortInteraction } from "./interactions/short";
-import { unknownInteraction } from "./interactions/unknown";
+import { mcqInteraction } from "./interactions/mcqInteraction";
+import { shortInteraction } from "./interactions/shortInteraction";
+import { unknownInteraction } from "./interactions/unknownInteraction";
 import { CompositePartType } from "./types";
 
 const TYPED_REGISTRY: Partial<Record<(typeof CompositePartType)[keyof typeof CompositePartType], CompositeInteractionPlugin>> = {
