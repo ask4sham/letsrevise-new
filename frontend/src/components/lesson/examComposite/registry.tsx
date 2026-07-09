@@ -3,6 +3,7 @@ import type { ExamQuestionPart } from "../../../api/examQuestions";
 import { isCompositePartTypeEnabled } from "./featureFlags";
 import type { CompositeInteractionPlugin } from "./interactionTypes";
 import { CompositeAnswerLines, CompositeMcqOptions } from "./CompositePartComponents";
+import { isCompositeTablePart, normalizeCompositePartType } from "./compositeUtils";
 import { tableInteraction } from "./interactions/table";
 import { CompositePartType } from "./types";
 
@@ -42,11 +43,10 @@ export const mcqInteraction: CompositeInteractionPlugin = {
 export const shortInteraction: CompositeInteractionPlugin = {
   partType: CompositePartType.SHORT,
   matchesPart: (part) => {
-    const type = String(part.type).toLowerCase();
-    return (
-      type === CompositePartType.SHORT ||
-      (type !== CompositePartType.MCQ && type !== CompositePartType.TABLE)
-    );
+    if (mcqInteraction.matchesPart(part) || isCompositeTablePart(part)) return false;
+    const type = normalizeCompositePartType(part);
+    if (type === CompositePartType.SHORT) return true;
+    return type !== CompositePartType.MCQ && type !== CompositePartType.TABLE;
   },
   renderAnswer: ({
     part,
@@ -99,7 +99,7 @@ export function resolveCompositeInteraction(part: ExamQuestionPart): CompositeIn
     return mcqInteraction;
   }
 
-  if (tableInteraction.matchesPart(part)) {
+  if (isCompositeTablePart(part)) {
     if (!isCompositePartTypeEnabled(CompositePartType.TABLE)) {
       if (process.env.NODE_ENV === "development") {
         console.warn(`[CompositeExam] Part type "table" is disabled by feature flag.`);

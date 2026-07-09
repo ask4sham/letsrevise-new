@@ -6,10 +6,13 @@ import {
   gradeShortAnswer,
 } from "../../../utils/gradeShortAnswer";
 import {
+  isCompositeTablePart,
+  normalizeCompositePartType,
   partLabel,
   resolvePartMarkScheme,
   uniqueSummaryLines,
 } from "./compositeUtils";
+import { isCompositePartTypeEnabled } from "./featureFlags";
 import { CompositePartType } from "./types";
 import { gradeTablePart } from "./interactions/table/markTable";
 
@@ -38,9 +41,9 @@ export function buildCompositeExamSummary(
   for (let idx = 0; idx < parts.length; idx += 1) {
     const part = parts[idx];
     const label = partLabel(part, idx);
-    const type = String(part.type).toLowerCase();
+    const type = normalizeCompositePartType(part);
     const isMcq = type === CompositePartType.MCQ;
-    const isTable = type === CompositePartType.TABLE;
+    const isTable = isCompositeTablePart(part) && isCompositePartTypeEnabled(CompositePartType.TABLE);
     const markScheme = resolvePartMarkScheme(part);
     const options = Array.isArray(part.options)
       ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
@@ -128,9 +131,9 @@ export function gradeCompositePartResult(
   mcqSelectedIndex: number | undefined,
   writtenAnswer: string | undefined
 ): { marksAwarded: number; maxMarks: number; status: AnswerFeedbackStatus } | null {
-  const type = String(part.type).toLowerCase();
+  const type = normalizeCompositePartType(part);
   const isMcq = type === CompositePartType.MCQ;
-  const isTable = type === CompositePartType.TABLE;
+  const isTable = isCompositeTablePart(part) && isCompositePartTypeEnabled(CompositePartType.TABLE);
   const options = Array.isArray(part.options)
     ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
     : [];

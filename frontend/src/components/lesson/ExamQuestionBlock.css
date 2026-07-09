@@ -621,6 +621,19 @@
   font-style: italic;
 }
 
+.exam-composite__check-all-btn {
+  display: block;
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.12);
+  color: #1e3a8a;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
 .exam-composite__reveal-btn {
   padding: 8px 14px;
   border-radius: 8px;

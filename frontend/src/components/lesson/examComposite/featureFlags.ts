@@ -24,6 +24,16 @@ const FLAG_BY_PART_TYPE: Partial<
   [CompositePartType.EXTENDED_RESPONSE]: "EXTENDED_RESPONSE_PARTS_ENABLED",
 };
 
+function readFlagValue(flagKey: keyof typeof compositeFeatureFlags): boolean {
+  if (
+    flagKey === "TABLE_PARTS_ENABLED" &&
+    process.env.REACT_APP_TABLE_PARTS_ENABLED === "true"
+  ) {
+    return true;
+  }
+  return compositeFeatureFlags[flagKey];
+}
+
 /** V1 types (mcq, short) are always enabled. */
 export function isCompositePartTypeEnabled(partType: string): boolean {
   const normalized = partType.toLowerCase();
@@ -32,5 +42,5 @@ export function isCompositePartTypeEnabled(partType: string): boolean {
   }
   const flagKey = FLAG_BY_PART_TYPE[normalized as keyof typeof FLAG_BY_PART_TYPE];
   if (!flagKey) return false;
-  return compositeFeatureFlags[flagKey];
+  return readFlagValue(flagKey);
 }

@@ -14,11 +14,14 @@ import type { CompositeExamSummary } from "./compositeMarking";
 import {
   answerLineCount,
   formatMarksBadge,
+  isCompositeTablePart,
+  normalizeCompositePartType,
   partLabel,
   resolvePartMarkScheme,
 } from "./compositeUtils";
 import { CompositePartType } from "./types";
 import { gradeTablePart, tableHasStudentInput } from "./interactions/table/markTable";
+import { isCompositePartTypeEnabled } from "./featureFlags";
 
 export function formatMcqAnswerLine(grade: ReturnType<typeof gradeMcq> | null): string {
   if (!grade) return "";
@@ -125,9 +128,9 @@ export function CompositePartMarkingSection({
   mcqSelectedIndex?: number;
   writtenAnswer?: string;
 }): React.ReactElement | null {
-  const type = String(part.type).toLowerCase();
+  const type = normalizeCompositePartType(part);
   const isMcq = type === CompositePartType.MCQ;
-  const isTable = type === CompositePartType.TABLE;
+  const isTable = isCompositeTablePart(part) && isCompositePartTypeEnabled(CompositePartType.TABLE);
   const options = Array.isArray(part.options)
     ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
     : [];

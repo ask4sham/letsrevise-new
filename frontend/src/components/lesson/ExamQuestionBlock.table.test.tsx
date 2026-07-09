@@ -113,7 +113,7 @@ describe("ExamQuestionBlock table composite (TABLE_PARTS_ENABLED ON)", () => {
     fireEvent.change(screen.getByTestId("exam-composite-table-input-0-1-1"), {
       target: { value: "Triggers ovulation" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
+    fireEvent.click(screen.getByTestId("exam-composite-check-all-btn"));
 
     expect(screen.getByTestId("exam-composite-part-marking-0")).toBeInTheDocument();
     expect(screen.getByTestId("answer-feedback-hero")).toHaveTextContent(/Correct/i);
@@ -161,9 +161,48 @@ describe("ExamQuestionBlock table composite (TABLE_PARTS_ENABLED ON)", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /your answer/i }), {
       target: { value: "Pituitary gland" },
     });
-    fireEvent.click(screen.getAllByRole("button", { name: /check answer/i })[0]);
+
+    expect(screen.getByTestId("exam-composite-check-all-btn")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("exam-composite-check-all-btn"));
 
     expect(screen.getByTestId("exam-composite-result-summary")).toBeInTheDocument();
     expect(screen.getByTestId("exam-composite-overall-score")).toHaveTextContent(/4 \/ 4 marks/i);
+  });
+
+  test("footer Check answer appears only when all parts have answers", () => {
+    render(<ExamQuestionBlock question={MIXED_COMPOSITE} mode="student" />);
+    expect(screen.queryByTestId("exam-composite-check-all-btn")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: /LH/i }));
+    expect(screen.queryByTestId("exam-composite-check-all-btn")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("exam-composite-table-input-1-0-1"), {
+      target: { value: "Stimulates follicles" },
+    });
+    fireEvent.change(screen.getByTestId("exam-composite-table-input-1-1-1"), {
+      target: { value: "Triggers ovulation" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /your answer/i }), {
+      target: { value: "Pituitary gland" },
+    });
+
+    expect(screen.getByTestId("exam-composite-check-all-btn")).toBeInTheDocument();
+  });
+
+  test("flag ON: renders table when partData is present but type was saved as short", () => {
+    const question = {
+      ...MIXED_COMPOSITE,
+      parts: [
+        MIXED_COMPOSITE.parts![0],
+        {
+          ...MIXED_COMPOSITE.parts![1],
+          type: "short",
+        },
+        MIXED_COMPOSITE.parts![2],
+      ],
+    };
+    render(<ExamQuestionBlock question={question} mode="student" />);
+    expect(screen.getByTestId("exam-composite-table-1")).toBeInTheDocument();
+    expect(screen.getAllByRole("textbox", { name: /your answer/i })).toHaveLength(1);
   });
 });

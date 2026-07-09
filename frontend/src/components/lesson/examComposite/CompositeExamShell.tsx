@@ -13,7 +13,15 @@ import {
   ExamQuestionScoreRibbon,
 } from "./CompositePartComponents";
 import { CompositePartRouter } from "./CompositePartRouter";
-import { inlineExamQuestionImageSrc, partLabel } from "./compositeUtils";
+import { isCompositePartTypeEnabled } from "./featureFlags";
+import {
+  compositeAllPartsChecked,
+  compositeAllPartsHaveAnswers,
+  inlineExamQuestionImageSrc,
+  isCompositeTablePart,
+  normalizeCompositePartType,
+  partLabel,
+} from "./compositeUtils";
 import { resolveCompositeSchemaVersion } from "./schemaVersion";
 import { CompositePartType } from "./types";
 import { listBlankCells, parseTablePartData } from "./interactions/table/tableTypes";
@@ -89,6 +97,22 @@ export function CompositeExamShell({
   const markPartChecked = (partIndex: number) => {
     setCheckedParts((prev) => ({ ...prev, [partIndex]: true }));
   };
+
+  const markAllPartsChecked = () => {
+    setCheckedParts((prev) => {
+      const next = { ...prev };
+      parts.forEach((_, index) => {
+        next[index] = true;
+      });
+      return next;
+    });
+  };
+
+  const showCheckAllButton =
+    isStudent &&
+    parts.length > 0 &&
+    !compositeAllPartsChecked(parts, checkedParts) &&
+    compositeAllPartsHaveAnswers(parts, mcqSelections, answers);
 
   const sharedStem =
     (question.sharedStem && String(question.sharedStem).trim()) ||
@@ -196,6 +220,16 @@ export function CompositeExamShell({
             />
           </div>
         ) : null}
+        {showCheckAllButton ? (
+          <button
+            type="button"
+            className="exam-composite__check-all-btn"
+            data-testid="exam-composite-check-all-btn"
+            onClick={markAllPartsChecked}
+          >
+            Check answer
+          </button>
+        ) : null}
         <button
           type="button"
           className="exam-composite__reveal-btn"
@@ -211,9 +245,9 @@ export function CompositeExamShell({
               const options = Array.isArray(part.options)
                 ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
                 : [];
-              const partType = String(part.type).toLowerCase();
+              const partType = normalizeCompositePartType(part);
               const isMcqPart = partType === CompositePartType.MCQ && options.length > 0;
-              const isTablePart = partType === CompositePartType.TABLE;
+              const isTablePart = isCompositeTablePart(part) && isCompositePartTypeEnabled(CompositePartType.TABLE);
               const correctIdx = typeof part.correctIndex === "number" ? part.correctIndex : -1;
               const correctOption =
                 isMcqPart && correctIdx >= 0 && options[correctIdx] != null ? options[correctIdx] : "";
