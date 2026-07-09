@@ -163,6 +163,7 @@ function normalizeLevelLabel(level: string) {
 
   if (!l) return "Not set";
   if (l.includes("ks3")) return "KS3";
+  if (l.includes("igcse")) return "IGCSE";
   if (l.includes("gcse")) return "GCSE";
   if (l.includes("a-level") || l.includes("alevel") || l.includes("a level")) return "A-Level";
 
@@ -172,6 +173,30 @@ function normalizeLevelLabel(level: string) {
 function normalizeBoardName(board: string) {
   const b = safeStr(board, "");
   return b.trim() ? b : "Not set";
+}
+
+/** Course = board + level + tier (student-friendly label for MY REVISION). */
+function buildCourseKey(board: string, level: string, tier: string) {
+  const b = normalizeBoardName(board);
+  const lv = normalizeLevelLabel(level);
+  const t = normalizeTier(tier);
+  return `${b}|${lv}|${t}`;
+}
+
+function formatCourseLabel(board: string, level: string, tier: string) {
+  const b = normalizeBoardName(board);
+  const lv = normalizeLevelLabel(level);
+  const t = normalizeTier(tier);
+  if (b === "Not set" && lv === "Not set") return "Course not set";
+  const tierLabel =
+    t === "foundation" ? "Foundation" : t === "higher" ? "Higher" : t === "advanced" ? "Advanced" : "";
+  const parts = [b !== "Not set" ? b : "", lv !== "Not set" ? lv : "", tierLabel].filter(Boolean);
+  return parts.join(" · ") || "Course not set";
+}
+
+function parseCourseKey(courseKey: string): { board: string; level: string; tier: string } {
+  const [board = "", level = "", tier = ""] = String(courseKey || "").split("|");
+  return { board, level, tier };
 }
 
 function normalizeForCompare(s: string) {
@@ -395,6 +420,12 @@ const StudentDashboard: React.FC = () => {
 
   // PR-UX-STU-DASH-2: Filters collapsed by default on desktop
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // MY REVISION pathway (Subject → Course → Topic); catalogue behind Browse
+  const [revisionSubject, setRevisionSubject] = useState("");
+  const [revisionCourse, setRevisionCourse] = useState("");
+  const [revisionTopic, setRevisionTopic] = useState("");
+  const [browseOpen, setBrowseOpen] = useState(false);
 
   // PR-AUTH-UI-2: derive from useCurrentUser (no localStorage auth reads)
   const userType = (user?.userType || user?.type || "").toString().toLowerCase();
@@ -776,6 +807,56 @@ const StudentDashboard: React.FC = () => {
     return arr;
   }, [gatedLessons]);
 
+  const courseOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    gatedLessons.forEach((l) => {
+      if (revisionSubject && safeStr(l.subject, "") !== revisionSubject) return;
+      const key = buildCourseKey(l.examBoardName, l.level, l.tier);
+      if (!map.has(key)) {
+        map.set(key, formatCourseLabel(l.examBoardName, l.level, l.tier));
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [gatedLessons, revisionSubject]);
+
+  const revisionTopicOptions = useMemo(() => {
+    const set = new Set<string>();
+    const course = revisionCourse ? parseCourseKey(revisionCourse) : null;
+    gatedLessons.forEach((l) => {
+      if (revisionSubject && safeStr(l.subject, "") !== revisionSubject) return;
+      if (course) {
+        if (normalizeBoardName(l.examBoardName) !== course.board) return;
+        if (normalizeLevelLabel(l.level) !== course.level) return;
+        if ((normalizeTier(l.tier) || "") !== (course.tier || "")) return;
+      }
+      const t = safeStr(l.topic, "");
+      if (t && t !== "Not set") set.add(t);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [gatedLessons, revisionSubject, revisionCourse]);
+
+  const myRevisionLessons = useMemo(() => {
+    if (!revisionSubject || !revisionTopic) return [];
+    const course = revisionCourse ? parseCourseKey(revisionCourse) : null;
+    return gatedLessons
+      .filter((l) => {
+        if (safeStr(l.subject, "") !== revisionSubject) return false;
+        if (normalizeForCompare(l.topic) !== normalizeForCompare(revisionTopic)) return false;
+        if (course) {
+          if (normalizeBoardName(l.examBoardName) !== course.board) return false;
+          if (normalizeLevelLabel(l.level) !== course.level) return false;
+          if ((normalizeTier(l.tier) || "") !== (course.tier || "")) return false;
+        }
+        return true;
+      })
+      .slice(0, 3);
+  }, [gatedLessons, revisionSubject, revisionCourse, revisionTopic]);
+
+  const revisionReady = Boolean(revisionSubject && revisionCourse && revisionTopic);
+  const learnLesson = myRevisionLessons[0] || null;
+
   /**
    * Final filtered list:
    * 1) Stage gating (already applied in gatedLessons)
@@ -889,10 +970,10 @@ const StudentDashboard: React.FC = () => {
           }}
         >
           <div>
-            <h1 style={{ color: "#333", marginBottom: "5px" }}>👨‍🎓 Student Dashboard</h1>
-            <p style={{ color: "#666" }}>
-              Welcome back, {user?.firstName}!{" "}
-              {lockedLevelLabel ? `You are browsing ${lockedLevelLabel} lessons only.` : ""}
+            <h1 style={{ color: "#333", marginBottom: "5px" }}>Student Dashboard</h1>
+            <p style={{ color: "#666", margin: 0 }}>
+              {user?.firstName ? `Hi ${user.firstName}` : "Welcome"}
+              {lockedLevelLabel ? ` · ${lockedLevelLabel}` : ""}
             </p>
             
             {advancedMode && (
@@ -922,7 +1003,7 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Primary next step — hero CTA + supporting line */}
+        {/* 1. Continue Learning */}
         <div
           style={{
             background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
@@ -933,149 +1014,486 @@ const StudentDashboard: React.FC = () => {
             border: "1px solid #6ee7b7",
           }}
         >
-          <h2 style={{ color: "#065f46", margin: "0 0 8px 0", fontSize: "1.25rem" }}>
-            {!dashboardLoading && hasDashboardActivity ? "Continue learning" : "What to do next"}
-          </h2>
-          <p style={{ color: "#047857", margin: "0 0 0 0", fontSize: "0.95rem", lineHeight: 1.5 }}>
+          <h2 style={{ color: "#065f46", margin: "0 0 6px 0", fontSize: "1.35rem" }}>Continue learning</h2>
+          <p style={{ color: "#047857", margin: 0, fontSize: "0.95rem" }}>
             {!dashboardLoading && hasDashboardActivity
-              ? "Pick up where you left off or strengthen a weak topic."
-              : "Start your first lesson to unlock progress, revision focus, and personalised practice."}
+              ? "Pick up where you left off."
+              : "Start with a topic below."}
           </p>
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 14 }}>
             {!dashboardLoading && hasDashboardActivity && recLessons.length > 0 && recLessons[0]?.id ? (
-              <Link className="btn-primary" to={`/lesson/${recLessons[0].id}`}>
+              <Link className="btn-primary" to={`/lesson/${recLessons[0].id}`} style={{ fontSize: "1rem", padding: "12px 22px" }}>
                 Continue
               </Link>
             ) : (
-              <button type="button" className="btn-primary" onClick={() => navigate("/browse-lessons")}>
-                {!dashboardLoading && hasDashboardActivity ? "Continue" : "Start learning"}
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setBrowseOpen(true)}
+                style={{ fontSize: "1rem", padding: "12px 22px" }}
+              >
+                Browse lessons
               </button>
             )}
           </div>
-          {!dashboardLoading && !hasDashboardActivity && recLessons.length > 0 && recLessons[0]?.id && (
-            <p style={{ margin: "12px 0 0 0", fontSize: "0.88rem" }}>
-              <Link
-                to={`/lesson/${recLessons[0].id}`}
-                style={{ color: "#047857", fontWeight: 600, textDecoration: "underline" }}
-              >
-                Continue suggested lesson: {recLessons[0].title}
-              </Link>
-            </p>
-          )}
-          <div style={{ fontSize: "0.85rem", opacity: 0.75, marginTop: 6 }}>
-            {hasDashboardActivity
-              ? "Build on your progress with another lesson or quiz — it keeps your revision focus up to date."
-              : "Each quiz you finish helps personalise your revision focus."}
-          </div>
         </div>
 
-        {/* Today's goal — static motivator (copy only) */}
-        <div className="today-goal">
-          <strong style={{ color: "#334155" }}>Today&apos;s goal:</strong> Complete 1 quick quiz (2–3 mins)
-          <div style={{ fontSize: "0.85rem", opacity: 0.7, marginTop: 4 }}>
-            Small steps add up — come back tomorrow to see your weak topics and revision focus sharpen.
-          </div>
-        </div>
-
-        {/* Secondary actions — grouped; same routes as before */}
+        {/* 2. MY REVISION */}
         <div
           style={{
             background: "white",
-            padding: "16px 20px",
-            borderRadius: "12px",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+            padding: "22px 24px",
+            borderRadius: "14px",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
             marginBottom: "16px",
+            border: "2px solid #cbd5e1",
           }}
         >
-          <h3 style={{ color: "#64748b", margin: "0 0 6px 0", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            Practise
-          </h3>
-          <div style={{ fontSize: "0.85rem", opacity: 0.75, marginBottom: 8 }}>
-            <strong style={{ color: "#64748b" }}>Quick quiz</strong> — fast recall ·{" "}
-            <strong style={{ color: "#64748b" }}>Topic practice</strong> — reinforce learning ·{" "}
-            <strong style={{ color: "#64748b" }}>Exam practice</strong> — exam-style answers
-          </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "14px" }}>
-            <Link className="btn-primary" to="/student/quick-quiz" style={{ fontSize: "0.875rem", padding: "8px 14px", fontWeight: 700 }}>
-              Quick quiz
-            </Link>
-            <Link className="btn-outline" to="/student/practice">
-              Topic practice
-            </Link>
-            <button type="button" className="btn-outline" onClick={handleExamPractice}>
-              Exam practice
-            </button>
-          </div>
-          <h3
+          <h2 style={{ color: "#0f172a", margin: "0 0 6px 0", fontSize: "1.4rem", fontWeight: 800 }}>MY REVISION</h2>
+          <p style={{ color: "#475569", margin: "0 0 18px 0", fontSize: "0.95rem", fontWeight: 500 }}>
+            Choose a lesson, quiz, or exam practice for this topic.
+          </p>
+
+          {/* Step 1: dropdowns */}
+          <div
             style={{
-              color: "#64748b",
-              margin: "0 0 10px 0",
-              paddingTop: "14px",
-              borderTop: "1px solid #f1f5f9",
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 14,
+              marginBottom: 18,
+              padding: 14,
+              background: "#f1f5f9",
+              borderRadius: 12,
+              border: "1px solid #cbd5e1",
             }}
           >
-            Track &amp; organise
-          </h3>
-          <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "0 0 12px 0", lineHeight: 1.45 }}>
-            Your saved notes, completed work, and progress are kept here so you can pick up anytime.
-          </p>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-            <Link
-              to="/student/my-work"
-              style={{
-                padding: "8px 12px",
-                background: "#f8fafc",
-                color: "#334155",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                textDecoration: "none",
-              }}
-            >
-              My work
-            </Link>
+            <div>
+              <label style={{ display: "block", marginBottom: 8, color: "#0f172a", fontWeight: 800, fontSize: "0.9rem" }}>
+                1. Subject
+              </label>
+              <select
+                value={revisionSubject}
+                onChange={(e) => {
+                  setRevisionSubject(e.target.value);
+                  setRevisionCourse("");
+                  setRevisionTopic("");
+                }}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  border: revisionSubject ? "2px solid #059669" : "2px solid #64748b",
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  background: "white",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="">Select subject</option>
+                {subjectOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: 8, color: "#0f172a", fontWeight: 800, fontSize: "0.9rem" }}>
+                2. Course
+              </label>
+              <select
+                value={revisionCourse}
+                disabled={!revisionSubject}
+                onChange={(e) => {
+                  setRevisionCourse(e.target.value);
+                  setRevisionTopic("");
+                }}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  border: !revisionSubject
+                    ? "2px solid #cbd5e1"
+                    : revisionCourse
+                      ? "2px solid #059669"
+                      : "2px solid #64748b",
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: revisionSubject ? "#0f172a" : "#94a3b8",
+                  background: revisionSubject ? "white" : "#e2e8f0",
+                  cursor: revisionSubject ? "pointer" : "not-allowed",
+                }}
+              >
+                <option value="">Select course</option>
+                {courseOptions.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: 8, color: "#0f172a", fontWeight: 800, fontSize: "0.9rem" }}>
+                3. Topic
+              </label>
+              <select
+                value={revisionTopic}
+                disabled={!revisionSubject || !revisionCourse}
+                onChange={(e) => setRevisionTopic(e.target.value)}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  border:
+                    !revisionSubject || !revisionCourse
+                      ? "2px solid #cbd5e1"
+                      : revisionTopic
+                        ? "2px solid #059669"
+                        : "2px solid #64748b",
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: revisionSubject && revisionCourse ? "#0f172a" : "#94a3b8",
+                  background: revisionSubject && revisionCourse ? "white" : "#e2e8f0",
+                  cursor: revisionSubject && revisionCourse ? "pointer" : "not-allowed",
+                }}
+              >
+                <option value="">Select topic</option>
+                {revisionTopicOptions.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Step 2: actions */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+            {revisionReady && learnLesson?.id ? (
+              <Link
+                to={`/lesson/${learnLesson.id}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  background: "#059669",
+                  color: "white",
+                  border: "2px solid #047857",
+                  boxShadow: "0 2px 0 #065f46",
+                }}
+              >
+                Learn topic
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled={!revisionReady}
+                onClick={() => setBrowseOpen(true)}
+                style={{
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  background: revisionReady ? "#059669" : "#cbd5e1",
+                  color: revisionReady ? "white" : "#64748b",
+                  border: revisionReady ? "2px solid #047857" : "2px solid #94a3b8",
+                  cursor: revisionReady ? "pointer" : "not-allowed",
+                  boxShadow: revisionReady ? "0 2px 0 #065f46" : "none",
+                }}
+              >
+                Learn topic
+              </button>
+            )}
+            {revisionReady ? (
+              <Link
+                to="/student/quick-quiz"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  background: "white",
+                  color: "#0f172a",
+                  border: "2px solid #334155",
+                }}
+              >
+                Quick quiz
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  background: "#e2e8f0",
+                  color: "#94a3b8",
+                  border: "2px solid #cbd5e1",
+                  cursor: "not-allowed",
+                }}
+              >
+                Quick quiz
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => navigate("/student/my-progress")}
+              disabled={!revisionReady}
+              onClick={handleExamPractice}
               style={{
-                padding: "8px 12px",
-                background: "#f8fafc",
-                color: "#334155",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                cursor: "pointer",
+                minHeight: 48,
+                padding: "12px 22px",
+                borderRadius: 10,
+                fontSize: "1rem",
+                fontWeight: 800,
+                background: revisionReady ? "white" : "#e2e8f0",
+                color: revisionReady ? "#0f172a" : "#94a3b8",
+                border: revisionReady ? "2px solid #334155" : "2px solid #cbd5e1",
+                cursor: revisionReady ? "pointer" : "not-allowed",
               }}
             >
-              My progress
+              Exam practice
             </button>
-            <Link
-              to="/student/structure-notes"
-              style={{
-                padding: "8px 12px",
-                background: "#f8fafc",
-                color: "#334155",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                textDecoration: "none",
-              }}
-            >
-              Create your own notes
-            </Link>
+            {revisionReady ? (
+              <Link
+                to="/student/structure-notes"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  background: "white",
+                  color: "#0f172a",
+                  border: "2px solid #334155",
+                }}
+              >
+                Make notes
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  background: "#e2e8f0",
+                  color: "#94a3b8",
+                  border: "2px solid #cbd5e1",
+                  cursor: "not-allowed",
+                }}
+              >
+                Make notes
+              </button>
+            )}
           </div>
+
+          {/* Step 3: helper */}
+          {!revisionReady && (
+            <p style={{ color: "#64748b", fontSize: "0.9rem", margin: 0, fontWeight: 600 }}>
+              Select subject, course, then topic to unlock the buttons.
+            </p>
+          )}
+
+          {revisionReady && myRevisionLessons.length > 0 && (
+            <div style={{ display: "grid", gap: 10, marginTop: 4 }}>
+              {myRevisionLessons.map((lesson) => {
+                const isFreePreview = Boolean(lesson.isFreePreview);
+                const isUnlocked = Boolean(lesson.hasAccess) && !isFreePreview;
+                const courseLine = formatCourseLabel(lesson.examBoardName, lesson.level, lesson.tier);
+                return (
+                  <div
+                    key={lesson.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "14px 16px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      background: "#f8fafc",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "1rem" }}>{lesson.title}</div>
+                      <div style={{ color: "#64748b", fontSize: "0.85rem", marginTop: 2 }}>
+                        {lesson.topic} · {courseLine}
+                      </div>
+                      <div style={{ marginTop: 6 }}>
+                        <LessonAccessBadge
+                          hasAccess={lesson.hasAccess}
+                          locked={lesson.locked}
+                          reason={lesson.reason}
+                          isFreePreview={lesson.isFreePreview}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      {isUnlocked || isFreePreview ? (
+                        <Link to={`/lesson/${lesson.id}`}>
+                          <button
+                            type="button"
+                            style={{
+                              padding: "10px 16px",
+                              background: isUnlocked ? "#10b981" : "#e2e8f0",
+                              color: isUnlocked ? "white" : "#334155",
+                              border: "none",
+                              borderRadius: 8,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {isUnlocked ? "Learn" : "Preview"}
+                          </button>
+                        </Link>
+                      ) : (
+                        <Link to="/subscription">
+                          <button
+                            type="button"
+                            style={{
+                              padding: "10px 16px",
+                              background: "transparent",
+                              color: "#4f46e5",
+                              border: "1px solid #4f46e5",
+                              borderRadius: 8,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Upgrade
+                          </button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {revisionReady && myRevisionLessons.length === 0 && (
+            <p style={{ color: "#64748b", fontSize: "0.9rem", margin: "8px 0 0 0" }}>
+              No lessons for this topic yet.{" "}
+              <button
+                type="button"
+                onClick={() => setBrowseOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#047857",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  padding: 0,
+                }}
+              >
+                Browse all lessons
+              </button>
+            </p>
+          )}
         </div>
 
-        {/* Step 6: Your revision focus (knowledge gap) — uses unified dashboard */}
+        {/* 3. Revision Focus */}
         <RevisionFocusBlock dashboardData={dashboardData} dashboardLoading={dashboardLoading} />
 
+        {/* 4. My Progress | My Work */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+            marginBottom: 16,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => navigate("/student/my-progress")}
+            style={{
+              padding: "18px 20px",
+              background: "white",
+              border: "2px solid #334155",
+              borderRadius: 12,
+              boxShadow: "0 2px 0 #0f172a",
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1.05rem" }}>My progress →</div>
+            <div style={{ color: "#475569", fontSize: "0.85rem", marginTop: 4, fontWeight: 600 }}>
+              Weak topics and mastery
+            </div>
+          </button>
+          <Link
+            to="/student/my-work"
+            style={{
+              padding: "18px 20px",
+              background: "white",
+              border: "2px solid #334155",
+              borderRadius: 12,
+              boxShadow: "0 2px 0 #0f172a",
+              textDecoration: "none",
+              display: "block",
+            }}
+          >
+            <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1.05rem" }}>My work →</div>
+            <div style={{ color: "#475569", fontSize: "0.85rem", marginTop: 4, fontWeight: 600 }}>
+              Assignments and completed work
+            </div>
+          </Link>
+        </div>
+
+        {/* 5. Browse all lessons (collapsed by default) */}
+        <div style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={() => setBrowseOpen((v) => !v)}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "14px 18px",
+              background: "white",
+              border: "1px solid #e2e8f0",
+              borderRadius: 12,
+              fontWeight: 800,
+              color: "#334155",
+              fontSize: "1rem",
+              cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            }}
+          >
+            Browse all lessons {browseOpen ? "▴" : "▾"}
+          </button>
+        </div>
+
+        {browseOpen && (
+        <>
         {/* Filters - PR-UX-STU-DASH-2.1: collapsible, collapsed by default */}
         <div
           style={{
@@ -1301,7 +1719,7 @@ const StudentDashboard: React.FC = () => {
             marginBottom: "12px",
           }}
         >
-          <h2 style={{ color: "#333", margin: 0 }}>Available Lessons</h2>
+          <h2 style={{ color: "#333", margin: 0 }}>All lessons</h2>
           <div style={{ color: "#666" }}>
             {filteredLessons.length} lesson{filteredLessons.length !== 1 ? "s" : ""}
             {advancedMode && " (Advanced mode active)"}
@@ -1580,6 +1998,9 @@ const StudentDashboard: React.FC = () => {
               );
             })}
           </div>
+        )}
+
+        </>
         )}
 
         {/* Purchased Lessons */}
