@@ -21,6 +21,7 @@ const {
   boardSubjectToSpecKey,
   COVERAGE_THRESHOLD,
 } = require("../services/syllabusAlignment");
+const { resolveSpecIdentity } = require("../config/specRegistry");
 const {
   resolveTopicSpecForGeneration,
   hasRichSpecForAssessment,
@@ -5413,6 +5414,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
       typeof req.body?.topicKey === "string" && req.body.topicKey.trim()
         ? req.body.topicKey.trim()
         : null;
+    const bodySpecKey =
+      typeof req.body?.specKey === "string" && req.body.specKey.trim()
+        ? req.body.specKey.trim()
+        : null;
     const requiredKeywords = Array.isArray(req.body?.requiredKeywords)
       ? req.body.requiredKeywords.filter((x) => typeof x === "string" && x.trim())
       : [];
@@ -5444,9 +5449,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
     // ✅ 1) Find the single Gold Standard master template (optional — used only for templateSource tracking)
     const gold = await Lesson.findOne({ isTemplate: true }).lean();
 
-    const specKey =
+    let specKey =
       (topicKey && parseTopicKey(topicKey).specKey) ||
-      boardSubjectToSpecKey(board, subject) ||
+      bodySpecKey ||
+      boardSubjectToSpecKey(board, subject, level) ||
       (topicKey ? parseTopicKey(topicKey).specKey : null);
 
     // ✅ Derive canonical topicKey: prefer from request (strip namespace if present); otherwise resolve from topic string
@@ -5461,7 +5467,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
         });
       }
     } else {
-      const resolved = resolveSpecAndTopicKey(board, subject, topic);
+      const resolved = resolveSpecAndTopicKey(board, subject, topic, level);
       if (!resolved) {
         return res.status(400).json({
           error: "Could not map the selected subject/main topic/sub-topic to a curriculum topic.",
@@ -5475,6 +5481,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
       canonicalTopicKey = resolved.topicKey;
       subTopicDisplay = topicMeta?.topic || topic;
+      if (!specKey) specKey = resolved.specKey;
     }
 
     if (!specKey) {
@@ -6032,24 +6039,53 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
     const pagesForDb = makeLessonDbSafe({ pages: pagesPromoted }).pages;
 
+    // Universal taxonomy persist contract (same as POST /api/lessons)
+    const namespacedLessonTopicKey = topicKey && String(topicKey).includes(":")
+      ? topicKey
+      : canonicalTopicKey
+        ? `${specKey}:${canonicalTopicKey}`
+        : null;
+    const specIdentity = resolveSpecIdentity({
+      topicKey: namespacedLessonTopicKey,
+      specKey: bodySpecKey || specKey,
+      board,
+      subject,
+      level,
+      title: sanitized.title,
+      topic,
+      subTopic: subTopicDisplay,
+    });
+    const persistedLevel = specIdentity.level || normalizeLevel(level);
+    const persistedBoard = specIdentity.board || sanitized.board;
+    const persistedSpecKey = specIdentity.specKey || specKey;
+    const persistedCanonical =
+      (namespacedLessonTopicKey && parseTopicKey(namespacedLessonTopicKey).topicKey) ||
+      canonicalTopicKey ||
+      null;
+
     // ✅ 7) Create the cloned lesson doc (required fields satisfied)
     const lessonDoc = new Lesson({
       // Required top-level fields
       title: sanitized.title,
       description: sanitized.description,
       topic,
-      subject,
-      level: normalizeLevel(level),
+      subject: specIdentity.subject || subject,
+      level: persistedLevel,
       content: "Structured lesson (see pages)",
 
       // Optional metadata
-      board: sanitized.board,
-      tier: normalizeLevel(level) === "GCSE" ? normalizeTier(sanitized.tier) : "",
+      board: persistedBoard,
+      tier: persistedLevel === "GCSE" || persistedLevel === "IGCSE" ? normalizeTier(sanitized.tier) : "",
       estimatedDuration: sanitized.estimatedDuration,
       tags: Array.isArray(sanitized.tags) ? sanitized.tags : [],
 
-      // Namespaced topicKey for practice/banks (same as manual Create Lesson)
-      ...(canonicalTopicKey && { topicKey: canonicalTopicKey }),
+      // Namespaced topicKey + identity for practice/banks (same as manual Create Lesson)
+      ...(namespacedLessonTopicKey && { topicKey: namespacedLessonTopicKey }),
+      ...(persistedSpecKey && { specKey: persistedSpecKey }),
+      ...(persistedCanonical && { canonicalTopicKey: persistedCanonical }),
+      ...(typeof req.body?.mainTopic === "string" &&
+        req.body.mainTopic.trim() && { mainTopic: req.body.mainTopic.trim() }),
+      ...(subTopicDisplay && { subTopic: subTopicDisplay }),
 
       // Step 16: Quality metadata
       qualityScore: aiQualityResult.score,

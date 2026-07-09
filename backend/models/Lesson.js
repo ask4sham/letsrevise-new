@@ -389,6 +389,8 @@ const LessonSchema = new mongoose.Schema(
     topicKey: { type: String, trim: true, default: null, index: true },
     /** Spec key from taxonomy (e.g. aqa-gcse-biology). Required for flashcards/practice/bank. */
     specKey: { type: String, trim: true, default: null, index: true },
+    /** Unprefixed taxonomy slug (topicKey without specKey:). Part of the universal persist contract. */
+    canonicalTopicKey: { type: String, trim: true, default: null, index: true },
     /** Main topic/unit display (e.g. "Cell Biology"). For teacher-facing taxonomy display. */
     mainTopic: { type: String, trim: true, default: null },
     /** Sub-topic display (e.g. "Cell structure"). For teacher-facing taxonomy display. */

@@ -182,6 +182,26 @@ function taxonomyHasSections(taxonomy) {
   return (taxonomy?.units || []).some((u) => Array.isArray(u.sections) && u.sections.length > 0);
 }
 
+/**
+ * Reusable leaf-topic flatten for any board/subject taxonomy shape:
+ * - flat: unit.topics[]
+ * - nested: unit.sections[].topics[]
+ * Unions both so AQA (flat) and Edexcel IGCSE (sectioned) share one contract.
+ * @param {Object|null|undefined} taxonomy
+ * @returns {Array<Object>}
+ */
+function flattenTaxonomyLeafTopics(taxonomy) {
+  if (!taxonomy || !Array.isArray(taxonomy.units)) return [];
+  const out = [];
+  for (const u of taxonomy.units) {
+    for (const t of u.topics || []) out.push(t);
+    for (const sec of u.sections || []) {
+      for (const t of sec.topics || []) out.push(t);
+    }
+  }
+  return out;
+}
+
 function isTaxonomyHierarchySlug(taxonomy, slug) {
   if (!taxonomyHasSections(taxonomy)) return false;
   const k = String(slug || "").trim().toLowerCase();
@@ -510,14 +530,12 @@ function topicDisplayToCanonicalKey(displayName, specKey = "aqa-gcse-biology") {
   const display = displayName.trim();
   if (!display) return "";
   const taxonomy = getTaxonomyBySpecKey(specKey);
-  if (!taxonomy || !Array.isArray(taxonomy.units)) return "";
+  if (!taxonomy) return "";
   const normalized = display.toLowerCase();
-  for (const u of taxonomy.units) {
-    const topics = Array.isArray(u.topics) ? u.topics : [];
-    const found = topics.find((t) => t.topic && String(t.topic).toLowerCase() === normalized);
-    if (found && found.key) return String(found.key).trim();
-  }
-  return "";
+  const found = flattenTaxonomyLeafTopics(taxonomy).find(
+    (t) => t.topic && String(t.topic).toLowerCase() === normalized
+  );
+  return found && found.key ? String(found.key).trim() : "";
 }
 
 /**
@@ -536,21 +554,36 @@ function getSiblingTopicKeysAndKeywords(topicKey, specKey) {
   if (!taxonomy || !Array.isArray(taxonomy.units)) return { siblingKeys: [], keywords: [] };
 
   let unitContaining = null;
+  let sectionContaining = null;
   const siblingKeys = [];
   const keywords = [];
 
   for (const u of taxonomy.units) {
-    const topics = Array.isArray(u.topics) ? u.topics : [];
-    const found = topics.find((t) => t.key === k);
-    if (found) {
+    const flat = Array.isArray(u.topics) ? u.topics : [];
+    if (flat.some((t) => t.key === k)) {
       unitContaining = u;
       break;
     }
+    for (const sec of u.sections || []) {
+      const sectionTopics = Array.isArray(sec.topics) ? sec.topics : [];
+      if (sectionTopics.some((t) => t.key === k)) {
+        unitContaining = u;
+        sectionContaining = sec;
+        break;
+      }
+    }
+    if (unitContaining) break;
   }
 
   if (!unitContaining) return { siblingKeys: [], keywords: [] };
 
-  const topics = Array.isArray(unitContaining.topics) ? unitContaining.topics : [];
+  const topics = sectionContaining
+    ? Array.isArray(sectionContaining.topics)
+      ? sectionContaining.topics
+      : []
+    : Array.isArray(unitContaining.topics)
+      ? unitContaining.topics
+      : [];
   for (const t of topics) {
     if (t.key === k) continue; // exclude selected topic
     siblingKeys.push(t.key);
@@ -637,6 +670,7 @@ module.exports = {
   findEnglishLanguageTopicByKey,
   findEdexcelIgcseBiologyTopicByKey,
   findLeafTopicInTaxonomy,
+  flattenTaxonomyLeafTopics,
   taxonomyHasSections,
   findTopicBySpecAndKey,
   isValidTopicForSpec,

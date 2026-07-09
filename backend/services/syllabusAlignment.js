@@ -6,39 +6,36 @@
  */
 const path = require("path");
 const fs = require("fs");
-const { getBiologyTopics } = require("../utils/topicTaxonomy");
-const { buildTopicKey, queryCandidates } = require("../utils/topicKey");
+const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
+const { resolveTopicLabelToKey } = require("../utils/resolveTopicLabelToKey");
+const { boardSubjectToSpecKey: registryBoardSubjectToSpecKey } = require("../config/specRegistry");
+const { queryCandidates } = require("../utils/topicKey");
 
 const SPEC_POINTS_DIR = path.join(__dirname, "..", "config", "spec_points");
 const COVERAGE_THRESHOLD = 0.9;
 
-/** Map exam board + subject to specKey (lowercase, hyphenated). */
-function boardSubjectToSpecKey(board, subject) {
-  const b = (board || "").toString().trim().toLowerCase();
-  const s = (subject || "").toString().trim().toLowerCase();
-  if (!b || !s) return null;
-  if (b === "aqa" && s === "biology") return "aqa-gcse-biology";
-  if (b === "aqa" && s === "chemistry") return "aqa-gcse-chemistry";
-  if (b === "aqa" && s === "physics") return "aqa-gcse-physics";
-  return `${b}-gcse-${s}`.replace(/\s+/g, "-");
+/** Map exam board + subject (+ optional level) to specKey via shared registry. */
+function boardSubjectToSpecKey(board, subject, level) {
+  return registryBoardSubjectToSpecKey(board, subject, level);
 }
 
-/** Resolve topic string (display or key) to topicKey using taxonomy. */
+/** Resolve topic string (display or key) to topicKey using taxonomy for the given spec. */
 function resolveTopicKey(specKey, topicStr) {
   if (!topicStr || typeof topicStr !== "string") return null;
   const t = topicStr.trim();
   if (!t) return null;
-  const keyLike = t.toLowerCase().replace(/\s+/g, "-");
-  if (keyLike.includes("-") && !keyLike.includes(" ")) return keyLike;
 
-  const taxonomy = getBiologyTopics();
-  if (!taxonomy || !Array.isArray(taxonomy.units)) return keyLike;
-  for (const unit of taxonomy.units) {
-    const topics = unit.topics || [];
-    for (const top of topics) {
-      if ((top.key && top.key === keyLike) || (top.topic && top.topic.toLowerCase() === t.toLowerCase()))
-        return top.key || keyLike;
+  const fromLabel = resolveTopicLabelToKey(specKey, t);
+  if (fromLabel.key) return fromLabel.key;
+
+  const keyLike = t.toLowerCase().replace(/\s+/g, "-");
+  if (keyLike.includes("-") && !keyLike.includes(" ")) {
+    const taxonomy = getTaxonomyBySpecKey(specKey);
+    if (taxonomy) {
+      const hit = resolveTopicLabelToKey(specKey, keyLike);
+      if (hit.key) return hit.key;
     }
+    return keyLike;
   }
   return keyLike;
 }
@@ -108,8 +105,8 @@ async function getPastPaperSnippetsForTopic(specKey, topicKey, limit = 5, PastPa
  * Resolve (board, subject, topic) to { specKey, topicKey } for syllabus alignment.
  * Returns null if spec not supported or topic not resolved.
  */
-function resolveSpecAndTopicKey(board, subject, topic) {
-  const specKey = boardSubjectToSpecKey(board, subject);
+function resolveSpecAndTopicKey(board, subject, topic, level) {
+  const specKey = boardSubjectToSpecKey(board, subject, level);
   if (!specKey) return null;
   const topicKey = resolveTopicKey(specKey, topic);
   if (!topicKey) return null;
