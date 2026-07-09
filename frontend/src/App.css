@@ -411,14 +411,17 @@ tr:hover td {
   box-sizing: border-box;
 }
 
-/* ----- LessonViewPage: sticky left/right when 3-col layout is used (min-width: 900px) ----- */
+/* ----- LessonViewPage: sticky left/right when 3-col layout is used -----
+   Pairs with LessonViewPage MOBILE_BREAKPOINT = "(max-width: 767px)":
+   rails render from 768px up (layoutStacked=false), so sticky must start at 768px
+   (not 900px — that left a 768–899px gap where rails existed but did not stick). */
 [data-lesson-view="structured"] .lesson-view-three-col,
 .lesson-view-three-col {
   overflow: visible;
 }
 
-/* Sticky sidebars ON from 900px up; paired reset uses max-width:899px below (intentional off-by-one). */
-@media (min-width: 900px) {
+/* Sticky sidebars ON from 768px up; paired reset uses max-width:767px below. */
+@media (min-width: 768px) {
   [data-lesson-view="structured"] .lesson-view-three-col .lesson-left-sidebar,
   [data-lesson-view="structured"] .lesson-view-three-col .lesson-right-sidebar,
   .lesson-view-three-col .lesson-left-sidebar,
@@ -451,8 +454,8 @@ tr:hover td {
   }
 }
 
-/* Lesson view rails: below 900px drop sticky (pairs with min-width:900px above). */
-@media (max-width: 899px) {
+/* Lesson view rails: at/below 767px drop sticky (pairs with min-width:768px above + JS MOBILE_BREAKPOINT). */
+@media (max-width: 767px) {
   [data-lesson-view="structured"] .lesson-view-three-col .lesson-left-sidebar,
   [data-lesson-view="structured"] .lesson-view-three-col .lesson-right-sidebar,
   .lesson-view-three-col .lesson-left-sidebar,
