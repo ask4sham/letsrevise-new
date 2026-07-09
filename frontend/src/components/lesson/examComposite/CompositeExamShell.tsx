@@ -114,6 +114,10 @@ export function CompositeExamShell({
     !compositeAllPartsChecked(parts, checkedParts) &&
     compositeAllPartsHaveAnswers(parts, mcqSelections, answers);
 
+  /** Student mode: block reveal until every part has been checked (prevents copying answers). */
+  const allPartsChecked = compositeAllPartsChecked(parts, checkedParts);
+  const revealEnabled = !isStudent || allPartsChecked;
+
   const sharedStem =
     (question.sharedStem && String(question.sharedStem).trim()) ||
     (question.question && String(question.question).trim()) ||
@@ -233,12 +237,19 @@ export function CompositeExamShell({
         <button
           type="button"
           className="exam-composite__reveal-btn"
-          onClick={() => setRevealed((v) => !v)}
+          data-testid="exam-composite-reveal-btn"
+          disabled={!revealEnabled}
+          title={revealEnabled ? undefined : "Check your answer first."}
+          aria-disabled={!revealEnabled}
+          onClick={() => {
+            if (!revealEnabled) return;
+            setRevealed((v) => !v);
+          }}
         >
-          {revealed ? "Hide answers / mark scheme" : "Reveal answers / mark scheme"}
+          {revealed && revealEnabled ? "Hide answers / mark scheme" : "Reveal answers / mark scheme"}
         </button>
 
-        {revealed && (
+        {revealed && revealEnabled && (
           <div className="exam-composite__reveal">
             {parts.map((part, idx) => {
               const label = partLabel(part, idx);

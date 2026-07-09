@@ -112,30 +112,48 @@ describe("ExamQuestionBlock single question marking", () => {
     expect(screen.getByTestId("answer-feedback-tip")).toHaveTextContent(/Revise:/i);
   });
 
-  test("reveal mark scheme still works for single short answer after checking", () => {
+  test("student reveal is disabled until single short answer is checked", () => {
     render(<ExamQuestionBlock question={SHORT_QUESTION} mode="student" />);
+    const revealBtn = screen.getByTestId("exam-question-reveal-btn");
+    expect(revealBtn).toBeDisabled();
+    expect(revealBtn).toHaveAttribute("title", "Check your answer first.");
+
     fireEvent.change(screen.getByPlaceholderText(/write your answer here/i), {
       target: { value: "DNA replicates" },
     });
     fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
-    fireEvent.click(screen.getByRole("button", { name: /reveal answer \/ mark scheme/i }));
+    expect(revealBtn).not.toBeDisabled();
 
+    fireEvent.click(revealBtn);
     const revealPanel = document.querySelector(".exam-question-block__reveal");
     expect(revealPanel).toHaveTextContent(/DNA replicates before mitosis/i);
     expect(revealPanel).toHaveTextContent(/two identical cells form/i);
   });
 
-  test("reveal mark scheme still works for single MCQ", () => {
+  test("student reveal is disabled until single MCQ is checked", () => {
     render(<ExamQuestionBlock question={MCQ_QUESTION} mode="student" />);
-    fireEvent.click(screen.getByRole("button", { name: /reveal answer \/ mark scheme/i }));
+    const revealBtn = screen.getByTestId("exam-question-reveal-btn");
+    expect(revealBtn).toBeDisabled();
 
+    fireEvent.click(screen.getByRole("button", { name: /^Mitochondria$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
+    expect(revealBtn).not.toBeDisabled();
+
+    fireEvent.click(revealBtn);
     expect(screen.getByText(/Correct answer: B — Mitochondria/i)).toBeInTheDocument();
-    expect(screen.queryByTestId("answer-feedback-panel")).not.toBeInTheDocument();
   });
 
   test("editor preview does not show Check answer for MCQ", () => {
     render(<ExamQuestionBlock question={MCQ_QUESTION} mode="editor" />);
     expect(screen.queryByRole("button", { name: /check answer/i })).not.toBeInTheDocument();
+  });
+
+  test("editor preview keeps reveal enabled without checking", () => {
+    render(<ExamQuestionBlock question={SHORT_QUESTION} mode="editor" />);
+    const revealBtn = screen.getByTestId("exam-question-reveal-btn");
+    expect(revealBtn).not.toBeDisabled();
+    fireEvent.click(revealBtn);
+    expect(document.querySelector(".exam-question-block__reveal")).toBeInTheDocument();
   });
 });
 
@@ -179,12 +197,28 @@ describe("ExamQuestionBlock composite question marking", () => {
     expect(summary).toHaveTextContent(/Nuclear envelope breaks down/i);
   });
 
-  test("reveal answers still works after checking parts", () => {
+  test("student reveal stays disabled until all composite parts are checked", () => {
     render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="student" />);
+    const revealBtn = screen.getByTestId("exam-composite-reveal-btn");
+    expect(revealBtn).toBeDisabled();
+    expect(revealBtn).toHaveAttribute("title", "Check your answer first.");
+
     fireEvent.click(screen.getByRole("radio", { name: /Prophase/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /check answer/i })[0]);
-    fireEvent.click(screen.getByRole("button", { name: /reveal answers \/ mark scheme/i }));
+    expect(revealBtn).toBeDisabled();
+    expect(document.querySelector(".exam-composite__reveal")).not.toBeInTheDocument();
 
+    // Filled-in answers alone must not unlock reveal — gate is checked, not merely answered.
+    fireEvent.change(screen.getByRole("textbox", { name: /your answer/i }), {
+      target: { value: "Chromosomes condense" },
+    });
+    expect(revealBtn).toBeDisabled();
+    expect(document.querySelector(".exam-composite__reveal")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("exam-composite-check-all-btn"));
+    expect(revealBtn).not.toBeDisabled();
+
+    fireEvent.click(revealBtn);
     expect(document.querySelector(".exam-composite__reveal")).toHaveTextContent(/Correct answer:/i);
     expect(document.querySelector(".exam-composite__reveal")).toHaveTextContent(/Chromosomes condense/i);
   });
@@ -196,10 +230,20 @@ describe("ExamQuestionBlock composite question marking", () => {
     expect(screen.queryByTestId("exam-composite-result-summary")).not.toBeInTheDocument();
   });
 
-  test("classroom mode has no composite marking controls", () => {
+  test("editor composite reveal stays enabled without checking", () => {
+    render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="editor" />);
+    const revealBtn = screen.getByTestId("exam-composite-reveal-btn");
+    expect(revealBtn).not.toBeDisabled();
+    fireEvent.click(revealBtn);
+    expect(document.querySelector(".exam-composite__reveal")).toBeInTheDocument();
+  });
+
+  test("classroom mode has no composite marking controls and reveal stays enabled", () => {
     render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="classroom" />);
     expect(screen.queryByRole("button", { name: /check answer/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId("exam-composite-result-summary")).not.toBeInTheDocument();
+    const revealBtn = screen.getByTestId("exam-composite-reveal-btn");
+    expect(revealBtn).not.toBeDisabled();
   });
 });
 

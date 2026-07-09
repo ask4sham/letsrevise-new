@@ -645,8 +645,16 @@
   cursor: pointer;
 }
 
-.exam-composite__reveal-btn:hover {
+.exam-composite__reveal-btn:hover:not(:disabled) {
   background: #f5f3ff;
+}
+
+.exam-composite__reveal-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
 }
 
 .exam-composite__reveal {
