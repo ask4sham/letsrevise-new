@@ -1,5 +1,21 @@
 import type { ExamQuestion, ExamQuestionPart } from "../../../api/examQuestions";
 import { makeAbsoluteAssetUrl, resolveExamQuestionImageSrc } from "../../../utils/assetUrl";
+import { isCompositePartTypeEnabled } from "./featureFlags";
+import { tableHasStudentInput } from "./interactions/table/markTable";
+import { parseTablePartData } from "./interactions/table/tableTypes";
+import { CompositePartType } from "./types";
+
+export function normalizeCompositePartType(part: ExamQuestionPart): string {
+  return String(part.type ?? "").toLowerCase().trim();
+}
+
+/** True when the stored part is a table interaction (type or valid partData when flag allows). */
+export function isCompositeTablePart(part: ExamQuestionPart): boolean {
+  const type = normalizeCompositePartType(part);
+  if (type === CompositePartType.TABLE) return true;
+  if (!isCompositePartTypeEnabled(CompositePartType.TABLE)) return false;
+  return parseTablePartData(part.partData) != null;
+}
 
 export function isCompositeQuestion(q: ExamQuestion): boolean {
   return (
@@ -55,4 +71,39 @@ export function inlineExamQuestionImageSrc(storedUrl: string): string {
   if (!trimmed) return "";
   const absolute = makeAbsoluteAssetUrl(trimmed) ?? trimmed;
   return resolveExamQuestionImageSrc(absolute);
+}
+
+export function compositePartHasStudentAnswer(
+  part: ExamQuestionPart,
+  partIndex: number,
+  mcqSelections: Record<number, number>,
+  answers: Record<number, string>
+): boolean {
+  const type = normalizeCompositePartType(part);
+  if (type === CompositePartType.MCQ) {
+    return mcqSelections[partIndex] !== undefined;
+  }
+  if (isCompositeTablePart(part) && isCompositePartTypeEnabled(CompositePartType.TABLE)) {
+    return tableHasStudentInput(answers[partIndex]);
+  }
+  return Boolean(String(answers[partIndex] ?? "").trim());
+}
+
+export function compositeAllPartsChecked(
+  parts: ExamQuestionPart[],
+  checkedParts: Record<number, boolean>
+): boolean {
+  if (parts.length < 1) return false;
+  return parts.every((_, index) => Boolean(checkedParts[index]));
+}
+
+export function compositeAllPartsHaveAnswers(
+  parts: ExamQuestionPart[],
+  mcqSelections: Record<number, number>,
+  answers: Record<number, string>
+): boolean {
+  if (parts.length < 1) return false;
+  return parts.every((part, index) =>
+    compositePartHasStudentAnswer(part, index, mcqSelections, answers)
+  );
 }

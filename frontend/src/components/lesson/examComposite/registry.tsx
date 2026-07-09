@@ -3,6 +3,8 @@ import type { ExamQuestionPart } from "../../../api/examQuestions";
 import { isCompositePartTypeEnabled } from "./featureFlags";
 import type { CompositeInteractionPlugin } from "./interactionTypes";
 import { CompositeAnswerLines, CompositeMcqOptions } from "./CompositePartComponents";
+import { isCompositeTablePart, normalizeCompositePartType } from "./compositeUtils";
+import { tableInteraction } from "./interactions/table";
 import { CompositePartType } from "./types";
 
 function partOptions(part: ExamQuestionPart): string[] {
@@ -41,8 +43,10 @@ export const mcqInteraction: CompositeInteractionPlugin = {
 export const shortInteraction: CompositeInteractionPlugin = {
   partType: CompositePartType.SHORT,
   matchesPart: (part) => {
-    const type = String(part.type).toLowerCase();
-    return type === CompositePartType.SHORT || type !== CompositePartType.MCQ;
+    if (mcqInteraction.matchesPart(part) || isCompositeTablePart(part)) return false;
+    const type = normalizeCompositePartType(part);
+    if (type === CompositePartType.SHORT) return true;
+    return type !== CompositePartType.MCQ && type !== CompositePartType.TABLE;
   },
   renderAnswer: ({
     part,
@@ -81,6 +85,7 @@ const TYPED_REGISTRY: Partial<
 > = {
   [CompositePartType.MCQ]: mcqInteraction,
   [CompositePartType.SHORT]: shortInteraction,
+  [CompositePartType.TABLE]: tableInteraction,
 };
 
 function normalizePartType(raw: string): (typeof CompositePartType)[keyof typeof CompositePartType] | null {
@@ -94,10 +99,20 @@ export function resolveCompositeInteraction(part: ExamQuestionPart): CompositeIn
     return mcqInteraction;
   }
 
+  if (isCompositeTablePart(part)) {
+    if (!isCompositePartTypeEnabled(CompositePartType.TABLE)) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`[CompositeExam] Part type "table" is disabled by feature flag.`);
+      }
+      return unknownInteraction;
+    }
+    return tableInteraction;
+  }
+
   const raw = String(part.type ?? "").toLowerCase();
   const typed = normalizePartType(raw);
 
-  if (typed && typed !== CompositePartType.MCQ) {
+  if (typed && typed !== CompositePartType.MCQ && typed !== CompositePartType.SHORT) {
     if (!isCompositePartTypeEnabled(typed)) {
       if (process.env.NODE_ENV === "development") {
         console.warn(`[CompositeExam] Part type "${raw}" is disabled by feature flag.`);

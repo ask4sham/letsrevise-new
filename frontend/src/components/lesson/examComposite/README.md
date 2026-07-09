@@ -2,7 +2,7 @@
 
 **Canonical Architecture Specification (Stable)**
 
-Status: **FROZEN** — do not implement interaction plugins until Phase 0 is approved against this document.
+Status: **Phase 0 frozen. Phase 1 (Table) in progress on `feature/exam-composite-table`.**
 
 Primary objective: **zero regression**. No breaking of any existing stable functionality.
 
@@ -15,6 +15,7 @@ Primary objective: **zero regression**. No breaking of any existing stable funct
 | `exam-composite-v2-spec` | `5af44e5c` | Canonical architecture + type contracts. **No runtime change.** Permanent design reference. |
 | `exam-composite-v2-phase0` | `3db0276f` | Structural extract: shell, router, registry, flags, schema reader. **No behavioural change.** |
 | `exam-composite-v2-phase0-baseline` | `ec57056f` | **Verified working** Phase 0 (includes compile-structure fixes). Recovery point before Phase 1 (Table). |
+| `exam-composite-table-checkanswer-v1` | `9ed28825` | Table routing + footer Check answer restored. Local smoke verified. |
 
 Related stability tag: `lesson-lifecycle-stability-v1` (`1b30b536`).
 
@@ -353,15 +354,44 @@ Surfaces: lesson exams, exam practice, homework, teacher tests, AI-generated pap
 
 Tag: `exam-composite-v2-phase0-baseline`
 
-### Phase 1 — Table interaction **ONLY** (next)
+### Phase 1 — Table interaction **ONLY** (shipping)
 
 **Scope:** one new interaction. Nothing else (no calculation, graph, or label).
 
 - Table editor, renderer, validator, marker, feedback
 - Supports: `headers`, `rows`, editable cells, mark scheme
-- Flag `TABLE_PARTS_ENABLED` — **OFF** by default until verified
+- Source flag `TABLE_PARTS_ENABLED` — **OFF** by default
+- Production enable via Netlify build env `REACT_APP_TABLE_PARTS_ENABLED=true`
 
 **Must not affect:** existing MCQ or Short parts.
+
+Recovery tag: `exam-composite-table-checkanswer-v1` (`9ed28825`)
+
+### Phase Completion Checklist (every phase before merge)
+
+#### Functional
+- [ ] Existing MCQ unchanged
+- [ ] Existing Short Answer unchanged
+- [ ] Existing composite questions render identically
+- [ ] Existing mark schemes unchanged
+
+#### UI
+- [ ] Desktop
+- [ ] Tablet
+- [ ] Mobile
+- [ ] Lightbox
+- [ ] Original PNG policy
+
+#### Lesson integrity
+- [ ] Placenta lesson
+- [ ] FSH/LH lesson
+- [ ] At least one older Biology lesson using embedded exam questions
+
+#### Technical
+- [ ] Build passes
+- [ ] Existing tests pass
+- [ ] New interaction tests pass
+- [ ] Feature flag OFF = no visible behaviour change
 
 #### Phase 1 acceptance (before merge)
 
@@ -375,8 +405,6 @@ Tag: `exam-composite-v2-phase0-baseline`
 | Images | Original PNG inline policy |
 | Lightbox | Fit-to-viewport on open |
 | Mobile | Smoke test |
-
-Branch from: `exam-composite-v2-phase0-baseline`
 
 ### Phase 2 — Calculation interaction
 

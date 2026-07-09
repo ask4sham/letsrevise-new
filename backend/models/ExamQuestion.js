@@ -10,13 +10,15 @@ const ExamQuestionPartSchema = new mongoose.Schema(
   {
     /** Part label shown to students, e.g. "a", "b", "c". */
     label: { type: String, trim: true, default: "" },
-    type: { type: String, enum: ["mcq", "short"], default: "short" },
+    type: { type: String, enum: ["mcq", "short", "table"], default: "short" },
     marks: { type: Number, default: 1 },
     questionText: { type: String, trim: true, default: "" },
     /** MCQ parts only. */
     options: { type: [String], default: [] },
     correctIndex: { type: Number, default: null },
     markScheme: { type: [String], default: [] },
+    /** V2 interaction payload (e.g. table headers/rows). Absent on V1 parts. */
+    partData: { type: mongoose.Schema.Types.Mixed, default: undefined },
   },
   { _id: false }
 );
@@ -110,6 +112,11 @@ const ExamQuestionSchema = new mongoose.Schema(
     /** Composite only: ordered sub-parts (a), (b), (c)… */
     parts: {
       type: [ExamQuestionPartSchema],
+      default: undefined,
+    },
+    /** Composite Exam Engine V2. Omitted on legacy records (= schema V1). */
+    schemaVersion: {
+      type: Number,
       default: undefined,
     },
     marks: {

@@ -13,8 +13,18 @@ import {
   ExamQuestionScoreRibbon,
 } from "./CompositePartComponents";
 import { CompositePartRouter } from "./CompositePartRouter";
-import { inlineExamQuestionImageSrc, partLabel } from "./compositeUtils";
+import { isCompositePartTypeEnabled } from "./featureFlags";
+import {
+  compositeAllPartsChecked,
+  compositeAllPartsHaveAnswers,
+  inlineExamQuestionImageSrc,
+  isCompositeTablePart,
+  normalizeCompositePartType,
+  partLabel,
+} from "./compositeUtils";
 import { resolveCompositeSchemaVersion } from "./schemaVersion";
+import { CompositePartType } from "./types";
+import { listBlankCells, parseTablePartData } from "./interactions/table/tableTypes";
 
 export type CompositeExamShellProps = {
   question: ExamQuestion;
@@ -87,6 +97,22 @@ export function CompositeExamShell({
   const markPartChecked = (partIndex: number) => {
     setCheckedParts((prev) => ({ ...prev, [partIndex]: true }));
   };
+
+  const markAllPartsChecked = () => {
+    setCheckedParts((prev) => {
+      const next = { ...prev };
+      parts.forEach((_, index) => {
+        next[index] = true;
+      });
+      return next;
+    });
+  };
+
+  const showCheckAllButton =
+    isStudent &&
+    parts.length > 0 &&
+    !compositeAllPartsChecked(parts, checkedParts) &&
+    compositeAllPartsHaveAnswers(parts, mcqSelections, answers);
 
   const sharedStem =
     (question.sharedStem && String(question.sharedStem).trim()) ||
@@ -194,6 +220,16 @@ export function CompositeExamShell({
             />
           </div>
         ) : null}
+        {showCheckAllButton ? (
+          <button
+            type="button"
+            className="exam-composite__check-all-btn"
+            data-testid="exam-composite-check-all-btn"
+            onClick={markAllPartsChecked}
+          >
+            Check answer
+          </button>
+        ) : null}
         <button
           type="button"
           className="exam-composite__reveal-btn"
@@ -209,13 +245,17 @@ export function CompositeExamShell({
               const options = Array.isArray(part.options)
                 ? part.options.map((o) => String(o ?? "").trim()).filter(Boolean)
                 : [];
-              const isMcqPart = String(part.type).toLowerCase() === "mcq" && options.length > 0;
+              const partType = normalizeCompositePartType(part);
+              const isMcqPart = partType === CompositePartType.MCQ && options.length > 0;
+              const isTablePart = isCompositeTablePart(part) && isCompositePartTypeEnabled(CompositePartType.TABLE);
               const correctIdx = typeof part.correctIndex === "number" ? part.correctIndex : -1;
               const correctOption =
                 isMcqPart && correctIdx >= 0 && options[correctIdx] != null ? options[correctIdx] : "";
               const markScheme = Array.isArray(part.markScheme)
                 ? part.markScheme.map((l) => String(l ?? "").trim()).filter(Boolean)
                 : [];
+              const tableData = isTablePart ? parseTablePartData(part.partData) : null;
+              const tableBlanks = tableData ? listBlankCells(tableData) : [];
 
               return (
                 <div key={idx} className="exam-composite__reveal-part">
@@ -224,6 +264,18 @@ export function CompositeExamShell({
                     <p className="exam-composite__reveal-answer">
                       Correct answer: <strong>{String.fromCharCode(65 + correctIdx)}</strong> — {correctOption}
                     </p>
+                  ) : null}
+                  {isTablePart && tableBlanks.length > 0 ? (
+                    <div className="exam-composite__reveal-scheme">
+                      <span className="exam-composite__reveal-scheme-label">Correct cell answers:</span>
+                      <ul className="exam-composite__reveal-list">
+                        {tableBlanks.map((blank) => (
+                          <li key={`${blank.row}-${blank.col}`}>
+                            Row {blank.row + 1}, column {blank.col + 1}: {blank.correctAnswer}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ) : null}
                   {markScheme.length > 0 ? (
                     <div className="exam-composite__reveal-scheme">
@@ -235,7 +287,7 @@ export function CompositeExamShell({
                       </ul>
                     </div>
                   ) : (
-                    !isMcqPart && (
+                    !isMcqPart && !isTablePart && (
                       <p className="exam-composite__reveal-empty">No mark scheme provided.</p>
                     )
                   )}

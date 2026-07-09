@@ -1,13 +1,12 @@
 /**
- * Composite Exam Question V1 helpers.
+ * Composite Exam Question helpers (V1 + additive V2 table parts).
  *
- * A composite question stores one shared stem/image plus an ordered list of sub-parts.
- * These helpers normalise incoming payloads and validate them for draft (lenient) and
- * publish (strict), mirroring the "draft lenient, publish strict" rule used for single
- * questions.
+ * V1 parts remain mcq/short with no partData.
+ * V2 table parts add type "table" + partData { headers, rows }.
+ * Old questions require zero migration.
  */
 
-const PART_TYPES = ["mcq", "short"];
+const PART_TYPES = ["mcq", "short", "table"];
 const DEFAULT_LABELS = "abcdefghijklmnopqrstuvwxyz".split("");
 
 function isCompositePayload(body) {
@@ -18,12 +17,69 @@ function isCompositePayload(body) {
   );
 }
 
+function normalizeTableCell(rawCell) {
+  if (!rawCell || typeof rawCell !== "object") {
+    return { value: String(rawCell ?? ""), blank: false };
+  }
+  return {
+    value: rawCell.value != null ? String(rawCell.value) : "",
+    blank: Boolean(rawCell.blank),
+    correctAnswer:
+      rawCell.correctAnswer != null && String(rawCell.correctAnswer).trim()
+        ? String(rawCell.correctAnswer).trim()
+        : undefined,
+  };
+}
+
+function normalizeTablePartData(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const headers = Array.isArray(raw.headers)
+    ? raw.headers.map((h) => String(h ?? "").trim())
+    : [];
+  const rows = Array.isArray(raw.rows)
+    ? raw.rows
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const cells = Array.isArray(row.cells) ? row.cells.map(normalizeTableCell) : [];
+          return { cells };
+        })
+        .filter(Boolean)
+    : [];
+  if (headers.length < 1 || rows.length < 1) return null;
+  return { headers, rows };
+}
+
+function validateTablePartData(partData, label) {
+  const data = normalizeTablePartData(partData);
+  if (!data) {
+    return { ok: false, msg: `Part (${label}) table needs headers and at least one row.` };
+  }
+  let blankCount = 0;
+  for (let r = 0; r < data.rows.length; r += 1) {
+    const row = data.rows[r];
+    for (let c = 0; c < row.cells.length; c += 1) {
+      const cell = row.cells[c];
+      if (!cell.blank) continue;
+      blankCount += 1;
+      if (!cell.correctAnswer) {
+        return {
+          ok: false,
+          msg: `Part (${label}) blank cell at row ${r + 1}, column ${c + 1} needs a correct answer.`,
+        };
+      }
+    }
+  }
+  if (blankCount < 1) {
+    return { ok: false, msg: `Part (${label}) table needs at least one blank (editable) cell.` };
+  }
+  return { ok: true, data };
+}
+
 /** Clean a single incoming part into the stored shape. */
 function normalizePart(rawPart, index) {
   const part = rawPart && typeof rawPart === "object" ? rawPart : {};
-  const type = PART_TYPES.includes(String(part.type || "").toLowerCase())
-    ? String(part.type).toLowerCase()
-    : "short";
+  const rawType = String(part.type || "").toLowerCase();
+  const type = PART_TYPES.includes(rawType) ? rawType : "short";
   const label =
     typeof part.label === "string" && part.label.trim()
       ? part.label.trim()
@@ -48,6 +104,12 @@ function normalizePart(rawPart, index) {
     out.options = [];
     out.correctIndex = null;
   }
+
+  if (type === "table") {
+    const tableData = normalizeTablePartData(part.partData);
+    if (tableData) out.partData = tableData;
+  }
+
   return out;
 }
 
@@ -71,7 +133,8 @@ function buildCompositeFields(body) {
   const sharedStem = typeof body?.sharedStem === "string" ? body.sharedStem.trim() : "";
   const title = typeof body?.title === "string" && body.title.trim() ? body.title.trim() : null;
   const totalMarks = computeTotalMarks(parts);
-  return {
+  const hasTable = parts.some((p) => p.type === "table");
+  const fields = {
     questionMode: "composite",
     type: "composite",
     title,
@@ -83,6 +146,8 @@ function buildCompositeFields(body) {
     question: sharedStem || title || "Composite exam question",
     marks: totalMarks,
   };
+  if (hasTable) fields.schemaVersion = 2;
+  return fields;
 }
 
 /** Lenient checks for saving a composite draft. */
@@ -118,6 +183,10 @@ function validateCompositeDraft(body) {
         return { ok: false, msg: `Part (${part.label}) MCQ needs a selected correct option.` };
       }
     }
+    if (part.type === "table") {
+      const tableCheck = validateTablePartData(part.partData, part.label);
+      if (!tableCheck.ok) return tableCheck;
+    }
   }
   return { ok: true };
 }
@@ -137,6 +206,16 @@ function validateCompositePublish(doc) {
         };
       }
     }
+    if (part.type === "table") {
+      const tableCheck = validateTablePartData(part.partData, part.label);
+      if (!tableCheck.ok) return tableCheck;
+      if ((part.markScheme || []).length < 1) {
+        return {
+          ok: false,
+          msg: `Part (${part.label}) table needs a mark scheme before publishing.`,
+        };
+      }
+    }
   }
   if (computeTotalMarks(parts) < 1) {
     return { ok: false, msg: "Composite question must have at least 1 total mark." };
@@ -149,6 +228,8 @@ module.exports = {
   isCompositePayload,
   normalizePart,
   normalizeParts,
+  normalizeTablePartData,
+  validateTablePartData,
   computeTotalMarks,
   buildCompositeFields,
   validateCompositeDraft,

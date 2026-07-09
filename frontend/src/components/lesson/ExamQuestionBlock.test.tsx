@@ -165,16 +165,11 @@ describe("ExamQuestionBlock composite question marking", () => {
   test("total score updates when multiple parts are checked", () => {
     render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="student" />);
     fireEvent.click(screen.getByRole("radio", { name: /Prophase/i }));
-    fireEvent.click(screen.getAllByRole("button", { name: /check answer/i })[0]);
-
-    expect(screen.getByTestId("exam-composite-total-score")).toHaveTextContent(/1 \/ 3 marks/i);
-
     fireEvent.change(screen.getByRole("textbox", { name: /your answer/i }), {
       target: { value: "Chromosomes condense" },
     });
-    fireEvent.click(screen.getAllByRole("button", { name: /check answer/i })[0]);
+    fireEvent.click(screen.getByTestId("exam-composite-check-all-btn"));
 
-    expect(screen.queryByTestId("exam-composite-total-score")).not.toBeInTheDocument();
     const summary = screen.getByTestId("exam-composite-result-summary");
     expect(summary).toHaveTextContent(/📝 Exam question result/i);
     expect(screen.getByTestId("exam-composite-overall-score")).toHaveTextContent(/2 \/ 3 marks/i);
