@@ -9,6 +9,18 @@ jest.mock("./ZoomableImageLightbox", () => ({
   ),
 }));
 
+/** Force flag OFF even when REACT_APP_TABLE_PARTS_ENABLED=true in the shell / .env.local */
+jest.mock("./examComposite/featureFlags", () => {
+  const actual = jest.requireActual("./examComposite/featureFlags");
+  return {
+    ...actual,
+    isCompositePartTypeEnabled: (partType: string) => {
+      if (String(partType).toLowerCase() === "table") return false;
+      return actual.isCompositePartTypeEnabled(partType);
+    },
+  };
+});
+
 const TABLE_COMPOSITE: ExamQuestion = {
   _id: "exam-composite-table-off",
   questionMode: "composite",
