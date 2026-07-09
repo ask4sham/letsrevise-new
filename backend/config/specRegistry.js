@@ -1,6 +1,9 @@
 /**
  * Specification identity registry — board, level, exam code per specKey.
  * Source of truth for Phase 1 spec-aware routing (curriculum content comes in Phase 2).
+ *
+ * Universal contract: resolveSpecIdentity works for any registered specKey.
+ * Edexcel IGCSE Biology is the first proof case for IGCSE vs GCSE disambiguation.
  */
 const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 const { parseTopicKey } = require("../utils/topicKey");
@@ -13,9 +16,45 @@ const EXAM_CODES = {
   "edexcel-igcse-biology": "4BI1",
 };
 
+const EDEXCEL_IGCSE_BIOLOGY = "edexcel-igcse-biology";
+
+function safeStr(v) {
+  return v === undefined || v === null ? "" : String(v).trim();
+}
+
+function lessonTextBlob(input = {}) {
+  return [input.topicKey, input.title, input.topic, input.subTopic].map(safeStr).filter(Boolean).join(" ");
+}
+
+/**
+ * Infer Edexcel IGCSE Biology when board/subject match and text or topicKey signals IGCSE.
+ * Handles lessons stored with level "GCSE" but topic/title containing IGCSE or exam code 4BI1.
+ *
+ * @param {{ board?: string, subject?: string, level?: string, topicKey?: string, title?: string, topic?: string, subTopic?: string }} input
+ * @returns {string|null}
+ */
+function inferEdexcelIgcseBiologySpecKey(input = {}) {
+  const board = safeStr(input.board).toLowerCase();
+  const subject = safeStr(input.subject).toLowerCase();
+  if (board !== "edexcel" || subject !== "biology") return null;
+
+  const topicKey = safeStr(input.topicKey);
+  if (topicKey.toLowerCase().startsWith(`${EDEXCEL_IGCSE_BIOLOGY}:`)) {
+    return EDEXCEL_IGCSE_BIOLOGY;
+  }
+
+  if (/^igcse$/i.test(safeStr(input.level))) return EDEXCEL_IGCSE_BIOLOGY;
+
+  const blob = lessonTextBlob(input);
+  if (/igcse/i.test(blob) || /\b4bi1\b/i.test(blob)) return EDEXCEL_IGCSE_BIOLOGY;
+
+  return null;
+}
+
 /**
  * Map exam board + subject (+ optional level) to specKey.
  * Level disambiguates Edexcel GCSE vs IGCSE Biology.
+ * Only returns keys that have loaded taxonomy when the GCSE fallback would invent a missing board.
  */
 function boardSubjectToSpecKey(board, subject, level) {
   const b = (board || "").toString().trim().toLowerCase();
@@ -26,8 +65,9 @@ function boardSubjectToSpecKey(board, subject, level) {
   if (b === "aqa" && s === "chemistry") return "aqa-gcse-chemistry";
   if (b === "aqa" && s === "physics") return "aqa-gcse-physics";
   if (b === "edexcel" && s === "biology") {
-    if (lv === "igcse") return "edexcel-igcse-biology";
-    return "edexcel-gcse-biology";
+    if (lv === "igcse") return EDEXCEL_IGCSE_BIOLOGY;
+    const gcseKey = "edexcel-gcse-biology";
+    return getTaxonomyBySpecKey(gcseKey) ? gcseKey : null;
   }
   return `${b}-gcse-${s}`.replace(/\s+/g, "-");
 }
@@ -62,10 +102,10 @@ function normalizeLevelLabel(level) {
 
 /**
  * Resolve canonical spec identity for generation / lesson save.
- * Priority: namespaced topicKey → explicit specKey → board+subject+level inference.
+ * Priority: namespaced topicKey → explicit specKey → IGCSE text inference → board+subject+level.
  * Registry metadata wins over mismatched request body when specKey is known.
  *
- * @param {{ topicKey?: string|null, specKey?: string|null, board?: string, subject?: string, level?: string }} input
+ * @param {{ topicKey?: string|null, specKey?: string|null, board?: string, subject?: string, level?: string, title?: string, topic?: string, subTopic?: string }} input
  */
 function resolveSpecIdentity(input = {}) {
   const topicKey = typeof input.topicKey === "string" ? input.topicKey.trim() : "";
@@ -78,6 +118,15 @@ function resolveSpecIdentity(input = {}) {
   const resolvedSpecKey =
     (parsed.isNamespaced && parsed.specKey) ||
     bodySpecKey ||
+    inferEdexcelIgcseBiologySpecKey({
+      board,
+      subject,
+      level,
+      topicKey,
+      title: input.title,
+      topic: input.topic,
+      subTopic: input.subTopic,
+    }) ||
     boardSubjectToSpecKey(board, subject, level) ||
     null;
 
@@ -98,4 +147,5 @@ module.exports = {
   getSpecMetadata,
   resolveSpecIdentity,
   normalizeLevelLabel,
+  inferEdexcelIgcseBiologySpecKey,
 };

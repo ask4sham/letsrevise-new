@@ -1,7 +1,12 @@
 /**
  * Spec identity registry — Phase 1 routing for board / level / examCode.
  */
-const { resolveSpecIdentity, boardSubjectToSpecKey, getSpecMetadata } = require("../config/specRegistry");
+const {
+  resolveSpecIdentity,
+  boardSubjectToSpecKey,
+  getSpecMetadata,
+  inferEdexcelIgcseBiologySpecKey,
+} = require("../config/specRegistry");
 
 describe("specRegistry", () => {
   const EDEXCEL_TOPIC = "edexcel-igcse-biology:human-male-and-female-reproductive-systems";
@@ -22,8 +27,23 @@ describe("specRegistry", () => {
     });
   });
 
+  test("inferEdexcelIgcseBiologySpecKey from title/exam code when level wrongly GCSE", () => {
+    expect(
+      inferEdexcelIgcseBiologySpecKey({
+        board: "Edexcel",
+        subject: "Biology",
+        level: "GCSE",
+        title: "Placenta (Edexcel IGCSE Biology) Exam code 4BI1",
+      })
+    ).toBe("edexcel-igcse-biology");
+  });
+
   test("boardSubjectToSpecKey maps Edexcel Biology IGCSE", () => {
     expect(boardSubjectToSpecKey("Edexcel", "Biology", "IGCSE")).toBe("edexcel-igcse-biology");
+  });
+
+  test("boardSubjectToSpecKey does not invent missing edexcel-gcse-biology", () => {
+    expect(boardSubjectToSpecKey("Edexcel", "Biology", "GCSE")).toBeNull();
   });
 
   test("boardSubjectToSpecKey keeps AQA GCSE Biology unchanged", () => {

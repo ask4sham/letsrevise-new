@@ -67,8 +67,47 @@ describe("Lesson taxonomy (PR-TAXONOMY)", () => {
     const lesson = await Lesson.findById(res.body.lesson._id).lean();
     expect(lesson.topicKey).toBe("aqa-gcse-biology:cell-structure");
     expect(lesson.specKey).toBe("aqa-gcse-biology");
+    expect(lesson.canonicalTopicKey).toBe("cell-structure");
     expect(lesson.mainTopic).toBe("Cell Biology");
     expect(lesson.subTopic).toBe("Cell structure");
+  });
+
+  test("POST /api/lessons Edexcel IGCSE Biology persists taxonomy contract", async () => {
+    const res = await request(app)
+      .post("/api/lessons")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        title: "Roles of FSH & LH (Edexcel IGCSE)",
+        description: "Test",
+        content: "Content",
+        subject: "Biology",
+        level: "GCSE",
+        board: "Edexcel",
+        topic: "Roles of FSH & LH in the Menstrual Cycle",
+        topicKey: "edexcel-igcse-biology:roles-of-fsh-and-lh-in-the-menstrual-cycle",
+        specKey: "edexcel-igcse-biology",
+        mainTopic: "Human Reproduction",
+        subTopic: "Roles of FSH & LH in the Menstrual Cycle",
+        estimatedDuration: 30,
+        pages: [
+          {
+            pageId: "p1",
+            title: "Page 1",
+            order: 1,
+            blocks: [{ type: "text", content: "Content" }],
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lesson._id).lean();
+    expect(lesson.topicKey).toBe(
+      "edexcel-igcse-biology:roles-of-fsh-and-lh-in-the-menstrual-cycle"
+    );
+    expect(lesson.specKey).toBe("edexcel-igcse-biology");
+    expect(lesson.canonicalTopicKey).toBe("roles-of-fsh-and-lh-in-the-menstrual-cycle");
+    expect(lesson.board).toBe("Edexcel");
+    expect(lesson.level).toBe("IGCSE");
   });
 
   test("PUT /api/lessons with topicKey → specKey derived and persisted", async () => {

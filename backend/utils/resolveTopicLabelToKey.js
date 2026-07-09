@@ -1,8 +1,9 @@
 /**
  * Resolve free-text / composite lesson labels to canonical taxonomy topic keys.
  * Matching order: exact display → normalized display → slug → alias/fuzzy.
+ * Uses flattenTaxonomyLeafTopics so flat (AQA) and section-nested (Edexcel) share one contract.
  */
-const { getTaxonomyBySpecKey } = require("./topicTaxonomy");
+const { getTaxonomyBySpecKey, flattenTaxonomyLeafTopics } = require("./topicTaxonomy");
 
 function safeStr(v) {
   return v === undefined || v === null ? "" : String(v).trim();
@@ -12,7 +13,9 @@ function normalizeTopicString(raw = "") {
   return safeStr(raw)
     .toLowerCase()
     .replace(/[–—]/g, "-")
+    .replace(/&/g, " and ")
     .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\band\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -25,6 +28,15 @@ function topicToKey(raw) {
     .toLowerCase()
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** Compare slugs with "and" tokens optional (FSH & LH vs FSH and LH). */
+function loosenSlugForCompare(slug) {
+  return safeStr(slug)
+    .toLowerCase()
+    .replace(/-and-/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 }
@@ -44,7 +56,12 @@ function extractLabelCandidates(...sources) {
     add(raw);
     const noParens = raw.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
     add(noParens);
+    const beforeExamCode = noParens.split(/\bexam\s+code\b/i)[0].trim();
+    add(beforeExamCode);
     for (const part of noParens.split(/[–—|:]/)) {
+      add(part.trim());
+    }
+    for (const part of beforeExamCode.split(/[–—|:]/)) {
       add(part.trim());
     }
     const emParts = noParens.split(/\s+[–—]\s+/);
@@ -57,6 +74,17 @@ function extractLabelCandidates(...sources) {
 
 function normalizeDisplayLabel(label) {
   return normalizeTopicString(label);
+}
+
+function labelTokens(normalized) {
+  return normalized.split(/\s+/).filter((t) => t.length >= 3);
+}
+
+function allTokensContained(shorterNorm, longerNorm) {
+  const shortTokens = labelTokens(shorterNorm);
+  const longSet = new Set(labelTokens(longerNorm));
+  if (shortTokens.length < 2 || longSet.size < shortTokens.length) return false;
+  return shortTokens.every((t) => longSet.has(t));
 }
 
 /** Known lesson-title aliases → canonical slug (keep in sync with normalizeLessonTopicKey). */
@@ -74,6 +102,9 @@ function aliasSlugFromNormalized(normalized) {
   if (/\buses of glucose\b/.test(t)) return "photosynthesis";
   if (/\bmetabolism\b/.test(t) && !/\benzyme/.test(t)) return "metabolism";
   if (/\bresponse to exercise\b/.test(t)) return "response-to-exercise";
+  if (/\bsecondary sexual characteristics?\b/.test(t)) {
+    return "development-of-secondary-sexual-characteristics";
+  }
   return null;
 }
 
@@ -87,6 +118,7 @@ function matchCandidateAgainstTopics(topics, candidate) {
   if (!c || !Array.isArray(topics)) return null;
   const normC = normalizeDisplayLabel(c);
   const slugC = topicToKey(c);
+  const looseSlugC = slugC ? loosenSlugForCompare(slugC) : "";
 
   for (const t of topics) {
     const display = safeStr(t.topic);
@@ -109,7 +141,11 @@ function matchCandidateAgainstTopics(topics, candidate) {
   if (slugC) {
     for (const t of topics) {
       const key = safeStr(t.key);
-      if (key && key.toLowerCase() === slugC) {
+      if (!key) continue;
+      if (key.toLowerCase() === slugC) {
+        return { key, match: "slug" };
+      }
+      if (looseSlugC && loosenSlugForCompare(key) === looseSlugC) {
         return { key, match: "slug" };
       }
     }
@@ -130,7 +166,12 @@ function matchCandidateAgainstTopics(topics, candidate) {
       const key = safeStr(t.key);
       if (!display || !key) continue;
       const normD = normalizeDisplayLabel(display);
-      if (normD.includes(normC) || normC.includes(normD)) {
+      const contains =
+        normD.includes(normC) ||
+        normC.includes(normD) ||
+        allTokensContained(normC, normD) ||
+        allTokensContained(normD, normC);
+      if (contains) {
         if (!best || normD.length < normalizeDisplayLabel(best.display).length) {
           best = { key, match: "fuzzy-contains", display };
         }
@@ -152,12 +193,7 @@ function resolveTopicLabelToKey(specKey, ...labelSources) {
   if (!spec) return { key: null, match: null, candidate: null };
 
   const taxonomy = getTaxonomyBySpecKey(spec);
-  const topics = [];
-  if (taxonomy && Array.isArray(taxonomy.units)) {
-    for (const u of taxonomy.units) {
-      for (const t of u.topics || []) topics.push(t);
-    }
-  }
+  const topics = flattenTaxonomyLeafTopics(taxonomy);
   if (!topics.length) return { key: null, match: null, candidate: null };
 
   const candidates = extractLabelCandidates(...labelSources);
@@ -176,7 +212,9 @@ function logTopicMappingDebug(scope, payload) {
 module.exports = {
   extractLabelCandidates,
   topicToKey,
+  normalizeTopicString,
   normalizeDisplayLabel,
+  loosenSlugForCompare,
   aliasSlugFromNormalized,
   resolveTopicLabelToKey,
   matchCandidateAgainstTopics,
