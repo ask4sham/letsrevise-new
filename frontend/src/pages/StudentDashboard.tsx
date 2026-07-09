@@ -1042,29 +1042,34 @@ const StudentDashboard: React.FC = () => {
         <div
           style={{
             background: "white",
-            padding: "20px 22px",
+            padding: "22px 24px",
             borderRadius: "14px",
             boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
             marginBottom: "16px",
-            border: "1px solid #e2e8f0",
+            border: "2px solid #cbd5e1",
           }}
         >
-          <h2 style={{ color: "#0f172a", margin: "0 0 6px 0", fontSize: "1.35rem" }}>MY REVISION</h2>
-          <p style={{ color: "#64748b", margin: "0 0 16px 0", fontSize: "0.95rem" }}>
+          <h2 style={{ color: "#0f172a", margin: "0 0 6px 0", fontSize: "1.4rem", fontWeight: 800 }}>MY REVISION</h2>
+          <p style={{ color: "#475569", margin: "0 0 18px 0", fontSize: "0.95rem", fontWeight: 500 }}>
             Choose a lesson, quiz, or exam practice for this topic.
           </p>
 
+          {/* Step 1: dropdowns */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 12,
-              marginBottom: 16,
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 14,
+              marginBottom: 18,
+              padding: 14,
+              background: "#f1f5f9",
+              borderRadius: 12,
+              border: "1px solid #cbd5e1",
             }}
           >
             <div>
-              <label style={{ display: "block", marginBottom: 6, color: "#475569", fontWeight: 700, fontSize: "0.85rem" }}>
-                Subject
+              <label style={{ display: "block", marginBottom: 8, color: "#0f172a", fontWeight: 800, fontSize: "0.9rem" }}>
+                1. Subject
               </label>
               <select
                 value={revisionSubject}
@@ -1073,7 +1078,18 @@ const StudentDashboard: React.FC = () => {
                   setRevisionCourse("");
                   setRevisionTopic("");
                 }}
-                style={{ width: "100%", padding: "12px 10px", border: "2px solid #e2e8f0", borderRadius: 8, fontSize: 15 }}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  border: revisionSubject ? "2px solid #059669" : "2px solid #64748b",
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  background: "white",
+                  cursor: "pointer",
+                }}
               >
                 <option value="">Select subject</option>
                 {subjectOptions.map((s) => (
@@ -1084,8 +1100,8 @@ const StudentDashboard: React.FC = () => {
               </select>
             </div>
             <div>
-              <label style={{ display: "block", marginBottom: 6, color: "#475569", fontWeight: 700, fontSize: "0.85rem" }}>
-                Course
+              <label style={{ display: "block", marginBottom: 8, color: "#0f172a", fontWeight: 800, fontSize: "0.9rem" }}>
+                2. Course
               </label>
               <select
                 value={revisionCourse}
@@ -1096,11 +1112,19 @@ const StudentDashboard: React.FC = () => {
                 }}
                 style={{
                   width: "100%",
-                  padding: "12px 10px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: 8,
-                  fontSize: 15,
-                  background: revisionSubject ? "white" : "#f8fafc",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  border: !revisionSubject
+                    ? "2px solid #cbd5e1"
+                    : revisionCourse
+                      ? "2px solid #059669"
+                      : "2px solid #64748b",
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: revisionSubject ? "#0f172a" : "#94a3b8",
+                  background: revisionSubject ? "white" : "#e2e8f0",
+                  cursor: revisionSubject ? "pointer" : "not-allowed",
                 }}
               >
                 <option value="">Select course</option>
@@ -1112,8 +1136,8 @@ const StudentDashboard: React.FC = () => {
               </select>
             </div>
             <div>
-              <label style={{ display: "block", marginBottom: 6, color: "#475569", fontWeight: 700, fontSize: "0.85rem" }}>
-                Topic
+              <label style={{ display: "block", marginBottom: 8, color: "#0f172a", fontWeight: 800, fontSize: "0.9rem" }}>
+                3. Topic
               </label>
               <select
                 value={revisionTopic}
@@ -1121,11 +1145,20 @@ const StudentDashboard: React.FC = () => {
                 onChange={(e) => setRevisionTopic(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "12px 10px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: 8,
-                  fontSize: 15,
-                  background: revisionSubject && revisionCourse ? "white" : "#f8fafc",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  border:
+                    !revisionSubject || !revisionCourse
+                      ? "2px solid #cbd5e1"
+                      : revisionTopic
+                        ? "2px solid #059669"
+                        : "2px solid #64748b",
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: revisionSubject && revisionCourse ? "#0f172a" : "#94a3b8",
+                  background: revisionSubject && revisionCourse ? "white" : "#e2e8f0",
+                  cursor: revisionSubject && revisionCourse ? "pointer" : "not-allowed",
                 }}
               >
                 <option value="">Select topic</option>
@@ -1138,16 +1171,25 @@ const StudentDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: revisionReady ? 16 : 0 }}>
-            {learnLesson?.id ? (
+          {/* Step 2: actions */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+            {revisionReady && learnLesson?.id ? (
               <Link
-                className="btn-primary"
                 to={`/lesson/${learnLesson.id}`}
                 style={{
-                  fontSize: "0.95rem",
-                  padding: "12px 18px",
-                  opacity: revisionReady ? 1 : 0.45,
-                  pointerEvents: revisionReady ? "auto" : "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  background: "#059669",
+                  color: "white",
+                  border: "2px solid #047857",
+                  boxShadow: "0 2px 0 #065f46",
                 }}
               >
                 Learn topic
@@ -1155,51 +1197,127 @@ const StudentDashboard: React.FC = () => {
             ) : (
               <button
                 type="button"
-                className="btn-primary"
                 disabled={!revisionReady}
                 onClick={() => setBrowseOpen(true)}
-                style={{ fontSize: "0.95rem", padding: "12px 18px", opacity: revisionReady ? 1 : 0.45 }}
+                style={{
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  background: revisionReady ? "#059669" : "#cbd5e1",
+                  color: revisionReady ? "white" : "#64748b",
+                  border: revisionReady ? "2px solid #047857" : "2px solid #94a3b8",
+                  cursor: revisionReady ? "pointer" : "not-allowed",
+                  boxShadow: revisionReady ? "0 2px 0 #065f46" : "none",
+                }}
               >
                 Learn topic
               </button>
             )}
-            <Link
-              className="btn-outline"
-              to="/student/quick-quiz"
-              style={{
-                fontSize: "0.95rem",
-                padding: "12px 18px",
-                opacity: revisionReady ? 1 : 0.45,
-                pointerEvents: revisionReady ? "auto" : "none",
-              }}
-            >
-              Quick quiz
-            </Link>
+            {revisionReady ? (
+              <Link
+                to="/student/quick-quiz"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  background: "white",
+                  color: "#0f172a",
+                  border: "2px solid #334155",
+                }}
+              >
+                Quick quiz
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  background: "#e2e8f0",
+                  color: "#94a3b8",
+                  border: "2px solid #cbd5e1",
+                  cursor: "not-allowed",
+                }}
+              >
+                Quick quiz
+              </button>
+            )}
             <button
               type="button"
-              className="btn-outline"
               disabled={!revisionReady}
               onClick={handleExamPractice}
-              style={{ fontSize: "0.95rem", padding: "12px 18px", opacity: revisionReady ? 1 : 0.45 }}
+              style={{
+                minHeight: 48,
+                padding: "12px 22px",
+                borderRadius: 10,
+                fontSize: "1rem",
+                fontWeight: 800,
+                background: revisionReady ? "white" : "#e2e8f0",
+                color: revisionReady ? "#0f172a" : "#94a3b8",
+                border: revisionReady ? "2px solid #334155" : "2px solid #cbd5e1",
+                cursor: revisionReady ? "pointer" : "not-allowed",
+              }}
             >
               Exam practice
             </button>
-            <Link
-              className="btn-outline"
-              to="/student/structure-notes"
-              style={{
-                fontSize: "0.95rem",
-                padding: "12px 18px",
-                opacity: revisionReady ? 1 : 0.45,
-                pointerEvents: revisionReady ? "auto" : "none",
-              }}
-            >
-              Make notes
-            </Link>
+            {revisionReady ? (
+              <Link
+                to="/student/structure-notes"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  background: "white",
+                  color: "#0f172a",
+                  border: "2px solid #334155",
+                }}
+              >
+                Make notes
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  minHeight: 48,
+                  padding: "12px 22px",
+                  borderRadius: 10,
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  background: "#e2e8f0",
+                  color: "#94a3b8",
+                  border: "2px solid #cbd5e1",
+                  cursor: "not-allowed",
+                }}
+              >
+                Make notes
+              </button>
+            )}
           </div>
 
+          {/* Step 3: helper */}
           {!revisionReady && (
-            <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0 }}>Select a topic to continue.</p>
+            <p style={{ color: "#64748b", fontSize: "0.9rem", margin: 0, fontWeight: 600 }}>
+              Select subject, course, then topic to unlock the buttons.
+            </p>
           )}
 
           {revisionReady && myRevisionLessons.length > 0 && (
@@ -1320,30 +1438,34 @@ const StudentDashboard: React.FC = () => {
             style={{
               padding: "18px 20px",
               background: "white",
-              border: "1px solid #e2e8f0",
+              border: "2px solid #334155",
               borderRadius: 12,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              boxShadow: "0 2px 0 #0f172a",
               textAlign: "left",
               cursor: "pointer",
             }}
           >
-            <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1.05rem" }}>My progress</div>
-            <div style={{ color: "#64748b", fontSize: "0.85rem", marginTop: 4 }}>Weak topics and mastery</div>
+            <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1.05rem" }}>My progress →</div>
+            <div style={{ color: "#475569", fontSize: "0.85rem", marginTop: 4, fontWeight: 600 }}>
+              Weak topics and mastery
+            </div>
           </button>
           <Link
             to="/student/my-work"
             style={{
               padding: "18px 20px",
               background: "white",
-              border: "1px solid #e2e8f0",
+              border: "2px solid #334155",
               borderRadius: 12,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              boxShadow: "0 2px 0 #0f172a",
               textDecoration: "none",
               display: "block",
             }}
           >
-            <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1.05rem" }}>My work</div>
-            <div style={{ color: "#64748b", fontSize: "0.85rem", marginTop: 4 }}>Assignments and completed work</div>
+            <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1.05rem" }}>My work →</div>
+            <div style={{ color: "#475569", fontSize: "0.85rem", marginTop: 4, fontWeight: 600 }}>
+              Assignments and completed work
+            </div>
           </Link>
         </div>
 
