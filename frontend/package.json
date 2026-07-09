@@ -45,6 +45,8 @@
     "start:cra": "react-scripts start",
     "build": "cross-env DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
+    "test:golden": "cross-env CI=true react-scripts test --watchAll=false ExamQuestionBlock.test.tsx ExamQuestionBlock.table.test.tsx ExamQuestionBlock.tableFlagOff.test.tsx AnswerFeedbackPanel.test.tsx QuizView.test.tsx LessonViewPage.practiceMarking.test.ts revisionPracticeVariants.test.ts registry.table.test.ts compositeMarkingReadiness.test.ts TableRenderer.test.tsx",
+    "test:smoke": "playwright test",
     "eject": "react-scripts eject",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "format": "prettier --write .",
@@ -76,6 +78,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/chart.js": "^2.9.41",
     "@types/react-router-dom": "^5.3.3",
     "autoprefixer": "^10.4.22",
