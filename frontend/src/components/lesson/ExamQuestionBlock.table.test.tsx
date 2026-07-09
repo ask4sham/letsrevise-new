@@ -120,10 +120,21 @@ describe("ExamQuestionBlock table composite (TABLE_PARTS_ENABLED ON)", () => {
     expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/2 \/ 2 marks/i);
   });
 
-  test("reveal answers shows table correct cells and mark scheme", () => {
+  test("reveal answers shows table correct cells and mark scheme after check", () => {
     render(<ExamQuestionBlock question={TABLE_COMPOSITE} mode="student" />);
-    fireEvent.click(screen.getByRole("button", { name: /reveal answers \/ mark scheme/i }));
+    const revealBtn = screen.getByTestId("exam-composite-reveal-btn");
+    expect(revealBtn).toBeDisabled();
 
+    fireEvent.change(screen.getByTestId("exam-composite-table-input-0-0-1"), {
+      target: { value: "Stimulates follicles" },
+    });
+    fireEvent.change(screen.getByTestId("exam-composite-table-input-0-1-1"), {
+      target: { value: "Triggers ovulation" },
+    });
+    fireEvent.click(screen.getByTestId("exam-composite-check-all-btn"));
+    expect(revealBtn).not.toBeDisabled();
+
+    fireEvent.click(revealBtn);
     const reveal = document.querySelector(".exam-composite__reveal");
     expect(reveal).toHaveTextContent(/Correct cell answers/i);
     expect(reveal).toHaveTextContent(/Stimulates follicles/i);

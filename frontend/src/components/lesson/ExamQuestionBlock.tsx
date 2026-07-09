@@ -265,28 +265,37 @@ function SingleExamMcqStudentBlock({
     </div>
   );
 
+  const revealEnabled = checked;
   const revealButton = (
     <div style={{ marginTop: 12 }}>
       <button
         type="button"
-        onClick={() => setRevealed((v) => !v)}
+        data-testid="exam-question-reveal-btn"
+        disabled={!revealEnabled}
+        title={revealEnabled ? undefined : "Check your answer first."}
+        aria-disabled={!revealEnabled}
+        onClick={() => {
+          if (!revealEnabled) return;
+          setRevealed((v) => !v);
+        }}
         style={{
           padding: "6px 12px",
           borderRadius: 8,
-          border: "1px solid #7c3aed",
-          background: revealed ? "#f5f3ff" : "white",
-          color: "#5b21b6",
+          border: revealEnabled ? "1px solid #7c3aed" : "1px solid #d1d5db",
+          background: revealed && revealEnabled ? "#f5f3ff" : revealEnabled ? "white" : "#f3f4f6",
+          color: revealEnabled ? "#5b21b6" : "#6b7280",
           fontWeight: 600,
           fontSize: 13,
-          cursor: "pointer",
+          cursor: revealEnabled ? "pointer" : "not-allowed",
+          opacity: revealEnabled ? 1 : 0.45,
         }}
       >
-        {revealed ? "Hide answer / mark scheme" : "Reveal answer / mark scheme"}
+        {revealed && revealEnabled ? "Hide answer / mark scheme" : "Reveal answer / mark scheme"}
       </button>
     </div>
   );
 
-  const revealedPanel = revealed ? (
+  const revealedPanel = revealed && revealEnabled ? (
     <div
       className="exam-question-block__reveal"
       style={{
@@ -646,28 +655,38 @@ export function ExamQuestionBlock({
     </>
   ) : null;
 
+  /** Student mode: reveal only after Check answer. Editor/classroom unchanged. */
+  const revealEnabled = mode !== "student" || checked;
   const revealButton = (
     <div style={{ marginTop: showStudentAnswer ? 12 : 10 }}>
       <button
         type="button"
-        onClick={() => setRevealed((v) => !v)}
+        data-testid="exam-question-reveal-btn"
+        disabled={!revealEnabled}
+        title={revealEnabled ? undefined : "Check your answer first."}
+        aria-disabled={!revealEnabled}
+        onClick={() => {
+          if (!revealEnabled) return;
+          setRevealed((v) => !v);
+        }}
         style={{
           padding: "6px 12px",
           borderRadius: 8,
-          border: "1px solid #7c3aed",
-          background: revealed ? "#f5f3ff" : "white",
-          color: "#5b21b6",
+          border: revealEnabled ? "1px solid #7c3aed" : "1px solid #d1d5db",
+          background: revealed && revealEnabled ? "#f5f3ff" : revealEnabled ? "white" : "#f3f4f6",
+          color: revealEnabled ? "#5b21b6" : "#6b7280",
           fontWeight: 600,
           fontSize: 13,
-          cursor: "pointer",
+          cursor: revealEnabled ? "pointer" : "not-allowed",
+          opacity: revealEnabled ? 1 : 0.45,
         }}
       >
-        {revealed ? "Hide answer / mark scheme" : "Reveal answer / mark scheme"}
+        {revealed && revealEnabled ? "Hide answer / mark scheme" : "Reveal answer / mark scheme"}
       </button>
     </div>
   );
 
-  const revealedPanel = revealed ? (
+  const revealedPanel = revealed && revealEnabled ? (
     <div
       className="exam-question-block__reveal"
       style={{
