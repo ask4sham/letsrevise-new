@@ -11,6 +11,8 @@ export const CONTENT_TYPES = [
 ] as const;
 export type ContentType = (typeof CONTENT_TYPES)[number];
 
+export type PracticeMode = "standard" | "challenge";
+
 export type PracticeSetItem = {
   contentType: ContentType;
   contentId: string;
@@ -20,7 +22,10 @@ export type PracticeSetItem = {
   metadata?: {
     difficulty?: number | null;
     skill?: string | null;
+    marks?: number | null;
     estimatedTimeSec?: number | null;
+    challenge?: boolean;
+    badge?: string | null;
   };
 };
 
@@ -32,11 +37,13 @@ export type GeneratePracticeSetPayload = {
   include?: ContentType[];
   difficulty?: number[];
   skill?: string[];
+  mode?: PracticeMode;
 };
 
 export type GeneratePracticeSetResponse = {
   practiceSetId: string;
   items: PracticeSetItem[];
+  mode?: PracticeMode;
 };
 
 export async function generatePracticeSet(
@@ -50,6 +57,7 @@ export async function generatePracticeSet(
     include: payload.include ?? [...CONTENT_TYPES],
     difficulty: payload.difficulty,
     skill: payload.skill,
+    mode: payload.mode ?? "standard",
   };
   const res = await api.post<GeneratePracticeSetResponse>(
     "/practice-sets/generate",
