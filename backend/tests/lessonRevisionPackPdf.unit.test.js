@@ -9,6 +9,7 @@ const {
   splitIntoReadableChunks,
   parseContentToSegments,
   segmentText,
+  sanitizePdfText,
   renderLessonRevisionPackPdf,
 } = require("../services/pdf/lessonRevisionPackPdf");
 const {
@@ -98,6 +99,60 @@ describe("resolveLessonImageForPdf", () => {
   it("falls back when allowlisted fetch times out / rejects", async () => {
     const fetchImpl = jest.fn().mockRejectedValue(new Error("aborted"));
     expect(await resolveLessonImageForPdf(SUPABASE_PNG_URL, { fetchImpl })).toBeNull();
+  });
+});
+
+describe("sanitizePdfText", () => {
+  it("removes emoji sentence starters without leaving garbage", () => {
+    expect(sanitizePdfText("👉 The key idea is cushioning.")).toBe("The key idea is cushioning.");
+    expect(sanitizePdfText("✅ Correct response")).toBe("Correct response");
+    expect(sanitizePdfText("🔥 Exam tip: name the structure")).toBe("Exam tip: name the structure");
+    expect(sanitizePdfText("⭐ Important")).toBe("Important");
+    expect(sanitizePdfText("🌍 Why this matters")).toBe("Why this matters");
+    expect(sanitizePdfText("💡 Always link structure to function")).toBe(
+      "Always link structure to function"
+    );
+    expect(sanitizePdfText("🎯 amniotic fluid")).toBe("amniotic fluid");
+    const cleaned = sanitizePdfText("• 👉 State what amniotic fluid is");
+    expect(cleaned).toMatch(/State what amniotic fluid is/i);
+    expect(cleaned).not.toMatch(/Ø|ß|�|👉/);
+  });
+
+  it("preserves GCSE science symbols and units", () => {
+    // Subscript digits normalised to ASCII for Helvetica; Latin-1 ²/³/° kept.
+    expect(sanitizePdfText("CO₂ and O₂ form H₂O")).toBe("CO2 and O2 form H2O");
+    expect(sanitizePdfText("Heat to 37°C")).toBe("Heat to 37°C");
+    expect(sanitizePdfText("Volume is 25 cm³")).toBe("Volume is 25 cm³");
+    expect(sanitizePdfText("Rate = 2.5 cm³/min")).toBe("Rate = 2.5 cm³/min");
+  });
+
+  it("replaces decorative arrows and strips surrogate junk", () => {
+    expect(sanitizePdfText("Structure → function")).toBe("Structure - function");
+    expect(sanitizePdfText("Bad\uFFFDtext")).toBe("Badtext");
+  });
+
+  it("cleans emoji from keyIdea segments used in the pack", () => {
+    const lesson = {
+      title: "Amniotic Fluid",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "keyIdea",
+              content:
+                "<ul><li><strong>👉</strong> State what <strong>amniotic fluid</strong> is</li><li><strong>👉</strong> Describe cushioning</li></ul>",
+            },
+          ],
+        },
+      ],
+    };
+    const s = buildRevisionPackSections(lesson, { includeAnswers: false });
+    const blob = JSON.stringify(s.keyLearning);
+    expect(blob).not.toMatch(/👉|✅|Ø|ß|�/);
+    expect(keyLearningPlain(s)).toMatch(/State what amniotic fluid is/i);
+    expect(keyLearningPlain(s)).not.toMatch(/whatamniotic/i);
+    expect(keyLearningPlain(s)).toMatch(/Describe cushioning/i);
   });
 });
 

@@ -54,13 +54,78 @@ function decodeEntities(s) {
     .replace(/&#39;|&apos;/gi, "'");
 }
 
+/**
+ * Make lesson text safe for PDFKit Helvetica (WinAnsi).
+ * Strips emoji / decorative symbols that otherwise render as garbage (e.g. Ø<ß¯),
+ * while preserving GCSE science units and common Latin-1 characters (° , ² , ³).
+ * @param {unknown} input
+ * @param {{ trim?: boolean }} [opts]
+ */
+function sanitizePdfText(input, opts = {}) {
+  let s = String(input == null ? "" : input);
+
+  // Normalize newlines early
+  s = s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // Map Unicode subscripts used in chemistry to ASCII digits (Helvetica has no ₂).
+  // Prefer readable CO2 / H2O over corrupted glyphs. Keep Latin-1 ²/³ (°C, cm³).
+  const subMap = {
+    "₀": "0",
+    "₁": "1",
+    "₂": "2",
+    "₃": "3",
+    "₄": "4",
+    "₅": "5",
+    "₆": "6",
+    "₇": "7",
+    "₈": "8",
+    "₉": "9",
+  };
+  s = s.replace(/[₀₁₂₃₄₅₆₇₈₉]/g, (ch) => subMap[ch] || ch);
+
+  // Decorative / directional arrows → simple hyphen
+  s = s.replace(/[→←↔⇒⇐⟶⟵➔➜➝➞➡⬅⬆⬇⇄⇅]/g, "-");
+
+  // Common emoji / pictographs → space (avoid gluing adjacent words)
+  s = s.replace(
+    /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F02F}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}]/gu,
+    " "
+  );
+  // Variation selectors / ZWJ / combining enclosing keycap leftovers from emoji
+  s = s.replace(/[\uFE0E\uFE0F\u200D\u20E3]/g, "");
+  // Replacement / private-use / other non-printable junk often left after bad encoding
+  s = s.replace(/\uFFFD/g, "");
+  s = s.replace(/[\uE000-\uF8FF]/g, " ");
+  // Zero-width / odd unicode spaces → normal space
+  s = s.replace(/[\u200B-\u200F\u2028\u2029\u2060\uFEFF]/g, "");
+
+  // Keep WinAnsi-safe text: letters, digits, common punctuation, Latin-1 supplements
+  // (° £ ± ² ³ µ · × ÷ and accented letters), newlines, and basic spaces.
+  // Replace (not delete) so words do not glue together when symbols are removed.
+  s = s.replace(/[^\n\t\x20-\x7E\xA0-\xFF]/g, " ");
+
+  // Tidy whitespace left by removals (preserve paragraph breaks)
+  s = s
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+
+  if (opts.trim !== false) {
+    s = s.replace(/^[ \t]+|[ \t]+$/gm, "").trim();
+  }
+  return s;
+}
+
 /** Strip tags but keep text (for captions / single-line fields). */
 function stripTags(s) {
-  return decodeEntities(s)
-    .replace(/<\s*br\s*\/?>/gi, " ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return sanitizePdfText(
+    decodeEntities(s)
+      .replace(/<\s*br\s*\/?>/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 /** Convert common HTML into plain structured text before markdown cleanup. */
@@ -82,26 +147,30 @@ function htmlToPlainStructured(s) {
 
 /** Strip HTML + markdown markers; collapse to a single line (captions, answers, stems). */
 const stripMd = (s) =>
-  htmlToPlainStructured(s)
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[#>*_`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  sanitizePdfText(
+    htmlToPlainStructured(s)
+      .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/[#>*_`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 
 /**
  * Strip HTML + markdown but keep paragraph/list structure for revision bullets.
  */
 function stripMdKeepBreaks(s) {
-  return htmlToPlainStructured(s)
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[#*_`]/g, "")
-    .replace(/\r\n/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return sanitizePdfText(
+    htmlToPlainStructured(s)
+      .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/[#*_`]/g, "")
+      .replace(/\r\n/g, "\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
 /**
@@ -187,16 +256,41 @@ function parseInlineRuns(htmlish, maxLen = 600) {
     runs[runs.length - 1].text = runs[runs.length - 1].text.replace(/\s+$/, "");
   }
 
-  let text = runs.map((r) => r.text).join("").replace(/\s+/g, " ").trim();
+  // Sanitize each run without trimming — spaces between plain/bold runs must survive.
+  const cleanedRuns = [];
+  for (const r of runs) {
+    const t = sanitizePdfText(r.text, { trim: false });
+    if (!String(t).trim()) continue; // drop emoji-only / empty runs
+    cleanedRuns.push({ text: t, bold: !!r.bold });
+  }
+  if (cleanedRuns.length) {
+    cleanedRuns[0].text = cleanedRuns[0].text.replace(/^\s+/, "");
+    cleanedRuns[cleanedRuns.length - 1].text = cleanedRuns[cleanedRuns.length - 1].text.replace(/\s+$/, "");
+  }
+  // If sanitising removed a symbol between two word characters, keep a separating space.
+  for (let i = 1; i < cleanedRuns.length; i++) {
+    const prev = cleanedRuns[i - 1].text;
+    const cur = cleanedRuns[i].text;
+    if (/\S$/.test(prev) && /^\S/.test(cur)) {
+      cleanedRuns[i - 1].text = `${prev} `;
+    }
+  }
+
+  let text = cleanedRuns
+    .map((r) => r.text)
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  text = sanitizePdfText(text);
   if (text.length > maxLen) {
     text = text.slice(0, maxLen);
   }
-  const hasBold = runs.some((r) => r.bold);
+  const hasBold = cleanedRuns.some((r) => r.bold);
   if (!hasBold) return { text };
   // Re-slice runs to maxLen roughly
   let used = 0;
   const clipped = [];
-  for (const r of runs) {
+  for (const r of cleanedRuns) {
     if (used >= maxLen) break;
     if (!r.text) continue;
     const room = maxLen - used;
@@ -528,6 +622,8 @@ async function resolveDiagramEntries(diagrams, opts = {}) {
  */
 function addDiagramSection(doc, entries) {
   if (!Array.isArray(entries) || entries.length === 0) return;
+  // Tiny polish: a little air before the diagrams block
+  doc.moveDown(0.35);
   addSectionHeader(doc, "Diagrams");
 
   let embedded = 0;
@@ -782,12 +878,12 @@ function buildRevisionPackSections(lesson, opts = {}) {
   });
 
   return {
-    title: toText(lesson?.title) || "Lesson",
-    subject: toText(lesson?.subject),
-    board: toText(lesson?.examBoardName || lesson?.board),
-    topic: toText(lesson?.topic || lesson?.subTopic),
-    level: toText(lesson?.level),
-    tier: toText(lesson?.tier),
+    title: sanitizePdfText(toText(lesson?.title)) || "Lesson",
+    subject: sanitizePdfText(toText(lesson?.subject)),
+    board: sanitizePdfText(toText(lesson?.examBoardName || lesson?.board)),
+    topic: sanitizePdfText(toText(lesson?.topic || lesson?.subTopic)),
+    level: sanitizePdfText(toText(lesson?.level)),
+    tier: sanitizePdfText(toText(lesson?.tier)),
     keyLearning,
     keywords,
     examTips,
@@ -979,4 +1075,5 @@ module.exports = {
   splitIntoReadableChunks,
   parseContentToSegments,
   segmentText,
+  sanitizePdfText,
 };
