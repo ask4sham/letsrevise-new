@@ -138,6 +138,9 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/me", require("./routes/me"));
 
 // ✅ Add lessons route for Phase 9 content-access integration tests
+// Revision pack export must mount before the general lessons router so
+// POST /:lessonId/export/revision-pack is not swallowed by /:id handlers.
+app.use("/api/lessons", require("./routes/lessonRevisionPackExport.routes"));
 app.use("/api/lessons", require("./routes/lessons"));
 app.use("/api/teachers", require("./routes/teachers"));
 
