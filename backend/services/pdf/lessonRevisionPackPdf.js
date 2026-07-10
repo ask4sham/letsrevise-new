@@ -38,9 +38,32 @@ const toText = (v) => {
   return String(v);
 };
 
-/** Strip markdown markers; collapse to a single line (captions, answers, stems). */
+/** Convert common HTML into plain structured text before markdown cleanup. */
+function htmlToPlainStructured(s) {
+  return toText(s)
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\s*\/\s*p\s*>/gi, "\n\n")
+    .replace(/<\s*p(\s[^>]*)?>/gi, "")
+    .replace(/<\s*\/\s*h[1-6]\s*>/gi, "\n\n")
+    .replace(/<\s*h[1-6](\s[^>]*)?>/gi, "\n\n")
+    .replace(/<\s*li(\s[^>]*)?>/gi, "\n• ")
+    .replace(/<\s*\/\s*li\s*>/gi, "")
+    .replace(/<\s*\/?\s*(ul|ol)(\s[^>]*)?>/gi, "\n")
+    .replace(/<\s*\/\s*(div|section|tr|td|th)\s*>/gi, "\n")
+    .replace(/<\s*(div|section|tr|td|th)(\s[^>]*)?>/gi, "")
+    .replace(/<\s*\/?\s*(strong|b|em|i|span|u)\s*>/gi, "")
+    .replace(/<[^>]+>/g, "");
+}
+
+/** Strip HTML + markdown markers; collapse to a single line (captions, answers, stems). */
 const stripMd = (s) =>
-  toText(s)
+  htmlToPlainStructured(s)
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/[#>*_`]/g, "")
@@ -48,13 +71,13 @@ const stripMd = (s) =>
     .trim();
 
 /**
- * Strip markdown but keep paragraph/list structure for revision bullets.
+ * Strip HTML + markdown but keep paragraph/list structure for revision bullets.
  */
 function stripMdKeepBreaks(s) {
-  return toText(s)
+  return htmlToPlainStructured(s)
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[#>*_`]/g, "")
+    .replace(/[#*_`]/g, "")
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/[ \t]{2,}/g, " ")

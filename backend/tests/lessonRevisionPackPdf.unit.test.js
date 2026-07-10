@@ -96,6 +96,24 @@ describe("buildRevisionPackSections", () => {
     expect(chunks.some((c) => /Point two/i.test(c))).toBe(true);
   });
 
+  it("converts HTML lists into readable bullets without raw tags", () => {
+    const html =
+      "<h2>Objectives</h2><ul><li>State the definition of puberty</li><li><strong>Explain</strong> secondary sexual characteristics</li></ul>";
+    const chunks = splitIntoReadableChunks(html);
+    const blob = chunks.join("\n");
+    expect(blob).not.toMatch(/<\/?[a-z][^>]*>/i);
+    expect(chunks.some((c) => /State the definition of puberty/i.test(c))).toBe(true);
+    expect(chunks.some((c) => /Explain secondary sexual characteristics/i.test(c))).toBe(true);
+
+    const lesson = {
+      title: "Secondary Sexual Characteristics",
+      pages: [{ pageId: "p1", blocks: [{ type: "keyIdea", content: html }] }],
+    };
+    const s = buildRevisionPackSections(lesson, { includeAnswers: false });
+    expect(s.keyLearning.length).toBeGreaterThanOrEqual(2);
+    expect(JSON.stringify(s.keyLearning)).not.toMatch(/<ul>|<li>|<strong>/i);
+  });
+
   it("splits multi-line keyIdea blocks into multiple learning bullets", () => {
     const lesson = {
       title: "Cells",
