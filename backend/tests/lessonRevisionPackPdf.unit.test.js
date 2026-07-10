@@ -13,10 +13,16 @@ const {
 } = require("../services/pdf/lessonRevisionPackPdf");
 const {
   resolveLessonImageForPdf,
+  resolveLocalLessonImagePath,
+  isAllowlistedRemoteImageUrl,
   safeJoinUnderRoot,
 } = require("../services/pdf/resolveLessonImageForPdf");
 
 const FIXTURE_PNG = path.join(__dirname, "fixtures", "revision-pack-diagram.png");
+const FIXTURE_BUF = () => fs.readFileSync(FIXTURE_PNG);
+
+const SUPABASE_PNG_URL =
+  "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_x/page_p/block_9_diagram/demo.display.png";
 
 function countPdfPages(buf) {
   const raw = Buffer.isBuffer(buf) ? buf.toString("latin1") : String(buf);
@@ -32,22 +38,66 @@ function keyLearningPlain(s) {
   return (s.keyLearning || []).map(segmentText).join("\n");
 }
 
+function mockFetchOkPng() {
+  return jest.fn().mockResolvedValue({
+    ok: true,
+    headers: {
+      get: (h) => {
+        const k = String(h || "").toLowerCase();
+        if (k === "content-type") return "image/png";
+        if (k === "content-length") return String(FIXTURE_BUF().length);
+        return null;
+      },
+    },
+    arrayBuffer: async () => FIXTURE_BUF(),
+  });
+}
+
 describe("resolveLessonImageForPdf", () => {
-  it("resolves absolute local PNG paths", () => {
+  it("resolves absolute local PNG paths", async () => {
     expect(fs.existsSync(FIXTURE_PNG)).toBe(true);
-    expect(resolveLessonImageForPdf(FIXTURE_PNG)).toBe(path.resolve(FIXTURE_PNG));
+    const local = resolveLocalLessonImagePath(FIXTURE_PNG);
+    expect(local).toBe(path.resolve(FIXTURE_PNG));
+    const resolved = await resolveLessonImageForPdf(FIXTURE_PNG);
+    expect(resolved).toEqual({ kind: "path", path: path.resolve(FIXTURE_PNG) });
   });
 
-  it("rejects path traversal", () => {
+  it("rejects path traversal", async () => {
     expect(safeJoinUnderRoot(path.join(__dirname, "fixtures"), "../fixtures/revision-pack-diagram.png")).toBeNull();
-    expect(resolveLessonImageForPdf("/visuals/../../etc/passwd.png")).toBeNull();
+    expect(await resolveLessonImageForPdf("/visuals/../../etc/passwd.png")).toBeNull();
   });
 
-  it("returns null for missing / unsupported / remote URLs", () => {
-    expect(resolveLessonImageForPdf("/visuals/does-not-exist.png")).toBeNull();
-    expect(resolveLessonImageForPdf("/visuals/foo.svg")).toBeNull();
-    expect(resolveLessonImageForPdf("https://example.com/a.png")).toBeNull();
-    expect(resolveLessonImageForPdf("")).toBeNull();
+  it("returns null for missing / unsupported / non-allowlisted remote URLs", async () => {
+    expect(await resolveLessonImageForPdf("/visuals/does-not-exist.png")).toBeNull();
+    expect(await resolveLessonImageForPdf("/visuals/foo.svg")).toBeNull();
+    expect(isAllowlistedRemoteImageUrl("https://example.com/a.png")).toBe(false);
+    expect(await resolveLessonImageForPdf("https://example.com/a.png")).toBeNull();
+    expect(await resolveLessonImageForPdf("")).toBeNull();
+  });
+
+  it("allowlists Supabase lesson-media PNG URLs and fetches buffer", async () => {
+    expect(isAllowlistedRemoteImageUrl(SUPABASE_PNG_URL)).toBe(true);
+    const fetchImpl = mockFetchOkPng();
+    const resolved = await resolveLessonImageForPdf(SUPABASE_PNG_URL, { fetchImpl });
+    expect(resolved?.kind).toBe("buffer");
+    expect(Buffer.isBuffer(resolved.buffer)).toBe(true);
+    expect(resolved.buffer.length).toBeGreaterThan(0);
+    expect(fetchImpl).toHaveBeenCalled();
+  });
+
+  it("falls back when allowlisted fetch returns 404", async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: { get: () => null },
+      arrayBuffer: async () => new ArrayBuffer(0),
+    });
+    expect(await resolveLessonImageForPdf(SUPABASE_PNG_URL, { fetchImpl })).toBeNull();
+  });
+
+  it("falls back when allowlisted fetch times out / rejects", async () => {
+    const fetchImpl = jest.fn().mockRejectedValue(new Error("aborted"));
+    expect(await resolveLessonImageForPdf(SUPABASE_PNG_URL, { fetchImpl })).toBeNull();
   });
 });
 
@@ -324,6 +374,87 @@ describe("renderLessonRevisionPackPdf layout + diagrams", () => {
     const s = buildRevisionPackSections(lesson, { includeAnswers: false });
     expect(s.diagrams).toHaveLength(2);
     expect(s.answerAppendix).toEqual([]);
+  });
+
+  it("embeds allowlisted Supabase PNG via mocked fetch", async () => {
+    const lesson = {
+      title: "Remote Diagram",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            { type: "keyIdea", content: "Amniotic fluid cushions the fetus." },
+            {
+              type: "diagram",
+              caption: "Fetus structure",
+              imageUrl: SUPABASE_PNG_URL,
+            },
+          ],
+        },
+      ],
+    };
+    const fetchImpl = mockFetchOkPng();
+    const withRemote = await renderLessonRevisionPackPdf(lesson, {
+      includeAnswers: false,
+      fetchImpl,
+    });
+    expect(fetchImpl).toHaveBeenCalled();
+    expect(pdfHasImageXObject(withRemote)).toBe(true);
+
+    const blockedFetch = mockFetchOkPng();
+    const blocked = await renderLessonRevisionPackPdf(
+      {
+        title: "Blocked Host",
+        pages: [
+          {
+            pageId: "p1",
+            blocks: [
+              {
+                type: "diagram",
+                caption: "Evil",
+                imageUrl: "https://evil.example.com/x.png",
+              },
+            ],
+          },
+        ],
+      },
+      { includeAnswers: false, fetchImpl: blockedFetch }
+    );
+    expect(blockedFetch).not.toHaveBeenCalled();
+    expect(blocked.slice(0, 4).toString("utf8")).toBe("%PDF");
+  });
+
+  it("collects dragDropMatch pairs[].imageUrl into diagram entries", () => {
+    const lesson = {
+      title: "TTI",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "dragDropMatch",
+              title: "Match",
+              matchMode: "textToImage",
+              pairs: [
+                {
+                  prompt: "AMNIOTIC SAC",
+                  imageUrl: SUPABASE_PNG_URL,
+                },
+                {
+                  prompt: "CUSHIONING",
+                  imageUrl:
+                    "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_x/p2.png",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const s = buildRevisionPackSections(lesson, { includeAnswers: false });
+    expect(s.diagrams.length).toBeGreaterThanOrEqual(2);
+    expect(s.diagrams.some((d) => /Matching image: AMNIOTIC SAC/i.test(d.caption))).toBe(true);
+    expect(s.diagrams.every((d) => d.imageUrl)).toBe(true);
   });
 
   it("student PDF with includeAnswers true still has empty appendix in sections when false path used by policy tests", async () => {

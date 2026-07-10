@@ -495,30 +495,61 @@ function addSegments(doc, segments) {
 }
 
 /**
- * Embed diagram images (local-first). Never throws.
+ * Pre-resolve diagram image sources (local path or allowlisted remote buffer).
+ * Caps at MAX_DIAGRAMS. Never throws.
+ * @param {Array} diagrams
+ * @param {{ fetchImpl?: typeof fetch }} [opts]
  */
-function addDiagramSection(doc, diagrams) {
-  if (!Array.isArray(diagrams) || diagrams.length === 0) return;
-  addSectionHeader(doc, "Diagrams");
-
-  let embedded = 0;
-  for (const d of diagrams) {
-    if (embedded >= MAX_DIAGRAMS) break;
-
+async function resolveDiagramEntries(diagrams, opts = {}) {
+  const list = Array.isArray(diagrams) ? diagrams : [];
+  const out = [];
+  for (const d of list) {
+    if (out.length >= MAX_DIAGRAMS) break;
     const caption =
       typeof d === "string" ? stripMd(d) : stripMd(d?.caption || d?.alt || "Diagram");
     const imageUrl = typeof d === "string" ? "" : String(d?.imageUrl || d?.src || "").trim();
-    const resolved = imageUrl ? resolveLessonImageForPdf(imageUrl) : null;
+    let source = null;
+    if (imageUrl) {
+      try {
+        source = await resolveLessonImageForPdf(imageUrl, opts);
+      } catch {
+        source = null;
+      }
+    }
+    out.push({ caption, imageUrl, source });
+  }
+  return out;
+}
+
+/**
+ * Embed diagram images from pre-resolved sources. Never throws.
+ * @param {PDFKit.PDFDocument} doc
+ * @param {Array<{ caption: string, imageUrl: string, source: object|null }>} entries
+ */
+function addDiagramSection(doc, entries) {
+  if (!Array.isArray(entries) || entries.length === 0) return;
+  addSectionHeader(doc, "Diagrams");
+
+  let embedded = 0;
+  for (const entry of entries) {
+    if (embedded >= MAX_DIAGRAMS) break;
+
+    const caption = stripMd(entry?.caption || "Diagram");
+    const imageUrl = String(entry?.imageUrl || "").trim();
+    const source = entry?.source || null;
 
     let imgW = 0;
     let imgH = 0;
     let img = null;
-    if (resolved) {
+    if (source) {
       try {
-        img = doc.openImage(resolved);
-        const scale = Math.min(CONTENT_WIDTH / img.width, IMAGE_MAX_HEIGHT / img.height, 1);
-        imgW = Math.max(1, img.width * scale);
-        imgH = Math.max(1, img.height * scale);
+        const openTarget = source.kind === "buffer" ? source.buffer : source.path;
+        if (openTarget) {
+          img = doc.openImage(openTarget);
+          const scale = Math.min(CONTENT_WIDTH / img.width, IMAGE_MAX_HEIGHT / img.height, 1);
+          imgW = Math.max(1, img.width * scale);
+          imgH = Math.max(1, img.height * scale);
+        }
       } catch {
         img = null;
       }
@@ -645,6 +676,29 @@ function buildRevisionPackSections(lesson, opts = {}) {
             imageUrl: img,
           });
         }
+        // textToImage / diagram match: pair card images
+        if (Array.isArray(b?.pairs)) {
+          b.pairs.forEach((p) => {
+            const pairUrl = String(p?.imageUrl || p?.image || p?.src || "").trim();
+            if (!pairUrl) return;
+            const label = stripMd(p?.prompt || p?.answer || p?.label || p?.left || p?.text || "Match");
+            diagrams.push({
+              caption: `Matching image: ${label}`.slice(0, 120),
+              imageUrl: pairUrl,
+            });
+          });
+        }
+        if (Array.isArray(b?.items)) {
+          b.items.forEach((it) => {
+            const itemUrl = String(it?.imageUrl || it?.image || it?.src || "").trim();
+            if (!itemUrl) return;
+            const label = stripMd(it?.prompt || it?.label || it?.text || it?.term || "Match");
+            diagrams.push({
+              caption: `Matching image: ${label}`.slice(0, 120),
+              imageUrl: itemUrl,
+            });
+          });
+        }
       } else if (t === "interactivesequence" || t === "interactivediagram") {
         pushSegments(keyLearning, blockRawText(b) ? `[Interactive] ${blockRawText(b)}` : "", 600);
         if (Array.isArray(b?.sequenceSteps)) {
@@ -758,10 +812,10 @@ function slugify(title) {
 /**
  * Render revision pack PDF buffer.
  * @param {object} lesson
- * @param {{ includeAnswers?: boolean }} [opts]
+ * @param {{ includeAnswers?: boolean, fetchImpl?: typeof fetch }} [opts]
  * @returns {Promise<Buffer>}
  */
-function renderLessonRevisionPackPdf(lesson, opts = {}) {
+async function renderLessonRevisionPackPdf(lesson, opts = {}) {
   const includeAnswers = opts.includeAnswers === true;
   const sections = buildRevisionPackSections(lesson, { includeAnswers });
   const slug = slugify(sections.title);
@@ -782,6 +836,20 @@ function renderLessonRevisionPackPdf(lesson, opts = {}) {
       status: 400,
       code: "MISSING_CONTENT",
     });
+  }
+
+  // Resolve local + allowlisted remote images before opening the PDF stream.
+  let diagramEntries = [];
+  try {
+    diagramEntries = await resolveDiagramEntries(sections.diagrams, {
+      fetchImpl: opts.fetchImpl,
+    });
+  } catch {
+    diagramEntries = (sections.diagrams || []).slice(0, MAX_DIAGRAMS).map((d) => ({
+      caption: typeof d === "string" ? d : d?.caption || "Diagram",
+      imageUrl: typeof d === "string" ? "" : d?.imageUrl || "",
+      source: null,
+    }));
   }
 
   return new Promise((resolve, reject) => {
@@ -822,8 +890,8 @@ function renderLessonRevisionPackPdf(lesson, opts = {}) {
         addSectionHeader(doc, "Keywords");
         addBullets(doc, sections.keywords, 200);
       }
-      if (sections.diagrams.length) {
-        addDiagramSection(doc, sections.diagrams);
+      if (diagramEntries.length) {
+        addDiagramSection(doc, diagramEntries);
       }
       if (sections.examTips.length) {
         addSectionHeader(doc, "Exam tips");
