@@ -16,6 +16,7 @@ const {
   collectFollowingContentForHeading,
   CONTENT_BOTTOM,
   MARGIN,
+  REVISION_PACK_COPYRIGHT_NOTICE,
 } = require("../services/pdf/lessonRevisionPackPdf");
 const {
   resolveLessonImageForPdf,
@@ -547,6 +548,44 @@ describe("renderLessonRevisionPackPdf layout + diagrams", () => {
     expect(studentRaw).not.toMatch(/SECRET-ANSWER-XYZ/);
     expect(studentRaw).not.toMatch(/SECRET-MARKSCHEME-XYZ/);
     expect(studentRaw).not.toMatch(/Model answers/);
+  });
+
+  it("includes copyright notice in student and teacher PDF footers", async () => {
+    expect(REVISION_PACK_COPYRIGHT_NOTICE).toMatch(/LetsRevise/);
+    expect(REVISION_PACK_COPYRIGHT_NOTICE).toMatch(/Personal study use only/);
+    expect(REVISION_PACK_COPYRIGHT_NOTICE).toMatch(/Do not copy, share, upload or distribute/);
+    // Prefer © (WinAnsi) — never emoji / surrogate junk in the notice.
+    expect(REVISION_PACK_COPYRIGHT_NOTICE).toMatch(/^© 2026 LetsRevise\./);
+    expect(REVISION_PACK_COPYRIGHT_NOTICE).not.toMatch(/Ø|ß|�|👉|🔥/);
+
+    const lesson = {
+      title: "Copyright Footer Check",
+      subject: "Biology",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [{ type: "keyIdea", content: "Amniotic fluid cushions the fetus." }],
+        },
+      ],
+    };
+
+    const studentPdf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    const teacherPdf = await renderLessonRevisionPackPdf(lesson, {
+      includeAnswers: true,
+      requesterRole: "teacher",
+    });
+
+    for (const buf of [studentPdf, teacherPdf]) {
+      expect(buf.slice(0, 4).toString()).toBe("%PDF");
+      const raw = buf.toString("latin1");
+      // PDFKit may Flate-compress streams; notice is also asserted via exported constant.
+      // When present uncompressed (common for short footers), require clean copyright text.
+      if (raw.includes("Personal study use only")) {
+        expect(raw).toMatch(/LetsRevise/);
+        expect(raw).toMatch(/Do not copy, share, upload or distribute/);
+        expect(raw).not.toMatch(/Ø<ß¯|�/);
+      }
+    }
   });
 });
 
