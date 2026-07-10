@@ -11,6 +11,13 @@ const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const FOOTER_HEIGHT = 30;
 const CONTENT_BOTTOM = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT;
 
+const FONT_TITLE = 22;
+const FONT_META = 11;
+const FONT_SECTION = 14;
+const FONT_BODY = 12;
+const FONT_FOOTER = 9;
+const LINE_GAP = 4;
+
 const toText = (v) => {
   if (v == null) return "";
   if (typeof v === "string") return v;
@@ -31,6 +38,7 @@ const toText = (v) => {
   return String(v);
 };
 
+/** Strip markdown markers; collapse to a single line (captions, answers, stems). */
 const stripMd = (s) =>
   toText(s)
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
@@ -39,56 +47,140 @@ const stripMd = (s) =>
     .replace(/\s+/g, " ")
     .trim();
 
+/**
+ * Strip markdown but keep paragraph/list structure for revision bullets.
+ */
+function stripMdKeepBreaks(s) {
+  return toText(s)
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[#>*_`]/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Split multi-line / list-like lesson text into readable chunks (not one dense wall).
+ */
+function splitIntoReadableChunks(raw, maxLen = 600) {
+  const cleaned = stripMdKeepBreaks(raw);
+  if (!cleaned) return [];
+
+  const parts = cleaned
+    .split(/\n+|•\s+|(?:^|\n)\s*[-–]\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const out = [];
+  const pushChunk = (chunk) => {
+    const t = String(chunk || "").trim();
+    if (!t) return;
+    if (t.length <= maxLen) {
+      out.push(t);
+      return;
+    }
+    const sentences = t.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [t];
+    let buf = "";
+    for (const sent of sentences) {
+      const piece = sent.trim();
+      if (!piece) continue;
+      const next = buf ? `${buf} ${piece}` : piece;
+      if (next.length <= maxLen) {
+        buf = next;
+      } else {
+        if (buf) out.push(buf);
+        buf = piece.slice(0, maxLen);
+      }
+    }
+    if (buf) out.push(buf);
+  };
+
+  if (parts.length <= 1) {
+    pushChunk(cleaned);
+  } else {
+    parts.forEach(pushChunk);
+  }
+  return out;
+}
+
 const safeSlice = (v, n) => stripMd(v).slice(0, n);
 
 function ensureSpace(doc, neededHeight) {
-  if (doc.y + neededHeight > CONTENT_BOTTOM) {
+  const need = Math.max(12, Number(neededHeight) || 12);
+  if (doc.y + need > CONTENT_BOTTOM) {
     doc.addPage();
   }
 }
 
+/** Page-break using measured text height when practical. */
+function ensureTextSpace(doc, text, opts = {}) {
+  const width = opts.width != null ? opts.width : CONTENT_WIDTH;
+  const fontSize = opts.fontSize != null ? opts.fontSize : FONT_BODY;
+  const lineGap = opts.lineGap != null ? opts.lineGap : LINE_GAP;
+  const extra = opts.extra != null ? opts.extra : 10;
+  const prevSize = doc._fontSize;
+  doc.fontSize(fontSize);
+  const h = doc.heightOfString(String(text || " "), { width, lineGap }) + extra;
+  if (prevSize) doc.fontSize(prevSize);
+  // Cap estimate so a single block cannot force a blank page by itself.
+  ensureSpace(doc, Math.min(h, CONTENT_BOTTOM - MARGIN - 40));
+}
+
 function addFooter(doc, meta) {
   const { slug, dateStr, pageNum } = meta;
-  doc.fontSize(9).font("Helvetica").fillColor("#94a3b8");
+  doc.fontSize(FONT_FOOTER).font("Helvetica").fillColor("#94a3b8");
   const footerText = `LetsRevise • Revision pack • ${toText(slug)} • ${dateStr} • Page ${pageNum}`;
   doc.text(footerText, MARGIN, PAGE_HEIGHT - MARGIN - 12, { width: CONTENT_WIDTH, align: "center" });
 }
 
 function addSectionHeader(doc, text) {
-  ensureSpace(doc, 24);
-  doc.fontSize(13).font("Helvetica-Bold").fillColor("#1e293b");
-  doc.text(toText(text), MARGIN, doc.y, { width: CONTENT_WIDTH });
-  doc.moveDown(0.4);
+  ensureSpace(doc, 32);
+  doc.fontSize(FONT_SECTION).font("Helvetica-Bold").fillColor("#1e293b");
+  doc.text(toText(text), MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+  doc.moveDown(0.55);
 }
 
 function addParagraph(doc, text) {
   const t = stripMd(text);
   if (!t) return;
-  ensureSpace(doc, 20);
-  doc.fontSize(11).font("Helvetica").fillColor("#334155");
-  doc.text(t, MARGIN, doc.y, { width: CONTENT_WIDTH, align: "left", lineGap: 2 });
-  doc.moveDown(0.5);
+  ensureTextSpace(doc, t, { fontSize: FONT_BODY, lineGap: LINE_GAP, extra: 12 });
+  doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#334155");
+  doc.text(t, MARGIN, doc.y, { width: CONTENT_WIDTH, align: "left", lineGap: LINE_GAP });
+  doc.moveDown(0.65);
 }
 
 function addBullets(doc, items, maxLen = 600) {
   if (!Array.isArray(items) || items.length === 0) return;
-  doc.fontSize(11).font("Helvetica").fillColor("#334155");
   items.forEach((item) => {
-    const line = safeSlice(item, maxLen);
-    if (!line) return;
-    ensureSpace(doc, 18);
-    doc.text(`• ${line}`, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10 });
-    doc.moveDown(0.25);
+    const line = `• ${safeSlice(item, maxLen)}`;
+    if (line === "• ") return;
+    ensureTextSpace(doc, line, { width: CONTENT_WIDTH - 10, fontSize: FONT_BODY, lineGap: LINE_GAP, extra: 12 });
+    doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#334155");
+    doc.text(line, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10, lineGap: LINE_GAP });
+    doc.moveDown(0.45);
   });
-  doc.moveDown(0.3);
+  doc.moveDown(0.35);
 }
 
 function blockType(b) {
   return String(b?.type || b?.blockType || "").toLowerCase();
 }
 
+function blockRawText(b) {
+  return b?.content || b?.text || b?.prompt || b?.title || "";
+}
+
 function blockBody(b) {
-  return stripMd(b?.content || b?.text || b?.prompt || b?.title || "");
+  return stripMd(blockRawText(b));
+}
+
+function pushStructuredLines(target, raw, maxLen = 600) {
+  splitIntoReadableChunks(raw, maxLen).forEach((line) => {
+    if (line) target.push(line);
+  });
 }
 
 /**
@@ -112,9 +204,11 @@ function buildRevisionPackSections(lesson, opts = {}) {
       const t = blockType(b);
       const body = blockBody(b);
       if (t === "keyideas" || t === "keyidea" || t === "text" || t === "stretch" || t === "deeperknowledge") {
-        if (body) keyLearning.push(body);
+        pushStructuredLines(keyLearning, blockRawText(b), 600);
       } else if (t === "keywords" || t === "keyword") {
-        if (body) keywords.push(body);
+        if (body) {
+          body.split(/[,;]+/).map((x) => x.trim()).filter(Boolean).forEach((kw) => keywords.push(kw));
+        }
         if (Array.isArray(b?.items)) {
           b.items.forEach((it) => {
             const line = stripMd(typeof it === "string" ? it : it?.term || it?.word || it?.text);
@@ -122,9 +216,9 @@ function buildRevisionPackSections(lesson, opts = {}) {
           });
         }
       } else if (t === "examtips" || t === "examtip") {
-        if (body) examTips.push(body);
+        pushStructuredLines(examTips, blockRawText(b), 500);
       } else if (t === "misconceptions" || t === "commonmistake" || t === "commonmistakes") {
-        if (body) commonMistakes.push(body);
+        pushStructuredLines(commonMistakes, blockRawText(b), 500);
       } else if (t === "diagram") {
         const caption = stripMd(b?.caption || b?.alt || b?.title || body || "Diagram");
         diagrams.push(caption);
@@ -148,7 +242,7 @@ function buildRevisionPackSections(lesson, opts = {}) {
         const prompt = stripMd(b?.prompt || b?.title || "Match the pairs");
         practiceQuestions.push({ kind: "match", text: `${prompt} (match activity — see lesson for diagram)` });
       } else if (t === "interactivesequence" || t === "interactivediagram") {
-        if (body) keyLearning.push(`[Interactive] ${body}`);
+        pushStructuredLines(keyLearning, blockRawText(b) ? `[Interactive] ${blockRawText(b)}` : "", 600);
       } else if (t === "examquestion") {
         const stem = stripMd(b?.prompt || b?.question || b?.stem || body || "Exam-style question");
         const marks = b?.marks != null ? ` (${b.marks} marks)` : "";
@@ -281,20 +375,23 @@ function renderLessonRevisionPackPdf(lesson, opts = {}) {
       doc.on("pageAdded", () => {
         pageNum += 1;
         addFooter(doc, { slug, dateStr, pageNum });
+        // Critical: footer text leaves doc.y near the bottom; reset so content
+        // starts at the top margin and does not cascade empty pages.
+        doc.y = MARGIN;
       });
 
-      doc.fontSize(20).font("Helvetica-Bold").fillColor("#0f172a");
-      doc.text(sections.title, MARGIN, MARGIN, { width: CONTENT_WIDTH });
-      doc.moveDown(0.35);
+      doc.fontSize(FONT_TITLE).font("Helvetica-Bold").fillColor("#0f172a");
+      doc.text(sections.title, MARGIN, MARGIN, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+      doc.moveDown(0.45);
 
       const metaParts = [sections.subject, sections.board, sections.topic, sections.level, sections.tier]
         .map((x) => toText(x).trim())
         .filter(Boolean);
-      doc.fontSize(11).font("Helvetica").fillColor("#64748b");
-      doc.text(metaParts.join(" · ") || "Revision pack", MARGIN, doc.y, { width: CONTENT_WIDTH });
-      doc.moveDown(0.25);
+      doc.fontSize(FONT_META).font("Helvetica").fillColor("#64748b");
+      doc.text(metaParts.join(" · ") || "Revision pack", MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+      doc.moveDown(0.3);
       doc.text(`Generated: ${dateStr}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
-      doc.moveDown(0.8);
+      doc.moveDown(0.9);
 
       if (sections.keyLearning.length) {
         addSectionHeader(doc, "Key learning points");
@@ -323,60 +420,67 @@ function renderLessonRevisionPackPdf(lesson, opts = {}) {
       if (sections.flashcards.length) {
         addSectionHeader(doc, "Flashcards");
         sections.flashcards.slice(0, 40).forEach((f, i) => {
-          ensureSpace(doc, 36);
-          doc.fontSize(11).font("Helvetica-Bold").fillColor("#1e293b");
-          doc.text(`Q${i + 1}. ${safeSlice(f.front, 400)}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
-          doc.moveDown(0.15);
+          const qLine = `Q${i + 1}. ${safeSlice(f.front, 400)}`;
+          const aLine = `A. ${safeSlice(f.back, 400) || "—"}`;
+          ensureTextSpace(doc, `${qLine}\n${aLine}`, { fontSize: FONT_BODY, lineGap: LINE_GAP, extra: 16 });
+          doc.fontSize(FONT_BODY).font("Helvetica-Bold").fillColor("#1e293b");
+          doc.text(qLine, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+          doc.moveDown(0.2);
           doc.font("Helvetica").fillColor("#334155");
-          doc.text(`A. ${safeSlice(f.back, 400) || "—"}`, MARGIN, doc.y, {
+          doc.text(aLine, MARGIN, doc.y, {
             width: CONTENT_WIDTH - 10,
             indent: 10,
+            lineGap: LINE_GAP,
           });
-          doc.moveDown(0.4);
+          doc.moveDown(0.55);
         });
       }
       if (sections.practiceQuestions.length) {
         addSectionHeader(doc, "Practice questions");
         sections.practiceQuestions.slice(0, 50).forEach((q, i) => {
-          ensureSpace(doc, 28);
-          doc.fontSize(11).font("Helvetica-Bold").fillColor("#1e293b");
-          doc.text(`${i + 1}. ${safeSlice(q.text, 500)}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
-          doc.moveDown(0.15);
+          const qLine = `${i + 1}. ${safeSlice(q.text, 500)}`;
+          ensureTextSpace(doc, qLine, { fontSize: FONT_BODY, lineGap: LINE_GAP, extra: 28 });
+          doc.fontSize(FONT_BODY).font("Helvetica-Bold").fillColor("#1e293b");
+          doc.text(qLine, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+          doc.moveDown(0.2);
           if (Array.isArray(q.options) && q.options.length) {
             doc.font("Helvetica").fillColor("#475569");
             q.options.forEach((opt, oi) => {
               const label = String.fromCharCode(65 + oi);
-              ensureSpace(doc, 14);
-              doc.text(`${label}. ${safeSlice(opt, 200)}`, MARGIN, doc.y, {
+              const optLine = `${label}. ${safeSlice(opt, 200)}`;
+              ensureTextSpace(doc, optLine, { width: CONTENT_WIDTH - 10, fontSize: FONT_BODY, lineGap: LINE_GAP, extra: 8 });
+              doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#475569");
+              doc.text(optLine, MARGIN, doc.y, {
                 width: CONTENT_WIDTH - 10,
                 indent: 12,
+                lineGap: LINE_GAP,
               });
-              doc.moveDown(0.1);
+              doc.moveDown(0.15);
             });
           }
-          doc.font("Helvetica").fillColor("#94a3b8");
+          doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#94a3b8");
           doc.text("Answer: ____________________________", MARGIN, doc.y, {
             width: CONTENT_WIDTH,
             indent: 10,
           });
-          doc.moveDown(0.45);
+          doc.moveDown(0.6);
         });
       }
 
       if (includeAnswers && sections.answerAppendix.length) {
         addSectionHeader(doc, "Model answers / mark scheme");
         sections.answerAppendix.forEach((a, i) => {
-          ensureSpace(doc, 40);
-          doc.fontSize(11).font("Helvetica-Bold").fillColor("#1e293b");
-          doc.text(`${i + 1}. ${a.label}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
-          doc.moveDown(0.15);
+          ensureSpace(doc, 48);
+          doc.fontSize(FONT_BODY).font("Helvetica-Bold").fillColor("#1e293b");
+          doc.text(`${i + 1}. ${a.label}`, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+          doc.moveDown(0.2);
           if (a.answer) addParagraph(doc, `Answer: ${a.answer}`);
           if (a.markScheme) addParagraph(doc, `Mark scheme: ${a.markScheme}`);
-          doc.moveDown(0.2);
+          doc.moveDown(0.3);
         });
       }
 
-      addFooter(doc, { slug, dateStr, pageNum: 1 });
+      addFooter(doc, { slug, dateStr, pageNum });
       doc.end();
     } catch (err) {
       reject(err);
@@ -388,4 +492,5 @@ module.exports = {
   renderLessonRevisionPackPdf,
   buildRevisionPackSections,
   slugify,
+  splitIntoReadableChunks,
 };
