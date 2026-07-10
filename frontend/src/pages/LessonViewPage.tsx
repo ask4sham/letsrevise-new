@@ -106,6 +106,7 @@ import { updateUser } from "../utils/authStorage";
 import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
 import { hasFullLessonAccess as computeFullLessonAccess } from "../utils/lessonAccess";
+import { downloadLessonRevisionPack } from "../api/lessonRevisionPackExport";
 import Toast from "../components/Toast";
 import {
   KeywordHighlightOnceProvider,
@@ -1625,6 +1626,8 @@ const LessonViewPage: React.FC = () => {
   // PR-FE-FLASHCARDS-COLLAPSE-1: flashcards section collapsed by default, expand on click
   const [showFlashcards, setShowFlashcards] = useState(false);
   const flashcardsViewerRef = useRef<HTMLDivElement>(null);
+  const [revisionPackDownloading, setRevisionPackDownloading] = useState(false);
+  const [revisionPackError, setRevisionPackError] = useState<string | null>(null);
 
   /** Mobile/tablet: matchMedia + innerWidth fallback for reliable real-phone detection below 768px */
   const MOBILE_BREAKPOINT = "(max-width: 767px)";
@@ -3658,6 +3661,22 @@ const LessonViewPage: React.FC = () => {
   // Single source of truth: backend accessDecision.allowed; fallbacks only if backend missing (see lessonAccess.ts).
   const hasFullLessonAccess = computeFullLessonAccess(accessDecision, user);
 
+  const handleDownloadRevisionPack = async () => {
+    if (!id || !hasFullLessonAccess || revisionPackDownloading) return;
+    setRevisionPackError(null);
+    setRevisionPackDownloading(true);
+    try {
+      await downloadLessonRevisionPack({
+        lessonId: String(id),
+        includeAnswers: Boolean(isTeacherOrAdmin),
+      });
+    } catch (e: any) {
+      setRevisionPackError(e?.message || "Could not download revision pack.");
+    } finally {
+      setRevisionPackDownloading(false);
+    }
+  };
+
   // Dev-only: render flags for preview entry debugging
   if (process.env.NODE_ENV !== "production" && lesson && (isPreviewEntry || entry === "preview")) {
     console.log("[LessonViewPage] render flags", {
@@ -4318,6 +4337,50 @@ const LessonViewPage: React.FC = () => {
                     {lesson.topic} · {lesson.level}
                     {lesson.examBoardName ? ` · ${lesson.examBoardName}` : ""}
                   </div>
+
+                  {!isClassroomPresentation && (
+                    <div style={{ marginTop: 12, textAlign: "left" }}>
+                      {hasFullLessonAccess ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleDownloadRevisionPack()}
+                          disabled={revisionPackDownloading}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "2px solid #334155",
+                            background: "white",
+                            color: "#0f172a",
+                            fontWeight: 700,
+                            fontSize: "0.9rem",
+                            cursor: revisionPackDownloading ? "wait" : "pointer",
+                          }}
+                        >
+                          {revisionPackDownloading ? "Preparing PDF…" : "Download revision pack"}
+                        </button>
+                      ) : (
+                        <div
+                          style={{
+                            display: "inline-block",
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            background: "#fff7ed",
+                            border: "1px solid rgba(249,115,22,0.35)",
+                            color: "#9a3412",
+                            fontSize: "0.85rem",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Full access required to download revision pack
+                        </div>
+                      )}
+                      {revisionPackError && (
+                        <div style={{ marginTop: 6, color: "#b91c1c", fontSize: "0.85rem" }}>
+                          {revisionPackError}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {lesson?.description && (() => {
                     const cleanedDesc = stripMediaFromDescription(lesson.description);
