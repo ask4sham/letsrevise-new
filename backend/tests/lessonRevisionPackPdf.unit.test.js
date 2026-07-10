@@ -11,6 +11,11 @@ const {
   segmentText,
   sanitizePdfText,
   renderLessonRevisionPackPdf,
+  addSegments,
+  collectFollowingLinesForHeading,
+  collectFollowingContentForHeading,
+  CONTENT_BOTTOM,
+  MARGIN,
 } = require("../services/pdf/lessonRevisionPackPdf");
 const {
   resolveLessonImageForPdf,
@@ -542,5 +547,165 @@ describe("renderLessonRevisionPackPdf layout + diagrams", () => {
     expect(studentRaw).not.toMatch(/SECRET-ANSWER-XYZ/);
     expect(studentRaw).not.toMatch(/SECRET-MARKSCHEME-XYZ/);
     expect(studentRaw).not.toMatch(/Model answers/);
+  });
+});
+
+describe("heading keep-with-content (orphan prevention)", () => {
+  const PDFDocument = require("pdfkit");
+
+  it("collectFollowingContentForHeading includes intro paragraph then first bullets", () => {
+    const segs = [
+      { type: "heading", text: "The Male Reproductive System" },
+      { type: "paragraph", text: "The key structures and their functions are outlined below:" },
+      { type: "bullet", text: "Sperm duct carries sperm from the testis" },
+      { type: "bullet", text: "Urethra carries urine and sperm" },
+      { type: "bullet", text: "Testis produces sperm and testosterone" },
+      { type: "bullet", text: "Scrotum holds the testes" },
+      { type: "heading", text: "The Female Reproductive System" },
+      { type: "bullet", text: "Ovaries produce eggs" },
+    ];
+    const items = collectFollowingContentForHeading(segs, 0);
+    expect(items[0].kind).toBe("paragraph");
+    expect(items[0].text).toMatch(/key structures/i);
+    expect(items.filter((x) => x.kind === "bullet").length).toBe(3);
+    expect(items.map((x) => x.text).join("\n")).not.toMatch(/Female|Ovaries|Scrotum/);
+  });
+
+  it("collectFollowingLinesForHeading gathers bullets and stops at next heading", () => {
+    const segs = [
+      { type: "heading", text: "The Male Reproductive System" },
+      { type: "bullet", text: "Testes produce sperm" },
+      { type: "bullet", text: "Sperm ducts carry sperm" },
+      { type: "bullet", text: "Glands add fluid" },
+      { type: "heading", text: "The Female Reproductive System" },
+      { type: "bullet", text: "Ovaries produce eggs" },
+    ];
+    const lines = collectFollowingLinesForHeading(segs, 0);
+    expect(lines.length).toBe(3);
+    expect(lines[0]).toMatch(/Testes produce sperm/);
+    expect(lines.join("\n")).not.toMatch(/Female|Ovaries/);
+  });
+
+  it("moves heading+intro+bullets together when only heading+intro would fit", async () => {
+    const doc = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true });
+    const chunks = [];
+    doc.on("data", (c) => chunks.push(c));
+    const done = new Promise((resolve) => doc.on("end", resolve));
+    let pagesAdded = 0;
+    doc.on("pageAdded", () => {
+      pagesAdded += 1;
+    });
+
+    // Room for heading + short intro only — not for intro + 3 bullets.
+    doc.y = CONTENT_BOTTOM - 70;
+
+    addSegments(doc, [
+      { type: "heading", text: "The Male Reproductive System" },
+      {
+        type: "paragraph",
+        text: "The key structures and their functions are outlined below:",
+      },
+      { type: "bullet", text: "Sperm duct carries sperm from the testis to the urethra." },
+      { type: "bullet", text: "Urethra carries urine and sperm out of the body." },
+      { type: "bullet", text: "Testis produces sperm and testosterone." },
+    ]);
+
+    expect(pagesAdded).toBeGreaterThan(0);
+    // Whole group rendered on the new page (heading + intro + bullets).
+    expect(doc.y).toBeGreaterThan(MARGIN + 80);
+    expect(doc.y).toBeLessThan(MARGIN + 280);
+
+    doc.end();
+    await done;
+    expect(Buffer.concat(chunks).slice(0, 4).toString()).toBe("%PDF");
+  });
+
+  it("moves an orphaned heading to the next page with following bullets", async () => {
+    const doc = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true });
+    const chunks = [];
+    doc.on("data", (c) => chunks.push(c));
+    const done = new Promise((resolve) => doc.on("end", resolve));
+    let pagesAdded = 0;
+    doc.on("pageAdded", () => {
+      pagesAdded += 1;
+    });
+
+    // Leave only enough room for a lone heading (~28px), not heading + bullets.
+    doc.y = CONTENT_BOTTOM - 36;
+
+    addSegments(doc, [
+      { type: "heading", text: "The Male Reproductive System" },
+      { type: "bullet", text: "Testes produce sperm and testosterone." },
+      { type: "bullet", text: "Sperm ducts transport sperm." },
+      { type: "bullet", text: "Glands add seminal fluid." },
+      { type: "bullet", text: "The penis delivers sperm." },
+    ]);
+
+    expect(pagesAdded).toBeGreaterThan(0);
+    // Heading + bullets rendered near the top of the new page.
+    expect(doc.y).toBeLessThan(MARGIN + 200);
+
+    doc.end();
+    await done;
+    const buf = Buffer.concat(chunks);
+    expect(buf.slice(0, 4).toString()).toBe("%PDF");
+  });
+
+  it("does not force a page break when heading + content already fit", async () => {
+    const doc = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true });
+    const chunks = [];
+    doc.on("data", (c) => chunks.push(c));
+    const done = new Promise((resolve) => doc.on("end", resolve));
+    let pagesAdded = 0;
+    doc.on("pageAdded", () => {
+      pagesAdded += 1;
+    });
+
+    doc.y = MARGIN + 40;
+
+    addSegments(doc, [
+      { type: "heading", text: "The Male Reproductive System" },
+      { type: "paragraph", text: "The key structures and their functions are outlined below:" },
+      { type: "bullet", text: "Testes produce sperm." },
+      { type: "bullet", text: "Sperm ducts transport sperm." },
+      { type: "bullet", text: "Glands add fluid." },
+    ]);
+
+    expect(pagesAdded).toBe(0);
+
+    doc.end();
+    await done;
+    expect(Buffer.concat(chunks).slice(0, 4).toString()).toBe("%PDF");
+  });
+
+  it("full pack with near-bottom heading does not explode page count", async () => {
+    const filler = Array.from({ length: 18 }, (_, i) => `<p>Filler paragraph ${i + 1} about puberty and hormones for layout.</p>`).join(
+      ""
+    );
+    const lesson = {
+      title: "Secondary Sexual Characteristics",
+      subject: "Biology",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "keyIdea",
+              content:
+                `${filler}<h2>The Male Reproductive System</h2>` +
+                `<p>The key structures and their functions are outlined below:</p>` +
+                `<ul><li>Sperm duct carries sperm from the testis</li>` +
+                `<li>Urethra carries urine and sperm</li>` +
+                `<li>Testis produces sperm and testosterone</li></ul>`,
+            },
+          ],
+        },
+      ],
+    };
+    const buf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    const pages = countPdfPages(buf);
+    expect(pages).toBeGreaterThanOrEqual(1);
+    expect(pages).toBeLessThan(12);
+    expect(buf.slice(0, 4).toString()).toBe("%PDF");
   });
 });
