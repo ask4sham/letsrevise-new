@@ -472,6 +472,126 @@ function ensureTextSpace(doc, text, opts = {}) {
   ensureSpace(doc, Math.min(h, CONTENT_BOTTOM - MARGIN - 40));
 }
 
+/** Keep heading with intro + first bullets (orphan prevention). */
+const HEADING_KEEP_MIN_BULLETS = 3;
+const HEADING_KEEP_MAX_SEGMENTS = 5;
+/** Approx body line height including moveDown / ensureTextSpace padding. */
+const HEADING_KEEP_BODY_LINE = FONT_BODY + LINE_GAP + 14;
+
+/**
+ * Collect following content after a heading for keep-with-next:
+ * optional short intro paragraph/label, then first 2–3 bullets/numbered items.
+ * Stops at the next heading.
+ * @param {Array} segments
+ * @param {number} headingIndex
+ * @returns {Array<{ kind: string, text: string }>}
+ */
+function collectFollowingContentForHeading(segments, headingIndex) {
+  const list = Array.isArray(segments) ? segments : [];
+  const out = [];
+  let bullets = 0;
+  let introTaken = false;
+
+  for (let i = headingIndex + 1; i < list.length; i++) {
+    if (out.length >= HEADING_KEEP_MAX_SEGMENTS) break;
+    const seg = list[i];
+
+    if (typeof seg === "string") {
+      const t = stripMd(seg);
+      if (!t) continue;
+      out.push({ kind: "bullet", text: `• ${t}` });
+      bullets += 1;
+      if (bullets >= HEADING_KEEP_MIN_BULLETS) break;
+      continue;
+    }
+
+    const type = seg?.type || "paragraph";
+    if (type === "heading") break;
+
+    const text = segmentText(seg);
+    if (!text) continue;
+
+    if (type === "bullet" || type === "numbered") {
+      const prefix = type === "numbered" ? `${seg.n != null ? seg.n : 1}. ` : "• ";
+      out.push({ kind: type, text: `${prefix}${text}` });
+      bullets += 1;
+      if (bullets >= HEADING_KEEP_MIN_BULLETS) break;
+      continue;
+    }
+
+    // paragraph / boldLabel — treat as intro; take at most one before bullets
+    if (bullets > 0) break;
+    if (introTaken) break;
+    out.push({ kind: type === "boldLabel" ? "boldLabel" : "paragraph", text });
+    introTaken = true;
+  }
+
+  return out;
+}
+
+/** @deprecated use collectFollowingContentForHeading — kept for tests that expect line strings */
+function collectFollowingLinesForHeading(segments, headingIndex, maxLines = HEADING_KEEP_MAX_SEGMENTS) {
+  return collectFollowingContentForHeading(segments, headingIndex)
+    .slice(0, maxLines)
+    .map((x) => x.text);
+}
+
+/**
+ * Ensure room for a main heading plus intro paragraph (if any) and first bullets.
+ * If that group does not fit, start a new page before the heading.
+ * Does not force every heading onto a new page when space is available.
+ * @param {PDFKit.PDFDocument} doc
+ * @param {string} headingText
+ * @param {Array<{ kind?: string, text: string }>|string[]} [following]
+ * @param {{ fontSize?: number }} [opts]
+ */
+function ensureHeadingKeepWithContent(doc, headingText, following = [], opts = {}) {
+  const headingSize = opts.fontSize != null ? opts.fontSize : FONT_HEADING;
+  const prevSize = doc._fontSize;
+
+  doc.fontSize(headingSize).font("Helvetica-Bold");
+  const headingH =
+    doc.heightOfString(String(headingText || "Heading"), {
+      width: CONTENT_WIDTH,
+      lineGap: LINE_GAP,
+    }) + 16;
+
+  const items = (Array.isArray(following) ? following : [])
+    .map((x) => (typeof x === "string" ? { text: x } : x))
+    .filter((x) => x && String(x.text || "").trim())
+    .slice(0, HEADING_KEEP_MAX_SEGMENTS);
+
+  doc.fontSize(FONT_BODY).font("Helvetica");
+  let followH = 0;
+  if (items.length === 0) {
+    // No following segment — still leave room for a few body lines.
+    followH = HEADING_KEEP_BODY_LINE * 3;
+  } else {
+    for (const item of items) {
+      const width = String(item.kind || "").match(/bullet|numbered/) ? CONTENT_WIDTH - 10 : CONTENT_WIDTH;
+      followH +=
+        doc.heightOfString(String(item.text || " "), {
+          width,
+          lineGap: LINE_GAP,
+        }) + 16;
+    }
+    // Floor: intro (~1–2 lines) + 3 bullet lines so heading+intro alone cannot "fit"
+    // while the list spills to the next page.
+    const hasIntro = items.some((x) => x.kind === "paragraph" || x.kind === "boldLabel");
+    const bulletCount = items.filter((x) => x.kind === "bullet" || x.kind === "numbered").length;
+    const minLines = (hasIntro ? 2 : 0) + Math.max(bulletCount, Math.min(3, items.length)) ;
+    const minFollow = HEADING_KEEP_BODY_LINE * Math.max(4, minLines);
+    followH = Math.max(followH, minFollow);
+  }
+
+  // Cap so a long section does not reserve an entire page (~7 body lines).
+  followH = Math.min(followH, HEADING_KEEP_BODY_LINE * 7);
+
+  if (prevSize) doc.fontSize(prevSize);
+
+  ensureSpace(doc, headingH + followH);
+}
+
 function addFooter(doc, meta) {
   const { slug, dateStr, pageNum } = meta;
   doc.fontSize(FONT_FOOTER).font("Helvetica").fillColor("#94a3b8");
@@ -480,9 +600,11 @@ function addFooter(doc, meta) {
 }
 
 function addSectionHeader(doc, text) {
-  ensureSpace(doc, 32);
+  const label = toText(text);
+  // Pack section titles are major headings — keep with a few lines of following content.
+  ensureHeadingKeepWithContent(doc, label, [], { fontSize: FONT_SECTION });
   doc.fontSize(FONT_SECTION).font("Helvetica-Bold").fillColor("#1e293b");
-  doc.text(toText(text), MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+  doc.text(label, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
   doc.moveDown(0.55);
 }
 
@@ -553,38 +675,41 @@ function addRichLine(doc, prefix, text, runs, opts = {}) {
 
 function addSegments(doc, segments) {
   if (!Array.isArray(segments) || segments.length === 0) return;
-  segments.forEach((seg) => {
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
     if (typeof seg === "string") {
       addBullets(doc, [seg]);
-      return;
+      continue;
     }
     const type = seg.type || "paragraph";
     const text = segmentText(seg);
-    if (!text) return;
+    if (!text) continue;
 
     if (type === "heading") {
-      ensureSpace(doc, 28);
+      const following = collectFollowingContentForHeading(segments, i);
+      ensureHeadingKeepWithContent(doc, text, following);
       doc.fontSize(FONT_HEADING).font("Helvetica-Bold").fillColor("#1e293b");
       doc.text(text, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
       doc.moveDown(0.45);
-      return;
+      continue;
     }
     if (type === "boldLabel") {
+      // Short labels — do not apply aggressive keep-with-next (avoids extra page breaks).
       addRichLine(doc, "", text, null, { boldAll: true, color: "#1e293b", moveDown: 0.35 });
-      return;
+      continue;
     }
     if (type === "bullet") {
       addRichLine(doc, "• ", text, seg.runs, { indent: 10, moveDown: 0.35 });
-      return;
+      continue;
     }
     if (type === "numbered") {
       const n = seg.n != null ? seg.n : 1;
       addRichLine(doc, `${n}. `, text, seg.runs, { indent: 10, moveDown: 0.35 });
-      return;
+      continue;
     }
     // paragraph
     addRichLine(doc, "", text, seg.runs, { indent: 0, moveDown: 0.5 });
-  });
+  }
   doc.moveDown(0.25);
 }
 
@@ -1076,4 +1201,11 @@ module.exports = {
   parseContentToSegments,
   segmentText,
   sanitizePdfText,
+  addSegments,
+  collectFollowingLinesForHeading,
+  collectFollowingContentForHeading,
+  ensureHeadingKeepWithContent,
+  HEADING_KEEP_MIN_BULLETS,
+  CONTENT_BOTTOM,
+  MARGIN,
 };
