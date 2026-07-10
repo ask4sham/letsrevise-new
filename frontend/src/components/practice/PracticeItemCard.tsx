@@ -24,9 +24,32 @@ export function PracticeItemCard({
   disabled,
 }: PracticeItemCardProps) {
   const isMcq = item.contentType === "quiz_mcq" && Array.isArray(item.choices) && item.choices.length > 0;
+  const badges: string[] = [];
+  if (item.metadata?.badge) badges.push(String(item.metadata.badge));
+  else if (item.metadata?.challenge) badges.push("Challenge");
+  if (item.metadata?.marks != null && Number(item.metadata.marks) > 0) {
+    badges.push(`${item.metadata.marks} marks`);
+  }
+  const skill = String(item.metadata?.skill || "").toLowerCase();
+  if (skill === "analysis") badges.push("Analyse");
+  else if (skill === "exam-technique") badges.push("Evaluate");
+  else if (skill === "application") badges.push("Apply");
+  else if (skill === "recall") badges.push("Recall");
 
   return (
     <div className="border rounded-lg p-4 bg-white shadow-sm">
+      {badges.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {badges.slice(0, 3).map((label) => (
+            <span
+              key={label}
+              className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="prose max-w-none mb-4 whitespace-pre-wrap">{item.prompt}</div>
       {item.metadata?.estimatedTimeSec != null && (
         <p className="text-xs text-gray-500 mb-2">~{item.metadata.estimatedTimeSec}s</p>

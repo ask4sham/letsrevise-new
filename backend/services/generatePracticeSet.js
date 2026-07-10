@@ -27,6 +27,95 @@ function mapSkillForQuery(skillArr) {
   return set.size ? [...set] : null;
 }
 
+/** Higher-tier challenge V1: command words in stem (no dedicated commandWord field). */
+const CHALLENGE_COMMAND_RE =
+  /\b(evaluat(?:e|ion)|analys(?:e|is)|analyz(?:e|is)|compar(?:e|ison)|justify|explain)\b/i;
+
+function getQuestionPromptText(row) {
+  return String(row?.question || row?.questionText || row?.prompt || "");
+}
+
+/**
+ * Strong challenge match using existing fields only (OR heuristic).
+ * @param {object} row
+ * @returns {boolean}
+ */
+function isStrongChallengeQuestion(row) {
+  if (!row || typeof row !== "object") return false;
+  const diff = Number(row.difficulty);
+  const marks = Number(row.marks);
+  const skill = String(row.skill || "").toLowerCase().trim();
+  const level = String(row.level || "").toLowerCase().trim();
+  const text = getQuestionPromptText(row);
+
+  if (Number.isFinite(diff) && diff >= 4) return true;
+  if (Number.isFinite(marks) && marks >= 4) return true;
+  if (skill === "analysis" || skill === "exam-technique") return true;
+  if (CHALLENGE_COMMAND_RE.test(text)) return true;
+  if (level === "higher") return true;
+  if (/\b(grade\s*[89]|stretch|challenge)\b/i.test(text)) return true;
+  return false;
+}
+
+/**
+ * Soft ranking score for challenge ordering / fallback.
+ * Higher = harder / more challenge-like.
+ * @param {object} row
+ * @returns {number}
+ */
+function challengeRankScore(row) {
+  if (!row || typeof row !== "object") return 0;
+  let score = 0;
+  const diff = Number(row.difficulty);
+  const marks = Number(row.marks);
+  const skill = String(row.skill || "").toLowerCase().trim();
+  const level = String(row.level || "").toLowerCase().trim();
+  const text = getQuestionPromptText(row);
+
+  if (Number.isFinite(diff)) score += diff * 10;
+  if (Number.isFinite(marks)) score += Math.min(marks, 8) * 3;
+  if (skill === "analysis") score += 25;
+  else if (skill === "exam-technique") score += 20;
+  else if (skill === "application") score += 8;
+  if (CHALLENGE_COMMAND_RE.test(text)) score += 18;
+  if (level === "higher") score += 12;
+  if (/\b(grade\s*[89]|stretch|challenge)\b/i.test(text)) score += 15;
+  if (isStrongChallengeQuestion(row)) score += 5;
+  return score;
+}
+
+/**
+ * Select challenge items: strong matches first, then highest-ranked fallback.
+ * Never returns empty when rawItems is non-empty.
+ * @param {Array<{ row: object }>} rawItems
+ * @param {number} cap
+ * @returns {Array}
+ */
+function selectChallengePracticeItems(rawItems, cap) {
+  const list = Array.isArray(rawItems) ? rawItems.slice() : [];
+  const limit = Math.min(Math.max(1, Number(cap) || 10), Math.max(1, list.length || 1));
+  if (list.length === 0) return [];
+
+  const ranked = list
+    .map((item, idx) => ({ item, idx, score: challengeRankScore(item.row) }))
+    .sort((a, b) => b.score - a.score || a.idx - b.idx);
+
+  const strong = ranked.filter(({ item }) => isStrongChallengeQuestion(item.row));
+  if (strong.length >= limit) {
+    return strong.slice(0, limit).map((x) => x.item);
+  }
+
+  const used = new Set(strong.map((x) => x.idx));
+  const out = strong.map((x) => x.item);
+  for (const entry of ranked) {
+    if (out.length >= limit) break;
+    if (used.has(entry.idx)) continue;
+    out.push(entry.item);
+    used.add(entry.idx);
+  }
+  return out;
+}
+
 /**
  * @param {Object} opts
  * @param {ObjectId|string|null} opts.teacherId - optional; if set, only that teacher's content; else platform-wide for topic
@@ -100,58 +189,61 @@ async function generatePracticeSet({ teacherId, specKey, topicKey, count = 10 })
 }
 
 // --- Slice 2: student-safe serializers (no correct answer / mark scheme) ---
-function toStudentSafeQuizMcq(row) {
+function buildStudentSafeMetadata(row, { challengeMode = false } = {}) {
+  const marks = row.marks != null && Number.isFinite(Number(row.marks)) ? Number(row.marks) : null;
+  const meta = {
+    difficulty: row.difficulty ?? null,
+    skill: row.skill ?? null,
+    marks,
+    estimatedTimeSec: row.estimatedTimeSec ?? null,
+  };
+  if (challengeMode) {
+    meta.challenge = isStrongChallengeQuestion(row);
+    if (Number.isFinite(Number(row.difficulty)) && Number(row.difficulty) >= 4) {
+      meta.badge = "Grade 8/9";
+    } else if (meta.challenge) {
+      meta.badge = "Challenge";
+    }
+  }
+  return meta;
+}
+
+function toStudentSafeQuizMcq(row, opts) {
   return {
     contentType: "quiz_mcq",
     contentId: row._id,
     topicKey: row.topicKey,
     prompt: row.questionText || "",
     choices: Array.isArray(row.choices) ? [...row.choices] : [],
-    metadata: {
-      difficulty: row.difficulty ?? null,
-      skill: row.skill ?? null,
-      estimatedTimeSec: row.estimatedTimeSec ?? null,
-    },
+    metadata: buildStudentSafeMetadata(row, opts),
   };
 }
 
-function toStudentSafeQuizShort(row) {
+function toStudentSafeQuizShort(row, opts) {
   return {
     contentType: "quiz_short",
     contentId: row._id,
     topicKey: row.topicKey,
     prompt: row.questionText || "",
-    metadata: {
-      difficulty: row.difficulty ?? null,
-      skill: row.skill ?? null,
-      estimatedTimeSec: row.estimatedTimeSec ?? null,
-    },
+    metadata: buildStudentSafeMetadata(row, opts),
   };
 }
 
-function toStudentSafeExamQuestion(row) {
-  const meta = {
-    difficulty: row.difficulty ?? null,
-    skill: row.skill ?? null,
-    estimatedTimeSec: row.estimatedTimeSec ?? null,
-  };
+function toStudentSafeExamQuestion(row, opts) {
+  const meta = buildStudentSafeMetadata(row, opts);
   if (row.type === "mcq" && Array.isArray(row.options)) {
     return { contentType: "exam_question", contentId: row._id, topicKey: row.topicKey, prompt: row.question || "", choices: [...row.options], metadata: meta };
   }
   return { contentType: "exam_question", contentId: row._id, topicKey: row.topicKey, prompt: row.question || "", metadata: meta };
 }
 
-function toStudentSafePastPaperQuestion(row) {
+function toStudentSafePastPaperQuestion(row, opts) {
   return {
     contentType: "past_paper_question",
     contentId: row._id,
     topicKey: row.topicKey,
     prompt: row.question || "",
-    metadata: {
-      difficulty: row.difficulty ?? null,
-      skill: row.skill ?? null,
-      estimatedTimeSec: row.estimatedTimeSec ?? null,
-    },
+    metadata: buildStudentSafeMetadata(row, opts),
   };
 }
 
@@ -166,8 +258,19 @@ function toStudentSafePastPaperQuestion(row) {
  * @param {string[]} opts.include - subset of CONTENT_TYPES
  * @param {number[]} [opts.difficulty]
  * @param {string[]} [opts.skill] - AO1/AO2 or recall/application/etc.
+ * @param {string} [opts.mode] - "standard" (default) or "challenge"
  */
-async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, topicKeys, limit = 10, include = CONTENT_TYPES, difficulty = null, skill = null }) {
+async function generateAndPersistPracticeSet({
+  studentId,
+  teacherId,
+  specKey,
+  topicKeys,
+  limit = 10,
+  include = CONTENT_TYPES,
+  difficulty = null,
+  skill = null,
+  mode = "standard",
+}) {
   const cap = Math.min(50, Math.max(1, Number(limit) || 10));
   const types = Array.isArray(include) && include.length > 0 ? include : CONTENT_TYPES;
   const invalidType = types.find((t) => !CONTENT_TYPES.includes(t));
@@ -176,6 +279,8 @@ async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, to
     err.code = "INVALID_INCLUDE";
     throw err;
   }
+
+  const challengeMode = String(mode || "standard").toLowerCase() === "challenge";
 
   assertValidSpecKey(specKey);
   const topicKeysTrimmed = (topicKeys || []).map((k) => String(k).trim()).filter(Boolean);
@@ -188,8 +293,10 @@ async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, to
     assertValidNamespacedTopicKey(specKey, tk);
   }
 
-  const difficultyFilter = Array.isArray(difficulty) && difficulty.length > 0 ? { $in: difficulty } : null;
-  const skillMapped = mapSkillForQuery(skill);
+  // Challenge mode ranks in-memory; do not also hard-filter Mongo by difficulty/skill.
+  const difficultyFilter =
+    !challengeMode && Array.isArray(difficulty) && difficulty.length > 0 ? { $in: difficulty } : null;
+  const skillMapped = !challengeMode ? mapSkillForQuery(skill) : null;
   const skillFilter = skillMapped && skillMapped.length > 0 ? { $in: skillMapped } : null;
 
   const ownerFilter = teacherId ? { ownerId: teacherId } : {};
@@ -213,7 +320,7 @@ async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, to
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const mcqs = await TopicQuizQuestion.find(q)
-      .select("_id topicKey questionText choices difficulty skill estimatedTimeSec")
+      .select("_id topicKey questionText choices difficulty skill estimatedTimeSec marks")
       .lean();
     mcqs.forEach((row) => pushUnique("quiz_mcq", row._id, row.topicKey, row, toStudentSafeQuizMcq));
   }
@@ -222,7 +329,7 @@ async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, to
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const shorts = await TopicQuizQuestion.find(q)
-      .select("_id topicKey questionText difficulty skill estimatedTimeSec")
+      .select("_id topicKey questionText difficulty skill estimatedTimeSec marks")
       .lean();
     shorts.forEach((row) => pushUnique("quiz_short", row._id, row.topicKey, row, toStudentSafeQuizShort));
   }
@@ -231,7 +338,7 @@ async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, to
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const exams = await ExamQuestion.find(q)
-      .select("_id topicKey type question options difficulty skill estimatedTimeSec")
+      .select("_id topicKey type question options difficulty skill estimatedTimeSec marks level")
       .lean();
     exams.forEach((row) => pushUnique("exam_question", row._id, row.topicKey, row, toStudentSafeExamQuestion));
   }
@@ -240,14 +347,14 @@ async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, to
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const past = await PastPaperQuestion.find(q)
-      .select("_id topicKey question difficulty skill estimatedTimeSec")
+      .select("_id topicKey question difficulty skill estimatedTimeSec marks")
       .lean();
     past.forEach((row) => pushUnique("past_paper_question", row._id, row.topicKey, row, toStudentSafePastPaperQuestion));
   }
 
-  const capped = rawItems.slice(0, cap);
+  const selected = challengeMode ? selectChallengePracticeItems(rawItems, cap) : rawItems.slice(0, cap);
 
-  const setItems = capped.map(({ contentType, contentId, topicKey }) => ({ contentType, contentId, topicKey }));
+  const setItems = selected.map(({ contentType, contentId, topicKey }) => ({ contentType, contentId, topicKey }));
   const practiceSet = await PracticeSet.create({
     studentId,
     teacherId,
@@ -256,8 +363,17 @@ async function generateAndPersistPracticeSet({ studentId, teacherId, specKey, to
     items: setItems,
   });
 
-  const studentSafeItems = capped.map(({ row, serializer }) => serializer(row));
-  return { practiceSetId: practiceSet._id, items: studentSafeItems };
+  const serializerOpts = { challengeMode };
+  const studentSafeItems = selected.map(({ row, serializer }) => serializer(row, serializerOpts));
+  return { practiceSetId: practiceSet._id, items: studentSafeItems, mode: challengeMode ? "challenge" : "standard" };
 }
 
-module.exports = { generatePracticeSet, generateAndPersistPracticeSet, OUTCOME_ENUM, CONTENT_TYPES };
+module.exports = {
+  generatePracticeSet,
+  generateAndPersistPracticeSet,
+  OUTCOME_ENUM,
+  CONTENT_TYPES,
+  isStrongChallengeQuestion,
+  challengeRankScore,
+  selectChallengePracticeItems,
+};

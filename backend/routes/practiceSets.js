@@ -29,13 +29,18 @@ router.post("/generate", auth, async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { specKey, topicKeys, limit, include, difficulty, skill, teacherId } = req.body || {};
+  const { specKey, topicKeys, limit, include, difficulty, skill, teacherId, mode } = req.body || {};
 
   if (!specKey || typeof specKey !== "string") {
     return res.status(400).json({ error: "specKey is required" });
   }
   if (!Array.isArray(topicKeys) || topicKeys.length === 0) {
     return res.status(400).json({ error: "topicKeys is required and must be a non-empty array" });
+  }
+
+  const modeNorm = mode == null || mode === "" ? "standard" : String(mode).toLowerCase().trim();
+  if (modeNorm !== "standard" && modeNorm !== "challenge") {
+    return res.status(400).json({ error: 'mode must be "standard" or "challenge"' });
   }
 
   let teacherIdObj = null;
@@ -75,6 +80,7 @@ router.post("/generate", auth, async (req, res) => {
       include: includeTypes,
       difficulty: Array.isArray(difficulty) ? difficulty : null,
       skill: Array.isArray(skill) ? skill : null,
+      mode: modeNorm,
     });
     return res.status(200).json(result);
   } catch (e) {

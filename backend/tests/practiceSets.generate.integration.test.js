@@ -332,4 +332,105 @@ describe("POST /api/practice-sets/generate", () => {
       keys.add(key);
     }
   });
+
+  test("mode=challenge prefers harder exam questions and stays student-safe", async () => {
+    await ExamQuestion.create({
+      teacherId,
+      subject: "Biology",
+      type: "short",
+      topicKey: TOPIC,
+      question: "State one function of the nucleus.",
+      marks: 1,
+      difficulty: 1,
+      skill: "recall",
+      status: "published",
+    });
+    await ExamQuestion.create({
+      teacherId,
+      subject: "Biology",
+      type: "short",
+      topicKey: TOPIC,
+      question: "Evaluate how the placenta is adapted for exchange.",
+      marks: 6,
+      difficulty: 5,
+      skill: "analysis",
+      level: "Higher",
+      status: "published",
+    });
+
+    const challengeRes = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        specKey: SPEC,
+        topicKeys: [TOPIC],
+        limit: 1,
+        include: ["exam_question"],
+        mode: "challenge",
+        teacherId: teacherId.toString(),
+      });
+
+    expect(challengeRes.status).toBe(200);
+    expect(challengeRes.body.mode).toBe("challenge");
+    expect(challengeRes.body.items.length).toBe(1);
+    expect(challengeRes.body.items[0].prompt).toMatch(/Evaluate how the placenta/i);
+    expect(challengeRes.body.items[0]).not.toHaveProperty("markScheme");
+    expect(challengeRes.body.items[0]).not.toHaveProperty("correctAnswer");
+    expect(challengeRes.body.items[0].metadata?.marks).toBe(6);
+
+    const standardRes = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        specKey: SPEC,
+        topicKeys: [TOPIC],
+        limit: 10,
+        include: ["exam_question"],
+        mode: "standard",
+        teacherId: teacherId.toString(),
+      });
+    expect(standardRes.status).toBe(200);
+    expect(standardRes.body.mode).toBe("standard");
+    expect(standardRes.body.items.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("mode=challenge falls back to hardest available when no strong matches", async () => {
+    await ExamQuestion.deleteMany({ teacherId, topicKey: TOPIC });
+    await ExamQuestion.create({
+      teacherId,
+      subject: "Biology",
+      type: "short",
+      topicKey: TOPIC,
+      question: "State X for challenge fallback.",
+      marks: 1,
+      difficulty: 1,
+      status: "published",
+    });
+    await ExamQuestion.create({
+      teacherId,
+      subject: "Biology",
+      type: "short",
+      topicKey: TOPIC,
+      question: "Describe Y for challenge fallback.",
+      marks: 2,
+      difficulty: 3,
+      status: "published",
+    });
+
+    const res = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        specKey: SPEC,
+        topicKeys: [TOPIC],
+        limit: 1,
+        include: ["exam_question"],
+        mode: "challenge",
+        teacherId: teacherId.toString(),
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.items.length).toBe(1);
+    expect(res.body.items[0].prompt).toMatch(/Describe Y for challenge fallback/i);
+  });
 });
