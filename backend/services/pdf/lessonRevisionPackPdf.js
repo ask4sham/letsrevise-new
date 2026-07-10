@@ -13,7 +13,8 @@ const MARGIN = 50;
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-const FOOTER_HEIGHT = 30;
+/** Two-line footer: pack meta + copyright notice. */
+const FOOTER_HEIGHT = 42;
 const CONTENT_BOTTOM = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT;
 
 const FONT_TITLE = 22;
@@ -21,8 +22,14 @@ const FONT_META = 11;
 const FONT_SECTION = 14;
 const FONT_HEADING = 13;
 const FONT_BODY = 12;
-const FONT_FOOTER = 9;
+const FONT_FOOTER = 8;
+const FONT_FOOTER_COPYRIGHT = 7;
 const LINE_GAP = 4;
+
+/** WinAnsi-safe copyright line for every revision-pack PDF page. */
+const REVISION_PACK_COPYRIGHT_NOTICE =
+  "© 2026 LetsRevise. Personal study use only. Do not copy, share, upload or distribute.";
+
 
 const toText = (v) => {
   if (v == null) return "";
@@ -594,9 +601,16 @@ function ensureHeadingKeepWithContent(doc, headingText, following = [], opts = {
 
 function addFooter(doc, meta) {
   const { slug, dateStr, pageNum } = meta;
+  const footerBaseY = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT + 6;
   doc.fontSize(FONT_FOOTER).font("Helvetica").fillColor("#94a3b8");
-  const footerText = `LetsRevise • Revision pack • ${toText(slug)} • ${dateStr} • Page ${pageNum}`;
-  doc.text(footerText, MARGIN, PAGE_HEIGHT - MARGIN - 12, { width: CONTENT_WIDTH, align: "center" });
+  const footerText = `LetsRevise - Revision pack - ${toText(slug)} - ${dateStr} - Page ${pageNum}`;
+  doc.text(footerText, MARGIN, footerBaseY, { width: CONTENT_WIDTH, align: "center", lineBreak: false });
+  doc.fontSize(FONT_FOOTER_COPYRIGHT).font("Helvetica").fillColor("#94a3b8");
+  doc.text(REVISION_PACK_COPYRIGHT_NOTICE, MARGIN, footerBaseY + 11, {
+    width: CONTENT_WIDTH,
+    align: "center",
+    lineBreak: false,
+  });
 }
 
 function addSectionHeader(doc, text) {
@@ -1208,4 +1222,5 @@ module.exports = {
   HEADING_KEEP_MIN_BULLETS,
   CONTENT_BOTTOM,
   MARGIN,
+  REVISION_PACK_COPYRIGHT_NOTICE,
 };
