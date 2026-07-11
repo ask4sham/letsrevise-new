@@ -46,6 +46,11 @@ const LINE_GAP = 4;
 const REVISION_PACK_COPYRIGHT_NOTICE =
   "© 2026 LetsRevise. Personal study use only. Do not copy, share, upload or distribute.";
 
+/** First-page brand header (compact, print-friendly). */
+const BRAND_SITE = "LetsRevise.com";
+const BRAND_SUBTITLE = "UK Learning Platform";
+const BRAND_TAGLINE = "GCSE revision made clearer";
+
 
 const toText = (v) => {
   if (v == null) return "";
@@ -637,6 +642,56 @@ function addFooter(doc, meta) {
     align: "center",
     lineBreak: false,
   });
+}
+
+/**
+ * Compact first-page brand header (PDFKit shapes + text only).
+ * Height target ~35–42px so the lesson title stays prominent.
+ * @param {PDFKit.PDFDocument} doc
+ */
+function addBrandHeader(doc) {
+  const badgeSize = 20;
+  const badgeX = MARGIN;
+  const badgeY = MARGIN;
+
+  doc.save();
+  doc.roundedRect(badgeX, badgeY, badgeSize, badgeSize, 3).fill("#0f172a");
+  doc
+    .fillColor("#ffffff")
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("LR", badgeX, badgeY + 5, {
+      width: badgeSize,
+      align: "center",
+      lineBreak: false,
+    });
+  doc.restore();
+
+  const textX = badgeX + badgeSize + 8;
+  doc
+    .fillColor("#0f172a")
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text(BRAND_SITE, textX, badgeY + 1, { lineBreak: false });
+  doc
+    .fillColor("#64748b")
+    .font("Helvetica")
+    .fontSize(8)
+    .text(`${BRAND_SUBTITLE}  ·  ${BRAND_TAGLINE}`, textX, badgeY + 14, {
+      width: CONTENT_WIDTH - (badgeSize + 8),
+      lineBreak: false,
+    });
+
+  const lineY = badgeY + badgeSize + 8;
+  doc
+    .moveTo(MARGIN, lineY)
+    .lineTo(MARGIN + CONTENT_WIDTH, lineY)
+    .strokeColor("#cbd5e1")
+    .lineWidth(0.7)
+    .stroke();
+
+  doc.y = lineY + 10;
+  doc.fillColor("#0f172a");
 }
 
 function addSectionHeader(doc, text) {
@@ -1670,18 +1725,21 @@ async function renderLessonRevisionPackPdf(lesson, opts = {}) {
         doc.y = MARGIN;
       });
 
+      // First page only: compact LetsRevise.com brand header.
+      addBrandHeader(doc);
+
       doc.fontSize(FONT_TITLE).font("Helvetica-Bold").fillColor("#0f172a");
-      doc.text(sections.title, MARGIN, MARGIN, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
-      doc.moveDown(0.45);
+      doc.text(sections.title, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+      doc.moveDown(0.4);
 
       const metaParts = [sections.subject, sections.board, sections.topic, sections.level, sections.tier]
         .map((x) => toText(x).trim())
         .filter(Boolean);
       doc.fontSize(FONT_META).font("Helvetica").fillColor("#64748b");
       doc.text(metaParts.join(" · ") || "Revision pack", MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
-      doc.moveDown(0.3);
+      doc.moveDown(0.25);
       doc.text(`Generated: ${dateStr}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
-      doc.moveDown(0.9);
+      doc.moveDown(0.7);
 
       if (keyLearning.length) {
         addSectionHeader(doc, "Key learning points");
@@ -1802,4 +1860,8 @@ module.exports = {
   CONTENT_BOTTOM,
   MARGIN,
   REVISION_PACK_COPYRIGHT_NOTICE,
+  BRAND_SITE,
+  BRAND_SUBTITLE,
+  BRAND_TAGLINE,
+  addBrandHeader,
 };

@@ -17,6 +17,9 @@ const {
   CONTENT_BOTTOM,
   MARGIN,
   REVISION_PACK_COPYRIGHT_NOTICE,
+  BRAND_SITE,
+  BRAND_SUBTITLE,
+  BRAND_TAGLINE,
 } = require("../services/pdf/lessonRevisionPackPdf");
 const {
   resolveLessonImageForPdf,
@@ -34,6 +37,33 @@ const SUPABASE_PNG_URL =
 function countPdfPages(buf) {
   const raw = Buffer.isBuffer(buf) ? buf.toString("latin1") : String(buf);
   return (raw.match(/\/Type\s*\/Page(?!\s*s)/g) || []).length;
+}
+
+/** Inflate PDFKit content streams and join hex-encoded TJ text payloads. */
+function extractPdfPlainText(buf) {
+  const zlib = require("zlib");
+  const raw = Buffer.isBuffer(buf) ? buf.toString("latin1") : String(buf);
+  const pieces = [];
+  const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let m;
+  while ((m = re.exec(raw))) {
+    const chunk = Buffer.from(m[1], "binary");
+    let streamText;
+    try {
+      streamText = zlib.inflateSync(chunk).toString("latin1");
+    } catch {
+      streamText = chunk.toString("latin1");
+    }
+    streamText.replace(/<([0-9A-Fa-f]+)>/g, (_, hex) => {
+      try {
+        pieces.push(Buffer.from(hex, "hex").toString("latin1"));
+      } catch {
+        /* ignore */
+      }
+      return "";
+    });
+  }
+  return pieces.join("");
 }
 
 function pdfHasImageXObject(buf) {
@@ -586,6 +616,53 @@ describe("renderLessonRevisionPackPdf layout + diagrams", () => {
         expect(raw).not.toMatch(/Ø<ß¯|�/);
       }
     }
+  });
+
+  it("includes compact LetsRevise.com brand header on the first page", async () => {
+    expect(BRAND_SITE).toBe("LetsRevise.com");
+    expect(BRAND_SUBTITLE).toBe("UK Learning Platform");
+    expect(BRAND_TAGLINE).toBe("GCSE revision made clearer");
+
+    const lesson = {
+      title: "Brand Header Check Lesson",
+      subject: "Biology",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [{ type: "keyIdea", content: "Brand header sits above the lesson title." }],
+        },
+      ],
+    };
+    const studentPdf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    const teacherPdf = await renderLessonRevisionPackPdf(lesson, {
+      includeAnswers: true,
+      requesterRole: "teacher",
+    });
+
+    for (const buf of [studentPdf, teacherPdf]) {
+      expect(buf.slice(0, 4).toString()).toBe("%PDF");
+      expect(countPdfPages(buf)).toBeLessThan(8);
+      const text = extractPdfPlainText(buf);
+      expect(text).toMatch(/LetsRevise\.com/);
+      expect(text).toMatch(/UK Learning Platform/);
+      expect(text).toMatch(/GCSE revision made clearer/);
+      expect(text).toMatch(/Brand Header Check Lesson/);
+      expect(text).toMatch(/Personal study use only/);
+      expect(text).toMatch(/Do not copy, share, upload or distribute/);
+      const brandAt = text.indexOf("LetsRevise.com");
+      const titleAt = text.indexOf("Brand Header Check Lesson");
+      expect(brandAt).toBeGreaterThanOrEqual(0);
+      expect(titleAt).toBeGreaterThanOrEqual(0);
+      expect(brandAt).toBeLessThan(titleAt);
+    }
+
+    const studentText = extractPdfPlainText(studentPdf);
+    expect(studentText).not.toMatch(/Model answers \/ mark scheme/);
+    // Branding must not disturb answer-appendix policy helpers used elsewhere.
+    const studentSections = buildRevisionPackSections(lesson, { includeAnswers: false });
+    expect(studentSections.answerAppendix).toEqual([]);
+    const teacherSections = buildRevisionPackSections(lesson, { includeAnswers: true });
+    expect(Array.isArray(teacherSections.answerAppendix)).toBe(true);
   });
 });
 
