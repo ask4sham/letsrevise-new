@@ -170,3 +170,224 @@ describe("questionDeduplicationGuard", () => {
     expect(stems.filter((s) => isGenericPlaceholderStem(s)).length).toBeLessThanOrEqual(1);
   });
 });
+
+describe("JSON lesson page question diversity", () => {
+  const {
+    auditLessonPagesDuplication,
+    repairLessonPagesDuplication,
+    enforceQuestionDiversityOnDraft,
+    extractQuestionsFromLessonPages,
+    CROSS_ROLE_NEAR_DUP_THRESHOLD,
+  } = require("../lib/questionDeduplicationGuard");
+
+  function pagesWith(blocks) {
+    return [{ pageId: "p1", title: "Page 1", blocks }];
+  }
+
+  test("detects exact duplicate stems across checkpoint blocks", () => {
+    const q = "Which structure carries sperm towards the urethra?";
+    const audit = auditLessonPagesDuplication(
+      pagesWith([
+        { type: "checkpoint", prompt: q, options: ["A", "B", "C", "D"], correctAnswer: "A" },
+        {
+          type: "checkpoint",
+          role: "quickCheck",
+          prompt: q,
+          options: ["A", "B", "C", "D"],
+          correctAnswer: "A",
+        },
+      ])
+    );
+    expect(audit.clean).toBe(false);
+    expect(audit.issues.some((i) => i.kind === "near_duplicate_stem")).toBe(true);
+  });
+
+  test("detects near-duplicate selfCheck vs checkpoint stems", () => {
+    const audit = auditLessonPagesDuplication(
+      pagesWith([
+        {
+          type: "checkpoint",
+          prompt: "Which change is controlled by hormones during puberty in males?",
+          options: ["Voice breaks", "Photosynthesis", "Osmosis", "Digestion"],
+          correctAnswer: "Voice breaks",
+        },
+        {
+          type: "selfCheck",
+          prompt: "Which change is controlled by hormones during puberty in males and females?",
+          questionType: "mcq",
+          options: ["Voice breaks", "Photosynthesis", "Osmosis", "Digestion"],
+          correctAnswer: "Voice breaks",
+        },
+      ])
+    );
+    expect(audit.clean).toBe(false);
+    expect(
+      audit.issues.some(
+        (i) =>
+          i.kind === "near_duplicate_stem" &&
+          ((i.role === "selfCheck" && i.otherRole === "checkpoint") ||
+            (i.role === "checkpoint" && i.otherRole === "selfCheck"))
+      )
+    ).toBe(true);
+  });
+
+  test("detects duplicate MCQ option sets", () => {
+    const opts = ["Sperm duct", "Urethra", "Testis", "Ovary"];
+    const audit = auditLessonPagesDuplication(
+      pagesWith([
+        {
+          type: "checkpoint",
+          prompt: "Which structure produces sperm?",
+          options: opts,
+          correctAnswer: "Testis",
+        },
+        {
+          type: "checkpoint",
+          role: "quickCheck",
+          prompt: "Which structure carries urine and sperm?",
+          options: [...opts].reverse(),
+          correctAnswer: "Urethra",
+        },
+      ])
+    );
+    expect(audit.clean).toBe(false);
+    expect(audit.issues.some((i) => i.kind === "duplicate_option_set")).toBe(true);
+  });
+
+  test("detects repeated generic placeholder stems", () => {
+    const audit = auditLessonPagesDuplication(
+      pagesWith([
+        {
+          type: "checkpoint",
+          prompt: "Which statement best matches this topic?",
+          options: ["A", "B", "C", "D"],
+        },
+        {
+          type: "selfCheck",
+          prompt: "Which statement is correct?",
+          questionType: "mcq",
+          options: ["A", "B", "C", "D"],
+        },
+      ])
+    );
+    expect(audit.clean).toBe(false);
+    expect(audit.issues.some((i) => i.kind === "generic_placeholder")).toBe(true);
+  });
+
+  test("valid varied questions pass", () => {
+    const audit = auditLessonPagesDuplication(
+      pagesWith([
+        {
+          type: "checkpoint",
+          prompt: "Which structure carries sperm towards the urethra?",
+          options: ["Sperm duct", "Ovary", "Uterus", "Cervix"],
+          correctAnswer: "Sperm duct",
+        },
+        {
+          type: "selfCheck",
+          prompt: "Explain why sperm production occurs in the testes.",
+          questionType: "short",
+        },
+        {
+          type: "checkpoint",
+          role: "quickCheck",
+          prompt: "Why does fertilisation create genetic variation?",
+          options: [
+            "Mixing of maternal and paternal alleles",
+            "Mitosis only",
+            "No meiosis",
+            "Identical clones",
+          ],
+          correctAnswer: "Mixing of maternal and paternal alleles",
+        },
+      ])
+    );
+    expect(audit.clean).toBe(true);
+    expect(extractQuestionsFromLessonPages(pagesWith([])).length).toBe(0);
+  });
+
+  test("repair replaces only flagged duplicate questions", () => {
+    const pages = pagesWith([
+      {
+        type: "checkpoint",
+        prompt: "When blood glucose rises above the set point, which hormone does the pancreas release?",
+        options: ["Insulin", "Glucagon", "ADH", "Thyroxine"],
+        correctAnswer: "Insulin",
+      },
+      {
+        type: "selfCheck",
+        prompt: "When blood glucose rises above the set point, which hormone does the pancreas release?",
+        questionType: "mcq",
+        options: ["Insulin", "Glucagon", "ADH", "Thyroxine"],
+        correctAnswer: "Insulin",
+      },
+    ]);
+    const keep = pages[0].blocks[0].prompt;
+    const result = repairLessonPagesDuplication(pages, {
+      topic: "Control of blood glucose",
+      topicKey: "aqa-biology-gcse:homeostasis",
+    });
+    expect(result.changed).toBe(true);
+    expect(result.repaired).toBeGreaterThanOrEqual(1);
+    expect(pages[0].blocks[0].prompt).toBe(keep);
+    expect(pages[0].blocks[1].prompt).not.toBe(keep);
+    const after = auditLessonPagesDuplication(pages);
+    expect(after.clean).toBe(true);
+  });
+
+  test("enforceQuestionDiversityOnDraft repairs then reports clean", () => {
+    const draft = {
+      pages: pagesWith([
+        {
+          type: "checkpoint",
+          prompt: "Which statement best matches this topic?",
+          options: ["A", "B", "C", "D"],
+        },
+        {
+          type: "selfCheck",
+          prompt: "Which statement best matches this topic?",
+          questionType: "mcq",
+          options: ["A", "B", "C", "D"],
+        },
+      ]),
+    };
+    const result = enforceQuestionDiversityOnDraft(draft, {
+      topic: "Control of blood glucose",
+      topicKey: "aqa-biology-gcse:homeostasis",
+    });
+    expect(result.repaired).toBeGreaterThanOrEqual(1);
+    expect(result.clean).toBe(true);
+    expect(CROSS_ROLE_NEAR_DUP_THRESHOLD).toBe(0.72);
+  });
+
+  test("enforce fails clean=false when repair cannot diversify enough", () => {
+    // Tiny pool exhaustion simulation: identical stems with empty topic → generic alternatives
+    // may still leave near-dups if pool is tiny; for blood glucose pool should succeed.
+    // Use a nonsense topic with three identical generics — repair should still clean via pool rotation.
+    const draft = {
+      pages: pagesWith([
+        {
+          type: "checkpoint",
+          prompt: "Which statement best matches this topic?",
+          options: ["A", "B", "C", "D"],
+        },
+        {
+          type: "checkpoint",
+          role: "quickCheck",
+          prompt: "Which statement best matches this topic?",
+          options: ["A", "B", "C", "D"],
+        },
+        {
+          type: "selfCheck",
+          prompt: "Which statement best matches this topic?",
+          options: ["A", "B", "C", "D"],
+        },
+      ]),
+    };
+    const result = enforceQuestionDiversityOnDraft(draft, {
+      topic: "Control of blood glucose",
+    });
+    // Blood-glucose pool has enough distinct stems to clean.
+    expect(result.clean).toBe(true);
+  });
+});

@@ -26,9 +26,10 @@ const {
   resolveTopicSpecForGeneration,
   hasRichSpecForAssessment,
 } = require("../services/topicSpecification");
-const { planAssessmentJourney } = require("../services/assessmentJourneyPlanner");
+const { planAssessmentJourney, buildAssessmentJourneyPromptSection } = require("../services/assessmentJourneyPlanner");
 const { validateAssessmentIntent } = require("../services/assessmentIntentValidator");
 const { applyAssessmentJourneyFromPlan } = require("../services/assessmentJourneyApply");
+const { enforceQuestionDiversityOnDraft } = require("../../lib/questionDeduplicationGuard");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
@@ -5608,6 +5609,40 @@ router.post("/generate-and-save", auth, async (req, res) => {
       flashcards: req.body?.flashcards,
     });
 
+    // Question diversity contract — must reach the live generate-and-save LLM path.
+    const QUESTION_DIVERSITY_PROMPT = [
+      "QUESTION DIVERSITY CONTRACT (MANDATORY):",
+      "- Do not repeat any question stem across self-check, checkpoint, quick-check, page quiz, or exam practice.",
+      "- Self-check and checkpoint must test different ideas / skills (recall vs apply/explain).",
+      "- Do not reuse the same MCQ option set across questions.",
+      "- Do not use generic placeholder questions such as \"Which statement best matches this topic?\" or \"Which statement is correct?\".",
+      "- Progress questions from recall → apply → explain → exam-style.",
+      "- Each question must have a distinct teaching purpose.",
+    ].join("\n");
+    engineInstructions = `${String(engineInstructions || "").trim()}\n\n${QUESTION_DIVERSITY_PROMPT}`.trim();
+
+    // Inject planned assessment journey into the LLM prompt when a rich topic spec exists.
+    try {
+      const topicSpecForPrompt = resolveTopicSpecForGeneration(specKey, canonicalTopicKey, {
+        examCode: req.body?.examCode,
+      });
+      if (hasRichSpecForAssessment(topicSpecForPrompt)) {
+        const journeyForPrompt = planAssessmentJourney({
+          topic: subTopicDisplay || topic,
+          topicKey: canonicalTopicKey,
+          specKey,
+          topicSpec: topicSpecForPrompt,
+          examCode: topicSpecForPrompt.examCode,
+        });
+        engineInstructions = `${engineInstructions}\n\n${buildAssessmentJourneyPromptSection(journeyForPrompt)}`.trim();
+      }
+    } catch (journeyPromptErr) {
+      console.warn(
+        "[generate-and-save] assessment journey prompt inject skipped:",
+        journeyPromptErr?.message || journeyPromptErr
+      );
+    }
+
     // ✅ 2) Generate AI draft (sanitized) with sub-topic scope guardrails
     let sanitized = (await generateSanitizedDraft({
       topic,
@@ -5756,12 +5791,74 @@ router.post("/generate-and-save", auth, async (req, res) => {
             assessmentValidation.issues?.slice(0, 8)
           );
         }
+
+        // Hard question-diversity gate: audit → repair → re-audit → fail if still dirty.
+        const diversity = enforceQuestionDiversityOnDraft(sanitized, {
+          topic: subTopicDisplay || topic,
+          topicKey: canonicalTopicKey,
+          plan: journey.plan,
+        });
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[generate-and-save] question diversity:", {
+            clean: diversity.clean,
+            repaired: diversity.repaired,
+            issues: (diversity.issues || []).slice(0, 5).map((i) => i.kind || i),
+          });
+        }
+        if (!diversity.clean) {
+          const stems = (diversity.issues || [])
+            .map((i) => i.stem || i.kind)
+            .filter(Boolean)
+            .slice(0, 5);
+          console.warn("[generate-and-save] question diversity failed:", stems);
+          const err = new Error(
+            "Lesson generation failed question diversity check: duplicate or near-duplicate questions could not be repaired. Please regenerate."
+          );
+          err.status = 422;
+          err.code = "QUESTION_DIVERSITY_FAILED";
+          err.details = { issues: (diversity.issues || []).slice(0, 8) };
+          throw err;
+        }
+      } else {
+        // Thin specs still get diversity enforcement (deterministic repair from topic pools).
+        const diversity = enforceQuestionDiversityOnDraft(sanitized, {
+          topic: subTopicDisplay || topic,
+          topicKey: canonicalTopicKey,
+        });
+        if (!diversity.clean) {
+          console.warn(
+            "[generate-and-save] question diversity failed (thin spec):",
+            (diversity.issues || []).slice(0, 5)
+          );
+          const err = new Error(
+            "Lesson generation failed question diversity check: duplicate or near-duplicate questions could not be repaired. Please regenerate."
+          );
+          err.status = 422;
+          err.code = "QUESTION_DIVERSITY_FAILED";
+          err.details = { issues: (diversity.issues || []).slice(0, 8) };
+          throw err;
+        }
       }
     } catch (assessmentErr) {
+      if (assessmentErr?.code === "QUESTION_DIVERSITY_FAILED") throw assessmentErr;
       console.warn(
         "[generate-and-save] assessment journey apply skipped:",
         assessmentErr?.message || assessmentErr
       );
+      // Still enforce diversity when journey apply itself failed.
+      const diversity = enforceQuestionDiversityOnDraft(sanitized, {
+        topic: subTopicDisplay || topic,
+        topicKey: canonicalTopicKey,
+      });
+      if (!diversity.clean) {
+        const err = new Error(
+          "Lesson generation failed question diversity check: duplicate or near-duplicate questions could not be repaired. Please regenerate."
+        );
+        err.status = 422;
+        err.code = "QUESTION_DIVERSITY_FAILED";
+        err.details = { issues: (diversity.issues || []).slice(0, 8) };
+        throw err;
+      }
     }
 
     if (process.env.NODE_ENV !== "production") {
@@ -6271,6 +6368,15 @@ router.post("/generate-and-save", auth, async (req, res) => {
         ...(!IS_PRODUCTION && body?.error?.code ? { code: body.error.code } : {}),
       };
       return res.status(status).json(payload);
+    }
+
+    if (error?.code === "QUESTION_DIVERSITY_FAILED" || error?.status === 422) {
+      return res.status(422).json({
+        error: "Failed to generate lesson materials",
+        code: "QUESTION_DIVERSITY_FAILED",
+        details: error.message || "Duplicate questions could not be repaired.",
+        ...(!IS_PRODUCTION && error.details ? { diversityIssues: error.details } : {}),
+      });
     }
 
     return sendInternalError("ai/generate-and-save", error, res, {

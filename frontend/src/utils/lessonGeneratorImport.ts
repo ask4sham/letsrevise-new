@@ -203,20 +203,66 @@ function pageCheckpointFromFirstBlock(
   };
 }
 
+type ImportLessonMeta = { topic?: string; title?: string };
+
 /**
  * Persist at most one `checkpoint` block per page — Create Lesson mirrors page.checkpoint from that slot.
  * Additional generator checkpoints stay full MCQs as `selfCheck` (answers hidden until reveal/check).
+ * If the elevated self-check would keep the same stem/options as the first checkpoint, rewrite it
+ * into a short retrieval self-check so import does not create duplicate questions.
  */
+function normalizeImportStem(text: string): string {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function importStemsNearDuplicate(a: string, b: string): boolean {
+  const na = normalizeImportStem(a);
+  const nb = normalizeImportStem(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.length >= 20 && nb.length >= 20 && (na.includes(nb) || nb.includes(na))) return true;
+  const sa = new Set(na.split(" ").filter((w) => w.length > 2));
+  const sb = new Set(nb.split(" ").filter((w) => w.length > 2));
+  if (!sa.size || !sb.size) return false;
+  let inter = 0;
+  Array.from(sa).forEach((w) => {
+    if (sb.has(w)) inter += 1;
+  });
+  const union = sa.size + sb.size - inter;
+  return union ? inter / union >= 0.72 : false;
+}
+
 function elevateExtraImportedCheckpointsToSelfCheck(
-  blocks: Record<string, unknown>[]
+  blocks: Record<string, unknown>[],
+  lessonMeta: ImportLessonMeta = {}
 ): Record<string, unknown>[] {
   let seenCheckpoint = false;
+  let firstCheckpointStem = "";
+  let firstOptionsKey = "";
+  let elevatedIndex = 0;
+  const topicHint = String(lessonMeta.topic || lessonMeta.title || "this topic").trim();
+
   return blocks.map((raw) => {
     if (!raw || String(raw.type) !== "checkpoint") return raw;
     if (!seenCheckpoint) {
       seenCheckpoint = true;
+      firstCheckpointStem = String(
+        raw.prompt ?? (raw as { question?: unknown }).question ?? ""
+      ).trim();
+      const opts0 = padOptions(raw.options as unknown[]);
+      firstOptionsKey = opts0
+        .map((o) => normalizeImportStem(o))
+        .filter(Boolean)
+        .sort()
+        .join("|");
       return raw;
     }
+    elevatedIndex += 1;
     let opts = padOptions(raw.options as unknown[]);
     let prompt = String(raw.prompt ?? (raw as { question?: unknown }).question ?? "").trim();
     let ca = String(
@@ -242,6 +288,31 @@ function elevateExtraImportedCheckpointsToSelfCheck(
     const title = typeof raw.title === "string" ? raw.title.trim() : "";
     const role = typeof raw.role === "string" ? raw.role.trim() : "";
 
+    const optionsKey = opts
+      .map((o) => normalizeImportStem(o))
+      .filter(Boolean)
+      .sort()
+      .join("|");
+    const duplicateOfCheckpoint =
+      importStemsNearDuplicate(prompt, firstCheckpointStem) ||
+      (optionsKey && optionsKey === firstOptionsKey);
+
+    if (duplicateOfCheckpoint) {
+      const rewritten = `Self-check: explain one cause → effect link for ${topicHint} (do not only name terms). [${elevatedIndex}]`;
+      return {
+        type: "selfCheck",
+        content: "",
+        ...(title ? { title } : {}),
+        ...(role ? { role } : {}),
+        prompt: rewritten,
+        questionType: "short",
+        options: [],
+        correctAnswer: "",
+        explanation:
+          "<details><summary>Reveal Answer</summary><p>Use precise GCSE vocabulary in a because → therefore chain.</p></details>",
+      };
+    }
+
     const out: Record<string, unknown> = {
       type: "selfCheck",
       content: "",
@@ -257,8 +328,6 @@ function elevateExtraImportedCheckpointsToSelfCheck(
     return out;
   });
 }
-
-type ImportLessonMeta = { topic?: string; title?: string };
 
 function recordToLessonBlock(
   record: GeneratorExportV1Block,
@@ -667,7 +736,7 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
     const blocksRaw = numberedRecords
       .map((record) => recordToLessonBlock(record, lessonMeta))
       .filter(Boolean) as Record<string, unknown>[];
-    const blocks = elevateExtraImportedCheckpointsToSelfCheck(blocksRaw);
+    const blocks = elevateExtraImportedCheckpointsToSelfCheck(blocksRaw, lessonMeta);
     return {
       pageId: newPid(),
       title: String(pg.title || `Page ${idx + 1}`).trim() || `Page ${idx + 1}`,
