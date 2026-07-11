@@ -14,6 +14,8 @@ type Props = {
   storedQuizQuestions?: Array<Record<string, unknown>>;
   hasFullAccess: boolean;
   onQuestionAnswered?: (correct: boolean) => void;
+  /** Display-only numbered heading (e.g. `17 — Revision practice`). */
+  sectionTitle?: string;
 };
 
 function mergeFlashcards(
@@ -55,6 +57,7 @@ export function StudentRetrievalSection({
   storedQuizQuestions = [],
   hasFullAccess,
   onQuestionAnswered,
+  sectionTitle = "Revision practice",
 }: Props): React.ReactElement | null {
   const derived = useMemo(() => deriveLessonRetrieval(pages), [pages]);
   const revisionPool = useMemo(
@@ -95,7 +98,7 @@ export function StudentRetrievalSection({
   if (!hasFullAccess) {
     return (
       <section className="student-retrieval student-retrieval--locked" aria-label="Revision practice">
-        <h2 className="student-retrieval__title">Revision practice</h2>
+        <h2 className="student-retrieval__title">{sectionTitle}</h2>
         <p className="student-retrieval__locked">
           Quiz, flashcards, and in-lesson exam check are included with full lesson access.
         </p>
@@ -106,7 +109,7 @@ export function StudentRetrievalSection({
   return (
     <section className="student-retrieval" aria-label="Revision practice">
       <header className="student-retrieval__header">
-        <h2 className="student-retrieval__title">Revision practice</h2>
+        <h2 className="student-retrieval__title">{sectionTitle}</h2>
         <p className="student-retrieval__lead">
           Reinforcement quiz, flashcards, and a short in-lesson exam check — drawn from this lesson&apos;s exam
           practice block. For a larger question set from the bank, use{" "}

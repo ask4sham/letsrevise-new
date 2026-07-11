@@ -33,6 +33,8 @@ export function normalizeLegacySs1Heading(heading: string): string {
 export type BlockHeadingSource = {
   title?: unknown;
   number?: unknown;
+  /** Optional persisted type — used only for display fallback titles. */
+  type?: unknown;
 };
 
 /** Strip one or more stacked SS1 prefixes (`8 — 7b — Title` → `Title`). */
@@ -52,14 +54,90 @@ export function titleAlreadyHasSs1Prefix(title: string): boolean {
   return SS1_NUMBERED_TITLE_PREFIX_RE.test(String(title ?? "").trim());
 }
 
+/** Display-only fallback titles for activity / question shells without a stored title. */
+export function fallbackActivityTitleFromBlockType(blockType?: string | null): string {
+  const type = String(blockType || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-\s]/g, "");
+  switch (type) {
+    case "selfcheck":
+      return "SELF-CHECK";
+    case "checkpoint":
+      return "CHECKPOINT";
+    case "examquestion":
+      return "EXAM QUESTION";
+    case "composite":
+    case "compositequestion":
+      return "COMPOSITE QUESTION";
+    case "dragdropmatch":
+      return "DRAG AND DROP MATCH";
+    case "interactivesequence":
+      return "STEP-BY-STEP PROCESS";
+    case "interactivediagram":
+      return "INTERACTIVE DIAGRAM";
+    case "graph":
+      return "GRAPH / DATA";
+    case "pagequiz":
+      return "QUIZ PAGE";
+    case "keywords":
+      return "KEY WORDS";
+    case "examtip":
+    case "examtips":
+      return "EXAM TIP";
+    case "commonmistake":
+    case "misconception":
+    case "misconceptions":
+      return "COMMON MISTAKE";
+    case "stretch":
+    case "deeperknowledge":
+      return "STRETCH";
+    case "hook":
+      return "SCENARIO";
+    case "workedexample":
+      return "KEY EXAMPLES";
+    case "keyidea":
+    case "keyideas":
+      return "KEY IDEA";
+    case "diagram":
+      return "DIAGRAM";
+    default:
+      return "";
+  }
+}
+
+/**
+ * Build a display-only SS1 heading: `N — TITLE`.
+ * Does not mutate saved lesson data. Avoids double-numbering when title already has a prefix.
+ */
+export function formatDisplaySectionHeading(
+  number: number | null | undefined,
+  title: string
+): string {
+  const raw = String(title || "").trim();
+  if (!raw) return "";
+  if (titleAlreadyHasSs1Prefix(raw)) return normalizeLegacySs1Heading(raw);
+  const label = normalizeLegacyBlockLabel(stripSs1PrefixFromTitle(raw));
+  if (!label) return "";
+  if (typeof number === "number" && Number.isFinite(number) && number > 0) {
+    return `${Math.trunc(number)} — ${label}`;
+  }
+  return label;
+}
+
 /**
  * Canonical student heading: always `block.number — cleanLabel`.
  * Never preserves legacy subsection ids (e.g. `7b`) when `number` is set.
+ * Uses a type-based fallback title when the block has a number but no title.
  */
 export function formatStudentBlockHeading(block: BlockHeadingSource | null | undefined): string {
   if (!block || typeof block !== "object") return "";
 
-  const label = normalizeLegacyBlockLabel(stripSs1PrefixFromTitle(String(block.title ?? "")));
+  const fromTitle = normalizeLegacyBlockLabel(stripSs1PrefixFromTitle(String(block.title ?? "")));
+  const fallback = fallbackActivityTitleFromBlockType(
+    block.type != null ? String(block.type) : undefined
+  );
+  const label = fromTitle || fallback;
   const n = block.number;
   if (typeof n === "number" && Number.isFinite(n) && n > 0) {
     if (!label) return "";
@@ -93,6 +171,92 @@ export function studentContentStartsWithHeading(content: string, heading: string
   return normalized === h || first === h;
 }
 
+/** Compare titles after stripping SS1 numbers (case/whitespace insensitive). */
+export function normalizeBlockTitleForCompare(title: string): string {
+  return stripSs1PrefixFromTitle(String(title ?? ""))
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+/** True when two headings refer to the same label (ignoring `N — ` prefixes). */
+export function isDuplicateBlockTitle(outerHeading: string, innerTitle: string): boolean {
+  const left = normalizeBlockTitleForCompare(outerHeading);
+  const right = normalizeBlockTitleForCompare(innerTitle);
+  return Boolean(left && right && left === right);
+}
+
+/** Whether the student V12 shell will render the outer `N — TITLE` heading. */
+export function isOuterStudentHeadingVisible(
+  block: BlockHeadingSource | null | undefined,
+  contentForDedup = ""
+): boolean {
+  const heading = formatStudentBlockHeading(block);
+  if (!heading) return false;
+  return !studentContentStartsWithHeading(contentForDedup, heading);
+}
+
+/**
+ * Suppress inner activity chrome titles that repeat the outer numbered heading.
+ * Keeps distinct subheads (Step 1, Instructions, Test me, …).
+ */
+export function shouldSuppressInnerBlockTitle(
+  outerHeading: string | null | undefined,
+  innerTitle: string | null | undefined,
+  outerVisible = true
+): boolean {
+  if (!outerVisible) return false;
+  return isDuplicateBlockTitle(String(outerHeading ?? ""), String(innerTitle ?? ""));
+}
+
+/**
+ * Infer a border-frame kind from SS1 heading / block type for student V12 colour borders.
+ * Returns a stable token used as `data-frame-kind` (CSS maps token → border colour).
+ */
+export function inferStudentFrameKind(
+  headingOrTitle: string,
+  blockType?: string | null
+): string {
+  const label = stripSs1PrefixFromTitle(String(headingOrTitle || "")).toLowerCase();
+  const type = String(blockType || "").trim().toLowerCase();
+
+  if (type === "keyidea" || type === "keyideas") return "key";
+  if (type === "examtip" || type === "examtips") return "exam-tip";
+  if (type === "commonmistake" || type === "misconception" || type === "misconceptions") {
+    return "mistake";
+  }
+  if (type === "stretch" || type === "deeperknowledge") return "stretch";
+  if (type === "keywords") return "keywords";
+  if (type === "hook") return "scenario";
+  if (type === "workedexample") return "examples";
+  if (type === "selfcheck") return "self-check";
+  if (type === "checkpoint") return "checkpoint";
+  if (type === "examquestion" || type === "composite" || type === "compositequestion") {
+    return "exam-question";
+  }
+
+  if (/objective/.test(label)) return "objectives";
+  if (/prior\s*knowledge/.test(label)) return "prior-knowledge";
+  if (/exam\s*vocab|key\s*words?|keywords?/.test(label)) return "keywords";
+  if (/definition|glossary/.test(label)) return "definition";
+  if (/scenario|hook/.test(label)) return "scenario";
+  if (/why\s*(it|this)\s*matters/.test(label)) return "why-matters";
+  if (/key\s*example|worked\s*example|examples?\b/.test(label)) return "examples";
+  if (/core\s*learning|core\s*rule|core\s*concept|core\s*model/.test(label)) {
+    return "core-learning";
+  }
+  if (/instruction/.test(label)) return "instructions";
+  if (/\btasks?\b/.test(label)) return "task";
+  if (/summar/.test(label)) return "summary";
+  if (/common\s*mistake|misconception/.test(label)) return "mistake";
+  if (/exam\s*tip|exam\s*technique/.test(label)) return "exam-tip";
+  if (/stretch|higher\s*tier|challenge/.test(label)) return "stretch";
+  if (/self[\s-]?check/.test(label)) return "self-check";
+  if (/checkpoint|quick\s*check/.test(label)) return "checkpoint";
+
+  return "default";
+}
+
 /** Assign SS1 display number when legacy rows only have a combined title or no number field. */
 export function resolveSs1BlockNumber(
   block: BlockHeadingSource,
@@ -102,4 +266,31 @@ export function resolveSs1BlockNumber(
   if (typeof n === "number" && Number.isFinite(n) && n > 0) return Math.trunc(n);
   if (lessonOrdinal > 0) return lessonOrdinal;
   return undefined;
+}
+
+/**
+ * Display-only footer ordinals after the last numbered page block.
+ * Legacy `page.checkpoint` (outside `pages.blocks`) must consume the next number when present.
+ */
+export function allocateLessonFlowFooterOrdinals(
+  lastBlockOrdinal: number,
+  hasPageCheckpoint: boolean
+): {
+  pageCheckpoint: number | null;
+  revisionPractice: number;
+  quizPage: number;
+  practiceQuestions: number;
+} {
+  const base =
+    typeof lastBlockOrdinal === "number" && Number.isFinite(lastBlockOrdinal) && lastBlockOrdinal > 0
+      ? Math.trunc(lastBlockOrdinal)
+      : 0;
+  let next = base;
+  const pageCheckpoint = hasPageCheckpoint ? ++next : null;
+  return {
+    pageCheckpoint,
+    revisionPractice: next + 1,
+    quizPage: next + 2,
+    practiceQuestions: next + 3,
+  };
 }

@@ -161,4 +161,21 @@ describe("InteractiveSequenceBlock compact image layout", () => {
       expect(colStyle.gap).toBe(INTERACTIVE_SEQUENCE_IMAGE_SPACING.mainColumnGap);
     }
   });
+
+  it("hides duplicate block title but keeps step titles", () => {
+    render(
+      <InteractiveSequenceBlock
+        blockTitle="STEP-BY-STEP PROCESS"
+        hideBlockTitle
+        intro="Follow each stage."
+        steps={steps}
+        resolveImageUrl={(u) => u}
+        enableAiTestMe={false}
+        viewMode="student"
+      />
+    );
+    expect(screen.queryByRole("heading", { level: 3, name: /step-by-step process/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 4, name: /glucose uptake/i })).toBeInTheDocument();
+    expect(screen.getByText(/follow each stage/i)).toBeInTheDocument();
+  });
 });

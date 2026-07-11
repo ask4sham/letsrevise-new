@@ -26,6 +26,7 @@ import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../Inte
 import { DragDropMatchBlock } from "../DragDropMatchBlock";
 import { GraphBlock } from "../GraphBlock";
 import { ExamQuestionBlock } from "../ExamQuestionBlock";
+import { isCompositeQuestion } from "../examComposite/compositeUtils";
 import type { ExamQuestion } from "../../../api/examQuestions";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
@@ -48,7 +49,12 @@ import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
 import { StudentBlockHeading } from "./StudentBlockHeading";
 import { UploadedDiagramActivityShell } from "./UploadedDiagramActivityShell";
 import {
+  fallbackActivityTitleFromBlockType,
   formatStudentBlockHeading,
+  inferStudentFrameKind,
+  isOuterStudentHeadingVisible,
+  shouldSuppressInnerBlockTitle,
+  stripSs1PrefixFromTitle,
   studentContentStartsWithHeading,
 } from "../../../utils/formatBlockHeading";
 import { studentCheckpointFromBlock } from "../../../utils/studentCheckpointFromBlock";
@@ -87,19 +93,46 @@ function withStudentBlockHeading(
   contentForDedup: string
 ): React.ReactElement {
   const heading = formatStudentBlockHeading(block);
+  const frameKind = inferStudentFrameKind(
+    heading || String(block.title ?? ""),
+    String(block.type ?? "")
+  );
   if (!heading || studentContentStartsWithHeading(contentForDedup, heading)) {
-    return node;
+    // Still expose frame kind for CSS when heading is omitted / embedded in content.
+    return (
+      <div className="lesson-student-block-shell" data-frame-kind={frameKind}>
+        {node}
+      </div>
+    );
   }
   return (
-    <>
-      <StudentBlockHeading>{heading}</StudentBlockHeading>
+    <div className="lesson-student-block-shell" data-frame-kind={frameKind} data-ss1-outer-heading="1">
+      <StudentBlockHeading frameKind={frameKind}>{heading}</StudentBlockHeading>
       {node}
-    </>
+    </div>
   );
 }
 
+/** Label-only title for inner activity chrome (outer SS1 heading owns the number). */
+function studentInnerTitleLabel(block: StudentLessonPageBlock): string {
+  const fromTitle = stripSs1PrefixFromTitle(String(block.title ?? ""));
+  if (fromTitle) return fromTitle;
+  return fallbackActivityTitleFromBlockType(String(block.type ?? "")) || "";
+}
+
 function studentBlockTitle(block: StudentLessonPageBlock): string {
-  return formatStudentBlockHeading(block) || String(block.title ?? "").trim();
+  return studentInnerTitleLabel(block) || formatStudentBlockHeading(block) || "";
+}
+
+function suppressInnerActivityTitle(
+  block: StudentLessonPageBlock,
+  contentForDedup = "",
+  innerTitleOverride?: string
+): boolean {
+  const outer = formatStudentBlockHeading(block);
+  if (!isOuterStudentHeadingVisible(block, contentForDedup)) return false;
+  const inner = String(innerTitleOverride ?? (studentInnerTitleLabel(block) || outer)).trim();
+  return shouldSuppressInnerBlockTitle(outer, inner, true);
 }
 
 /**
@@ -197,6 +230,7 @@ export function LessonStudentBlockRenderer({
         }
         contentFallback={typeof block.content === "string" ? block.content : ""}
         presentation={enableMarkdownMediaSplit ? "v12" : "default"}
+        hideHeadingLabel={suppressInnerActivityTitle(block, cleanedText, "Self-check")}
       />
     );
     return withStudentBlockHeading(sc, block, cleanedText);
@@ -225,6 +259,7 @@ export function LessonStudentBlockRenderer({
     const seq = (
       <InteractiveSequenceBlock
         blockTitle={studentBlockTitle(block)}
+        hideBlockTitle={suppressInnerActivityTitle(block, cleanedText)}
         intro={String(block.intro ?? "")}
         steps={steps}
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
@@ -255,7 +290,7 @@ export function LessonStudentBlockRenderer({
         cleanedText
       );
     }
-    return seqWrapped;
+    return withStudentBlockHeading(seqWrapped, block, cleanedText);
   }
 
   if (routed === "dragDropMatch") {
@@ -264,6 +299,7 @@ export function LessonStudentBlockRenderer({
     const ddm = (
       <DragDropMatchBlock
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+        hideTitle={suppressInnerActivityTitle(block, cleanedText)}
         block={{
           title: studentBlockTitle(block),
           intro: String(block.intro ?? ""),
@@ -297,12 +333,24 @@ export function LessonStudentBlockRenderer({
       />
     );
     const ddmAttr = getVisualTeachingDataAttribute(routed, block);
-    return ddmAttr ? <div data-visual-block={ddmAttr}>{ddm}</div> : ddm;
+    const ddmWrapped = ddmAttr ? <div data-visual-block={ddmAttr}>{ddm}</div> : ddm;
+    return withStudentBlockHeading(ddmWrapped, block, cleanedText);
   }
 
   if (routed === "examQuestion") {
     const eqId = String((block as { examQuestionId?: string }).examQuestionId ?? "").trim();
     const cached = eqId ? embeddedExamQuestionsById[eqId] : undefined;
+    // Display-only: composite exam questions share the examQuestion block path and SS1 number.
+    const headingBlock =
+      cached && isCompositeQuestion(cached) && !String(block.title ?? "").trim()
+        ? { ...block, type: "composite" }
+        : block;
+    const outer = formatStudentBlockHeading(headingBlock);
+    const hideExamChrome =
+      isOuterStudentHeadingVisible(headingBlock, "") &&
+      (shouldSuppressInnerBlockTitle(outer, "Exam question", true) ||
+        shouldSuppressInnerBlockTitle(outer, "Exam Question", true) ||
+        shouldSuppressInnerBlockTitle(outer, "COMPOSITE QUESTION", true));
     const eq = (
       <ExamQuestionBlock
         question={cached}
@@ -310,9 +358,10 @@ export function LessonStudentBlockRenderer({
         missing={!!eqId && !embeddedExamQuestionsLoading && !cached}
         mode={classroomMode ? "classroom" : "student"}
         presentation={studentPresentation === "v12" ? "v12" : "default"}
+        hideChromeTitle={hideExamChrome}
       />
     );
-    return withStudentBlockHeading(eq, block, "");
+    return withStudentBlockHeading(eq, headingBlock, "");
   }
 
   if (routed === "graph") {
@@ -323,10 +372,12 @@ export function LessonStudentBlockRenderer({
         blockIndex={blockIndex}
         audience="student"
         showAnswers={false}
+        hideTitle={suppressInnerActivityTitle(block, cleanedText)}
       />
     );
     const grAttr = getVisualTeachingDataAttribute(routed, block);
-    return grAttr ? <div data-visual-block={grAttr}>{gr}</div> : gr;
+    const grWrapped = grAttr ? <div data-visual-block={grAttr}>{gr}</div> : gr;
+    return withStudentBlockHeading(grWrapped, block, cleanedText);
   }
 
   if (routed === "interactiveDiagram") {
@@ -380,6 +431,7 @@ export function LessonStudentBlockRenderer({
     const idgr = (
       <InteractiveDiagramBlock
         blockTitle={studentBlockTitle(block)}
+        hideBlockTitle={suppressInnerActivityTitle(block, cleanedText)}
         intro={String(block.intro ?? "")}
         imageUrl={imageUrlRaw}
         hotspots={placedHotspots}
@@ -391,7 +443,8 @@ export function LessonStudentBlockRenderer({
       />
     );
     const idgrAttr = getVisualTeachingDataAttribute(routed, block);
-    return idgrAttr ? <div data-visual-block={idgrAttr}>{idgr}</div> : idgr;
+    const idgrWrapped = idgrAttr ? <div data-visual-block={idgrAttr}>{idgr}</div> : idgr;
+    return withStudentBlockHeading(idgrWrapped, block, cleanedText);
   }
 
   if (routed === "diagram") {

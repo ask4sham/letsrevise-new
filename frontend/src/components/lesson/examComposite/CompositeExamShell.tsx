@@ -31,12 +31,15 @@ export type CompositeExamShellProps = {
   mode: ExamQuestionBlockMode;
   presentation: "default" | "v12";
   boxStyle: React.CSSProperties;
+  /** When true, omit the inner "Exam question" chrome title. */
+  hideChromeTitle?: boolean;
 };
 
 export function CompositeExamShell({
   question,
   mode,
   boxStyle,
+  hideChromeTitle = false,
 }: CompositeExamShellProps): React.ReactElement {
   const [revealed, setRevealed] = useState(false);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -137,7 +140,7 @@ export function CompositeExamShell({
     >
       <header className="exam-composite__header">
         <div className="exam-composite__header-row">
-          <h3 className="exam-composite__title">Exam question</h3>
+          {!hideChromeTitle ? <h3 className="exam-composite__title exam-question-block__chrome-title">Exam question</h3> : null}
           <span className="exam-composite__total-marks">
             {totalMarks} {totalMarks === 1 ? "mark" : "marks"}
           </span>

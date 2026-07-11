@@ -53,6 +53,10 @@ export type GraphBlockProps = {
   showAnswers?: boolean;
   /** Student lesson view vs teacher editor preview. */
   audience?: "student" | "editor";
+  /**
+   * When true, omit the block-level title (outer SS1 heading already labels the frame).
+   */
+  hideTitle?: boolean;
 };
 
 function axisTitle(label: string, units: string): string {
@@ -181,6 +185,7 @@ export function GraphBlock({
   blockIndex,
   showAnswers = false,
   audience = "editor",
+  hideTitle = false,
 }: GraphBlockProps): React.ReactElement {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -196,8 +201,11 @@ export function GraphBlock({
     const heading = formatStudentBlockHeading(
       block != null && typeof block === "object" ? (block as { title?: unknown; number?: unknown }) : null
     );
+    if (hideTitle) {
+      return { ...p, title: "" };
+    }
     return { ...p, title: heading || p.title };
-  }, [block, mergedBlock]);
+  }, [block, mergedBlock, hideTitle]);
   const showDebug = graphDebugEnabled();
   const [revealed, setRevealed] = useState(showAnswers);
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);

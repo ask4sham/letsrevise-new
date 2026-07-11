@@ -77,7 +77,14 @@ import {
   contentLooksLikeGraphJson,
   normalizeGraphBlockForDisplay,
 } from "../components/lesson/graphBlockTypes";
-import { normalizePersistedBlockTitle, resolveSs1BlockNumber } from "../utils/formatBlockHeading";
+import {
+  allocateLessonFlowFooterOrdinals,
+  formatDisplaySectionHeading,
+  formatStudentBlockHeading,
+  normalizePersistedBlockTitle,
+  resolveSs1BlockNumber,
+} from "../utils/formatBlockHeading";
+import { StudentBlockHeading } from "../components/lesson/student/StudentBlockHeading";
 import { hydrateDiagramBlockForDisplay } from "../utils/lessonBlockPersist";
 import { studentCheckpointFromBlock } from "../utils/studentCheckpointFromBlock";
 import {
@@ -1147,6 +1154,7 @@ function PracticeSection({
   onTryAnotherSet,
   onLoadBankOnly,
   hidePracticeStructuralLabels,
+  sectionTitle = "Practice Questions",
 }: {
   practiceLoading: boolean;
   practiceError: string | null;
@@ -1159,6 +1167,8 @@ function PracticeSection({
   onLoadBankOnly?: () => void;
   /** V12 student lesson: no visible "Explanation:" prefix on practice items */
   hidePracticeStructuralLabels?: boolean;
+  /** Display-only numbered heading (e.g. `19 — Practice Questions`). */
+  sectionTitle?: string;
 }) {
   const displayQuestions = practiceQuestions.slice(0, PRACTICE_DISPLAY_LIMIT);
   const hasMore = practiceQuestions.length > PRACTICE_DISPLAY_LIMIT;
@@ -1179,7 +1189,7 @@ function PracticeSection({
 
   return (
     <Section
-      title="Practice Questions"
+      title={sectionTitle}
       id="practice"
       right={rightLabel ? <span style={{ fontSize: 12, color: "#6b7280" }}>{rightLabel}</span> : undefined}
       variant="plain"
@@ -1264,6 +1274,7 @@ function PracticeSection({
               {displayQuestions.map((q, idx) => (
                 <div
                   key={q.id}
+                  className="lesson-practice-question-card"
                   style={{
                     padding: 16,
                     borderRadius: 12,
@@ -3783,6 +3794,19 @@ const LessonViewPage: React.FC = () => {
         }
       : null;
 
+    const flowFooterOrdinals = allocateLessonFlowFooterOrdinals(
+      ss1LessonOrdinal,
+      Boolean(checkpointData)
+    );
+    const pageCheckpointHeading =
+      flowFooterOrdinals.pageCheckpoint != null
+        ? formatStudentBlockHeading({
+            number: flowFooterOrdinals.pageCheckpoint,
+            type: "selfCheck",
+            title: "",
+          })
+        : "";
+
     return (
       <LessonImageLightboxProvider>
       <div
@@ -4749,30 +4773,40 @@ const LessonViewPage: React.FC = () => {
                         );
                       })}
                   </KeywordGlossaryProvider>
-                </div>
 
                 {/* PR-UX-LESSON-3: Legacy page.checkpoint (when set on page, not as a block) */}
                 {checkpointData && (
                   <div
+                    id="block-checkpoint"
                     className={
                       v12StudentPresentation
                         ? "lesson-student-checkpoint-section"
                         : undefined
                     }
                   >
-                    <LessonCheckpoint
-                      mode={checkpointData.mode}
-                      prompt={checkpointData.prompt}
-                      options={checkpointData.options}
-                      correctAnswer={checkpointData.correctAnswer}
-                      explanation={checkpointData.explanation}
-                      markScheme={checkpointData.markScheme}
-                      name={checkpointData.name}
-                      lessonId={id ?? undefined}
-                      pageId={typeof currentPage.pageId === "string" ? currentPage.pageId : undefined}
-                      entitled={Boolean(accessDecision?.allowed)}
-                      presentation={v12StudentPresentation ? "v12" : "default"}
-                    />
+                    <div
+                      className="lesson-student-block-shell"
+                      data-frame-kind="self-check"
+                    >
+                      {pageCheckpointHeading ? (
+                        <StudentBlockHeading frameKind="self-check">
+                          {pageCheckpointHeading}
+                        </StudentBlockHeading>
+                      ) : null}
+                      <LessonCheckpoint
+                        mode={checkpointData.mode}
+                        prompt={checkpointData.prompt}
+                        options={checkpointData.options}
+                        correctAnswer={checkpointData.correctAnswer}
+                        explanation={checkpointData.explanation}
+                        markScheme={checkpointData.markScheme}
+                        name={checkpointData.name}
+                        lessonId={id ?? undefined}
+                        pageId={typeof currentPage.pageId === "string" ? currentPage.pageId : undefined}
+                        entitled={Boolean(accessDecision?.allowed)}
+                        presentation={v12StudentPresentation ? "v12" : "default"}
+                      />
+                    </div>
                     {user && id && !isClassroomPresentation && (
                       <div style={{ marginTop: 6, fontSize: 12 }}>
                         <button
@@ -4796,6 +4830,7 @@ const LessonViewPage: React.FC = () => {
                     )}
                   </div>
                 )}
+                </div>
 
                 {/* SS2: Inline Prev/Next removed; use bottom nav (LessonPrevNextBar) only */}
 
@@ -4916,6 +4951,10 @@ const LessonViewPage: React.FC = () => {
                   storedFlashcards={flashcards as Array<Record<string, unknown>>}
                   revisionQuizPool={revisionPracticePool}
                   hasFullAccess={Boolean(hasFullLessonAccess)}
+                  sectionTitle={formatDisplaySectionHeading(
+                    flowFooterOrdinals.revisionPractice,
+                    "Revision practice"
+                  )}
                   onQuestionAnswered={
                     topicKeyForBank && isStudent
                       ? (correct) => handleQuestionAnswered(correct)
@@ -4923,7 +4962,10 @@ const LessonViewPage: React.FC = () => {
                   }
                 />
                 {/* Page Quiz — page-aware in structured view */}
-                <Section title="Quiz Page" variant="card">
+                <Section
+                  title={formatDisplaySectionHeading(flowFooterOrdinals.quizPage, "Quiz Page")}
+                  variant="card"
+                >
                   <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#6b7280" }}>Short questions for this lesson page.</p>
                   {!hasFullLessonAccess ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
@@ -5045,6 +5087,10 @@ const LessonViewPage: React.FC = () => {
                   onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
                   onLoadBankOnly={loadBankOnly}
                   hidePracticeStructuralLabels={v12StudentPresentation}
+                  sectionTitle={formatDisplaySectionHeading(
+                    flowFooterOrdinals.practiceQuestions,
+                    "Practice Questions"
+                  )}
                 />
 
                 {isStudent && (

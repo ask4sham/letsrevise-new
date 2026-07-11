@@ -25,6 +25,8 @@ export type InlineSelfCheckBlockProps = {
   presentation?: "default" | "v12";
   /** e.g. "Quick check" for checkpoint blocks; default "Self-check" */
   headingLabel?: string;
+  /** When true, omit the chrome heading (outer SS1 heading already labels the frame). */
+  hideHeadingLabel?: boolean;
   /** Generator HTML / CHECKPOINT paste — used when options are still placeholders. */
   contentFallback?: string;
 };
@@ -41,6 +43,7 @@ export function InlineSelfCheckBlock({
   markScheme,
   presentation = "default",
   headingLabel = "Self-check",
+  hideHeadingLabel = false,
   contentFallback = "",
 }: InlineSelfCheckBlockProps): React.ReactElement {
   const [revealed, setRevealed] = useState(false);
@@ -97,17 +100,20 @@ export function InlineSelfCheckBlock({
 
   return (
     <div style={box} className={v12 ? "lesson-inline-selfcheck-v12" : undefined}>
-      <div
-        style={{
-          fontSize: v12 ? 12 : 13,
-          fontWeight: 700,
-          color: v12 ? "#64748b" : "#047857",
-          marginBottom: 8,
-          letterSpacing: "0.02em",
-        }}
-      >
-        {headingLabel}
-      </div>
+      {!hideHeadingLabel ? (
+        <div
+          className="lesson-inline-selfcheck__heading"
+          style={{
+            fontSize: v12 ? 12 : 13,
+            fontWeight: 700,
+            color: v12 ? "#64748b" : "#047857",
+            marginBottom: 8,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {headingLabel}
+        </div>
+      ) : null}
       <CheckpointDifficultyBadge markScheme={markScheme} />
       <div
         style={{
