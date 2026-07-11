@@ -10,6 +10,7 @@ import {
   normalizeLegacySs1Heading,
   normalizePersistedBlockTitle,
   shouldSuppressInnerBlockTitle,
+  stripLeadingDuplicateBlockHeading,
 } from "./formatBlockHeading";
 
 describe("normalizeLegacyBlockLabel", () => {
@@ -116,12 +117,17 @@ describe("duplicate inner title suppression", () => {
       true
     );
     expect(isDuplicateBlockTitle("12 — DRAG AND DROP MATCH", "Drag and Drop Match")).toBe(true);
+    expect(isDuplicateBlockTitle("2 — PRIOR KNOWLEDGE", "Prior knowledge")).toBe(true);
+    expect(isDuplicateBlockTitle("9 — CORE LEARNING", "Core learning")).toBe(true);
+    expect(isDuplicateBlockTitle("8 — KEY WORDS", "Keywords")).toBe(true);
+    expect(isDuplicateBlockTitle("5 — WHY IT MATTERS", "Why this matters")).toBe(true);
   });
 
   it("keeps distinct subheadings", () => {
     expect(isDuplicateBlockTitle("14 — STEP-BY-STEP PROCESS", "Step 1")).toBe(false);
     expect(isDuplicateBlockTitle("14 — STEP-BY-STEP PROCESS", "Test me")).toBe(false);
     expect(isDuplicateBlockTitle("12 — DRAG AND DROP MATCH", "Instructions")).toBe(false);
+    expect(isDuplicateBlockTitle("2 — PRIOR KNOWLEDGE", "Useful reminder")).toBe(false);
   });
 
   it("suppresses only when outer heading is visible", () => {
@@ -140,5 +146,67 @@ describe("duplicate inner title suppression", () => {
         "14 — STEP-BY-STEP PROCESS\n\nIntro"
       )
     ).toBe(false);
+  });
+
+  it("strips leading Prior knowledge when outer is numbered PRIOR KNOWLEDGE", () => {
+    const outer = formatStudentBlockHeading({ number: 2, title: "PRIOR KNOWLEDGE" });
+    expect(outer).toBe("2 — PRIOR KNOWLEDGE");
+    expect(
+      stripLeadingDuplicateBlockHeading(
+        "Prior knowledge\n\n- Plants make glucose\n- Animals eat plants",
+        outer
+      )
+    ).toBe("- Plants make glucose\n- Animals eat plants");
+    expect(
+      stripLeadingDuplicateBlockHeading("## Prior knowledge\n\nBody text here", outer)
+    ).toBe("Body text here");
+    expect(
+      stripLeadingDuplicateBlockHeading(
+        "<h2>Prior knowledge</h2>\n<p>Body text here</p>",
+        outer
+      )
+    ).toBe("<p>Body text here</p>");
+    expect(
+      stripLeadingDuplicateBlockHeading(
+        "<p><strong>Prior knowledge</strong></p>\n<p>Body</p>",
+        outer
+      )
+    ).toBe("<p>Body</p>");
+  });
+
+  it("preserves different inner subheadings and activity labels", () => {
+    const outer = "2 — PRIOR KNOWLEDGE";
+    expect(stripLeadingDuplicateBlockHeading("Useful reminder\n\n- Fact", outer)).toBe(
+      "Useful reminder\n\n- Fact"
+    );
+    expect(
+      stripLeadingDuplicateBlockHeading("Step 1\n\nDo the first step", "14 — STEP-BY-STEP PROCESS")
+    ).toBe("Step 1\n\nDo the first step");
+    expect(stripLeadingDuplicateBlockHeading("Test me\n\nQuestion?", "14 — STEP-BY-STEP PROCESS")).toBe(
+      "Test me\n\nQuestion?"
+    );
+  });
+
+  it("covers common teaching-block label duplicates", () => {
+    const cases = [
+      ["9 — CORE LEARNING", "Core learning\n\nPhotosynthesis…", "Photosynthesis…"],
+      ["8 — KEY WORDS", "Keywords\n\nglucose, oxygen", "glucose, oxygen"],
+      ["10 — SUMMARY", "Summary\n\nKey points", "Key points"],
+      ["4 — SCENARIO", "Scenario\n\nA plant in dark", "A plant in dark"],
+      ["5 — WHY IT MATTERS", "Why it matters\n\nExam link", "Exam link"],
+      ["3 — DEFINITION", "Definition\n\nA process…", "A process…"],
+      ["7 — KEY EXAMPLES", "Key examples\n\nExample A", "Example A"],
+    ];
+    for (const [outer, content, expected] of cases) {
+      expect(stripLeadingDuplicateBlockHeading(content, outer)).toBe(expected);
+    }
+  });
+
+  it("does not change numbering or frame labels", () => {
+    expect(formatStudentBlockHeading({ number: 2, title: "PRIOR KNOWLEDGE" })).toBe(
+      "2 — PRIOR KNOWLEDGE"
+    );
+    expect(inferStudentFrameKind("2 — PRIOR KNOWLEDGE")).toBe("prior-knowledge");
+    expect(inferStudentFrameKind("9 — CORE LEARNING")).toBe("core-learning");
   });
 });

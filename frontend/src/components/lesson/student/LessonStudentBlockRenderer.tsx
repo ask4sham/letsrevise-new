@@ -54,6 +54,7 @@ import {
   inferStudentFrameKind,
   isOuterStudentHeadingVisible,
   shouldSuppressInnerBlockTitle,
+  stripLeadingDuplicateBlockHeading,
   stripSs1PrefixFromTitle,
   studentContentStartsWithHeading,
 } from "../../../utils/formatBlockHeading";
@@ -165,6 +166,11 @@ export function LessonStudentBlockRenderer({
   const semanticRole = normalizePedagogicalRole((block as { role?: unknown }).role);
   const raw = typeof block.content === "string" ? block.content : "";
   const cleanedText = stripVideoMarkdown(raw);
+  // Display-only: drop a leading prose heading that repeats the outer `N — TITLE`.
+  const displayText = stripLeadingDuplicateBlockHeading(
+    cleanedText,
+    formatStudentBlockHeading(block)
+  );
 
   if (routed === "checkpoint") {
     const data = studentCheckpointFromBlock(block, String(blockIndex));
@@ -230,10 +236,10 @@ export function LessonStudentBlockRenderer({
         }
         contentFallback={typeof block.content === "string" ? block.content : ""}
         presentation={enableMarkdownMediaSplit ? "v12" : "default"}
-        hideHeadingLabel={suppressInnerActivityTitle(block, cleanedText, "Self-check")}
+        hideHeadingLabel={suppressInnerActivityTitle(block, displayText, "Self-check")}
       />
     );
-    return withStudentBlockHeading(sc, block, cleanedText);
+    return withStudentBlockHeading(sc, block, displayText);
   }
 
   if (routed === "interactiveSequence") {
@@ -259,7 +265,7 @@ export function LessonStudentBlockRenderer({
     const seq = (
       <InteractiveSequenceBlock
         blockTitle={studentBlockTitle(block)}
-        hideBlockTitle={suppressInnerActivityTitle(block, cleanedText)}
+        hideBlockTitle={suppressInnerActivityTitle(block, displayText)}
         intro={String(block.intro ?? "")}
         steps={steps}
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
@@ -272,9 +278,9 @@ export function LessonStudentBlockRenderer({
     const seqAttr = getVisualTeachingDataAttribute(routed, block);
     const seqWrapped = seqAttr ? <div data-visual-block={seqAttr}>{seq}</div> : seq;
     const proseBefore =
-      cleanedText.trim() && !studentContentStartsWithHeading(cleanedText, studentBlockTitle(block)) ? (
+      displayText.trim() && !studentContentStartsWithHeading(displayText, studentBlockTitle(block)) ? (
         <StudentExplanationBlock
-          content={cleanedText}
+          content={displayText}
           markdownComponents={markdownComponents}
           enableMarkdownMediaSplit={enableMarkdownMediaSplit}
           highlightKeywords={highlightKeywords}
@@ -287,10 +293,10 @@ export function LessonStudentBlockRenderer({
           {seqWrapped}
         </>,
         block,
-        cleanedText
+        displayText
       );
     }
-    return withStudentBlockHeading(seqWrapped, block, cleanedText);
+    return withStudentBlockHeading(seqWrapped, block, displayText);
   }
 
   if (routed === "dragDropMatch") {
@@ -299,7 +305,7 @@ export function LessonStudentBlockRenderer({
     const ddm = (
       <DragDropMatchBlock
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
-        hideTitle={suppressInnerActivityTitle(block, cleanedText)}
+        hideTitle={suppressInnerActivityTitle(block, displayText)}
         block={{
           title: studentBlockTitle(block),
           intro: String(block.intro ?? ""),
@@ -334,7 +340,7 @@ export function LessonStudentBlockRenderer({
     );
     const ddmAttr = getVisualTeachingDataAttribute(routed, block);
     const ddmWrapped = ddmAttr ? <div data-visual-block={ddmAttr}>{ddm}</div> : ddm;
-    return withStudentBlockHeading(ddmWrapped, block, cleanedText);
+    return withStudentBlockHeading(ddmWrapped, block, displayText);
   }
 
   if (routed === "examQuestion") {
@@ -372,12 +378,12 @@ export function LessonStudentBlockRenderer({
         blockIndex={blockIndex}
         audience="student"
         showAnswers={false}
-        hideTitle={suppressInnerActivityTitle(block, cleanedText)}
+        hideTitle={suppressInnerActivityTitle(block, displayText)}
       />
     );
     const grAttr = getVisualTeachingDataAttribute(routed, block);
     const grWrapped = grAttr ? <div data-visual-block={grAttr}>{gr}</div> : gr;
-    return withStudentBlockHeading(grWrapped, block, cleanedText);
+    return withStudentBlockHeading(grWrapped, block, displayText);
   }
 
   if (routed === "interactiveDiagram") {
@@ -431,7 +437,7 @@ export function LessonStudentBlockRenderer({
     const idgr = (
       <InteractiveDiagramBlock
         blockTitle={studentBlockTitle(block)}
-        hideBlockTitle={suppressInnerActivityTitle(block, cleanedText)}
+        hideBlockTitle={suppressInnerActivityTitle(block, displayText)}
         intro={String(block.intro ?? "")}
         imageUrl={imageUrlRaw}
         hotspots={placedHotspots}
@@ -444,7 +450,7 @@ export function LessonStudentBlockRenderer({
     );
     const idgrAttr = getVisualTeachingDataAttribute(routed, block);
     const idgrWrapped = idgrAttr ? <div data-visual-block={idgrAttr}>{idgr}</div> : idgr;
-    return withStudentBlockHeading(idgrWrapped, block, cleanedText);
+    return withStudentBlockHeading(idgrWrapped, block, displayText);
   }
 
   if (routed === "diagram") {
@@ -468,47 +474,47 @@ export function LessonStudentBlockRenderer({
     if (uploadedDiagramActivity) {
       const heading = formatStudentBlockHeading(block);
       const showHeading =
-        Boolean(heading) && !studentContentStartsWithHeading(cleanedText, heading);
+        Boolean(heading) && !studentContentStartsWithHeading(displayText, heading);
       return (
         <UploadedDiagramActivityShell heading={showHeading ? heading : null}>
           {diagramSlot}
         </UploadedDiagramActivityShell>
       );
     }
-    return withStudentBlockHeading(diagramSlot, block, cleanedText);
+    return withStudentBlockHeading(diagramSlot, block, displayText);
   }
 
   const safeHighlightKeywords = normalizeBlockType(kind) === "pageQuiz" ? undefined : highlightKeywords;
-  const mdProps = { content: raw, markdownComponents, enableMarkdownMediaSplit, highlightKeywords: safeHighlightKeywords };
+  const mdProps = { content: displayText, markdownComponents, enableMarkdownMediaSplit, highlightKeywords: safeHighlightKeywords };
 
   if (semanticRole === "examTechnique") {
-    return withStudentBlockHeading(<StudentExamTechniqueBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentExamTechniqueBlock {...mdProps} />, block, displayText);
   }
   if (semanticRole === "synopticLink") {
-    return withStudentBlockHeading(<StudentSynopticLinkBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentSynopticLinkBlock {...mdProps} />, block, displayText);
   }
   if (semanticRole === "whyThisMatters") {
-    return withStudentBlockHeading(<StudentWhyThisMattersBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentWhyThisMattersBlock {...mdProps} />, block, displayText);
   }
 
   if (kind === "keyIdea") {
-    return withStudentBlockHeading(<StudentKeyIdeaBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentKeyIdeaBlock {...mdProps} />, block, displayText);
   }
   if (kind === "examTip") {
-    return withStudentBlockHeading(<StudentExamTipBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentExamTipBlock {...mdProps} />, block, displayText);
   }
   if (kind === "commonMistake") {
-    return withStudentBlockHeading(<StudentMisconceptionBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentMisconceptionBlock {...mdProps} />, block, displayText);
   }
   if (kind === "stretch") {
-    return withStudentBlockHeading(<StudentSynthesisBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentSynthesisBlock {...mdProps} />, block, displayText);
   }
 
   if (kind === "hook") {
-    return withStudentBlockHeading(<StudentHookBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentHookBlock {...mdProps} />, block, displayText);
   }
   if (kind === "workedExample") {
-    return withStudentBlockHeading(<StudentWorkedExampleBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentWorkedExampleBlock {...mdProps} />, block, displayText);
   }
 
   // Comma-separated "key words" list callout: only when we are NOT also showing page/lesson
@@ -516,36 +522,36 @@ export function LessonStudentBlockRenderer({
   // show bold/list only with zero KeywordMark (no red "i") — a common cause of "Add key term
   // does nothing" on short text blocks.
   if (kind === "keyWords") {
-    const keywords = maybeParseKeywordsFromText(cleanedText);
+    const keywords = maybeParseKeywordsFromText(displayText);
     if (
       keywords &&
       keywords.length > 0 &&
       (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
     ) {
       return withStudentBlockHeading(
-        <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />,
+        <StudentKeyWordsBlock content={displayText} markdownComponents={markdownComponents} keywords={keywords} />,
         block,
-        cleanedText
+        displayText
       );
     }
-    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, displayText);
   }
 
   if (kind === "text") {
-    const keywords = maybeParseKeywordsFromText(cleanedText);
+    const keywords = maybeParseKeywordsFromText(displayText);
     if (
       keywords &&
       keywords.length > 0 &&
       (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
     ) {
       return withStudentBlockHeading(
-        <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />,
+        <StudentKeyWordsBlock content={displayText} markdownComponents={markdownComponents} keywords={keywords} />,
         block,
-        cleanedText
+        displayText
       );
     }
-    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
+    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, displayText);
   }
 
-  return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
+  return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, displayText);
 }

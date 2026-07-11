@@ -157,26 +157,105 @@ export function normalizePersistedBlockTitle<T extends BlockHeadingSource>(block
   return { ...block, title: label };
 }
 
-/** True when markdown content already opens with the same heading line. */
+/** True when markdown/HTML content already opens with the same heading line. */
 export function studentContentStartsWithHeading(content: string, heading: string): boolean {
   const h = heading.trim();
   if (!h) return false;
+  const first = firstContentHeadingCandidate(content);
+  if (!first) return false;
+  return isDuplicateBlockTitle(h, first);
+}
+
+/**
+ * Extract the first visible heading-like line from markdown or HTML lesson content.
+ * Used only for display-layer duplicate title detection.
+ */
+export function firstContentHeadingCandidate(content: string): string {
+  const raw = String(content ?? "").trim();
+  if (!raw) return "";
+
+  // HTML heading: <h2>…</h2> / <h2><strong>…</strong></h2>
+  const htmlHeading = raw.match(/^<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/i);
+  if (htmlHeading) {
+    return String(htmlHeading[2] ?? "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // HTML emphasis-only opener: <p><strong>Prior knowledge</strong></p>
+  const htmlStrong = raw.match(/^<p[^>]*>\s*<strong>([\s\S]*?)<\/strong>\s*<\/p>/i);
+  if (htmlStrong) {
+    return String(htmlStrong[1] ?? "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   const first =
-    String(content ?? "")
+    raw
       .split(/\r?\n/)
       .map((l) => l.trim())
       .find(Boolean) ?? "";
-  if (!first) return false;
-  const normalized = first.replace(/^#{1,6}\s+/, "").trim();
-  return normalized === h || first === h;
+  if (!first) return "";
+  return first.replace(/^#{1,6}\s+/, "").trim();
+}
+
+/**
+ * Display-only: remove a leading content heading that repeats the outer SS1 title
+ * (e.g. outer `2 — PRIOR KNOWLEDGE` + inner `Prior knowledge`).
+ * Does not mutate saved lesson data.
+ */
+export function stripLeadingDuplicateBlockHeading(
+  content: string,
+  outerHeading: string | null | undefined
+): string {
+  const src = String(content ?? "");
+  const outer = String(outerHeading ?? "").trim();
+  if (!src.trim() || !outer) return src;
+
+  const candidate = firstContentHeadingCandidate(src);
+  if (!candidate || !isDuplicateBlockTitle(outer, candidate)) return src;
+
+  let next = src.trimStart();
+
+  const htmlHeading = next.match(/^<h([1-6])[^>]*>[\s\S]*?<\/h\1>\s*/i);
+  if (htmlHeading) {
+    next = next.slice(htmlHeading[0].length);
+    return next.trimStart();
+  }
+
+  const htmlStrong = next.match(/^<p[^>]*>\s*<strong>[\s\S]*?<\/strong>\s*<\/p>\s*/i);
+  if (htmlStrong) {
+    next = next.slice(htmlStrong[0].length);
+    return next.trimStart();
+  }
+
+  // Markdown / plain first line
+  const nl = next.search(/\r?\n/);
+  if (nl < 0) {
+    const only = next.replace(/^#{1,6}\s+/, "").trim();
+    return isDuplicateBlockTitle(outer, only) ? "" : src;
+  }
+  const firstLine = next.slice(0, nl).replace(/^#{1,6}\s+/, "").trim();
+  if (!isDuplicateBlockTitle(outer, firstLine)) return src;
+  return next.slice(nl).replace(/^\r?\n/, "").trimStart();
 }
 
 /** Compare titles after stripping SS1 numbers (case/whitespace insensitive). */
 export function normalizeBlockTitleForCompare(title: string): string {
-  return stripSs1PrefixFromTitle(String(title ?? ""))
+  const base = stripSs1PrefixFromTitle(String(title ?? ""))
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+  // Synonyms that appear as redundant inner prose headings under numbered SS1 shells.
+  if (base === "keywords" || base === "key words" || base === "exam vocabulary") {
+    return "key words";
+  }
+  if (base === "why this matters" || base === "why it matters") {
+    return "why it matters";
+  }
+  return base;
 }
 
 /** True when two headings refer to the same label (ignoring `N — ` prefixes). */
