@@ -748,3 +748,250 @@ describe("heading keep-with-content (orphan prevention)", () => {
     expect(buf.slice(0, 4).toString()).toBe("%PDF");
   });
 });
+
+describe("prose / text-block images in revision packs", () => {
+  const {
+    extractFirstProseImage,
+    MAX_PROSE_IMAGES,
+  } = require("../services/pdf/lessonRevisionPackPdf");
+
+  it("extracts standalone markdown image lines before stripMd", () => {
+    const raw =
+      "Sexual reproduction involves gametes.\n\n![Definition diagram](" +
+      FIXTURE_PNG +
+      ")\n\nOffspring show variation.";
+    const hit = extractFirstProseImage(raw);
+    expect(hit).toEqual({ imageUrl: FIXTURE_PNG, alt: "Definition diagram" });
+    expect(extractFirstProseImage("No image here")).toBeNull();
+  });
+
+  it("extracts HTML img src as a fallback", () => {
+    const hit = extractFirstProseImage(
+      `<p>Core model</p><img src="${FIXTURE_PNG}" alt="model" />`
+    );
+    expect(hit?.imageUrl).toBe(FIXTURE_PNG);
+  });
+
+  it("collects proseImage markers from text and keyIdea blocks", () => {
+    const lesson = {
+      title: "Sexual & Asexual",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "text",
+              title: "DEFINITION",
+              content: `Definition text.\n\n![Def](${FIXTURE_PNG})\n`,
+            },
+            {
+              type: "keyIdea",
+              title: "CORE MODEL",
+              content: `Core model prose.\n\n![Model](${SUPABASE_PNG_URL})\n`,
+            },
+          ],
+        },
+      ],
+    };
+    const s = buildRevisionPackSections(lesson, { includeAnswers: false });
+    const prose = s.keyLearning.filter((seg) => seg && seg.type === "proseImage");
+    expect(prose.length).toBe(2);
+    expect(prose[0].imageUrl).toBe(FIXTURE_PNG);
+    expect(prose[1].imageUrl).toBe(SUPABASE_PNG_URL);
+    expect(keyLearningPlain(s)).toMatch(/Definition text/i);
+    expect(keyLearningPlain(s)).not.toMatch(/!\[/);
+  });
+
+  it("embeds a text-block markdown image as a PDF image XObject", async () => {
+    expect(fs.existsSync(FIXTURE_PNG)).toBe(true);
+    const lesson = {
+      title: "Text Block Image",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "text",
+              title: "DEFINITION",
+              content: `A definition.\n\n![Inline](${FIXTURE_PNG})\n`,
+            },
+          ],
+        },
+      ],
+    };
+    const without = await renderLessonRevisionPackPdf(
+      {
+        title: "No Image",
+        pages: [{ pageId: "p1", blocks: [{ type: "text", content: "A definition only." }] }],
+      },
+      { includeAnswers: false }
+    );
+    const withImg = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    expect(withImg.slice(0, 4).toString("utf8")).toBe("%PDF");
+    expect(pdfHasImageXObject(withImg)).toBe(true);
+    expect(withImg.length).toBeGreaterThan(without.length);
+    expect(countPdfPages(withImg)).toBeLessThan(8);
+  });
+
+  it("embeds HTML img from a keyIdea block", async () => {
+    const lesson = {
+      title: "HTML Prose Image",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "keyIdea",
+              content: `<p>Key idea body.</p><img src="${FIXTURE_PNG}" />`,
+            },
+          ],
+        },
+      ],
+    };
+    const buf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    expect(pdfHasImageXObject(buf)).toBe(true);
+  });
+
+  it("keeps existing diagram images and does not consume the diagram cap for prose", async () => {
+    const lesson = {
+      title: "Prose + Diagram",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "text",
+              content: `Scenario prose.\n\n![Scene](${FIXTURE_PNG})\n`,
+            },
+            {
+              type: "diagram",
+              caption: "Dedicated diagram",
+              imageUrl: FIXTURE_PNG,
+            },
+          ],
+        },
+      ],
+    };
+    const s = buildRevisionPackSections(lesson, { includeAnswers: false });
+    // Same URL is in diagrams → prose marker pruned (diagram section owns it).
+    expect(s.diagrams.some((d) => d.imageUrl === FIXTURE_PNG)).toBe(true);
+    expect(s.keyLearning.some((seg) => seg && seg.type === "proseImage")).toBe(false);
+
+    const differentProse = {
+      title: "Separate URLs",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "text",
+              content: `Why it matters.\n\n![Why](${SUPABASE_PNG_URL})\n`,
+            },
+            {
+              type: "diagram",
+              caption: "Local diagram",
+              imageUrl: FIXTURE_PNG,
+            },
+          ],
+        },
+      ],
+    };
+    const fetchImpl = mockFetchOkPng();
+    const buf = await renderLessonRevisionPackPdf(differentProse, {
+      includeAnswers: false,
+      fetchImpl,
+    });
+    expect(pdfHasImageXObject(buf)).toBe(true);
+    expect(fetchImpl).toHaveBeenCalled();
+    const built = buildRevisionPackSections(differentProse, { includeAnswers: false });
+    expect(built.diagrams).toHaveLength(1);
+    expect(built.keyLearning.some((seg) => seg && seg.type === "proseImage")).toBe(true);
+    expect(MAX_PROSE_IMAGES).toBeGreaterThanOrEqual(1);
+  });
+
+  it("skips unsafe prose image URLs and keeps the PDF valid", async () => {
+    const lesson = {
+      title: "Unsafe Prose Image",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "text",
+              content: "Safe text.\n\n![Evil](https://evil.example.com/x.png)\n",
+            },
+          ],
+        },
+      ],
+    };
+    const fetchImpl = mockFetchOkPng();
+    const buf = await renderLessonRevisionPackPdf(lesson, {
+      includeAnswers: false,
+      fetchImpl,
+    });
+    expect(buf.slice(0, 4).toString("utf8")).toBe("%PDF");
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(keyLearningPlain(buildRevisionPackSections(lesson))).toMatch(/Safe text/i);
+  });
+
+  it("preserves student/teacher answer policy with prose images present", async () => {
+    const lesson = {
+      title: "Policy + Prose Image",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "text",
+              content: `Definition.\n\n![D](${FIXTURE_PNG})\n`,
+            },
+            {
+              type: "checkpoint",
+              prompt: "What is asexual reproduction?",
+              correctAnswer: "One parent, no gametes",
+              markScheme: "Award 1 mark for clone idea",
+            },
+          ],
+        },
+      ],
+    };
+    const student = buildRevisionPackSections(lesson, { includeAnswers: false });
+    expect(student.answerAppendix).toEqual([]);
+    const teacher = buildRevisionPackSections(lesson, { includeAnswers: true });
+    expect(teacher.answerAppendix.length).toBeGreaterThan(0);
+    expect(teacher.answerAppendix[0].markScheme).toMatch(/clone/i);
+
+    const studentPdf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    const teacherPdf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: true });
+    expect(pdfHasImageXObject(studentPdf)).toBe(true);
+    expect(teacherPdf.length).toBeGreaterThan(studentPdf.length);
+    expect(studentPdf.toString("latin1")).not.toMatch(/Model answers/);
+  });
+
+  it("keeps copyright footer when prose images are embedded", async () => {
+    const lesson = {
+      title: "Copyright + Prose",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "hook",
+              content: `Scenario.\n\n![S](${FIXTURE_PNG})\n`,
+            },
+          ],
+        },
+      ],
+    };
+    const buf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    expect(buf.slice(0, 4).toString("utf8")).toBe("%PDF");
+    expect(pdfHasImageXObject(buf)).toBe(true);
+    const raw = buf.toString("latin1");
+    // PDFKit may Flate-compress streams; when uncompressed, require notice text.
+    if (raw.includes("Personal study use only")) {
+      expect(raw).toMatch(/LetsRevise/);
+      expect(raw).toMatch(/Do not copy, share, upload or distribute/);
+    }
+    expect(REVISION_PACK_COPYRIGHT_NOTICE).toMatch(/LetsRevise/);
+  });
+});

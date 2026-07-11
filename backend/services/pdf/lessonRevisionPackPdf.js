@@ -9,6 +9,12 @@ const {
   IMAGE_MAX_HEIGHT,
 } = require("./resolveLessonImageForPdf");
 
+/**
+ * Separate safety cap for images embedded in prose/text blocks.
+ * Does NOT share MAX_DIAGRAMS — diagram/activity images keep their own budget.
+ */
+const MAX_PROSE_IMAGES = 12;
+
 const MARGIN = 50;
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
@@ -454,6 +460,7 @@ function parseContentToSegments(raw, maxLen = 600) {
 function segmentText(seg) {
   if (seg == null) return "";
   if (typeof seg === "string") return seg;
+  if (seg.type === "proseImage") return "";
   return String(seg.text || "");
 }
 
@@ -512,8 +519,9 @@ function collectFollowingContentForHeading(segments, headingIndex) {
       continue;
     }
 
-    const type = seg?.type || "paragraph";
+    const type = seg?.type || "heading";
     if (type === "heading") break;
+    if (type === "proseImage") break;
 
     const text = segmentText(seg);
     if (!text) continue;
@@ -696,6 +704,10 @@ function addSegments(doc, segments) {
       continue;
     }
     const type = seg.type || "paragraph";
+    if (type === "proseImage") {
+      addProseImageBelow(doc, seg);
+      continue;
+    }
     const text = segmentText(seg);
     if (!text) continue;
 
@@ -825,7 +837,7 @@ function addDiagramSection(doc, entries) {
 }
 
 function blockType(b) {
-  return String(b?.type || b?.blockType || "").toLowerCase();
+  return String(b?.type || b?.blockType || "").toLowerCase().replace(/[_\s-]/g, "");
 }
 
 function blockRawText(b) {
@@ -847,6 +859,157 @@ function diagramImageUrl(b) {
 }
 
 /**
+ * Extract the first image URL from prose block content (before stripMd).
+ * V1: prefer a standalone markdown image line (same rule as student V12 splitter),
+ * then fall back to the first HTML <img src="...">.
+ * @param {unknown} raw
+ * @returns {{ imageUrl: string, alt: string } | null}
+ */
+function extractFirstProseImage(raw) {
+  const s = String(raw ?? "");
+  if (!s.trim()) return null;
+
+  const lines = s.split(/\r?\n/);
+  for (const line of lines) {
+    const md = line.match(/^\s*!\[([^\]]*)\]\(([^)\s]+)\)\s*$/);
+    if (!md) continue;
+    const imageUrl = String(md[2] || "").trim();
+    if (!imageUrl) continue;
+    return { imageUrl, alt: String(md[1] || "").trim() };
+  }
+
+  const html = s.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/i);
+  if (html) {
+    const imageUrl = String(html[1] || "").trim();
+    if (imageUrl) return { imageUrl, alt: "" };
+  }
+  return null;
+}
+
+/** Text-like block types that may embed a markdown/HTML image in content. */
+function isProseKeyLearningType(t) {
+  return (
+    t === "text" ||
+    t === "keyidea" ||
+    t === "keyideas" ||
+    t === "stretch" ||
+    t === "deeperknowledge" ||
+    t === "hook" ||
+    t === "workedexample" ||
+    t === "summary" ||
+    t === "whythismatters" ||
+    t === "whythismatter"
+  );
+}
+
+/**
+ * Push text segments then an optional proseImage marker (display-only; no I/O).
+ * @param {Array} target
+ * @param {object} b
+ * @param {number} maxLen
+ * @param {{ count: number, seen: Set<string> }} tracker
+ */
+function pushProseBlockWithImage(target, b, maxLen, tracker) {
+  const raw = blockRawText(b);
+  pushSegments(target, raw, maxLen);
+  if (!tracker || tracker.count >= MAX_PROSE_IMAGES) return;
+
+  const extracted = extractFirstProseImage(raw);
+  if (!extracted?.imageUrl) return;
+  const url = extracted.imageUrl;
+  if (tracker.seen.has(url)) return;
+
+  tracker.seen.add(url);
+  tracker.count += 1;
+  target.push({
+    type: "proseImage",
+    imageUrl: url,
+    alt: extracted.alt || "",
+  });
+}
+
+/** Drop proseImage segments whose URL already appears in the Diagrams list. */
+function pruneProseImagesAlreadyInDiagrams(segments, diagrams) {
+  const diagramUrls = new Set(
+    (Array.isArray(diagrams) ? diagrams : [])
+      .map((d) => String(d?.imageUrl || d?.src || "").trim())
+      .filter(Boolean)
+  );
+  if (diagramUrls.size === 0) return Array.isArray(segments) ? segments : [];
+  return (Array.isArray(segments) ? segments : []).filter((seg) => {
+    if (!seg || seg.type !== "proseImage") return true;
+    return !diagramUrls.has(String(seg.imageUrl || "").trim());
+  });
+}
+
+/**
+ * Resolve proseImage segment sources via the shared safe resolver.
+ * Unresolvable images are dropped (text remains; PDF stays valid).
+ * @param {Array} segments
+ * @param {{ fetchImpl?: typeof fetch }} [opts]
+ */
+async function resolveProseImageSegments(segments, opts = {}) {
+  const list = Array.isArray(segments) ? segments : [];
+  const out = [];
+  let embedded = 0;
+  for (const seg of list) {
+    if (!seg || seg.type !== "proseImage") {
+      out.push(seg);
+      continue;
+    }
+    if (embedded >= MAX_PROSE_IMAGES) continue;
+    const imageUrl = String(seg.imageUrl || "").trim();
+    if (!imageUrl) continue;
+    let source = null;
+    try {
+      source = await resolveLessonImageForPdf(imageUrl, opts);
+    } catch {
+      source = null;
+    }
+    if (!source) continue;
+    out.push({ ...seg, source });
+    embedded += 1;
+  }
+  return out;
+}
+
+/**
+ * Draw a prose image below its related text. Never throws.
+ * @param {PDFKit.PDFDocument} doc
+ * @param {{ source?: object|null }} seg
+ */
+function addProseImageBelow(doc, seg) {
+  const source = seg?.source || null;
+  if (!source) return;
+
+  let img = null;
+  let imgW = 0;
+  let imgH = 0;
+  try {
+    const openTarget = source.kind === "buffer" ? source.buffer : source.path;
+    if (!openTarget) return;
+    img = doc.openImage(openTarget);
+    const scale = Math.min(CONTENT_WIDTH / img.width, IMAGE_MAX_HEIGHT / img.height, 1);
+    imgW = Math.max(1, img.width * scale);
+    imgH = Math.max(1, img.height * scale);
+  } catch {
+    return;
+  }
+  if (!img || !imgW || !imgH) return;
+
+  ensureSpace(doc, Math.min(imgH + 24, CONTENT_BOTTOM - MARGIN - 20));
+  doc.moveDown(0.2);
+  try {
+    const x = MARGIN + (CONTENT_WIDTH - imgW) / 2;
+    doc.image(img, x, doc.y, { width: imgW, height: imgH });
+    doc.y += imgH + 8;
+  } catch {
+    return;
+  }
+  doc.moveDown(0.25);
+}
+
+/**
  * Build structured pack sections from a lesson document (lean or mongoose).
  * Pure — no I/O. Used by PDF render and unit tests.
  */
@@ -859,6 +1022,7 @@ function buildRevisionPackSections(lesson, opts = {}) {
   const diagrams = [];
   const practiceQuestions = [];
   const answerAppendix = [];
+  const proseTracker = { count: 0, seen: new Set() };
 
   const pages = Array.isArray(lesson?.pages) ? lesson.pages : [];
   pages.forEach((page, pageIdx) => {
@@ -866,8 +1030,8 @@ function buildRevisionPackSections(lesson, opts = {}) {
     blocks.forEach((b) => {
       const t = blockType(b);
       const body = blockBody(b);
-      if (t === "keyideas" || t === "keyidea" || t === "text" || t === "stretch" || t === "deeperknowledge") {
-        pushSegments(keyLearning, blockRawText(b), 600);
+      if (isProseKeyLearningType(t)) {
+        pushProseBlockWithImage(keyLearning, b, 600, proseTracker);
       } else if (t === "keywords" || t === "keyword") {
         if (body) {
           body.split(/[,;]+/).map((x) => x.trim()).filter(Boolean).forEach((kw) => keywords.push(kw));
@@ -879,9 +1043,9 @@ function buildRevisionPackSections(lesson, opts = {}) {
           });
         }
       } else if (t === "examtips" || t === "examtip") {
-        pushSegments(examTips, blockRawText(b), 500);
+        pushProseBlockWithImage(examTips, b, 500, proseTracker);
       } else if (t === "misconceptions" || t === "commonmistake" || t === "commonmistakes") {
-        pushSegments(commonMistakes, blockRawText(b), 500);
+        pushProseBlockWithImage(commonMistakes, b, 500, proseTracker);
       } else if (t === "diagram") {
         const caption = stripMd(b?.caption || b?.alt || b?.title || body || "Diagram");
         diagrams.push({ caption, imageUrl: diagramImageUrl(b) });
@@ -1023,10 +1187,10 @@ function buildRevisionPackSections(lesson, opts = {}) {
     topic: sanitizePdfText(toText(lesson?.topic || lesson?.subTopic)),
     level: sanitizePdfText(toText(lesson?.level)),
     tier: sanitizePdfText(toText(lesson?.tier)),
-    keyLearning,
+    keyLearning: pruneProseImagesAlreadyInDiagrams(keyLearning, diagrams),
     keywords,
-    examTips,
-    commonMistakes,
+    examTips: pruneProseImagesAlreadyInDiagrams(examTips, diagrams),
+    commonMistakes: pruneProseImagesAlreadyInDiagrams(commonMistakes, diagrams),
     diagrams,
     flashcards,
     practiceQuestions,
@@ -1087,6 +1251,25 @@ async function renderLessonRevisionPackPdf(lesson, opts = {}) {
     }));
   }
 
+  let keyLearning = sections.keyLearning;
+  let examTips = sections.examTips;
+  let commonMistakes = sections.commonMistakes;
+  try {
+    keyLearning = await resolveProseImageSegments(sections.keyLearning, {
+      fetchImpl: opts.fetchImpl,
+    });
+    examTips = await resolveProseImageSegments(sections.examTips, {
+      fetchImpl: opts.fetchImpl,
+    });
+    commonMistakes = await resolveProseImageSegments(sections.commonMistakes, {
+      fetchImpl: opts.fetchImpl,
+    });
+  } catch {
+    keyLearning = (sections.keyLearning || []).filter((s) => !s || s.type !== "proseImage");
+    examTips = (sections.examTips || []).filter((s) => !s || s.type !== "proseImage");
+    commonMistakes = (sections.commonMistakes || []).filter((s) => !s || s.type !== "proseImage");
+  }
+
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true });
@@ -1117,9 +1300,9 @@ async function renderLessonRevisionPackPdf(lesson, opts = {}) {
       doc.text(`Generated: ${dateStr}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
       doc.moveDown(0.9);
 
-      if (sections.keyLearning.length) {
+      if (keyLearning.length) {
         addSectionHeader(doc, "Key learning points");
-        addSegments(doc, sections.keyLearning);
+        addSegments(doc, keyLearning);
       }
       if (sections.keywords.length) {
         addSectionHeader(doc, "Keywords");
@@ -1128,13 +1311,13 @@ async function renderLessonRevisionPackPdf(lesson, opts = {}) {
       if (diagramEntries.length) {
         addDiagramSection(doc, diagramEntries);
       }
-      if (sections.examTips.length) {
+      if (examTips.length) {
         addSectionHeader(doc, "Exam tips");
-        addSegments(doc, sections.examTips);
+        addSegments(doc, examTips);
       }
-      if (sections.commonMistakes.length) {
+      if (commonMistakes.length) {
         addSectionHeader(doc, "Common mistakes");
-        addSegments(doc, sections.commonMistakes);
+        addSegments(doc, commonMistakes);
       }
       if (sections.flashcards.length) {
         addSectionHeader(doc, "Flashcards");
@@ -1219,6 +1402,8 @@ module.exports = {
   collectFollowingLinesForHeading,
   collectFollowingContentForHeading,
   ensureHeadingKeepWithContent,
+  extractFirstProseImage,
+  MAX_PROSE_IMAGES,
   HEADING_KEEP_MIN_BULLETS,
   CONTENT_BOTTOM,
   MARGIN,
