@@ -6,7 +6,6 @@ const PDFDocument = require("pdfkit");
 const {
   resolveLessonImageForPdf,
   MAX_DIAGRAMS,
-  IMAGE_MAX_HEIGHT,
 } = require("./resolveLessonImageForPdf");
 
 /**
@@ -20,6 +19,11 @@ const PROSE_IMAGE_MAX_HEIGHT = 140;
 const PROSE_COL_GAP = 14;
 /** Minimum text column width required for side-by-side layout. */
 const PROSE_SIDE_BY_SIDE_MIN_TEXT = 200;
+/**
+ * Diagrams section packing height (smaller than resolver IMAGE_MAX_HEIGHT so
+ * more than one diagram can fit per page without huge blank regions).
+ */
+const DIAGRAM_SECTION_MAX_HEIGHT = 200;
 
 const MARGIN = 50;
 const PAGE_WIDTH = 612;
@@ -792,8 +796,7 @@ async function resolveDiagramEntries(diagrams, opts = {}) {
  */
 function addDiagramSection(doc, entries) {
   if (!Array.isArray(entries) || entries.length === 0) return;
-  // Tiny polish: a little air before the diagrams block
-  doc.moveDown(0.35);
+  doc.moveDown(0.2);
   addSectionHeader(doc, "Diagrams");
 
   let embedded = 0;
@@ -812,7 +815,11 @@ function addDiagramSection(doc, entries) {
         const openTarget = source.kind === "buffer" ? source.buffer : source.path;
         if (openTarget) {
           img = doc.openImage(openTarget);
-          const scale = Math.min(CONTENT_WIDTH / img.width, IMAGE_MAX_HEIGHT / img.height, 1);
+          const scale = Math.min(
+            CONTENT_WIDTH / img.width,
+            DIAGRAM_SECTION_MAX_HEIGHT / img.height,
+            1
+          );
           imgW = Math.max(1, img.width * scale);
           imgH = Math.max(1, img.height * scale);
         }
@@ -821,14 +828,15 @@ function addDiagramSection(doc, entries) {
       }
     }
 
-    // Keep caption + image together when possible (avoid orphan caption above a page break).
-    const blockH = (caption ? 28 : 0) + (img ? imgH + 16 : 24);
-    ensureSpace(doc, Math.min(blockH, CONTENT_BOTTOM - MARGIN - 20));
+    // Keep caption + image together; use real scaled height (not oversized reserve).
+    const captionH = caption ? 22 : 0;
+    const blockH = captionH + (img ? imgH + 10 : 20);
+    ensureSpace(doc, blockH);
 
     if (caption) {
       doc.fontSize(FONT_BODY).font("Helvetica-Bold").fillColor("#1e293b");
       doc.text(caption, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
-      doc.moveDown(0.3);
+      doc.moveDown(0.15);
     }
 
     let drew = false;
@@ -836,7 +844,7 @@ function addDiagramSection(doc, entries) {
       try {
         const x = MARGIN + (CONTENT_WIDTH - imgW) / 2;
         doc.image(img, x, doc.y, { width: imgW, height: imgH });
-        doc.y += imgH + 10;
+        doc.y += imgH + 6;
         drew = true;
         embedded += 1;
       } catch {
@@ -847,10 +855,10 @@ function addDiagramSection(doc, entries) {
     if (!drew) {
       doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#94a3b8");
       doc.text("[Diagram unavailable]", MARGIN, doc.y, { width: CONTENT_WIDTH });
-      doc.moveDown(0.55);
+      doc.moveDown(0.35);
       if (imageUrl) embedded += 1;
     } else {
-      doc.moveDown(0.35);
+      doc.moveDown(0.2);
     }
   }
 }
@@ -971,8 +979,9 @@ function scaleProseImageSize(img) {
 }
 
 /**
- * Minimum height to keep heading + first text lines + image together.
- * Used to page-break BEFORE the group (never split text from image).
+ * Minimum height to keep heading + image (+ a little text) together.
+ * Intentionally tight so blocks stay on the current page when they fit —
+ * do NOT reserve full paragraph height (that caused Page-1 whitespace).
  * @param {PDFKit.PDFDocument} doc
  * @param {{ title?: string, textSegments?: Array }} block
  * @param {{ imgW: number, imgH: number }|null} imgSize
@@ -981,47 +990,56 @@ function estimateProseBlockMinHeight(doc, block, imgSize) {
   const title = String(block?.title || "").trim();
   const textSegs = Array.isArray(block?.textSegments) ? block.textSegments : [];
   const prevSize = doc._fontSize;
-  let h = 8;
+  let h = 6;
 
   if (title) {
     doc.fontSize(FONT_HEADING).font("Helvetica-Bold");
     h +=
-      doc.heightOfString(title, { width: CONTENT_WIDTH, lineGap: LINE_GAP }) + 10;
+      doc.heightOfString(title, { width: CONTENT_WIDTH, lineGap: LINE_GAP }) + 6;
   }
 
   const imgH = imgSize?.imgH || 0;
   const imgW = imgSize?.imgW || 0;
   const sideBySide = imgSize && canUseProseSideBySide(imgW);
-  const textWidth = sideBySide ? CONTENT_WIDTH - imgW - PROSE_COL_GAP : CONTENT_WIDTH;
 
   doc.fontSize(FONT_BODY).font("Helvetica");
-  let textH = 0;
-  let lines = 0;
+  // Only the first short line matters for keep-with (rest can continue below).
+  let firstLineH = FONT_BODY + 4;
   for (const seg of textSegs) {
-    if (lines >= 3) break;
     const t = segmentText(seg);
     if (!t) continue;
     const prefix =
       seg?.type === "bullet" ? "• " : seg?.type === "numbered" ? "1. " : "";
-    textH +=
-      doc.heightOfString(`${prefix}${t}`.slice(0, 280), {
-        width: textWidth,
-        lineGap: LINE_GAP,
-      }) + 6;
-    lines += 1;
+    const sample = `${prefix}${t}`.slice(0, 90);
+    const textWidth = sideBySide ? CONTENT_WIDTH - imgW - PROSE_COL_GAP : CONTENT_WIDTH;
+    firstLineH = Math.min(
+      40,
+      doc.heightOfString(sample, { width: textWidth, lineGap: LINE_GAP }) + 4
+    );
+    break;
   }
-  if (textH < 1) textH = FONT_BODY * 2;
 
   if (sideBySide) {
-    h += Math.max(imgH, Math.min(textH, imgH + 40)) + 12;
+    // Text sits beside the image — reserve title + image row only.
+    h += imgH + 8;
   } else if (imgH) {
-    h += imgH + Math.min(textH, FONT_BODY * 3) + 16;
+    h += imgH + firstLineH + 10;
   } else {
-    h += Math.min(textH, FONT_BODY * 4) + 8;
+    h += firstLineH + 6;
   }
 
   doc.fontSize(prevSize || FONT_BODY);
-  return Math.min(h, CONTENT_BOTTOM - MARGIN - 10);
+  return h;
+}
+
+/**
+ * True when a prose block's keep-with height fits in remaining page space.
+ * @param {PDFKit.PDFDocument} doc
+ * @param {number} minH
+ */
+function proseBlockFitsRemaining(doc, minH) {
+  const need = Math.max(12, Number(minH) || 12);
+  return doc.y + need <= CONTENT_BOTTOM;
 }
 
 /**
@@ -1076,30 +1094,59 @@ function pushProseBlockWithImage(target, b, maxLen, tracker) {
   });
 }
 
-/** Drop / detach prose images whose URL already appears in the Diagrams list. */
-function pruneProseImagesAlreadyInDiagrams(segments, diagrams) {
-  const diagramUrls = new Set(
-    (Array.isArray(diagrams) ? diagrams : [])
-      .map((d) => String(d?.imageUrl || d?.src || "").trim())
-      .filter(Boolean)
-  );
-  if (diagramUrls.size === 0) return Array.isArray(segments) ? segments : [];
-  const out = [];
-  for (const seg of Array.isArray(segments) ? segments : []) {
-    if (!seg) continue;
-    if (seg.type === "proseImage") {
-      if (!diagramUrls.has(String(seg.imageUrl || "").trim())) out.push(seg);
-      continue;
-    }
-    if (seg.type === "proseBlock" && diagramUrls.has(String(seg.imageUrl || "").trim())) {
-      // Keep title/text near content; diagram section owns the image.
-      if (seg.title) out.push({ type: "heading", text: seg.title });
-      (seg.textSegments || []).forEach((s) => out.push(s));
-      continue;
-    }
-    out.push(seg);
+/**
+ * Normalise image URLs for dedupe (protocol/host case, path separators, decode).
+ * @param {unknown} url
+ */
+function normalizeImageUrlForDedupe(url) {
+  let s = String(url ?? "").trim();
+  if (!s) return "";
+  try {
+    if (s.includes("%")) s = decodeURIComponent(s);
+  } catch {
+    /* keep */
   }
-  return out;
+  s = s.replace(/\\/g, "/");
+  try {
+    if (/^https?:\/\//i.test(s)) {
+      const u = new URL(s);
+      return `${u.protocol}//${u.host.toLowerCase()}${u.pathname}`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return s.toLowerCase();
+}
+
+/** Collect image URLs already assigned to prose blocks. */
+function collectProseImageUrls(segmentLists) {
+  const urls = new Set();
+  for (const list of segmentLists || []) {
+    for (const seg of Array.isArray(list) ? list : []) {
+      if (!seg) continue;
+      if (seg.type === "proseBlock" || seg.type === "proseImage") {
+        const n = normalizeImageUrlForDedupe(seg.imageUrl);
+        if (n) urls.add(n);
+      }
+    }
+  }
+  return urls;
+}
+
+/**
+ * Drop Diagrams entries whose URL was already rendered beside prose text.
+ * Keeps activity/diagram-only images that were never shown as prose.
+ * @param {Array} diagrams
+ * @param {Set<string>} proseUrlSet
+ */
+function pruneDiagramsAlreadyShownAsProse(diagrams, proseUrlSet) {
+  const list = Array.isArray(diagrams) ? diagrams : [];
+  if (!proseUrlSet || proseUrlSet.size === 0) return list;
+  return list.filter((d) => {
+    const n = normalizeImageUrlForDedupe(d?.imageUrl || d?.src || "");
+    if (!n) return true;
+    return !proseUrlSet.has(n);
+  });
 }
 
 /**
@@ -1243,7 +1290,10 @@ function addProseBlockGrouped(doc, block) {
   const imgSize = imgMeta ? { imgW: imgMeta.imgW, imgH: imgMeta.imgH } : null;
 
   const minH = estimateProseBlockMinHeight(doc, { title, textSegments: textSegs }, imgSize);
-  ensureSpace(doc, minH);
+  // Only page-break when the keep-with chunk truly cannot fit (tight estimate).
+  if (!proseBlockFitsRemaining(doc, minH)) {
+    doc.addPage();
+  }
 
   if (title) {
     doc.fontSize(FONT_HEADING).font("Helvetica-Bold").fillColor("#1e293b");
@@ -1510,6 +1560,8 @@ function buildRevisionPackSections(lesson, opts = {}) {
     }
   });
 
+  const proseUrls = collectProseImageUrls([keyLearning, examTips, commonMistakes]);
+
   return {
     title: sanitizePdfText(toText(lesson?.title)) || "Lesson",
     subject: sanitizePdfText(toText(lesson?.subject)),
@@ -1517,11 +1569,12 @@ function buildRevisionPackSections(lesson, opts = {}) {
     topic: sanitizePdfText(toText(lesson?.topic || lesson?.subTopic)),
     level: sanitizePdfText(toText(lesson?.level)),
     tier: sanitizePdfText(toText(lesson?.tier)),
-    keyLearning: pruneProseImagesAlreadyInDiagrams(keyLearning, diagrams),
+    keyLearning,
     keywords,
-    examTips: pruneProseImagesAlreadyInDiagrams(examTips, diagrams),
-    commonMistakes: pruneProseImagesAlreadyInDiagrams(commonMistakes, diagrams),
-    diagrams,
+    examTips,
+    commonMistakes,
+    // Prefer near-text placement: drop Diagrams duplicates of prose images.
+    diagrams: pruneDiagramsAlreadyShownAsProse(diagrams, proseUrls),
     flashcards,
     practiceQuestions,
     answerAppendix: includeAnswers ? answerAppendix : [],
@@ -1737,9 +1790,14 @@ module.exports = {
   scaleProseImageSize,
   canUseProseSideBySide,
   estimateProseBlockMinHeight,
+  proseBlockFitsRemaining,
+  normalizeImageUrlForDedupe,
+  collectProseImageUrls,
+  pruneDiagramsAlreadyShownAsProse,
   MAX_PROSE_IMAGES,
   PROSE_IMAGE_MAX_WIDTH,
   PROSE_IMAGE_MAX_HEIGHT,
+  DIAGRAM_SECTION_MAX_HEIGHT,
   HEADING_KEEP_MIN_BULLETS,
   CONTENT_BOTTOM,
   MARGIN,

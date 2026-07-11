@@ -756,6 +756,10 @@ describe("prose / text-block images in revision packs", () => {
     scaleProseImageSize,
     canUseProseSideBySide,
     estimateProseBlockMinHeight,
+    proseBlockFitsRemaining,
+    normalizeImageUrlForDedupe,
+    collectProseImageUrls,
+    pruneDiagramsAlreadyShownAsProse,
     MAX_PROSE_IMAGES,
     PROSE_IMAGE_MAX_WIDTH,
     PROSE_IMAGE_MAX_HEIGHT,
@@ -845,6 +849,7 @@ describe("prose / text-block images in revision packs", () => {
       { imgW: 180, imgH: 120 }
     );
     expect(minH).toBeGreaterThan(36);
+    expect(proseBlockFitsRemaining(doc, minH)).toBe(false);
 
     addSegments(doc, [
       {
@@ -861,6 +866,44 @@ describe("prose / text-block images in revision packs", () => {
     const buf = Buffer.concat(chunks);
     expect(buf.slice(0, 4).toString()).toBe("%PDF");
     expect(pdfHasImageXObject(buf)).toBe(true);
+  });
+
+  it("keeps a proseBlock on the current page when keep-with height fits", async () => {
+    const chunks = [];
+    const doc = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true });
+    const done = new Promise((resolve) => doc.on("end", resolve));
+    doc.on("data", (c) => chunks.push(c));
+    let pagesAdded = 0;
+    doc.on("pageAdded", () => {
+      pagesAdded += 1;
+    });
+
+    doc.y = MARGIN + 80;
+    const minH = estimateProseBlockMinHeight(
+      doc,
+      {
+        title: "3 — DEFINITION",
+        textSegments: [{ type: "paragraph", text: "Short definition." }],
+      },
+      { imgW: 180, imgH: 120 }
+    );
+    // Tight estimate: should fit with plenty of remaining space.
+    expect(proseBlockFitsRemaining(doc, minH)).toBe(true);
+    expect(minH).toBeLessThan(220);
+
+    addSegments(doc, [
+      {
+        type: "proseBlock",
+        title: "3 — DEFINITION",
+        textSegments: [{ type: "paragraph", text: "Short definition." }],
+        source: { kind: "path", path: FIXTURE_PNG },
+      },
+    ]);
+
+    expect(pagesAdded).toBe(0);
+    doc.end();
+    await done;
+    expect(Buffer.concat(chunks).slice(0, 4).toString()).toBe("%PDF");
   });
 
   it("embeds a text-block markdown image as a PDF image XObject", async () => {
@@ -920,7 +963,7 @@ describe("prose / text-block images in revision packs", () => {
     expect(pdfHasImageXObject(buf)).toBe(true);
   });
 
-  it("keeps existing diagram images and does not consume the diagram cap for prose", async () => {
+  it("keeps prose near-text images and drops the same URL from Diagrams", async () => {
     const lesson = {
       title: "Prose + Diagram",
       pages: [
@@ -930,6 +973,7 @@ describe("prose / text-block images in revision packs", () => {
             {
               type: "text",
               title: "SCENARIO",
+              number: 4,
               content: `Scenario prose.\n\n![Scene](${FIXTURE_PNG})\n`,
             },
             {
@@ -942,11 +986,11 @@ describe("prose / text-block images in revision packs", () => {
       ],
     };
     const s = buildRevisionPackSections(lesson, { includeAnswers: false });
-    // Same URL is in diagrams → prose image pruned (diagram section owns it).
-    expect(s.diagrams.some((d) => d.imageUrl === FIXTURE_PNG)).toBe(true);
+    // Prose keeps the image; Diagrams drops the duplicate URL.
     expect(s.keyLearning.some((seg) => seg && seg.type === "proseBlock" && seg.imageUrl)).toBe(
-      false
+      true
     );
+    expect(s.diagrams.some((d) => d.imageUrl === FIXTURE_PNG)).toBe(false);
 
     const differentProse = {
       title: "Separate URLs",
@@ -978,8 +1022,19 @@ describe("prose / text-block images in revision packs", () => {
     expect(fetchImpl).toHaveBeenCalled();
     const built = buildRevisionPackSections(differentProse, { includeAnswers: false });
     expect(built.diagrams).toHaveLength(1);
+    expect(built.diagrams[0].imageUrl).toBe(FIXTURE_PNG);
     expect(built.keyLearning.some((seg) => seg && seg.type === "proseBlock")).toBe(true);
     expect(MAX_PROSE_IMAGES).toBeGreaterThanOrEqual(1);
+
+    // Helper coverage
+    const proseUrls = collectProseImageUrls([built.keyLearning]);
+    expect(proseUrls.has(normalizeImageUrlForDedupe(SUPABASE_PNG_URL))).toBe(true);
+    expect(
+      pruneDiagramsAlreadyShownAsProse(
+        [{ caption: "dup", imageUrl: SUPABASE_PNG_URL }, { caption: "keep", imageUrl: FIXTURE_PNG }],
+        proseUrls
+      )
+    ).toEqual([{ caption: "keep", imageUrl: FIXTURE_PNG }]);
   });
 
   it("skips unsafe prose image URLs and keeps the PDF valid", async () => {
