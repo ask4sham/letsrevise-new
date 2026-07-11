@@ -20,6 +20,8 @@ const {
   BRAND_SITE,
   BRAND_SUBTITLE,
   BRAND_TAGLINE,
+  BRAND_BADGE_FILL,
+  BRAND_DIVIDER,
 } = require("../services/pdf/lessonRevisionPackPdf");
 const {
   resolveLessonImageForPdf,
@@ -622,6 +624,11 @@ describe("renderLessonRevisionPackPdf layout + diagrams", () => {
     expect(BRAND_SITE).toBe("LetsRevise.com");
     expect(BRAND_SUBTITLE).toBe("UK Learning Platform");
     expect(BRAND_TAGLINE).toBe("GCSE revision made clearer");
+    // Colour accents: indigo badge + subtle divider (not a banner).
+    expect(BRAND_BADGE_FILL).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(BRAND_DIVIDER).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(BRAND_BADGE_FILL.toLowerCase()).not.toBe("#0f172a");
+    expect(BRAND_DIVIDER.toLowerCase()).not.toBe("#cbd5e1");
 
     const lesson = {
       title: "Brand Header Check Lesson",

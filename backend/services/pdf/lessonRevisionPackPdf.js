@@ -50,6 +50,9 @@ const REVISION_PACK_COPYRIGHT_NOTICE =
 const BRAND_SITE = "LetsRevise.com";
 const BRAND_SUBTITLE = "UK Learning Platform";
 const BRAND_TAGLINE = "GCSE revision made clearer";
+/** LetsRevise indigo accents — badge + thin divider only (no banner/gradient). */
+const BRAND_BADGE_FILL = "#4f46e5";
+const BRAND_DIVIDER = "#818cf8";
 
 
 const toText = (v) => {
@@ -655,7 +658,7 @@ function addBrandHeader(doc) {
   const badgeY = MARGIN;
 
   doc.save();
-  doc.roundedRect(badgeX, badgeY, badgeSize, badgeSize, 3).fill("#0f172a");
+  doc.roundedRect(badgeX, badgeY, badgeSize, badgeSize, 3).fill(BRAND_BADGE_FILL);
   doc
     .fillColor("#ffffff")
     .font("Helvetica-Bold")
@@ -686,8 +689,8 @@ function addBrandHeader(doc) {
   doc
     .moveTo(MARGIN, lineY)
     .lineTo(MARGIN + CONTENT_WIDTH, lineY)
-    .strokeColor("#cbd5e1")
-    .lineWidth(0.7)
+    .strokeColor(BRAND_DIVIDER)
+    .lineWidth(0.9)
     .stroke();
 
   doc.y = lineY + 10;
@@ -1863,5 +1866,7 @@ module.exports = {
   BRAND_SITE,
   BRAND_SUBTITLE,
   BRAND_TAGLINE,
+  BRAND_BADGE_FILL,
+  BRAND_DIVIDER,
   addBrandHeader,
 };
