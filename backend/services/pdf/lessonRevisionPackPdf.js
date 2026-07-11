@@ -14,6 +14,12 @@ const {
  * Does NOT share MAX_DIAGRAMS — diagram/activity images keep their own budget.
  */
 const MAX_PROSE_IMAGES = 12;
+/** Compact sizing for inline text-block images (smaller than Diagrams section). */
+const PROSE_IMAGE_MAX_WIDTH = 200;
+const PROSE_IMAGE_MAX_HEIGHT = 140;
+const PROSE_COL_GAP = 14;
+/** Minimum text column width required for side-by-side layout. */
+const PROSE_SIDE_BY_SIDE_MIN_TEXT = 200;
 
 const MARGIN = 50;
 const PAGE_WIDTH = 612;
@@ -461,6 +467,14 @@ function segmentText(seg) {
   if (seg == null) return "";
   if (typeof seg === "string") return seg;
   if (seg.type === "proseImage") return "";
+  if (seg.type === "proseBlock") {
+    const title = String(seg.title || "").trim();
+    const body = (Array.isArray(seg.textSegments) ? seg.textSegments : [])
+      .map(segmentText)
+      .filter(Boolean)
+      .join("\n");
+    return [title, body].filter(Boolean).join("\n");
+  }
   return String(seg.text || "");
 }
 
@@ -521,7 +535,7 @@ function collectFollowingContentForHeading(segments, headingIndex) {
 
     const type = seg?.type || "heading";
     if (type === "heading") break;
-    if (type === "proseImage") break;
+    if (type === "proseImage" || type === "proseBlock") break;
 
     const text = segmentText(seg);
     if (!text) continue;
@@ -704,7 +718,12 @@ function addSegments(doc, segments) {
       continue;
     }
     const type = seg.type || "paragraph";
+    if (type === "proseBlock") {
+      addProseBlockGrouped(doc, seg);
+      continue;
+    }
     if (type === "proseImage") {
+      // Legacy detached marker — keep-with via ensureSpace only (prefer proseBlock).
       addProseImageBelow(doc, seg);
       continue;
     }
@@ -903,7 +922,110 @@ function isProseKeyLearningType(t) {
 }
 
 /**
- * Push text segments then an optional proseImage marker (display-only; no I/O).
+ * Remove embedded markdown/HTML images from prose content before text parsing.
+ * @param {unknown} raw
+ */
+function stripEmbeddedImagesFromContent(raw) {
+  return String(raw ?? "")
+    .replace(/^\s*!\[[^\]]*\]\([^)]+\)\s*$/gm, "")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Display title for a prose block in the PDF (e.g. `3 — DEFINITION`).
+ * @param {object} b
+ */
+function formatProseBlockTitle(b) {
+  const title = stripMd(b?.title || "");
+  const n = b?.number;
+  if (typeof n === "number" && Number.isFinite(n) && n > 0 && title) {
+    return `${Math.trunc(n)} — ${title}`;
+  }
+  return title;
+}
+
+/**
+ * Pure layout helper: whether side-by-side fits for a given image width.
+ * @param {number} imgW
+ */
+function canUseProseSideBySide(imgW) {
+  const w = Number(imgW) || 0;
+  if (w <= 0) return false;
+  return CONTENT_WIDTH - w - PROSE_COL_GAP >= PROSE_SIDE_BY_SIDE_MIN_TEXT;
+}
+
+/**
+ * Scale a prose image to compact text-block constraints (not full diagram size).
+ * @param {{ width: number, height: number }} img
+ */
+function scaleProseImageSize(img) {
+  const iw = Math.max(1, Number(img?.width) || 1);
+  const ih = Math.max(1, Number(img?.height) || 1);
+  const scale = Math.min(PROSE_IMAGE_MAX_WIDTH / iw, PROSE_IMAGE_MAX_HEIGHT / ih, 1);
+  return {
+    imgW: Math.max(1, iw * scale),
+    imgH: Math.max(1, ih * scale),
+  };
+}
+
+/**
+ * Minimum height to keep heading + first text lines + image together.
+ * Used to page-break BEFORE the group (never split text from image).
+ * @param {PDFKit.PDFDocument} doc
+ * @param {{ title?: string, textSegments?: Array }} block
+ * @param {{ imgW: number, imgH: number }|null} imgSize
+ */
+function estimateProseBlockMinHeight(doc, block, imgSize) {
+  const title = String(block?.title || "").trim();
+  const textSegs = Array.isArray(block?.textSegments) ? block.textSegments : [];
+  const prevSize = doc._fontSize;
+  let h = 8;
+
+  if (title) {
+    doc.fontSize(FONT_HEADING).font("Helvetica-Bold");
+    h +=
+      doc.heightOfString(title, { width: CONTENT_WIDTH, lineGap: LINE_GAP }) + 10;
+  }
+
+  const imgH = imgSize?.imgH || 0;
+  const imgW = imgSize?.imgW || 0;
+  const sideBySide = imgSize && canUseProseSideBySide(imgW);
+  const textWidth = sideBySide ? CONTENT_WIDTH - imgW - PROSE_COL_GAP : CONTENT_WIDTH;
+
+  doc.fontSize(FONT_BODY).font("Helvetica");
+  let textH = 0;
+  let lines = 0;
+  for (const seg of textSegs) {
+    if (lines >= 3) break;
+    const t = segmentText(seg);
+    if (!t) continue;
+    const prefix =
+      seg?.type === "bullet" ? "• " : seg?.type === "numbered" ? "1. " : "";
+    textH +=
+      doc.heightOfString(`${prefix}${t}`.slice(0, 280), {
+        width: textWidth,
+        lineGap: LINE_GAP,
+      }) + 6;
+    lines += 1;
+  }
+  if (textH < 1) textH = FONT_BODY * 2;
+
+  if (sideBySide) {
+    h += Math.max(imgH, Math.min(textH, imgH + 40)) + 12;
+  } else if (imgH) {
+    h += imgH + Math.min(textH, FONT_BODY * 3) + 16;
+  } else {
+    h += Math.min(textH, FONT_BODY * 4) + 8;
+  }
+
+  doc.fontSize(prevSize || FONT_BODY);
+  return Math.min(h, CONTENT_BOTTOM - MARGIN - 10);
+}
+
+/**
+ * Push a grouped prose unit (title + text + optional image) or plain text segments.
  * @param {Array} target
  * @param {object} b
  * @param {number} maxLen
@@ -911,24 +1033,50 @@ function isProseKeyLearningType(t) {
  */
 function pushProseBlockWithImage(target, b, maxLen, tracker) {
   const raw = blockRawText(b);
-  pushSegments(target, raw, maxLen);
-  if (!tracker || tracker.count >= MAX_PROSE_IMAGES) return;
-
   const extracted = extractFirstProseImage(raw);
-  if (!extracted?.imageUrl) return;
+  const title = formatProseBlockTitle(b);
+  const textRaw = stripEmbeddedImagesFromContent(raw);
+
+  // No image (or prose cap reached) → legacy flat text stream (titles come from content).
+  if (!extracted?.imageUrl || !tracker || tracker.count >= MAX_PROSE_IMAGES) {
+    pushSegments(target, raw, maxLen);
+    return;
+  }
+
   const url = extracted.imageUrl;
-  if (tracker.seen.has(url)) return;
+  if (tracker.seen.has(url)) {
+    pushSegments(target, textRaw || raw, maxLen);
+    return;
+  }
 
   tracker.seen.add(url);
   tracker.count += 1;
+
+  const textSegments = [];
+  parseContentToSegments(textRaw, maxLen).forEach((seg) => {
+    if (seg) textSegments.push(seg);
+  });
+
+  // Drop a content heading that merely repeats the block title.
+  let segs = textSegments;
+  if (title && segs[0]?.type === "heading") {
+    const h = stripMd(segs[0].text || "").toLowerCase();
+    const t = title.replace(/^\d+\s*[\u2014\u2013\-]\s*/, "").toLowerCase();
+    if (h === t || h === title.toLowerCase()) {
+      segs = segs.slice(1);
+    }
+  }
+
   target.push({
-    type: "proseImage",
+    type: "proseBlock",
+    title,
+    textSegments: segs,
     imageUrl: url,
     alt: extracted.alt || "",
   });
 }
 
-/** Drop proseImage segments whose URL already appears in the Diagrams list. */
+/** Drop / detach prose images whose URL already appears in the Diagrams list. */
 function pruneProseImagesAlreadyInDiagrams(segments, diagrams) {
   const diagramUrls = new Set(
     (Array.isArray(diagrams) ? diagrams : [])
@@ -936,15 +1084,27 @@ function pruneProseImagesAlreadyInDiagrams(segments, diagrams) {
       .filter(Boolean)
   );
   if (diagramUrls.size === 0) return Array.isArray(segments) ? segments : [];
-  return (Array.isArray(segments) ? segments : []).filter((seg) => {
-    if (!seg || seg.type !== "proseImage") return true;
-    return !diagramUrls.has(String(seg.imageUrl || "").trim());
-  });
+  const out = [];
+  for (const seg of Array.isArray(segments) ? segments : []) {
+    if (!seg) continue;
+    if (seg.type === "proseImage") {
+      if (!diagramUrls.has(String(seg.imageUrl || "").trim())) out.push(seg);
+      continue;
+    }
+    if (seg.type === "proseBlock" && diagramUrls.has(String(seg.imageUrl || "").trim())) {
+      // Keep title/text near content; diagram section owns the image.
+      if (seg.title) out.push({ type: "heading", text: seg.title });
+      (seg.textSegments || []).forEach((s) => out.push(s));
+      continue;
+    }
+    out.push(seg);
+  }
+  return out;
 }
 
 /**
- * Resolve proseImage segment sources via the shared safe resolver.
- * Unresolvable images are dropped (text remains; PDF stays valid).
+ * Resolve proseBlock / legacy proseImage sources via the shared safe resolver.
+ * Unresolvable images are dropped (text/title remain; PDF stays valid).
  * @param {Array} segments
  * @param {{ fetchImpl?: typeof fetch }} [opts]
  */
@@ -953,7 +1113,28 @@ async function resolveProseImageSegments(segments, opts = {}) {
   const out = [];
   let embedded = 0;
   for (const seg of list) {
-    if (!seg || seg.type !== "proseImage") {
+    if (!seg) continue;
+    if (seg.type === "proseBlock") {
+      const imageUrl = String(seg.imageUrl || "").trim();
+      if (!imageUrl || embedded >= MAX_PROSE_IMAGES) {
+        out.push({ ...seg, imageUrl: "", source: null });
+        continue;
+      }
+      let source = null;
+      try {
+        source = await resolveLessonImageForPdf(imageUrl, opts);
+      } catch {
+        source = null;
+      }
+      if (!source) {
+        out.push({ ...seg, imageUrl: "", source: null });
+        continue;
+      }
+      out.push({ ...seg, source });
+      embedded += 1;
+      continue;
+    }
+    if (seg.type !== "proseImage") {
       out.push(seg);
       continue;
     }
@@ -974,39 +1155,188 @@ async function resolveProseImageSegments(segments, opts = {}) {
 }
 
 /**
- * Draw a prose image below its related text. Never throws.
+ * Open + scale a prose image. Returns null on failure.
+ * @param {PDFKit.PDFDocument} doc
+ * @param {{ kind?: string, path?: string, buffer?: Buffer }|null} source
+ */
+function openScaledProseImage(doc, source) {
+  if (!source) return null;
+  try {
+    const openTarget = source.kind === "buffer" ? source.buffer : source.path;
+    if (!openTarget) return null;
+    const img = doc.openImage(openTarget);
+    const { imgW, imgH } = scaleProseImageSize(img);
+    return { img, imgW, imgH };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Render text segments into a column. Returns the y after the last line.
+ * @param {PDFKit.PDFDocument} doc
+ * @param {Array} segments
+ * @param {{ x: number, width: number, startY: number }} box
+ */
+function renderTextSegmentsInBox(doc, segments, box) {
+  const x = box.x;
+  const width = box.width;
+  let y = box.startY;
+  const list = Array.isArray(segments) ? segments : [];
+
+  for (const seg of list) {
+    if (!seg) continue;
+    if (typeof seg === "string") {
+      const t = stripMd(seg);
+      if (!t) continue;
+      doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#334155");
+      doc.text(`• ${t}`, x, y, { width: width - 4, lineGap: LINE_GAP });
+      y = doc.y + 4;
+      continue;
+    }
+    const type = seg.type || "paragraph";
+    const text = segmentText(seg);
+    if (!text) continue;
+    if (type === "heading") {
+      doc.fontSize(FONT_HEADING).font("Helvetica-Bold").fillColor("#1e293b");
+      doc.text(text, x, y, { width, lineGap: LINE_GAP });
+      y = doc.y + 6;
+      continue;
+    }
+    if (type === "boldLabel") {
+      doc.fontSize(FONT_BODY).font("Helvetica-Bold").fillColor("#1e293b");
+      doc.text(text, x, y, { width, lineGap: LINE_GAP });
+      y = doc.y + 4;
+      continue;
+    }
+    if (type === "bullet") {
+      doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#334155");
+      doc.text(`• ${text}`, x, y, { width: width - 4, indent: 4, lineGap: LINE_GAP });
+      y = doc.y + 3;
+      continue;
+    }
+    if (type === "numbered") {
+      const n = seg.n != null ? seg.n : 1;
+      doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#334155");
+      doc.text(`${n}. ${text}`, x, y, { width: width - 4, indent: 4, lineGap: LINE_GAP });
+      y = doc.y + 3;
+      continue;
+    }
+    doc.fontSize(FONT_BODY).font("Helvetica").fillColor("#334155");
+    doc.text(text, x, y, { width, lineGap: LINE_GAP });
+    y = doc.y + 4;
+  }
+  return y;
+}
+
+/**
+ * Draw a grouped prose block: title + text + image kept together.
+ * Preferred: text left / image right. Fallback: title → image → text.
+ * Never renders text then orphans the image on the next page.
+ * @param {PDFKit.PDFDocument} doc
+ * @param {object} block
+ */
+function addProseBlockGrouped(doc, block) {
+  const title = stripMd(block?.title || "");
+  const textSegs = Array.isArray(block?.textSegments) ? block.textSegments : [];
+  const imgMeta = openScaledProseImage(doc, block?.source || null);
+  const imgSize = imgMeta ? { imgW: imgMeta.imgW, imgH: imgMeta.imgH } : null;
+
+  const minH = estimateProseBlockMinHeight(doc, { title, textSegments: textSegs }, imgSize);
+  ensureSpace(doc, minH);
+
+  if (title) {
+    doc.fontSize(FONT_HEADING).font("Helvetica-Bold").fillColor("#1e293b");
+    doc.text(title, MARGIN, doc.y, { width: CONTENT_WIDTH, lineGap: LINE_GAP });
+    doc.moveDown(0.25);
+  }
+
+  if (!imgMeta) {
+    if (textSegs.length) {
+      const endY = renderTextSegmentsInBox(doc, textSegs, {
+        x: MARGIN,
+        width: CONTENT_WIDTH,
+        startY: doc.y,
+      });
+      doc.y = endY + 4;
+    }
+    doc.moveDown(0.2);
+    return;
+  }
+
+  const sideBySide = canUseProseSideBySide(imgMeta.imgW);
+  if (sideBySide) {
+    const startY = doc.y;
+    const textWidth = CONTENT_WIDTH - imgMeta.imgW - PROSE_COL_GAP;
+    const textEndY = renderTextSegmentsInBox(doc, textSegs, {
+      x: MARGIN,
+      width: textWidth,
+      startY,
+    });
+    const imgX = MARGIN + textWidth + PROSE_COL_GAP;
+    try {
+      doc.image(imgMeta.img, imgX, startY, { width: imgMeta.imgW, height: imgMeta.imgH });
+    } catch {
+      /* text already drawn */
+    }
+    doc.y = Math.max(textEndY, startY + imgMeta.imgH) + 8;
+    doc.moveDown(0.15);
+    return;
+  }
+
+  // Fallback: heading (already drawn) → image → text on the same page group.
+  try {
+    const x = MARGIN + (CONTENT_WIDTH - imgMeta.imgW) / 2;
+    doc.image(imgMeta.img, x, doc.y, { width: imgMeta.imgW, height: imgMeta.imgH });
+    doc.y += imgMeta.imgH + 6;
+  } catch {
+    /* continue with text */
+  }
+  if (textSegs.length) {
+    const endY = renderTextSegmentsInBox(doc, textSegs, {
+      x: MARGIN,
+      width: CONTENT_WIDTH,
+      startY: doc.y,
+    });
+    doc.y = endY + 4;
+  }
+  doc.moveDown(0.15);
+}
+
+/**
+ * Legacy detached prose image (should be rare after grouping).
  * @param {PDFKit.PDFDocument} doc
  * @param {{ source?: object|null }} seg
  */
 function addProseImageBelow(doc, seg) {
-  const source = seg?.source || null;
-  if (!source) return;
-
-  let img = null;
-  let imgW = 0;
-  let imgH = 0;
+  const imgMeta = openScaledProseImage(doc, seg?.source || null);
+  if (!imgMeta) return;
+  ensureSpace(doc, imgMeta.imgH + 20);
+  doc.moveDown(0.15);
   try {
-    const openTarget = source.kind === "buffer" ? source.buffer : source.path;
-    if (!openTarget) return;
-    img = doc.openImage(openTarget);
-    const scale = Math.min(CONTENT_WIDTH / img.width, IMAGE_MAX_HEIGHT / img.height, 1);
-    imgW = Math.max(1, img.width * scale);
-    imgH = Math.max(1, img.height * scale);
+    const x = MARGIN + (CONTENT_WIDTH - imgMeta.imgW) / 2;
+    doc.image(imgMeta.img, x, doc.y, { width: imgMeta.imgW, height: imgMeta.imgH });
+    doc.y += imgMeta.imgH + 6;
   } catch {
     return;
   }
-  if (!img || !imgW || !imgH) return;
+  doc.moveDown(0.15);
+}
 
-  ensureSpace(doc, Math.min(imgH + 24, CONTENT_BOTTOM - MARGIN - 20));
-  doc.moveDown(0.2);
-  try {
-    const x = MARGIN + (CONTENT_WIDTH - imgW) / 2;
-    doc.image(img, x, doc.y, { width: imgW, height: imgH });
-    doc.y += imgH + 8;
-  } catch {
-    return;
+/** Flatten proseBlock/proseImage markers to plain text if resolve fails entirely. */
+function flattenUnresolvedProseBlocks(segments) {
+  const out = [];
+  for (const seg of Array.isArray(segments) ? segments : []) {
+    if (!seg) continue;
+    if (seg.type === "proseImage") continue;
+    if (seg.type === "proseBlock") {
+      if (seg.title) out.push({ type: "heading", text: seg.title });
+      (seg.textSegments || []).forEach((s) => out.push(s));
+      continue;
+    }
+    out.push(seg);
   }
-  doc.moveDown(0.25);
+  return out;
 }
 
 /**
@@ -1265,9 +1595,9 @@ async function renderLessonRevisionPackPdf(lesson, opts = {}) {
       fetchImpl: opts.fetchImpl,
     });
   } catch {
-    keyLearning = (sections.keyLearning || []).filter((s) => !s || s.type !== "proseImage");
-    examTips = (sections.examTips || []).filter((s) => !s || s.type !== "proseImage");
-    commonMistakes = (sections.commonMistakes || []).filter((s) => !s || s.type !== "proseImage");
+    keyLearning = flattenUnresolvedProseBlocks(sections.keyLearning);
+    examTips = flattenUnresolvedProseBlocks(sections.examTips);
+    commonMistakes = flattenUnresolvedProseBlocks(sections.commonMistakes);
   }
 
   return new Promise((resolve, reject) => {
@@ -1403,7 +1733,13 @@ module.exports = {
   collectFollowingContentForHeading,
   ensureHeadingKeepWithContent,
   extractFirstProseImage,
+  formatProseBlockTitle,
+  scaleProseImageSize,
+  canUseProseSideBySide,
+  estimateProseBlockMinHeight,
   MAX_PROSE_IMAGES,
+  PROSE_IMAGE_MAX_WIDTH,
+  PROSE_IMAGE_MAX_HEIGHT,
   HEADING_KEEP_MIN_BULLETS,
   CONTENT_BOTTOM,
   MARGIN,

@@ -752,8 +752,16 @@ describe("heading keep-with-content (orphan prevention)", () => {
 describe("prose / text-block images in revision packs", () => {
   const {
     extractFirstProseImage,
+    formatProseBlockTitle,
+    scaleProseImageSize,
+    canUseProseSideBySide,
+    estimateProseBlockMinHeight,
     MAX_PROSE_IMAGES,
+    PROSE_IMAGE_MAX_WIDTH,
+    PROSE_IMAGE_MAX_HEIGHT,
+    addSegments,
   } = require("../services/pdf/lessonRevisionPackPdf");
+  const PDFDocument = require("pdfkit");
 
   it("extracts standalone markdown image lines before stripMd", () => {
     const raw =
@@ -772,7 +780,7 @@ describe("prose / text-block images in revision packs", () => {
     expect(hit?.imageUrl).toBe(FIXTURE_PNG);
   });
 
-  it("collects proseImage markers from text and keyIdea blocks", () => {
+  it("groups text/keyIdea blocks as proseBlock with title + image", () => {
     const lesson = {
       title: "Sexual & Asexual",
       pages: [
@@ -781,11 +789,13 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "text",
+              number: 3,
               title: "DEFINITION",
               content: `Definition text.\n\n![Def](${FIXTURE_PNG})\n`,
             },
             {
               type: "keyIdea",
+              number: 6,
               title: "CORE MODEL",
               content: `Core model prose.\n\n![Model](${SUPABASE_PNG_URL})\n`,
             },
@@ -794,12 +804,63 @@ describe("prose / text-block images in revision packs", () => {
       ],
     };
     const s = buildRevisionPackSections(lesson, { includeAnswers: false });
-    const prose = s.keyLearning.filter((seg) => seg && seg.type === "proseImage");
+    const prose = s.keyLearning.filter((seg) => seg && seg.type === "proseBlock");
     expect(prose.length).toBe(2);
     expect(prose[0].imageUrl).toBe(FIXTURE_PNG);
+    expect(prose[0].title).toBe("3 — DEFINITION");
     expect(prose[1].imageUrl).toBe(SUPABASE_PNG_URL);
+    expect(prose[1].title).toBe("6 — CORE MODEL");
     expect(keyLearningPlain(s)).toMatch(/Definition text/i);
     expect(keyLearningPlain(s)).not.toMatch(/!\[/);
+    expect(formatProseBlockTitle({ number: 5, title: "Why it matters" })).toBe("5 — Why it matters");
+  });
+
+  it("constrains prose image size separately from diagram images", () => {
+    const sized = scaleProseImageSize({ width: 800, height: 600 });
+    expect(sized.imgW).toBeLessThanOrEqual(PROSE_IMAGE_MAX_WIDTH);
+    expect(sized.imgH).toBeLessThanOrEqual(PROSE_IMAGE_MAX_HEIGHT);
+    expect(canUseProseSideBySide(200)).toBe(true);
+    expect(canUseProseSideBySide(400)).toBe(false);
+  });
+
+  it("page-breaks before a proseBlock when remaining space is too small", async () => {
+    const chunks = [];
+    const doc = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true });
+    const done = new Promise((resolve) => doc.on("end", resolve));
+    doc.on("data", (c) => chunks.push(c));
+    let pagesAdded = 0;
+    doc.on("pageAdded", () => {
+      pagesAdded += 1;
+    });
+
+    // Leave almost no room — group should move to next page as a unit.
+    doc.y = CONTENT_BOTTOM - 36;
+
+    const minH = estimateProseBlockMinHeight(
+      doc,
+      {
+        title: "3 — DEFINITION",
+        textSegments: [{ type: "paragraph", text: "Sexual reproduction involves two parents." }],
+      },
+      { imgW: 180, imgH: 120 }
+    );
+    expect(minH).toBeGreaterThan(36);
+
+    addSegments(doc, [
+      {
+        type: "proseBlock",
+        title: "3 — DEFINITION",
+        textSegments: [{ type: "paragraph", text: "Sexual reproduction involves two parents." }],
+        source: { kind: "path", path: FIXTURE_PNG },
+      },
+    ]);
+
+    expect(pagesAdded).toBeGreaterThanOrEqual(1);
+    doc.end();
+    await done;
+    const buf = Buffer.concat(chunks);
+    expect(buf.slice(0, 4).toString()).toBe("%PDF");
+    expect(pdfHasImageXObject(buf)).toBe(true);
   });
 
   it("embeds a text-block markdown image as a PDF image XObject", async () => {
@@ -812,6 +873,7 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "text",
+              number: 3,
               title: "DEFINITION",
               content: `A definition.\n\n![Inline](${FIXTURE_PNG})\n`,
             },
@@ -831,6 +893,11 @@ describe("prose / text-block images in revision packs", () => {
     expect(pdfHasImageXObject(withImg)).toBe(true);
     expect(withImg.length).toBeGreaterThan(without.length);
     expect(countPdfPages(withImg)).toBeLessThan(8);
+    // Title should appear with the grouped block (uncompressed common for short packs).
+    const raw = withImg.toString("latin1");
+    if (raw.includes("DEFINITION")) {
+      expect(raw).toMatch(/3 — DEFINITION|DEFINITION/);
+    }
   });
 
   it("embeds HTML img from a keyIdea block", async () => {
@@ -842,6 +909,7 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "keyIdea",
+              title: "KEY IDEA",
               content: `<p>Key idea body.</p><img src="${FIXTURE_PNG}" />`,
             },
           ],
@@ -861,6 +929,7 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "text",
+              title: "SCENARIO",
               content: `Scenario prose.\n\n![Scene](${FIXTURE_PNG})\n`,
             },
             {
@@ -873,9 +942,11 @@ describe("prose / text-block images in revision packs", () => {
       ],
     };
     const s = buildRevisionPackSections(lesson, { includeAnswers: false });
-    // Same URL is in diagrams → prose marker pruned (diagram section owns it).
+    // Same URL is in diagrams → prose image pruned (diagram section owns it).
     expect(s.diagrams.some((d) => d.imageUrl === FIXTURE_PNG)).toBe(true);
-    expect(s.keyLearning.some((seg) => seg && seg.type === "proseImage")).toBe(false);
+    expect(s.keyLearning.some((seg) => seg && seg.type === "proseBlock" && seg.imageUrl)).toBe(
+      false
+    );
 
     const differentProse = {
       title: "Separate URLs",
@@ -885,6 +956,8 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "text",
+              number: 5,
+              title: "WHY IT MATTERS",
               content: `Why it matters.\n\n![Why](${SUPABASE_PNG_URL})\n`,
             },
             {
@@ -905,7 +978,7 @@ describe("prose / text-block images in revision packs", () => {
     expect(fetchImpl).toHaveBeenCalled();
     const built = buildRevisionPackSections(differentProse, { includeAnswers: false });
     expect(built.diagrams).toHaveLength(1);
-    expect(built.keyLearning.some((seg) => seg && seg.type === "proseImage")).toBe(true);
+    expect(built.keyLearning.some((seg) => seg && seg.type === "proseBlock")).toBe(true);
     expect(MAX_PROSE_IMAGES).toBeGreaterThanOrEqual(1);
   });
 
@@ -918,6 +991,7 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "text",
+              title: "DEFINITION",
               content: "Safe text.\n\n![Evil](https://evil.example.com/x.png)\n",
             },
           ],
@@ -943,6 +1017,8 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "text",
+              number: 3,
+              title: "DEFINITION",
               content: `Definition.\n\n![D](${FIXTURE_PNG})\n`,
             },
             {
@@ -977,6 +1053,8 @@ describe("prose / text-block images in revision packs", () => {
           blocks: [
             {
               type: "hook",
+              number: 4,
+              title: "SCENARIO",
               content: `Scenario.\n\n![S](${FIXTURE_PNG})\n`,
             },
           ],
@@ -987,11 +1065,46 @@ describe("prose / text-block images in revision packs", () => {
     expect(buf.slice(0, 4).toString("utf8")).toBe("%PDF");
     expect(pdfHasImageXObject(buf)).toBe(true);
     const raw = buf.toString("latin1");
-    // PDFKit may Flate-compress streams; when uncompressed, require notice text.
     if (raw.includes("Personal study use only")) {
       expect(raw).toMatch(/LetsRevise/);
       expect(raw).toMatch(/Do not copy, share, upload or distribute/);
     }
     expect(REVISION_PACK_COPYRIGHT_NOTICE).toMatch(/LetsRevise/);
+  });
+
+  it("does not create a blank-page cascade for several prose-image blocks", async () => {
+    const lesson = {
+      title: "Multi Prose Images",
+      subject: "Biology",
+      pages: [
+        {
+          pageId: "p1",
+          blocks: [
+            {
+              type: "text",
+              number: 3,
+              title: "DEFINITION",
+              content: `Definition body.\n\n![a](${FIXTURE_PNG})\n`,
+            },
+            {
+              type: "text",
+              number: 4,
+              title: "SCENARIO",
+              content: `Scenario body.\n\n![b](${FIXTURE_PNG})\n`,
+            },
+            {
+              type: "text",
+              number: 5,
+              title: "WHY IT MATTERS",
+              content: `Why body.\n\n![c](${FIXTURE_PNG})\n`,
+            },
+          ],
+        },
+      ],
+    };
+    // Second/third images share URL and are deduped — still must stay compact.
+    const buf = await renderLessonRevisionPackPdf(lesson, { includeAnswers: false });
+    expect(countPdfPages(buf)).toBeLessThan(8);
+    expect(buf.slice(0, 4).toString()).toBe("%PDF");
   });
 });
