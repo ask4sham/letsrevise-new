@@ -211,6 +211,11 @@ export type DragDropMatchBlockData = {
 export type DragDropMatchBlockProps = {
   block: DragDropMatchBlockData;
   resolveImageUrl?: (url: string) => string;
+  /**
+   * When true, omit the block-level title (outer SS1 heading already labels the frame).
+   * Instructions / panel titles stay visible.
+   */
+  hideTitle?: boolean;
 };
 
 function shuffleInPlace<T>(arr: T[]): T[] {
@@ -224,7 +229,11 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 /** Placed card is identified by the source pair id (one answer card per pair). Target id = row id (text) or drop zone id (diagram). */
 type Placements = Record<string, string | null>;
 
-export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBlockProps) {
+export function DragDropMatchBlock({
+  block,
+  resolveImageUrl,
+  hideTitle = false,
+}: DragDropMatchBlockProps) {
   const rootRef = useRef<HTMLElement | null>(null);
   const textToImageRequested = isDragDropTextToImageMode(block.matchMode);
   const diagramMode =
@@ -673,7 +682,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
           </div>
           <div>
             <div className="drag-drop-match__header">
-              {title ? <h3 className="drag-drop-match__title">{title}</h3> : null}
+              {!hideTitle && title ? <h3 className="drag-drop-match__title">{title}</h3> : null}
             </div>
             <span className="drag-drop-match__tag">
               {diagramMode

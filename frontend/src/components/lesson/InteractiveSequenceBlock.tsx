@@ -41,6 +41,11 @@ export type InteractiveSequenceBlockProps = {
   enableAiTestMe?: boolean;
   /** Student view hides empty image placeholders. */
   viewMode?: "student" | "teacher" | "full";
+  /**
+   * When true, omit the block-level main title (outer SS1 heading already labels the frame).
+   * Step titles / Test me content are unchanged.
+   */
+  hideBlockTitle?: boolean;
 };
 
 /**
@@ -57,6 +62,7 @@ export function InteractiveSequenceBlock({
   subject,
   enableAiTestMe = true,
   viewMode = "full",
+  hideBlockTitle = false,
 }: InteractiveSequenceBlockProps): React.ReactElement {
   const list = Array.isArray(steps) && steps.length > 0 ? steps : [];
   const [active, setActive] = useState(0);
@@ -266,7 +272,9 @@ export function InteractiveSequenceBlock({
   if (list.length === 0) {
     return (
       <div className="interactive-sequence">
-        {blockTitle.trim() ? <h3 className="interactive-sequence__main-title">{blockTitle}</h3> : null}
+        {!hideBlockTitle && blockTitle.trim() ? (
+          <h3 className="interactive-sequence__main-title">{blockTitle}</h3>
+        ) : null}
         <p className="interactive-sequence__empty">No steps in this activity yet.</p>
       </div>
     );
@@ -289,7 +297,9 @@ export function InteractiveSequenceBlock({
       aria-label={blockTitle.trim() || "Step-by-step activity"}
       onKeyDown={onArrowNav}
     >
-      {blockTitle.trim() ? <h3 className="interactive-sequence__main-title">{blockTitle}</h3> : null}
+      {!hideBlockTitle && blockTitle.trim() ? (
+        <h3 className="interactive-sequence__main-title">{blockTitle}</h3>
+      ) : null}
       <InteractiveSequenceIntro
         intro={intro}
         className="interactive-sequence__intro"

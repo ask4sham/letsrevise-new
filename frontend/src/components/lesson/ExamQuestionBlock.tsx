@@ -25,6 +25,10 @@ export type ExamQuestionBlockProps = {
   missing?: boolean;
   mode?: ExamQuestionBlockMode;
   presentation?: "default" | "v12";
+  /**
+   * When true, omit the inner "Exam question" chrome title (outer SS1 heading already labels the frame).
+   */
+  hideChromeTitle?: boolean;
 };
 
 function resolveMcqCorrectAnswer(q: ExamQuestion): string {
@@ -117,6 +121,7 @@ function SingleExamMcqStudentBlock({
   metaBits,
   imageUrl,
   boxStyle,
+  hideChromeTitle = false,
 }: {
   question: ExamQuestion;
   options: string[];
@@ -125,6 +130,7 @@ function SingleExamMcqStudentBlock({
   metaBits: string[];
   imageUrl: string;
   boxStyle: React.CSSProperties;
+  hideChromeTitle?: boolean;
 }): React.ReactElement {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
@@ -335,7 +341,11 @@ function SingleExamMcqStudentBlock({
   const header = (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-        <span style={{ fontWeight: 700, color: "#374151" }}>Exam question</span>
+        {!hideChromeTitle ? (
+          <span className="exam-question-block__chrome-title" style={{ fontWeight: 700, color: "#374151" }}>
+            Exam question
+          </span>
+        ) : null}
         {question.marks != null && (
           <span style={{ fontSize: 13, color: "#6b7280" }}>
             ({question.marks} {question.marks === 1 ? "mark" : "marks"})
@@ -400,6 +410,7 @@ export function ExamQuestionBlock({
   missing = false,
   mode = "student",
   presentation = "default",
+  hideChromeTitle = false,
 }: ExamQuestionBlockProps): React.ReactElement {
   const [revealed, setRevealed] = useState(false);
   const [draftAnswer, setDraftAnswer] = useState("");
@@ -471,7 +482,11 @@ export function ExamQuestionBlock({
   if (missing || !question) {
     return (
       <div style={boxStyle} className="exam-question-block">
-        <div style={{ fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>Exam Question</div>
+        {!hideChromeTitle ? (
+          <div className="exam-question-block__chrome-title" style={{ fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>
+            Exam Question
+          </div>
+        ) : null}
         <p style={{ margin: 0, color: "#9ca3af", fontSize: 14 }}>
           This exam question is no longer available. It may have been removed or is not published yet.
         </p>
@@ -481,7 +496,13 @@ export function ExamQuestionBlock({
 
   if (isCompositeQuestion(question)) {
     return (
-      <CompositeExamShell question={question} mode={mode} presentation={presentation} boxStyle={boxStyle} />
+      <CompositeExamShell
+        question={question}
+        mode={mode}
+        presentation={presentation}
+        boxStyle={boxStyle}
+        hideChromeTitle={hideChromeTitle}
+      />
     );
   }
 
@@ -538,6 +559,7 @@ export function ExamQuestionBlock({
           explanation={modelAnswer || undefined}
           presentation={presentation}
           headingLabel="Exam question"
+          hideHeadingLabel={hideChromeTitle}
         />
       </>
     );
@@ -558,6 +580,7 @@ export function ExamQuestionBlock({
         metaBits={metaBits}
         imageUrl={imageUrl}
         boxStyle={boxStyle}
+        hideChromeTitle={hideChromeTitle}
       />
     );
   }
@@ -565,7 +588,11 @@ export function ExamQuestionBlock({
   const header = (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-        <span style={{ fontWeight: 700, color: "#374151" }}>Exam question</span>
+        {!hideChromeTitle ? (
+          <span className="exam-question-block__chrome-title" style={{ fontWeight: 700, color: "#374151" }}>
+            Exam question
+          </span>
+        ) : null}
         {question.marks != null && (
           <span style={{ fontSize: 13, color: "#6b7280" }}>
             ({question.marks} {question.marks === 1 ? "mark" : "marks"})

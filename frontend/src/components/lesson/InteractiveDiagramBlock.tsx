@@ -50,6 +50,10 @@ export type InteractiveDiagramBlockProps = {
   onImageClickToPlace?: (xPercent: number, yPercent: number) => void;
   /** See {@link InteractiveDiagramViewMode}. Omit or use `full`/`student` for normal lesson view. */
   viewMode?: InteractiveDiagramViewMode;
+  /**
+   * When true, omit the block-level title (outer SS1 heading already labels the frame).
+   */
+  hideBlockTitle?: boolean;
 };
 
 function clampPct(n: number): number {
@@ -96,6 +100,7 @@ export function InteractiveDiagramBlock({
   subject,
   onImageClickToPlace,
   viewMode,
+  hideBlockTitle = false,
 }: InteractiveDiagramBlockProps): React.ReactElement {
   const [activeHotspotId, setActiveHotspotId] = useState<string | null>(null);
   const [generatedQuestion, setGeneratedQuestion] = useState<HotspotMcqPayload | null>(null);
@@ -250,7 +255,9 @@ export function InteractiveDiagramBlock({
 
   return (
     <div className="interactive-diagram">
-      {blockTitle.trim() ? <h3 className="interactive-diagram__title">{blockTitle}</h3> : null}
+      {!hideBlockTitle && blockTitle.trim() ? (
+        <h3 className="interactive-diagram__title">{blockTitle}</h3>
+      ) : null}
       <LessonRichText text={intro} className="interactive-diagram__intro" />
 
       <div className="interactive-diagram__layout">

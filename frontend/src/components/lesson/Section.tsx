@@ -48,15 +48,17 @@ export function Section({
   variant?: "card" | "plain";
 }) {
   return (
-    <section id={id} style={SECTION_STYLE}>
+    <section id={id} className="lesson-view-section" style={SECTION_STYLE}>
       <div style={HEADER_ROW_STYLE}>
         <h2 style={TITLE_STYLE}>{title}</h2>
         {right}
       </div>
       {variant === "card" ? (
-        <div style={CARD_WRAPPER_STYLE}>{children}</div>
+        <div className="lesson-section-card" style={CARD_WRAPPER_STYLE}>
+          {children}
+        </div>
       ) : (
-        children
+        <div className="lesson-section-plain">{children}</div>
       )}
     </section>
   );
