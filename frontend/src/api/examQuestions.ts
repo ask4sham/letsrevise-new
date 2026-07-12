@@ -209,3 +209,74 @@ export async function aiRewriteExamQuestion(id: string, action: string): Promise
   }
   return res.data.question;
 }
+
+export type CompositeAiDraftDifficulty = "easy" | "medium" | "hard";
+
+export type CompositeAiDraftPart = {
+  label: string;
+  type: string;
+  marks: number;
+  questionText: string;
+  markSchemeLines: string[];
+  commandWord?: string;
+  skill?: string;
+};
+
+export type CompositeAiDraft = {
+  title: string;
+  sharedStem: string;
+  difficulty: string;
+  totalMarks: number;
+  parts: CompositeAiDraftPart[];
+  warnings?: string[];
+};
+
+export type GenerateCompositeQuestionDraftPayload = {
+  subject: string;
+  examBoard: string;
+  level: string;
+  topic: string;
+  topicKey: string;
+  difficulty: CompositeAiDraftDifficulty;
+  title?: string;
+  hasImage?: boolean;
+};
+
+/**
+ * POST /exam-questions/ai-draft-composite — returns draft JSON only (no DB write).
+ */
+export async function generateCompositeQuestionDraft(
+  payload: GenerateCompositeQuestionDraftPayload
+): Promise<CompositeAiDraft> {
+  try {
+    const res = await api.post<{
+      success?: boolean;
+      draft?: CompositeAiDraft;
+      msg?: string;
+      error?: string;
+      issues?: string[];
+      code?: string;
+    }>("/exam-questions/ai-draft-composite", payload);
+    if (!res.data?.success || !res.data.draft) {
+      const issues = Array.isArray(res.data?.issues) && res.data.issues.length
+        ? ` (${res.data.issues.slice(0, 3).join(", ")})`
+        : "";
+      throw new Error((res.data?.msg || res.data?.error || "Failed to generate composite draft") + issues);
+    }
+    return res.data.draft;
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "response" in err) {
+      const ax = err as { response?: { status?: number; data?: { msg?: string; error?: string; issues?: string[] } } };
+      const status = ax.response?.status;
+      const data = ax.response?.data;
+      if (status === 429) {
+        throw new Error(data?.msg || data?.error || "Too many AI draft requests. Try again in a minute.");
+      }
+      const issues = Array.isArray(data?.issues) && data.issues.length
+        ? ` (${data.issues.slice(0, 3).join(", ")})`
+        : "";
+      throw new Error((data?.msg || data?.error || "Failed to generate composite draft") + issues);
+    }
+    throw err instanceof Error ? err : new Error("Failed to generate composite draft");
+  }
+}
