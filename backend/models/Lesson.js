@@ -457,6 +457,8 @@ const LessonSchema = new mongoose.Schema(
           markScheme: { type: [String], default: undefined },
 
           explanation: { type: String, default: "" },
+          /** Optional skill/purpose tag for variety contract (recall, misconception, …) */
+          purpose: { type: String, default: undefined },
           tags: { type: [String], default: [] },
           difficulty: { type: Number, min: 1, max: 3, default: 1 },
           marks: { type: Number, default: 1 },
@@ -483,6 +485,7 @@ const LessonSchema = new mongoose.Schema(
           correctAnswer: { type: String, default: "" },
           markScheme: { type: [String], default: undefined },
           explanation: { type: String, default: "" },
+          purpose: { type: String, default: undefined },
           tags: { type: [String], default: [] },
           difficulty: { type: Number, min: 1, max: 3, default: 1 },
           marks: { type: Number, default: 1 },

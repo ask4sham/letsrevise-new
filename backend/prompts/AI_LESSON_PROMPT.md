@@ -75,15 +75,28 @@ Generate a **single-page** lesson. Put all content in `blocks[]` on that page. U
 13. **Self-check** (selfCheck) — Exactly one self-check **activity**. It must contain **at least 3 questions** (use a `questions` array). Do not output Question 1/1.
 14. **Quiz / revision bank** — Persist at least **5 unique MCQ questions** on the lesson quiz bank for Quiz Page and Revision Practice. Do not clone self-check/checkpoint stems into the quiz bank.
 
-ACTIVITY QUESTION COUNT CONTRACT (MANDATORY — fail closed if unmet after repair):
-- each SELF-CHECK ≥ 3 questions
-- each CHECKPOINT ≥ 3 questions
-- QUIZ PAGE source bank ≥ 5 unique questions
-- REVISION PRACTICE source bank ≥ 5 unique questions
+ACTIVITY QUESTION COUNT + VARIETY CONTRACT (MANDATORY — fail closed if unmet after repair):
+- each SELF-CHECK ≥ 3 questions with different purposes: recall/identify + misconception + explain/application
+- each CHECKPOINT ≥ 3 questions with different purposes: understanding + application/scenario + explanation/reasoning
+- QUIZ PAGE source bank ≥ 5 unique MCQs with varied purposes (recall, definition, comparison, misconception, application/scenario) — not five clones
+- REVISION PRACTICE source bank ≥ 5 unique questions covering at least four of: recall, misconception, application, comparison, explain why, exam-style, harder/stretch
+- Prefer optional `purpose` on each question item (recall | definition | misconception | application | comparison | explain | calculate | evaluate | sequence | exam_style)
+- Do not create repeated stems with the same opening phrase or the same command word across an activity
+- Do not create five “Which statement best…” MCQs
+- Do not create repeated “Explain one key idea…” questions
 - questions must be varied (no exact/near clones across self-check, checkpoint, revision, quiz)
 - ban generic placeholder stems such as "Which statement best explains a key idea about…", "Which statement best matches this topic?", "A correct statement about this topic is…"
-- include at least one harder/application item where supported
 - do not output Question 1/1 style pools
+
+Poor (same style repeated):
+1. Which statement best explains gametes?
+2. Which statement best explains fertilisation?
+3. Which statement best explains zygotes?
+
+Better (varied purposes):
+1. Identify the cell produced by meiosis. (recall)
+2. Which statement shows a common misconception about fertilisation? (misconception)
+3. Explain why fertilisation restores the chromosome number. (explain)
 
 ---
 
@@ -94,8 +107,8 @@ ACTIVITY QUESTION COUNT CONTRACT (MANDATORY — fail closed if unmet after repai
 - **examTip** — Exam technique. Match the board's mark scheme style.
 - **commonMistake** — **Minimum 3.** Misconception → why wrong → correct understanding.
 - **stretch** (Higher only) — Deeper/extension content. Omit for Foundation.
-- **checkpoint** — One activity per draft with **≥ 3 questions**. Preferred shape: `questions: [{ prompt, questionType, options, correctAnswer, explanation }, ...]`. Legacy single `prompt` fields remain readable but new generation must use `questions`.
-- **selfCheck** — One activity per draft with **≥ 3 questions** in `questions` (same item shape as checkpoint).
+- **checkpoint** — One activity per draft with **≥ 3 questions**. Preferred shape: `questions: [{ prompt, questionType, options, correctAnswer, explanation, purpose }, ...]`. Legacy single `prompt` fields remain readable but new generation must use `questions`. Mix purposes (understanding, application, explain).
+- **selfCheck** — One activity per draft with **≥ 3 questions** in `questions` (same item shape as checkpoint). Mix purposes (recall, misconception, explain/application). UI supports mcq and short/reveal.
 
 ---
 

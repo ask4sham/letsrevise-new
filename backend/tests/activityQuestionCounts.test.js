@@ -1,11 +1,12 @@
 /**
- * Backend tests: activity question-count validator + repair + fail-closed contract.
+ * Backend tests: activity question-count + variety validator + repair + fail-closed contract.
  */
 const {
   validateLessonActivityQuestionCounts,
   MIN_SELF_CHECK,
   MIN_CHECKPOINT,
   MIN_QUIZ_POOL,
+  inferQuestionPurpose,
 } = require("../utils/validateLessonActivityQuestionCounts");
 const {
   repairLessonActivityQuestionCounts,
@@ -71,6 +72,17 @@ function validLesson() {
   return { pages: repaired.pages, quiz: repaired.quiz };
 }
 
+function fiveSamePatternMcqs() {
+  return Array.from({ length: 5 }, (_, i) => ({
+    id: String(i),
+    type: "mcq",
+    question: `Which statement best explains idea ${i + 1} about fertilisation?`,
+    options: ["A", "B", "C", "D"],
+    correctAnswer: "A",
+    purpose: "recall",
+  }));
+}
+
 describe("validateLessonActivityQuestionCounts", () => {
   test("rejects self-check with 1 question", () => {
     const lesson = weakLesson();
@@ -105,7 +117,6 @@ describe("validateLessonActivityQuestionCounts", () => {
         },
       ],
     };
-    // Strip to keep block counts high but quiz low — re-validate after mutating quiz only
     const r = validateLessonActivityQuestionCounts(lesson);
     expect(r.ok).toBe(false);
     expect(r.issues.some((i) => i.startsWith("quiz_pool_too_low"))).toBe(true);
@@ -127,9 +138,19 @@ describe("validateLessonActivityQuestionCounts", () => {
             {
               type: "selfCheck",
               questions: [
-                { prompt: stem, questionType: "short", correctAnswer: "A" },
-                { prompt: "Define a zygote.", questionType: "short", correctAnswer: "B" },
-                { prompt: "Why is haploid important?", questionType: "short", correctAnswer: "C" },
+                { prompt: stem, questionType: "short", correctAnswer: "A", purpose: "explain" },
+                {
+                  prompt: "Define a zygote.",
+                  questionType: "short",
+                  correctAnswer: "B",
+                  purpose: "definition",
+                },
+                {
+                  prompt: "A student says sperm are diploid. Explain why this is incorrect.",
+                  questionType: "short",
+                  correctAnswer: "C",
+                  purpose: "misconception",
+                },
               ],
             },
             {
@@ -140,18 +161,21 @@ describe("validateLessonActivityQuestionCounts", () => {
                   questionType: "mcq",
                   options: ["A", "B", "C", "D"],
                   correctAnswer: "A",
+                  purpose: "explain",
                 },
                 {
                   prompt: "Where do gametes fuse?",
                   questionType: "mcq",
                   options: ["Oviduct", "Liver", "Skin", "Bone"],
                   correctAnswer: "Oviduct",
+                  purpose: "recall",
                 },
                 {
-                  prompt: "What is produced by fertilisation?",
+                  prompt: "In a scenario where the oviduct is blocked, what happens to fertilisation?",
                   questionType: "mcq",
-                  options: ["Zygote", "Urea", "Sweat", "Bone"],
-                  correctAnswer: "Zygote",
+                  options: ["It is prevented", "It speeds up", "Nothing", "More zygotes"],
+                  correctAnswer: "It is prevented",
+                  purpose: "application",
                 },
               ],
             },
@@ -163,37 +187,42 @@ describe("validateLessonActivityQuestionCounts", () => {
           {
             id: "1",
             type: "mcq",
-            question: "Q1 unique?",
+            question: "What is a gamete?",
             options: ["A", "B", "C", "D"],
             correctAnswer: "A",
+            purpose: "recall",
           },
           {
             id: "2",
             type: "mcq",
-            question: "Q2 unique?",
+            question: "Which statement shows a common misconception about zygotes?",
             options: ["A", "B", "C", "D"],
             correctAnswer: "A",
+            purpose: "misconception",
           },
           {
             id: "3",
             type: "mcq",
-            question: "Q3 unique?",
+            question: "How do sperm and egg differ?",
             options: ["A", "B", "C", "D"],
             correctAnswer: "A",
+            purpose: "comparison",
           },
           {
             id: "4",
             type: "mcq",
-            question: "Q4 unique?",
+            question: "In a fertility clinic scenario, why does blocked oviduct matter?",
             options: ["A", "B", "C", "D"],
             correctAnswer: "A",
+            purpose: "application",
           },
           {
             id: "5",
             type: "mcq",
-            question: "Q5 unique?",
+            question: "Define fertilisation for an exam mark.",
             options: ["A", "B", "C", "D"],
             correctAnswer: "A",
+            purpose: "definition",
           },
         ],
       },
@@ -247,22 +276,25 @@ describe("validateLessonActivityQuestionCounts", () => {
               type: "checkpoint",
               questions: [
                 {
-                  prompt: "CP1?",
+                  prompt: "CP1 recall?",
                   questionType: "mcq",
                   options: ["A", "B", "C", "D"],
                   correctAnswer: "A",
+                  purpose: "recall",
                 },
                 {
-                  prompt: "CP2?",
+                  prompt: "In a scenario, what happens if X is missing?",
                   questionType: "mcq",
                   options: ["A", "B", "C", "D"],
                   correctAnswer: "B",
+                  purpose: "application",
                 },
                 {
-                  prompt: "CP3?",
+                  prompt: "Explain why Y is needed.",
                   questionType: "mcq",
                   options: ["A", "B", "C", "D"],
                   correctAnswer: "C",
+                  purpose: "explain",
                 },
               ],
             },
@@ -273,9 +305,10 @@ describe("validateLessonActivityQuestionCounts", () => {
         questions: Array.from({ length: 5 }, (_, i) => ({
           id: String(i),
           type: "mcq",
-          question: `Quiz ${i}?`,
+          question: `Quiz ${i} varied purpose item?`,
           options: ["A", "B", "C", "D"],
           correctAnswer: "A",
+          purpose: ["recall", "misconception", "application", "comparison", "definition"][i],
         })),
       },
     };
@@ -289,6 +322,79 @@ describe("validateLessonActivityQuestionCounts", () => {
     const r = validateLessonActivityQuestionCounts(lesson);
     expect(r.ok).toBe(true);
     expect(r.summary.quizUnique).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
+  });
+
+  test("variety rejects five same-pattern MCQs", () => {
+    const lesson = validLesson();
+    lesson.quiz = { questions: fiveSamePatternMcqs() };
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(
+      r.issues.some(
+        (i) =>
+          i.includes("activity_repeated_stem_pattern") ||
+          i.includes("activity_question_variety_too_low") ||
+          i.includes("activity_generic_placeholder_stem")
+      )
+    ).toBe(true);
+  });
+
+  test("variety rejects repeated Which statement best stems", () => {
+    const lesson = validLesson();
+    const sc = lesson.pages[0].blocks.find((b) => b.type === "selfCheck");
+    sc.questions = [
+      {
+        prompt: "Which statement best explains gametes?",
+        questionType: "short",
+        correctAnswer: "a",
+        purpose: "recall",
+      },
+      {
+        prompt: "Which statement best explains fertilisation?",
+        questionType: "short",
+        correctAnswer: "b",
+        purpose: "misconception",
+      },
+      {
+        prompt: "Which statement best explains zygotes?",
+        questionType: "short",
+        correctAnswer: "c",
+        purpose: "explain",
+      },
+    ];
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("activity_repeated_stem_pattern"))).toBe(true);
+  });
+
+  test("variety rejects all-recall activity", () => {
+    const lesson = validLesson();
+    const sc = lesson.pages[0].blocks.find((b) => b.type === "selfCheck");
+    sc.questions = [
+      { prompt: "Name a gamete.", questionType: "short", correctAnswer: "sperm", purpose: "recall" },
+      {
+        prompt: "Name a zygote feature.",
+        questionType: "short",
+        correctAnswer: "diploid",
+        purpose: "recall",
+      },
+      {
+        prompt: "Identify the oviduct.",
+        questionType: "short",
+        correctAnswer: "tube",
+        purpose: "recall",
+      },
+    ];
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(
+      r.issues.some(
+        (i) =>
+          i.includes("activity_question_variety_too_low") ||
+          i.includes("activity_missing_misconception") ||
+          i.includes("activity_missing_application")
+      )
+    ).toBe(true);
   });
 });
 
@@ -322,6 +428,41 @@ describe("repairLessonActivityQuestionCounts", () => {
     });
     expect(out.quiz.questions.length).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
     expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair replenishes with varied purposes", () => {
+    const weak = weakLesson();
+    const out = repairLessonActivityQuestionCounts(weak, {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "acrosome", "oviduct"],
+    });
+    const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
+    const purposes = new Set(sc.questions.map((q) => q.purpose || inferQuestionPurpose(q)));
+    expect(purposes.size).toBeGreaterThanOrEqual(3);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair does not add formulaic bank-N clone questions", () => {
+    const weak = weakLesson();
+    const out = repairLessonActivityQuestionCounts(weak, {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "acrosome", "oviduct"],
+    });
+    for (const q of out.quiz.questions) {
+      expect(String(q.question)).not.toMatch(/\(bank\s+\d+\)/i);
+    }
+  });
+
+  test("revision practice does not clone checkpoint stem", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "acrosome", "oviduct"],
+    });
+    const cp = out.pages[0].blocks.find((b) => b.type === "checkpoint");
+    const cpStems = new Set(cp.questions.map((q) => String(q.prompt).toLowerCase().trim()));
+    for (const q of out.quiz.questions) {
+      expect(cpStems.has(String(q.question).toLowerCase().trim())).toBe(false);
+    }
   });
 
   test("duplicate removal then replenish keeps count >= minimum", () => {
@@ -387,9 +528,14 @@ describe("repairLessonActivityQuestionCounts", () => {
     expect(out.validation.ok).toBe(true);
   });
 
+  test("generated valid activity with varied purposes passes", () => {
+    const lesson = validLesson();
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(true);
+    expect(r.summary.varietyIssueCount).toBe(0);
+  });
+
   test("fail closed when repair cannot meet contract (no topic/vocab)", () => {
-    // Force failure by validating a still-weak shape after empty repair inputs
-    // with blocks that have no extractable questions.
     const empty = {
       pages: [
         {
@@ -402,16 +548,14 @@ describe("repairLessonActivityQuestionCounts", () => {
       quiz: { questions: [] },
     };
     const out = repairLessonActivityQuestionCounts(empty, { topic: "" });
-    // With empty topic, harvestVocab may still produce weak but valid items —
-    // assert the validator fail-closed path for explicitly insufficient quiz.
     const broken = {
       pages: out.pages,
       quiz: { questions: out.quiz.questions.slice(0, 2) },
     };
     const v = validateLessonActivityQuestionCounts(broken);
     expect(v.ok).toBe(false);
-    expect(v.issues.some((i) => i.includes("quiz_pool_too_low") || i.includes("revision_pool_too_low"))).toBe(
-      true
-    );
+    expect(
+      v.issues.some((i) => i.includes("quiz_pool_too_low") || i.includes("revision_pool_too_low"))
+    ).toBe(true);
   });
 });
