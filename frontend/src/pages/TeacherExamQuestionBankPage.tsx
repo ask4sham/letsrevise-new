@@ -11,12 +11,18 @@ import {
   getSpecTopicFieldLabel,
   type SpecKey,
 } from "../api/taxonomy";
-import { aiRewriteExamQuestion, publishExamQuestion } from "../api/examQuestions";
+import { aiRewriteExamQuestion, generateCompositeQuestionDraft, publishExamQuestion } from "../api/examQuestions";
 import { getApiClientErrorMessage } from "../utils/apiErrorMessage";
 import { getExamPublishReadinessUi } from "../utils/examQuestionPublishReadinessUi";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { examBankDefaultFormFields, resolveExamQuestionLevelForSave } from "../utils/examQuestionLevelFilter";
 import { CompositePartsEditor } from "./examBank/CompositePartsEditor";
+import { CompositeAiDraftPanel } from "./examBank/CompositeAiDraftPanel";
+import {
+  applyAiCompositeDraftToFormFields,
+  compositeFormHasDraftContent,
+  type AiCompositeDifficulty,
+} from "./examBank/compositeAiDraft";
 import {
   type CompositePartForm,
   buildCompositeSaveParts,
@@ -127,6 +133,10 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [publishLoadingId, setPublishLoadingId] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [aiDraftDifficulty, setAiDraftDifficulty] = useState<AiCompositeDifficulty>("medium");
+  const [aiDraftGenerating, setAiDraftGenerating] = useState(false);
+  const [aiDraftStatus, setAiDraftStatus] = useState<string | null>(null);
+  const [aiDraftError, setAiDraftError] = useState<string | null>(null);
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
   const [form, setForm] = useState<ExamBankForm>(() => {
@@ -313,6 +323,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     setEditingId(null);
     setFormError(null);
     setImageUploadError(null);
+    setAiDraftStatus(null);
+    setAiDraftError(null);
+    setAiDraftDifficulty("medium");
     setForm(
       mode === "composite"
         ? { ...defaultForm, questionMode: "composite", parts: [makeEmptyCompositePart(0)] }
@@ -439,6 +452,53 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       alert(getApiClientErrorMessage(e, "Cleanup failed"));
     } finally {
       setPurgeBusy(false);
+    }
+  };
+
+  const handleGenerateCompositeAiDraft = async () => {
+    if (form.questionMode !== "composite") return;
+    setAiDraftError(null);
+    setAiDraftStatus(null);
+    if (!form.topicKey?.trim()) {
+      setAiDraftError("Select a topic before generating.");
+      return;
+    }
+    if (
+      compositeFormHasDraftContent({
+        title: form.title,
+        sharedStem: form.sharedStem,
+        parts: form.parts,
+      })
+    ) {
+      const ok = window.confirm(
+        "This will replace the current title, shared stem, and parts with an AI draft. Continue?"
+      );
+      if (!ok) return;
+    }
+    setAiDraftGenerating(true);
+    try {
+      const draft = await generateCompositeQuestionDraft({
+        subject: form.subject,
+        examBoard: form.examBoard,
+        level: form.level,
+        topic: form.topic,
+        topicKey: form.topicKey,
+        difficulty: aiDraftDifficulty,
+        title: form.title || undefined,
+        hasImage: Boolean(form.imageUrl?.trim()),
+      });
+      const mapped = applyAiCompositeDraftToFormFields(draft);
+      setForm((f) => ({
+        ...f,
+        title: mapped.title,
+        sharedStem: mapped.sharedStem,
+        parts: mapped.parts.length ? mapped.parts : [makeEmptyCompositePart(0)],
+      }));
+      setAiDraftStatus("AI draft filled — review before Save Draft.");
+    } catch (e: unknown) {
+      setAiDraftError(getApiClientErrorMessage(e, "Failed to generate composite draft."));
+    } finally {
+      setAiDraftGenerating(false);
     }
   };
 
@@ -1156,7 +1216,18 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 </>
               )}
               {form.questionMode === "composite" && (
-                <CompositePartsEditor form={form} setForm={setForm} />
+                <>
+                  <CompositeAiDraftPanel
+                    difficulty={aiDraftDifficulty}
+                    onDifficultyChange={setAiDraftDifficulty}
+                    onGenerate={() => void handleGenerateCompositeAiDraft()}
+                    generating={aiDraftGenerating}
+                    status={aiDraftStatus}
+                    error={aiDraftError}
+                    disabled={saving || imageUploading}
+                  />
+                  <CompositePartsEditor form={form} setForm={setForm} />
+                </>
               )}
               <div>
                 <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>

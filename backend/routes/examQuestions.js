@@ -30,6 +30,8 @@ const {
   buildTopicSelectorQueryClause,
   resolveSpecKeyForTopicQuery,
 } = require("../utils/examQuestionTopicSelectorMatch");
+const { generateCompositeExamDraft } = require("../services/generateCompositeExamDraft");
+const aiCompositeDraftRateLimit = require("../middleware/aiCompositeDraftRateLimit");
 
 /** In-memory score-on-read, optional band filter, sort (matches topic flashcards/quiz list). */
 function finalizeExamQuestionsForList(items, query) {
@@ -420,6 +422,37 @@ router.post("/bulk/purge-invalid-ai-exam-drafts", auth, async (req, res) => {
   } catch (err) {
     console.error("ExamQuestions bulk purge error:", err);
     return res.status(500).json({ success: false, msg: err.message || "Server error" });
+  }
+});
+
+// POST /api/exam-questions/ai-draft-composite — LLM draft only (no DB write)
+router.post("/ai-draft-composite", auth, aiCompositeDraftRateLimit, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ success: false, msg: "Teachers and admins only" });
+  }
+  try {
+    const draft = await generateCompositeExamDraft({
+      subject: req.body?.subject,
+      examBoard: req.body?.examBoard,
+      level: req.body?.level,
+      topic: req.body?.topic,
+      topicKey: req.body?.topicKey,
+      difficulty: req.body?.difficulty,
+      title: req.body?.title,
+      hasImage: Boolean(req.body?.hasImage),
+    });
+    return res.json({ success: true, draft });
+  } catch (err) {
+    if (err.code === "LLM_NOT_CONFIGURED" || err.code === "LLM_EMPTY" || err.code === "LLM_BAD_JSON") {
+      return res.status(503).json({ success: false, msg: err.message || "LLM unavailable", code: err.code });
+    }
+    const code = err.statusCode || 400;
+    return res.status(code >= 400 && code < 600 ? code : 400).json({
+      success: false,
+      msg: err.message || "Failed to generate composite draft",
+      code: err.code,
+      issues: Array.isArray(err.issues) ? err.issues : undefined,
+    });
   }
 });
 
