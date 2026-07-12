@@ -356,6 +356,7 @@ export function LessonStudentBlockRenderer({
       isOuterStudentHeadingVisible(headingBlock, "") &&
       (shouldSuppressInnerBlockTitle(outer, "Exam question", true) ||
         shouldSuppressInnerBlockTitle(outer, "Exam Question", true) ||
+        shouldSuppressInnerBlockTitle(outer, "EXAM QUESTION", true) ||
         shouldSuppressInnerBlockTitle(outer, "COMPOSITE QUESTION", true));
     const eq = (
       <ExamQuestionBlock

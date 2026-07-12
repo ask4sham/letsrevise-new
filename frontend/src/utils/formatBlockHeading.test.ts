@@ -25,6 +25,12 @@ describe("normalizeLegacyBlockLabel", () => {
     expect(normalizeLegacyBlockLabel("Scenario / Hook")).toBe("Scenario");
   });
 
+  it("renames Composite Question to Exam Question for student display", () => {
+    expect(normalizeLegacyBlockLabel("COMPOSITE QUESTION")).toBe("EXAM QUESTION");
+    expect(normalizeLegacyBlockLabel("Composite Question")).toBe("Exam Question");
+    expect(normalizeLegacySs1Heading("23 — COMPOSITE QUESTION")).toBe("23 — EXAM QUESTION");
+  });
+
   it("leaves unrelated labels unchanged", () => {
     expect(normalizeLegacyBlockLabel("Core rule")).toBe("Core rule");
     expect(normalizeLegacyBlockLabel("Hook")).toBe("Hook");
@@ -71,9 +77,12 @@ describe("activity titles and display numbering", () => {
       "8 — SELF-CHECK"
     );
     expect(fallbackActivityTitleFromBlockType("dragDropMatch")).toBe("DRAG AND DROP MATCH");
-    expect(fallbackActivityTitleFromBlockType("composite")).toBe("COMPOSITE QUESTION");
+    expect(fallbackActivityTitleFromBlockType("composite")).toBe("EXAM QUESTION");
     expect(formatStudentBlockHeading({ number: 24, type: "composite", title: "" })).toBe(
-      "24 — COMPOSITE QUESTION"
+      "24 — EXAM QUESTION"
+    );
+    expect(formatStudentBlockHeading({ number: 23, type: "composite", title: "COMPOSITE QUESTION" })).toBe(
+      "23 — EXAM QUESTION"
     );
     expect(formatStudentBlockHeading({ number: 15, type: "examQuestion", title: "" })).toBe(
       "15 — EXAM QUESTION"
