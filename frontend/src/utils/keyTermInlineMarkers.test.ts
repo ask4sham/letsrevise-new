@@ -4,6 +4,7 @@ import {
   findFirstUnmarkedTermOccurrence,
   MAX_KEY_TERM_DATA_ATTR_LEN,
   removeDataKeyTermSpansInRange,
+  resolveSelectionForRemoveKeyTerm,
   selectionIntersectsDataKeyTermSpan,
   validateAndNormalizeKeyTermForSpan,
 } from "./keyTermInlineMarkers";
@@ -140,5 +141,38 @@ describe("removeDataKeyTermSpansInRange", () => {
       { term: "osmosis", definition: "…" },
     ]);
     expect(nextContent).toContain('data-key-term="osmosis"');
+  });
+});
+
+describe("resolveSelectionForRemoveKeyTerm", () => {
+  it("uses last remembered selection when live selection was cleared by toolbar blur", () => {
+    const c =
+      '<strong><span data-key-term="Sexual reproduction">Sexual reproduction</span></strong>';
+    const open = c.indexOf("<span");
+    const close = c.indexOf("</span>") + "</span>".length;
+    // Live selection collapsed after button mousedown blur.
+    const resolved = resolveSelectionForRemoveKeyTerm(c, 0, 0, open + 10, open + 12);
+    expect(resolved.source).toBe("last");
+    const { nextContent, removed } = removeDataKeyTermSpansInRange(
+      c,
+      resolved.start,
+      resolved.end
+    );
+    expect(removed).toBe(1);
+    expect(nextContent).toBe("<strong>Sexual reproduction</strong>");
+  });
+
+  it("prefers live selection when it still overlaps a key-term span", () => {
+    const c =
+      '<strong><span data-key-term="Meiosis">Meiosis</span></strong>';
+    const open = c.indexOf("<span");
+    const resolved = resolveSelectionForRemoveKeyTerm(c, open + 8, open + 12, 0, 0);
+    expect(resolved.source).toBe("live");
+  });
+
+  it("reports none when neither live nor last selection hits a key term", () => {
+    const c = "<p>plain text only</p>";
+    const resolved = resolveSelectionForRemoveKeyTerm(c, 0, 0, 2, 4);
+    expect(resolved.source).toBe("none");
   });
 });

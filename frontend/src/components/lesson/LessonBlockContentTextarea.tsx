@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { LessonBlockRichToolbar, insertAtCursor } from "./LessonBlockRichToolbar";
 import { LessonAutoTextarea } from "./LessonAutoTextarea";
 
@@ -41,6 +41,24 @@ export function LessonBlockContentTextarea({
   onSuggestKeyTermsClick,
 }: LessonBlockContentTextareaProps) {
   const minHeightPx = minHeightProp ?? (sizeVariant === "long" ? 300 : 160);
+  const lastSelRef = useRef({ start: 0, end: 0 });
+  const [toolbarStatus, setToolbarStatus] = useState("");
+  const statusClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const rememberSelection = useCallback(() => {
+    const el = getTextarea();
+    if (!el) return;
+    lastSelRef.current = {
+      start: el.selectionStart ?? 0,
+      end: el.selectionEnd ?? 0,
+    };
+  }, [getTextarea]);
+
+  const showToolbarStatus = useCallback((message: string) => {
+    setToolbarStatus(message);
+    if (statusClearRef.current) clearTimeout(statusClearRef.current);
+    statusClearRef.current = setTimeout(() => setToolbarStatus(""), 8000);
+  }, []);
 
   const restoreCursor = (cursor: number) => {
     const el = getTextarea();
@@ -52,6 +70,7 @@ export function LessonBlockContentTextarea({
           const max = el.value.length;
           const pos = Math.min(cursor, max);
           el.setSelectionRange(pos, pos);
+          lastSelRef.current = { start: pos, end: pos };
         } catch {
           /* ignore */
         }
@@ -77,13 +96,34 @@ export function LessonBlockContentTextarea({
         }}
         onKeyTermClick={onKeyTermClick}
         onSuggestKeyTermsClick={onSuggestKeyTermsClick}
+        getLastTextareaSelection={() => lastSelRef.current}
+        onRemoveKeyTermStatus={showToolbarStatus}
       />
+      {toolbarStatus ? (
+        <div
+          role="status"
+          style={{
+            marginBottom: 8,
+            fontSize: 12,
+            color: "#334155",
+            background: "rgba(241,245,249,0.95)",
+            border: "1px solid rgba(148,163,184,0.45)",
+            borderRadius: 8,
+            padding: "6px 10px",
+          }}
+        >
+          {toolbarStatus}
+        </div>
+      ) : null}
       <LessonAutoTextarea
         editorVariant="lesson"
         value={value}
         onChange={onChange}
         assignRef={assignTextareaRef}
         onPaste={onPaste}
+        onSelect={rememberSelection}
+        onKeyUp={rememberSelection}
+        onMouseUp={rememberSelection}
         placeholder={placeholder}
         minHeightPx={minHeightPx}
         showExpandButton

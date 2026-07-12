@@ -11,6 +11,10 @@ export type LessonAutoTextareaProps = {
   showExpandButton?: boolean;
   assignRef?: (el: HTMLTextAreaElement | null) => void;
   onPaste?: React.ClipboardEventHandler<HTMLTextAreaElement>;
+  /** Selection tracking for toolbar actions (e.g. remove key term). */
+  onSelect?: React.ReactEventHandler<HTMLTextAreaElement>;
+  onKeyUp?: React.KeyboardEventHandler<HTMLTextAreaElement>;
+  onMouseUp?: React.MouseEventHandler<HTMLTextAreaElement>;
   placeholder?: string;
   name?: string;
   maxLength?: number;
@@ -85,6 +89,9 @@ export function LessonAutoTextarea({
   showExpandButton = false,
   assignRef,
   onPaste,
+  onSelect,
+  onKeyUp,
+  onMouseUp,
   placeholder,
   name,
   maxLength,
@@ -182,6 +189,9 @@ export function LessonAutoTextarea({
         value={strValue}
         onChange={handleChange}
         onPaste={handlePaste}
+        onSelect={onSelect}
+        onKeyUp={onKeyUp}
+        onMouseUp={onMouseUp}
         placeholder={placeholder}
         maxLength={maxLength}
         rows={1}

@@ -1,6 +1,9 @@
 import React, { useCallback, useState } from "react";
 import { pasteRawBufferToLessonMarkdown } from "../../utils/lessonEditorPaste";
-import { removeDataKeyTermSpansInRange } from "../../utils/keyTermInlineMarkers";
+import {
+  removeDataKeyTermSpansInRange,
+  resolveSelectionForRemoveKeyTerm,
+} from "../../utils/keyTermInlineMarkers";
 
 export const LESSON_FONT_SIZE_LABELS = ["Small", "Normal", "Large", "Extra Large"] as const;
 export const LESSON_FONT_SIZE_CLASSES = [
@@ -71,6 +74,13 @@ export type LessonBlockRichToolbarProps = {
   onKeyTermClick?: () => void;
   /** Optional: AI-suggested key terms for the current block. */
   onSuggestKeyTermsClick?: () => void;
+  /**
+   * Last remembered textarea selection (updated while the editor is focused).
+   * Used when a toolbar click clears the live selection before onClick runs.
+   */
+  getLastTextareaSelection?: () => { start: number; end: number };
+  /** Optional status line when remove finds no overlapping key-term span. */
+  onRemoveKeyTermStatus?: (message: string) => void;
 };
 
 const toolbarBtn: React.CSSProperties = {
@@ -89,6 +99,8 @@ export function LessonBlockRichToolbar({
   onApply,
   onKeyTermClick,
   onSuggestKeyTermsClick,
+  getLastTextareaSelection,
+  onRemoveKeyTermStatus,
 }: LessonBlockRichToolbarProps) {
   const [pasteFmtOpen, setPasteFmtOpen] = useState(false);
   const [pasteFmtBuffer, setPasteFmtBuffer] = useState("");
@@ -102,6 +114,34 @@ export function LessonBlockRichToolbar({
     },
     [onApply, getTextarea]
   );
+
+  const removeKeyTermFromSelection = useCallback(() => {
+    apply((el) => {
+      const liveStart = el.selectionStart ?? 0;
+      const liveEnd = el.selectionEnd ?? 0;
+      const last = getLastTextareaSelection?.() ?? { start: liveStart, end: liveEnd };
+      const resolved = resolveSelectionForRemoveKeyTerm(
+        el.value,
+        liveStart,
+        liveEnd,
+        last.start,
+        last.end
+      );
+      const result = removeDataKeyTermSpansInRange(el.value, resolved.start, resolved.end);
+      if (result.removed === 0) {
+        onRemoveKeyTermStatus?.(
+          "Select a key term or place the cursor inside one, then click Remove key term."
+        );
+      } else {
+        onRemoveKeyTermStatus?.(
+          result.removed === 1
+            ? "Key term marker removed. Click Save Changes to publish."
+            : `Removed ${result.removed} key term markers. Click Save Changes to publish.`
+        );
+      }
+      return { next: result.nextContent, cursor: result.cursor };
+    });
+  }, [apply, getLastTextareaSelection, onRemoveKeyTermStatus]);
 
   const insertPasteFormatted = useCallback(() => {
     const el = getTextarea();
@@ -119,6 +159,13 @@ export function LessonBlockRichToolbar({
     <div
       role="toolbar"
       aria-label="Block text formatting and teaching markers"
+      onMouseDown={(e) => {
+        // Preserve textarea selection when clicking toolbar buttons (mousedown would otherwise blur).
+        const t = e.target as HTMLElement | null;
+        if (!t) return;
+        if (t.closest("textarea, input, select")) return;
+        if (t.closest("button")) e.preventDefault();
+      }}
       style={{
         display: "flex",
         flexWrap: "wrap",
@@ -267,16 +314,9 @@ export function LessonBlockRichToolbar({
             </button>
             <button
               type="button"
-              title="Remove key term markup from the selection (keeps the text)"
+              title="Select a key term or place the cursor inside one, then click Remove key term"
               aria-label="Remove key term"
-              onClick={() =>
-                apply((el) => {
-                  const start = el.selectionStart ?? 0;
-                  const end = el.selectionEnd ?? 0;
-                  const result = removeDataKeyTermSpansInRange(el.value, start, end);
-                  return { next: result.nextContent, cursor: result.cursor };
-                })
-              }
+              onClick={removeKeyTermFromSelection}
               style={{
                 ...toolbarBtn,
                 display: "inline-flex",

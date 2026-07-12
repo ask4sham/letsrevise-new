@@ -244,3 +244,30 @@ export function removeDataKeyTermSpansInRange(
 
   return { nextContent: next, removed: targets.length, cursor };
 }
+
+/**
+ * Prefer live textarea selection when it hits a key-term span; otherwise fall back to
+ * the last remembered range (toolbar clicks often clear the live selection on blur).
+ */
+export function resolveSelectionForRemoveKeyTerm(
+  content: string,
+  liveStart: number,
+  liveEnd: number,
+  lastStart: number,
+  lastEnd: number
+): { start: number; end: number; source: "live" | "last" | "none" } {
+  const live = removeDataKeyTermSpansInRange(content, liveStart, liveEnd);
+  if (live.removed > 0) {
+    return { start: liveStart, end: liveEnd, source: "live" };
+  }
+  if (
+    lastStart !== liveStart ||
+    lastEnd !== liveEnd
+  ) {
+    const last = removeDataKeyTermSpansInRange(content, lastStart, lastEnd);
+    if (last.removed > 0) {
+      return { start: lastStart, end: lastEnd, source: "last" };
+    }
+  }
+  return { start: liveStart, end: liveEnd, source: "none" };
+}
