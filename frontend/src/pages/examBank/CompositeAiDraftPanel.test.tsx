@@ -37,7 +37,7 @@ describe("CompositeAiDraftPanel", () => {
     expect(screen.getByTestId("composite-ai-generate")).toBeInTheDocument();
   });
 
-  test("notes that table parts remain manual", () => {
+  test("notes required MCQ mix and manual tables", () => {
     render(
       <CompositeAiDraftPanel
         difficulty="easy"
@@ -47,6 +47,9 @@ describe("CompositeAiDraftPanel", () => {
         status={null}
         error={null}
       />
+    );
+    expect(screen.getByTestId("composite-ai-draft-panel")).toHaveTextContent(
+      /one multiple-choice part plus short-answer parts/i
     );
     expect(screen.getByTestId("composite-ai-draft-panel")).toHaveTextContent(/Table parts remain manual/i);
   });

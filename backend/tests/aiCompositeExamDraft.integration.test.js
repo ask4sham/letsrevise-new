@@ -1,5 +1,5 @@
 /**
- * Integration: AI composite draft endpoint — auth, no DB write, validation path.
+ * Integration: AI composite draft endpoint — auth, no DB write, required MCQ.
  */
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
@@ -16,6 +16,27 @@ const ExamQuestion = require("../models/ExamQuestion");
 const hashedPassword = bcrypt.hashSync("password123", 10);
 jest.setTimeout(20000);
 
+function mcqPart(label = "a") {
+  return {
+    label,
+    type: "mcq",
+    marks: 1,
+    questionText: "Which statement best describes asexual reproduction?",
+    options: [
+      "Offspring are produced by two parents and are genetically varied",
+      "Offspring are produced by one parent and are genetically identical",
+      "Gametes fuse to form a zygote",
+      "Meiosis always occurs before fertilisation",
+    ],
+    correctIndex: 1,
+    markSchemeLines: [
+      "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
+    ],
+    commandWord: "Identify",
+    skill: "recall",
+  };
+}
+
 function validEasyDraft() {
   return {
     title: "Asexual reproduction basics",
@@ -23,24 +44,7 @@ function validEasyDraft() {
     difficulty: "easy",
     totalMarks: 3,
     parts: [
-      {
-        label: "a",
-        type: "mcq",
-        marks: 1,
-        questionText: "Which statement best describes asexual reproduction?",
-        options: [
-          "Offspring are produced by two parents and are genetically varied",
-          "Offspring are produced by one parent and are genetically identical",
-          "Gametes fuse to form a zygote",
-          "Meiosis always occurs before fertilisation",
-        ],
-        correctIndex: 1,
-        markSchemeLines: [
-          "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
-        ],
-        commandWord: "Identify",
-        skill: "recall",
-      },
+      mcqPart("a"),
       {
         label: "b",
         type: "short",
@@ -65,24 +69,7 @@ function validMediumDraft() {
     difficulty: "medium",
     totalMarks: 5,
     parts: [
-      {
-        label: "a",
-        type: "mcq",
-        marks: 1,
-        questionText: "Which statement best describes asexual reproduction?",
-        options: [
-          "Offspring are produced by two parents and are genetically varied",
-          "Offspring are produced by one parent and are genetically identical",
-          "Gametes fuse to form a zygote",
-          "Meiosis always occurs before fertilisation",
-        ],
-        correctIndex: 1,
-        markSchemeLines: [
-          "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
-        ],
-        commandWord: "Identify",
-        skill: "recall",
-      },
+      mcqPart("a"),
       {
         label: "b",
         type: "short",
@@ -117,10 +104,28 @@ function validHardDraft() {
     title: "Higher-tier reproduction analysis",
     sharedStem: "Organisms can reproduce sexually or asexually depending on conditions.",
     difficulty: "hard",
-    totalMarks: 6,
+    totalMarks: 7,
     parts: [
       {
         label: "a",
+        type: "mcq",
+        marks: 1,
+        questionText: "A farmer produces identical potato plants from tubers. Why can a new disease wipe out the whole crop?",
+        options: [
+          "Asexual offspring are genetically identical so all may be susceptible",
+          "Sexual reproduction always produces weaker plants",
+          "Tubers cannot store food reserves",
+          "Meiosis increases mutation rate in every tuber generation",
+        ],
+        correctIndex: 0,
+        markSchemeLines: [
+          "Award 1 mark for selecting Option A (clones / identical genetics / shared susceptibility).",
+        ],
+        commandWord: "Explain",
+        skill: "apply",
+      },
+      {
+        label: "b",
         type: "short",
         marks: 2,
         questionText: "Compare asexual and sexual reproduction in terms of genetic variation.",
@@ -132,7 +137,7 @@ function validHardDraft() {
         skill: "compare",
       },
       {
-        label: "b",
+        label: "c",
         type: "short",
         marks: 2,
         questionText: "Evaluate the benefit of sexual reproduction in a changing environment.",
@@ -144,7 +149,7 @@ function validHardDraft() {
         skill: "evaluate",
       },
       {
-        label: "c",
+        label: "d",
         type: "short",
         marks: 2,
         questionText: "Justify why farmers may still prefer asexual methods for some crops.",
@@ -167,13 +172,13 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
     await User.create({
       firstName: "Ai",
       lastName: "Draft",
-      email: "ai-composite-draft@test.com",
+      email: "ai-composite-draft-mcq-required@test.com",
       password: hashedPassword,
       userType: "teacher",
     });
     const login = await request(app)
       .post("/api/auth/login")
-      .send({ email: "ai-composite-draft@test.com", password: "password123" });
+      .send({ email: "ai-composite-draft-mcq-required@test.com", password: "password123" });
     token = login.body?.token;
     if (!token) throw new Error("Login failed");
   });
@@ -190,7 +195,7 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
     expect(res.status).toBe(401);
   });
 
-  test("returns draft and does not save to DB", async () => {
+  test("Easy generated draft contains exactly one MCQ and does not save", async () => {
     callOpenAiJson.mockResolvedValue(validEasyDraft());
     const before = await ExamQuestion.countDocuments();
     const res = await request(app)
@@ -206,16 +211,12 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
         hasImage: false,
       });
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.draft.totalMarks).toBe(3);
-    expect(res.body.draft.parts).toHaveLength(2);
-    expect(res.body.draft.parts[0].type).toBe("mcq");
-    expect(res.body.draft.parts[1].type).toBe("short");
-    const after = await ExamQuestion.countDocuments();
-    expect(after).toBe(before);
+    expect(res.body.draft.parts.filter((p) => p.type === "mcq")).toHaveLength(1);
+    expect(res.body.draft.parts.filter((p) => p.type === "short")).toHaveLength(1);
+    expect(await ExamQuestion.countDocuments()).toBe(before);
   });
 
-  test("medium can return MCQ + short", async () => {
+  test("Medium generated draft contains exactly one MCQ", async () => {
     callOpenAiJson.mockResolvedValue(validMediumDraft());
     const res = await request(app)
       .post("/api/exam-questions/ai-draft-composite")
@@ -226,11 +227,11 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
         hasImage: false,
       });
     expect(res.status).toBe(200);
-    expect(res.body.draft.parts.some((p) => p.type === "mcq")).toBe(true);
-    expect(res.body.draft.parts.some((p) => p.type === "short")).toBe(true);
+    expect(res.body.draft.parts.filter((p) => p.type === "mcq")).toHaveLength(1);
+    expect(res.body.draft.parts.filter((p) => p.type === "short")).toHaveLength(2);
   });
 
-  test("hard can return short-heavy draft", async () => {
+  test("Hard generated draft contains exactly one MCQ", async () => {
     callOpenAiJson.mockResolvedValue(validHardDraft());
     const res = await request(app)
       .post("/api/exam-questions/ai-draft-composite")
@@ -241,8 +242,8 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
         hasImage: false,
       });
     expect(res.status).toBe(200);
-    expect(res.body.draft.parts.every((p) => p.type === "short")).toBe(true);
-    expect(res.body.draft.totalMarks).toBe(6);
+    expect(res.body.draft.parts.filter((p) => p.type === "mcq")).toHaveLength(1);
+    expect(res.body.draft.parts.every((p) => p.type !== "table")).toBe(true);
   });
 
   test("rejects missing topic", async () => {
@@ -254,13 +255,31 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
     expect(callOpenAiJson).not.toHaveBeenCalled();
   });
 
-  test("returns 422 for invalid AI output", async () => {
+  test("returns 422 for short-only AI output", async () => {
     callOpenAiJson.mockResolvedValue({
-      title: "x",
-      sharedStem: "short",
+      title: "Short only",
+      sharedStem: "A gardener grows identical strawberry plants from runners.",
       difficulty: "easy",
-      totalMarks: 1,
-      parts: [{ label: "a", type: "table", marks: 1, questionText: "x", markSchemeLines: [] }],
+      totalMarks: 3,
+      parts: [
+        {
+          label: "a",
+          type: "short",
+          marks: 1,
+          questionText: "State what is meant by asexual reproduction.",
+          markSchemeLines: ["Award 1 mark for one parent / genetically identical offspring."],
+        },
+        {
+          label: "b",
+          type: "short",
+          marks: 2,
+          questionText: "Describe one advantage of asexual reproduction for the plant.",
+          markSchemeLines: [
+            "Award 1 mark for rapid population increase.",
+            "Award 1 mark for offspring adapted to the same environment.",
+          ],
+        },
+      ],
     });
     const res = await request(app)
       .post("/api/exam-questions/ai-draft-composite")
@@ -271,7 +290,6 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
         hasImage: false,
       });
     expect(res.status).toBe(422);
-    expect(res.body.success).toBe(false);
-    expect(Array.isArray(res.body.issues)).toBe(true);
+    expect(res.body.issues).toEqual(expect.arrayContaining(["mcq_required_exactly_one"]));
   });
 });

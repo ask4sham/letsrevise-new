@@ -35,7 +35,7 @@ export function CompositeAiDraftPanel({
       </div>
       <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b", lineHeight: 1.4 }}>
         Fills a draft composite question for review. Nothing is saved until you click Save Draft.
-        AI may generate short-answer and multiple-choice parts. Table parts remain manual.
+        AI will generate one multiple-choice part plus short-answer parts. Table parts remain manual.
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>

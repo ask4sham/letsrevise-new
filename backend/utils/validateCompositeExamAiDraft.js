@@ -4,8 +4,9 @@
  */
 
 const DIFFICULTIES = Object.freeze({
-  easy: { minMarks: 2, maxMarks: 4, minParts: 1, maxParts: 2 },
-  medium: { minMarks: 4, maxMarks: 6, minParts: 2, maxParts: 3 },
+  // Exactly one MCQ + remaining short answers (table never AI-generated).
+  easy: { minMarks: 2, maxMarks: 4, minParts: 2, maxParts: 2 },
+  medium: { minMarks: 4, maxMarks: 6, minParts: 3, maxParts: 3 },
   hard: { minMarks: 6, maxMarks: 9, minParts: 3, maxParts: 4 },
 });
 
@@ -84,6 +85,7 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
   const parts = [];
   const seenTexts = new Set();
   let mcqCount = 0;
+  let shortCount = 0;
 
   for (let i = 0; i < raw.parts.length; i++) {
     const p = raw.parts[i];
@@ -106,6 +108,7 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
       issues.push(`unsupported_type:${type || "(empty)"}`);
     }
     if (type === "mcq") mcqCount += 1;
+    if (type === "short") shortCount += 1;
 
     const marks = Number(p.marks);
     if (!Number.isFinite(marks) || !Number.isInteger(marks) || marks < 1 || marks > 6) {
@@ -220,8 +223,11 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
     parts.push(partOut);
   }
 
-  if (mcqCount > 1) {
-    issues.push(`too_many_mcq_parts:${mcqCount}_max_1`);
+  if (mcqCount !== 1) {
+    issues.push(mcqCount === 0 ? "mcq_required_exactly_one" : `too_many_mcq_parts:${mcqCount}_max_1`);
+  }
+  if (shortCount < 1) {
+    issues.push("short_part_required");
   }
 
   const sumMarks = parts.reduce((s, p) => s + (Number.isFinite(p.marks) ? p.marks : 0), 0);

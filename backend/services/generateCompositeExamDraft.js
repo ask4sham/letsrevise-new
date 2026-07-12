@@ -1,6 +1,6 @@
 /**
  * Generate a composite exam question draft via LLM (no DB write).
- * V1.1: short + mcq parts; no table; Easy / Medium / Hard.
+ * V1.1+: exactly one MCQ + remaining short parts; no table.
  */
 const { callOpenAiJson } = require("../utils/lessonAssetLlm");
 const {
@@ -12,27 +12,33 @@ const {
 const SYSTEM = `You are an experienced UK secondary science exam writer (GCSE / IGCSE style).
 Create ONE composite exam question draft as strict JSON only.
 
-Rules:
-- Output JSON only matching the schema.
-- Use British English spelling (colour, organise, analyse, centre, behaviour).
-- Use clear exam command words (Describe, Explain, Suggest, Compare, Evaluate, Justify, Identify, State).
-- Part types allowed: "short" and "mcq" only. Never use "table" or any other type.
-- You may include at most ONE mcq part. Do not force an MCQ into every draft.
-- Prefer purposeful mix: Easy/Medium may include 1 MCQ plus short answer; Hard should be mostly short answer (optional 1 MCQ only if it tests application or a common misconception).
+Hard requirements (do not break these):
+- You MUST include exactly one part with type "mcq".
+- You MUST include at least one part with type "short".
+- You MUST NOT use type "table" or any other type.
+- The MCQ must have exactly 4 distinct non-empty plausible options.
+- The MCQ must have one correct answer via correctIndex (0–3).
+- The MCQ must be worth exactly 1 mark.
+- Remaining parts must be short-answer questions.
 - Labels must be sequential: a, then b, then c…
 - totalMarks must equal the sum of part marks.
+
+Style rules:
+- Use British English spelling (colour, organise, analyse, centre, behaviour).
+- Use clear exam command words (Describe, Explain, Suggest, Compare, Evaluate, Justify, Identify, State).
 - For short parts: markSchemeLines are distinct marking points; each line ~10+ characters; prefer one line per mark.
-- For mcq parts: marks must be 1; exactly 4 distinct non-empty options; correctIndex 0–3; no "all of the above" / "none of the above"; markSchemeLines must identify the correct option (e.g. "Award 1 mark for selecting Option B / <correct text>").
+- For the MCQ: markSchemeLines must identify the correct option (e.g. "Award 1 mark for selecting Option B / <correct text>").
 - Do NOT put answers in questionText.
 - Do NOT claim this is an official past paper.
 - Prefer text-only shared stems.
 - If hasImage is false: never mention diagrams, figures, graphs, photographs, or images.
 - If hasImage is true: you may briefly refer to the image, but a text-only stem is still preferred.
 
-Difficulty bands:
-- easy: 1–2 parts, recall/describe, totalMarks 2–4; may include 1 MCQ
-- medium: 2–3 parts, apply/explain, totalMarks 4–6; may include 1 MCQ plus short answer
-- hard: 3–4 parts, analyse/evaluate/compare/justify, totalMarks 6–9; mostly short; optional 1 MCQ
+Difficulty structure:
+- easy: exactly 2 parts (1 MCQ + 1 short), recall/describe, totalMarks 2–4
+- medium: exactly 3 parts (1 MCQ + 2 short), apply/explain, totalMarks 4–6
+- hard: 3–4 parts (1 MCQ + remaining short), analyse/evaluate/compare/justify, totalMarks 6–9
+- For Hard, the MCQ MUST test application, misconception or interpretation — not basic recall.
 
 Return:
 {
@@ -55,7 +61,7 @@ Return:
   ],
   "warnings": []
 }
-For short parts omit options/correctIndex (or leave empty). For mcq parts options and correctIndex are required.`;
+For short parts omit options/correctIndex (or leave empty). For the required mcq part, options and correctIndex are mandatory.`;
 
 /**
  * @param {{
@@ -95,10 +101,10 @@ async function generateCompositeExamDraft(input) {
 
   const mixHint =
     difficulty === "easy"
-      ? "You may include one 1-mark MCQ plus a short recall/describe part, or short-only."
+      ? "Exactly 2 parts: one 1-mark MCQ and one short recall/describe question."
       : difficulty === "medium"
-        ? "A strong pattern is one MCQ plus one or two short explain/apply parts. Short-only is also fine."
-        : "Prefer short-answer Higher-tier parts. Include at most one MCQ, and only if it tests application or a misconception.";
+        ? "Exactly 3 parts: one 1-mark MCQ plus two short explain/apply questions."
+        : "3–4 parts: one application/misconception MCQ (not basic recall) plus Higher-tier short answers.";
 
   const user = `Create one ${difficulty} composite exam question draft.
 
@@ -120,11 +126,13 @@ Difficulty band:
         ? "application / explain with command words"
         : "higher-tier analyse / evaluate / compare / justify"
   }
-- mix guidance: ${mixHint}
+- REQUIRED mix: ${mixHint}
+- REQUIRED: exactly one type "mcq" part and at least one type "short" part.
+- FORBIDDEN: type "table"; short-only drafts; more than one MCQ.
 
 ${hasImage ? "An image is already attached; you may refer to it carefully if useful." : "No image is attached. Do not mention diagrams, figures, graphs, photographs, or images."}
 
-Return JSON only. Never use type "table".`;
+Return JSON only.`;
 
   let parsed;
   try {
@@ -140,7 +148,6 @@ Return JSON only. Never use type "table".`;
     throw e;
   }
 
-  // Force difficulty to requested band for validation (model may echo wrong label)
   const candidate = {
     ...parsed,
     difficulty,
