@@ -119,27 +119,85 @@ describe("generateCompositeDataTableQuestionDraft", () => {
     );
   });
 
-  test("standard endpoint path unchanged", async () => {
+  test("teacher-friendly error for invalid data-table draft; keeps issue codes in non-production", async () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
+    mockedPost.mockRejectedValue({
+      message: "AI data-table draft failed validation.",
+      status: 422,
+      data: {
+        success: false,
+        msg: "AI data-table draft failed validation.",
+        code: "AI_DRAFT_INVALID",
+        issues: ["data_table_row_count:2_expected_3-6"],
+      },
+    });
+    await expect(
+      generateCompositeDataTableQuestionDraft({
+        subject: "Biology",
+        examBoard: "Edexcel",
+        level: "IGCSE",
+        topic: "Osmosis",
+        topicKey: "t",
+        difficulty: "medium",
+      })
+    ).rejects.toThrow(/AI generated an invalid data table\. Please try again/);
+    await expect(
+      generateCompositeDataTableQuestionDraft({
+        subject: "Biology",
+        examBoard: "Edexcel",
+        level: "IGCSE",
+        topic: "Osmosis",
+        topicKey: "t",
+        difficulty: "medium",
+      })
+    ).rejects.toThrow(/data_table_row_count/);
+    process.env.NODE_ENV = prev;
+  });
+
+  test("successful repaired response is returned to caller", async () => {
     mockedPost.mockResolvedValue({
       data: {
         success: true,
         draft: {
-          title: "T",
-          sharedStem: "A gardener grows identical strawberry plants from runners.",
-          difficulty: "easy",
-          totalMarks: 2,
-          parts: [],
+          title: "Repaired enzyme table",
+          sharedStem: "A student investigated enzyme activity carefully.",
+          difficulty: "medium",
+          questionStyle: "data_table",
+          totalMarks: 5,
+          dataTable: {
+            columns: [
+              { heading: "Temperature", unit: "°C" },
+              { heading: "Rate", unit: "s⁻¹" },
+            ],
+            rows: [
+              ["20", "0.01"],
+              ["30", "0.02"],
+              ["40", "0.03"],
+              ["50", "0.015"],
+            ],
+          },
+          parts: [
+            {
+              label: "a",
+              type: "short",
+              marks: 1,
+              questionText: "State the temperature with the highest rate.",
+              markSchemeLines: ["Award 1 mark for 40 °C."],
+            },
+          ],
         },
       },
     });
-    await generateCompositeQuestionDraft({
+    const draft = await generateCompositeDataTableQuestionDraft({
       subject: "Biology",
       examBoard: "Edexcel",
       level: "IGCSE",
-      topic: "X",
-      topicKey: "x",
-      difficulty: "easy",
+      topic: "Enzymes",
+      topicKey: "enzymes",
+      difficulty: "medium",
     });
-    expect(mockedPost).toHaveBeenCalledWith("/exam-questions/ai-draft-composite", expect.any(Object));
+    expect(draft.dataTable?.rows).toHaveLength(4);
+    expect(draft.questionStyle).toBe("data_table");
   });
 });

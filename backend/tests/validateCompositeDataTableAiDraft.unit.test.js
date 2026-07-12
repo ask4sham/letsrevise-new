@@ -301,7 +301,7 @@ describe("generateCompositeDataTableDraft service", () => {
     callOpenAiJson.mockReset();
   });
 
-  test("returns validated draft and does not write DB (pure return)", async () => {
+  test("returns validated draft without retry when first draft is valid", async () => {
     callOpenAiJson.mockResolvedValue(validEasy());
     const draft = await generateCompositeDataTableDraft({
       subject: "Biology",
@@ -316,9 +316,46 @@ describe("generateCompositeDataTableDraft service", () => {
     expect(callOpenAiJson).toHaveBeenCalledTimes(1);
   });
 
-  test("rejects invalid LLM payload with 422", async () => {
+  test("retries once when first draft has only 2 rows, then returns repaired draft", async () => {
+    const twoRows = validEasy();
+    twoRows.dataTable.rows = [
+      ["20", "80", "0.013"],
+      ["30", "45", "0.022"],
+    ];
+    callOpenAiJson.mockResolvedValueOnce(twoRows).mockResolvedValueOnce(validEasy());
+    const draft = await generateCompositeDataTableDraft({
+      topicKey: "enzymes",
+      difficulty: "easy",
+    });
+    expect(draft.dataTable.rows.length).toBeGreaterThanOrEqual(3);
+    expect(callOpenAiJson).toHaveBeenCalledTimes(2);
+    const repairUser = String(callOpenAiJson.mock.calls[1][0].user || "");
+    expect(repairUser).toMatch(/data_table_row_count/i);
+    expect(repairUser).toMatch(/Do not return only 2 rows/i);
+  });
+
+  test("returns 422 when first and repaired drafts both fail validation", async () => {
+    const twoRows = validEasy();
+    twoRows.dataTable.rows = [
+      ["20", "80", "0.013"],
+      ["30", "45", "0.022"],
+    ];
+    callOpenAiJson.mockResolvedValue(twoRows);
+    await expect(
+      generateCompositeDataTableDraft({
+        topicKey: "enzymes",
+        difficulty: "easy",
+      })
+    ).rejects.toMatchObject({ statusCode: 422, code: "AI_DRAFT_INVALID" });
+    // initial + up to MAX_REPAIR_ATTEMPTS repairs
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1 + 2);
+  });
+
+  test("rejects invalid LLM payload with 422 after failed repair", async () => {
     const bad = validEasy();
     bad.parts[0].type = "mcq";
+    bad.parts[0].options = ["A", "B", "C", "D"];
+    bad.parts[0].correctIndex = 0;
     callOpenAiJson.mockResolvedValue(bad);
     await expect(
       generateCompositeDataTableDraft({
@@ -326,11 +363,13 @@ describe("generateCompositeDataTableDraft service", () => {
         difficulty: "easy",
       })
     ).rejects.toMatchObject({ statusCode: 422, code: "AI_DRAFT_INVALID" });
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1 + 2);
   });
 
   test("requires topicKey", async () => {
     await expect(
       generateCompositeDataTableDraft({ difficulty: "easy" })
     ).rejects.toMatchObject({ statusCode: 400, code: "TOPIC_REQUIRED" });
+    expect(callOpenAiJson).not.toHaveBeenCalled();
   });
 });

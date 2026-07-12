@@ -393,6 +393,49 @@ describe("POST /api/exam-questions/ai-draft-composite-data-table", () => {
     expect(res.body.draft.parts.some((p) => p.type === "mcq")).toBe(false);
     expect(res.body.draft.parts.some((p) => p.type === "table")).toBe(false);
     expect(await ExamQuestion.countDocuments()).toBe(before);
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1);
+  });
+
+  test("repairs 2-row invalid draft via one LLM retry and does not save", async () => {
+    const twoRows = validDataTableEasyDraft();
+    twoRows.dataTable.rows = [
+      ["20", "80", "0.013"],
+      ["30", "45", "0.022"],
+    ];
+    callOpenAiJson.mockResolvedValueOnce(twoRows).mockResolvedValueOnce(validDataTableEasyDraft());
+    const before = await ExamQuestion.countDocuments();
+    const res = await request(app)
+      .post("/api/exam-questions/ai-draft-composite-data-table")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        topicKey: "edexcel-igcse-biology:enzymes",
+        difficulty: "easy",
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.draft.dataTable.rows.length).toBeGreaterThanOrEqual(3);
+    expect(await ExamQuestion.countDocuments()).toBe(before);
+    expect(callOpenAiJson).toHaveBeenCalledTimes(2);
+  });
+
+  test("returns 422 when first and repair drafts both have only 2 rows", async () => {
+    const twoRows = validDataTableEasyDraft();
+    twoRows.dataTable.rows = [
+      ["20", "80", "0.013"],
+      ["30", "45", "0.022"],
+    ];
+    callOpenAiJson.mockResolvedValue(twoRows);
+    const before = await ExamQuestion.countDocuments();
+    const res = await request(app)
+      .post("/api/exam-questions/ai-draft-composite-data-table")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        topicKey: "edexcel-igcse-biology:enzymes",
+        difficulty: "medium",
+      });
+    expect(res.status).toBe(422);
+    expect(res.body.issues.some((i) => String(i).startsWith("data_table_row_count"))).toBe(true);
+    expect(await ExamQuestion.countDocuments()).toBe(before);
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1 + 2);
   });
 
   test("rejects MCQ in data-table mode with 422", async () => {

@@ -250,7 +250,12 @@ export type GenerateCompositeQuestionDraftPayload = {
   hasImage?: boolean;
 };
 
-function friendlyCompositeAiCode(code?: string, status?: number, msg?: string): string | null {
+function friendlyCompositeAiCode(
+  code?: string,
+  status?: number,
+  msg?: string,
+  opts?: { dataTable?: boolean }
+): string | null {
   if (status === 429 || code === "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR") {
     return "Too many AI draft requests. Try again in a minute.";
   }
@@ -261,6 +266,9 @@ function friendlyCompositeAiCode(code?: string, status?: number, msg?: string): 
   if (code === "TOPIC_REQUIRED") return "Select a topic before generating.";
   if (code === "INVALID_DIFFICULTY") return "Choose Easy, Medium, or Hard.";
   if (code === "AI_DRAFT_INVALID" || status === 422) {
+    if (opts?.dataTable) {
+      return "AI generated an invalid data table. Please try again.";
+    }
     return msg && msg.trim() ? msg : "AI draft failed validation. Try again.";
   }
   if (status === 404) {
@@ -272,13 +280,16 @@ function friendlyCompositeAiCode(code?: string, status?: number, msg?: string): 
 
 function formatAiDraftIssues(issues?: string[]): string {
   if (!Array.isArray(issues) || !issues.length) return "";
+  // Keep compact machine codes for debugging without exposing prompts/secrets.
+  if (process.env.NODE_ENV === "production") return "";
   return ` (${issues.slice(0, 3).join(", ")})`;
 }
 
 async function postCompositeAiDraft(
   path: string,
   payload: GenerateCompositeQuestionDraftPayload,
-  fallbackError: string
+  fallbackError: string,
+  opts?: { dataTable?: boolean }
 ): Promise<CompositeAiDraft> {
   try {
     const res = await api.post<{
@@ -291,7 +302,7 @@ async function postCompositeAiDraft(
     }>(path, payload);
     if (!res.data?.success || !res.data.draft) {
       const friendly =
-        friendlyCompositeAiCode(res.data?.code, undefined, res.data?.msg) ||
+        friendlyCompositeAiCode(res.data?.code, undefined, res.data?.msg, opts) ||
         res.data?.msg ||
         res.data?.error ||
         fallbackError;
@@ -318,7 +329,7 @@ async function postCompositeAiDraft(
         (typeof data?.message === "string" && data.message) ||
         (typeof e.message === "string" && e.message) ||
         "";
-      const friendly = friendlyCompositeAiCode(code, status, rawMsg);
+      const friendly = friendlyCompositeAiCode(code, status, rawMsg, opts);
       if (friendly) throw new Error(friendly + formatAiDraftIssues(data?.issues));
       if (rawMsg.trim() && rawMsg !== fallbackError) {
         throw new Error(rawMsg.trim() + formatAiDraftIssues(data?.issues));
@@ -351,6 +362,7 @@ export async function generateCompositeDataTableQuestionDraft(
   return postCompositeAiDraft(
     "/exam-questions/ai-draft-composite-data-table",
     payload,
-    "Failed to generate data-table composite draft"
+    "Failed to generate data-table composite draft",
+    { dataTable: true }
   );
 }
