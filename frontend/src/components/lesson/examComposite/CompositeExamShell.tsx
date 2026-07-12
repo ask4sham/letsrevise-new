@@ -13,6 +13,8 @@ import {
   ExamQuestionScoreRibbon,
 } from "./CompositePartComponents";
 import { CompositePartRouter } from "./CompositePartRouter";
+import { CompositeStimulusTable } from "./CompositeStimulusTable";
+import { getStimulusTableFromMetadata } from "./stimulusTable";
 import { isCompositePartTypeEnabled } from "./featureFlags";
 import {
   compositeAllPartsChecked,
@@ -56,6 +58,7 @@ export function CompositeExamShell({
   const writtenInteractive = !isClassroom;
 
   const parts: ExamQuestionPart[] = Array.isArray(question.parts) ? question.parts : [];
+  const stimulusTable = getStimulusTableFromMetadata(question.metadata);
   const totalMarks =
     typeof question.totalMarks === "number"
       ? question.totalMarks
@@ -166,6 +169,7 @@ export function CompositeExamShell({
 
         <div className="exam-composite__stem-col">
           {sharedStem && <p className="exam-composite__stem">{sharedStem}</p>}
+          {stimulusTable ? <CompositeStimulusTable table={stimulusTable} /> : null}
 
           {firstPart ? (
             <CompositePartRouter
