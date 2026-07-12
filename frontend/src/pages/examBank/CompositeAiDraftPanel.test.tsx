@@ -36,4 +36,18 @@ describe("CompositeAiDraftPanel", () => {
     expect(screen.getByTestId("composite-ai-error")).toHaveTextContent("Select a topic before generating.");
     expect(screen.getByTestId("composite-ai-generate")).toBeInTheDocument();
   });
+
+  test("notes that table parts remain manual", () => {
+    render(
+      <CompositeAiDraftPanel
+        difficulty="easy"
+        onDifficultyChange={() => {}}
+        onGenerate={() => {}}
+        generating={false}
+        status={null}
+        error={null}
+      />
+    );
+    expect(screen.getByTestId("composite-ai-draft-panel")).toHaveTextContent(/Table parts remain manual/i);
+  });
 });

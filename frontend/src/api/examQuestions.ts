@@ -218,6 +218,8 @@ export type CompositeAiDraftPart = {
   marks: number;
   questionText: string;
   markSchemeLines: string[];
+  options?: string[];
+  correctIndex?: number | null;
   commandWord?: string;
   skill?: string;
 };

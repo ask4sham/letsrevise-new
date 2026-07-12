@@ -1,5 +1,5 @@
 /**
- * Validate AI-generated composite exam drafts (V1: short parts only).
+ * Validate AI-generated composite exam drafts (V1.1: short + mcq; no table).
  * Pure — no DB, no LLM.
  */
 
@@ -9,6 +9,7 @@ const DIFFICULTIES = Object.freeze({
   hard: { minMarks: 6, maxMarks: 9, minParts: 3, maxParts: 4 },
 });
 
+const ALLOWED_PART_TYPES = new Set(["short", "mcq"]);
 const LABELS = "abcdefghijklmnopqrstuvwxyz";
 
 const IMAGE_LANGUAGE_RE =
@@ -16,6 +17,8 @@ const IMAGE_LANGUAGE_RE =
 
 const US_SPELLING_RE =
   /\b(color|analyze|organize| favor|behavior|center|fiber|defense|offense|modeling)\b/i;
+
+const BANNED_MCQ_OPTION_RE = /\b(all of the above|none of the above)\b/i;
 
 /**
  * @param {string} difficulty
@@ -80,6 +83,7 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
 
   const parts = [];
   const seenTexts = new Set();
+  let mcqCount = 0;
 
   for (let i = 0; i < raw.parts.length; i++) {
     const p = raw.parts[i];
@@ -98,13 +102,17 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
     const type = String(p.type || "")
       .trim()
       .toLowerCase();
-    if (type !== "short") {
+    if (!ALLOWED_PART_TYPES.has(type)) {
       issues.push(`unsupported_type:${type || "(empty)"}`);
     }
+    if (type === "mcq") mcqCount += 1;
 
     const marks = Number(p.marks);
     if (!Number.isFinite(marks) || !Number.isInteger(marks) || marks < 1 || marks > 6) {
       issues.push(`marks_invalid:part_${expectedLabel || i}`);
+    }
+    if (type === "mcq" && marks !== 1) {
+      issues.push(`mcq_marks_must_be_1:part_${expectedLabel || i}`);
     }
 
     const questionText = String(p.questionText || "").trim();
@@ -119,9 +127,60 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
       issues.push(`mark_scheme_empty:part_${expectedLabel || i}`);
     } else {
       const substantial = markSchemeLines.filter((l) => l.length >= 10);
-      const needed = Number.isFinite(marks) && marks >= 1 ? Math.min(marks, 4) : 1;
+      const needed =
+        type === "mcq"
+          ? 1
+          : Number.isFinite(marks) && marks >= 1
+            ? Math.min(marks, 4)
+            : 1;
       if (substantial.length < needed) {
         issues.push(`mark_scheme_weak:part_${expectedLabel || i}`);
+      }
+    }
+
+    /** @type {string[]} */
+    let options = [];
+    /** @type {number | null} */
+    let correctIndex = null;
+
+    if (type === "mcq") {
+      options = Array.isArray(p.options)
+        ? p.options.map((o) => String(o || "").trim())
+        : [];
+      if (options.length !== 4) {
+        issues.push(`mcq_options_count:part_${expectedLabel || i}`);
+      }
+      if (options.some((o) => !o)) {
+        issues.push(`mcq_options_empty:part_${expectedLabel || i}`);
+      }
+      if (options.some((o) => BANNED_MCQ_OPTION_RE.test(o))) {
+        issues.push(`mcq_banned_option:part_${expectedLabel || i}`);
+      }
+      const norms = options.map((o) => o.toLowerCase());
+      if (new Set(norms).size !== norms.length) {
+        issues.push(`mcq_options_duplicate:part_${expectedLabel || i}`);
+      }
+      const ci = Number(p.correctIndex);
+      if (!Number.isInteger(ci) || ci < 0 || ci > 3) {
+        issues.push(`mcq_correct_index_invalid:part_${expectedLabel || i}`);
+      } else {
+        correctIndex = ci;
+        // Mark scheme should reference the correct choice somehow
+        const correctOpt = options[ci] || "";
+        const letter = String.fromCharCode(65 + ci); // A/B/C/D
+        const schemeJoined = markSchemeLines.join(" ").toLowerCase();
+        const mentions =
+          (correctOpt && schemeJoined.includes(correctOpt.toLowerCase())) ||
+          schemeJoined.includes(`option ${letter.toLowerCase()}`) ||
+          schemeJoined.includes(`(${letter.toLowerCase()})`) ||
+          new RegExp(`\\b${letter.toLowerCase()}\\b`).test(schemeJoined);
+        if (!mentions) {
+          issues.push(`mcq_mark_scheme_missing_correct:part_${expectedLabel || i}`);
+        }
+        // Question must not include the correct option text verbatim (answer leak)
+        if (correctOpt.length >= 8 && questionText.toLowerCase().includes(correctOpt.toLowerCase())) {
+          issues.push(`answer_leak:part_${expectedLabel || i}`);
+        }
       }
     }
 
@@ -131,32 +190,42 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
     }
     if (normText) seenTexts.add(normText);
 
-    // Answer leakage: question contains a long mark-scheme phrase
-    for (const line of markSchemeLines) {
-      const phrase = line.replace(/^award\s+\d+\s+mark(?:s)?\s+for\s+/i, "").trim();
-      if (phrase.length >= 18 && questionText.toLowerCase().includes(phrase.toLowerCase())) {
-        issues.push(`answer_leak:part_${expectedLabel || i}`);
-        break;
+    // Answer leakage: question contains a long mark-scheme phrase (short parts)
+    if (type === "short") {
+      for (const line of markSchemeLines) {
+        const phrase = line.replace(/^award\s+\d+\s+mark(?:s)?\s+for\s+/i, "").trim();
+        if (phrase.length >= 18 && questionText.toLowerCase().includes(phrase.toLowerCase())) {
+          issues.push(`answer_leak:part_${expectedLabel || i}`);
+          break;
+        }
       }
     }
     if (/\b(the\s+answer\s+is|correct\s+answer\s*:|mark\s+scheme\s*:)\b/i.test(questionText)) {
       issues.push(`answer_leak:part_${expectedLabel || i}`);
     }
 
-    parts.push({
+    const partOut = {
       label: expectedLabel,
-      type: "short",
+      type: ALLOWED_PART_TYPES.has(type) ? type : "short",
       marks: Number.isFinite(marks) ? marks : 0,
       questionText,
       markSchemeLines,
       commandWord: p.commandWord != null ? String(p.commandWord).trim() : "",
       skill: p.skill != null ? String(p.skill).trim() : "",
-    });
+    };
+    if (type === "mcq") {
+      partOut.options = options;
+      partOut.correctIndex = correctIndex;
+    }
+    parts.push(partOut);
+  }
+
+  if (mcqCount > 1) {
+    issues.push(`too_many_mcq_parts:${mcqCount}_max_1`);
   }
 
   const sumMarks = parts.reduce((s, p) => s + (Number.isFinite(p.marks) ? p.marks : 0), 0);
   const totalMarksRaw = Number(raw.totalMarks);
-  const totalMarks = Number.isFinite(totalMarksRaw) ? totalMarksRaw : sumMarks;
   if (!Number.isFinite(totalMarksRaw) || totalMarksRaw !== sumMarks) {
     issues.push(`total_marks_mismatch:declared_${totalMarksRaw}_sum_${sumMarks}`);
   }
@@ -164,11 +233,16 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
     issues.push(`total_marks_out_of_band:${sumMarks}_expected_${band.minMarks}-${band.maxMarks}`);
   }
 
-  const combined = `${title}\n${sharedStem}\n${parts.map((p) => p.questionText).join("\n")}`;
-  if (!hasImage && IMAGE_LANGUAGE_RE.test(combined)) {
+  const combinedText = [
+    title,
+    sharedStem,
+    ...parts.map((p) => p.questionText),
+    ...parts.flatMap((p) => (Array.isArray(p.options) ? p.options : [])),
+  ].join("\n");
+  if (!hasImage && IMAGE_LANGUAGE_RE.test(combinedText)) {
     issues.push("image_language_without_image");
   }
-  if (US_SPELLING_RE.test(combined)) {
+  if (US_SPELLING_RE.test(combinedText)) {
     issues.push("non_british_spelling");
   }
 
@@ -199,6 +273,7 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
 
 module.exports = {
   DIFFICULTIES,
+  ALLOWED_PART_TYPES,
   IMAGE_LANGUAGE_RE,
   getDifficultyBand,
   normalizeDifficulty,

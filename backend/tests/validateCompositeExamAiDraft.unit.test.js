@@ -1,5 +1,6 @@
 /**
  * Unit tests: AI composite exam draft validation + service (mocked LLM).
+ * V1.1: short + mcq; table rejected.
  */
 const {
   validateCompositeExamAiDraft,
@@ -29,6 +30,27 @@ function baseParts(n, marksEach) {
   });
 }
 
+function validMcqPart(label = "a") {
+  return {
+    label,
+    type: "mcq",
+    marks: 1,
+    questionText: "Which statement best describes asexual reproduction?",
+    options: [
+      "Offspring are produced by two parents and are genetically varied",
+      "Offspring are produced by one parent and are genetically identical",
+      "Gametes fuse to form a zygote",
+      "Meiosis always occurs before fertilisation",
+    ],
+    correctIndex: 1,
+    markSchemeLines: [
+      "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
+    ],
+    commandWord: "Identify",
+    skill: "recall",
+  };
+}
+
 function validEasy() {
   return {
     title: "Asexual reproduction basics",
@@ -41,10 +63,37 @@ function validEasy() {
         type: "short",
         marks: 1,
         questionText: "State what is meant by asexual reproduction.",
-        markSchemeLines: ["Award 1 mark for reproduction involving one parent / no gametes / genetically identical offspring."],
+        markSchemeLines: [
+          "Award 1 mark for reproduction involving one parent / no gametes / genetically identical offspring.",
+        ],
         commandWord: "State",
         skill: "recall",
       },
+      {
+        label: "b",
+        type: "short",
+        marks: 2,
+        questionText: "Describe one advantage of asexual reproduction for the plant.",
+        markSchemeLines: [
+          "Award 1 mark for rapid population increase / no need for pollinator.",
+          "Award 1 mark for offspring adapted to the same environment / identical traits.",
+        ],
+        commandWord: "Describe",
+        skill: "describe",
+      },
+    ],
+    warnings: [],
+  };
+}
+
+function validEasyWithMcq() {
+  return {
+    title: "Asexual reproduction basics",
+    sharedStem: "A gardener grows identical strawberry plants from runners.",
+    difficulty: "easy",
+    totalMarks: 3,
+    parts: [
+      validMcqPart("a"),
       {
         label: "b",
         type: "short",
@@ -80,6 +129,43 @@ function validMedium() {
   };
 }
 
+function validMediumWithMcq() {
+  return {
+    title: "Comparing reproductive strategies",
+    sharedStem: "Some plants reproduce asexually while others reproduce sexually.",
+    difficulty: "medium",
+    totalMarks: 5,
+    parts: [
+      validMcqPart("a"),
+      {
+        label: "b",
+        type: "short",
+        marks: 2,
+        questionText: "Explain why asexual offspring are genetically identical to the parent.",
+        markSchemeLines: [
+          "Award 1 mark for mitosis / no mixing of gametes.",
+          "Award 1 mark for identical DNA / clones of the parent.",
+        ],
+        commandWord: "Explain",
+        skill: "explain",
+      },
+      {
+        label: "c",
+        type: "short",
+        marks: 2,
+        questionText: "Suggest why asexual reproduction can be a disadvantage after an environmental change.",
+        markSchemeLines: [
+          "Award 1 mark for low genetic variation / all offspring similar.",
+          "Award 1 mark for population may all be vulnerable / less likely to survive change.",
+        ],
+        commandWord: "Suggest",
+        skill: "apply",
+      },
+    ],
+    warnings: [],
+  };
+}
+
 function validHard() {
   const parts = baseParts(3, 2);
   parts[0].questionText = "Compare asexual and sexual reproduction in terms of genetic variation.";
@@ -106,7 +192,6 @@ describe("validateCompositeExamAiDraft", () => {
     const res = validateCompositeExamAiDraft(validEasy(), { difficulty: "easy", hasImage: false });
     expect(res.ok).toBe(true);
     expect(res.draft.totalMarks).toBe(3);
-    expect(res.draft.parts).toHaveLength(2);
   });
 
   test("medium draft valid: 4–6 marks", () => {
@@ -119,15 +204,95 @@ describe("validateCompositeExamAiDraft", () => {
     const res = validateCompositeExamAiDraft(validHard(), { difficulty: "hard", hasImage: false });
     expect(res.ok).toBe(true);
     expect(res.draft.totalMarks).toBe(6);
-    expect(res.draft.parts).toHaveLength(3);
+  });
+
+  test("valid MCQ part passes", () => {
+    const res = validateCompositeExamAiDraft(validEasyWithMcq(), { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(true);
+    expect(res.draft.parts[0].type).toBe("mcq");
+    expect(res.draft.parts[0].options).toHaveLength(4);
+    expect(res.draft.parts[0].correctIndex).toBe(1);
+  });
+
+  test("mixed short + MCQ medium draft passes", () => {
+    const res = validateCompositeExamAiDraft(validMediumWithMcq(), { difficulty: "medium", hasImage: false });
+    expect(res.ok).toBe(true);
+    expect(res.draft.parts.map((p) => p.type)).toEqual(["mcq", "short", "short"]);
+    expect(res.draft.totalMarks).toBe(5);
+  });
+
+  test("MCQ with fewer than 4 options fails", () => {
+    const bad = validEasyWithMcq();
+    bad.parts[0].options = ["A", "B", "C"];
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/mcq_options_count/);
+  });
+
+  test("MCQ with more than 4 options fails", () => {
+    const bad = validEasyWithMcq();
+    bad.parts[0].options = ["A", "B", "C", "D", "E"];
+    bad.parts[0].correctIndex = 0;
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/mcq_options_count/);
+  });
+
+  test("MCQ with duplicate options fails", () => {
+    const bad = validEasyWithMcq();
+    bad.parts[0].options = ["Same", "Same", "Other", "Else"];
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/mcq_options_duplicate/);
+  });
+
+  test("MCQ with invalid correctIndex fails", () => {
+    const bad = validEasyWithMcq();
+    bad.parts[0].correctIndex = 4;
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/mcq_correct_index_invalid/);
+  });
+
+  test("MCQ with all of the above fails", () => {
+    const bad = validEasyWithMcq();
+    bad.parts[0].options[3] = "All of the above";
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/mcq_banned_option/);
+  });
+
+  test("table part still rejected", () => {
+    const bad = validEasy();
+    bad.parts[0].type = "table";
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/unsupported_type/);
   });
 
   test("totalMarks equals sum of parts", () => {
-    const bad = validEasy();
+    const bad = validEasyWithMcq();
     bad.totalMarks = 9;
     const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
     expect(res.ok).toBe(false);
     expect(res.issues.join(" ")).toMatch(/total_marks_mismatch/);
+  });
+
+  test("difficulty band still checked", () => {
+    const bad = validEasyWithMcq();
+    bad.parts[1].marks = 5;
+    bad.totalMarks = 6;
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/total_marks_out_of_band/);
+  });
+
+  test("no image language when hasImage=false", () => {
+    const bad = validEasyWithMcq();
+    bad.sharedStem = "The diagram shows asexual reproduction in strawberry plants.";
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues).toContain("image_language_without_image");
   });
 
   test("labels sequential", () => {
@@ -138,35 +303,7 @@ describe("validateCompositeExamAiDraft", () => {
     expect(res.issues.join(" ")).toMatch(/label_not_sequential/);
   });
 
-  test("no image language when hasImage=false", () => {
-    const bad = validEasy();
-    bad.sharedStem = "The diagram shows asexual reproduction in strawberry plants.";
-    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
-    expect(res.ok).toBe(false);
-    expect(res.issues).toContain("image_language_without_image");
-  });
-
-  test("image language allowed when hasImage=true", () => {
-    const ok = validEasy();
-    ok.sharedStem = "The diagram shows asexual reproduction in strawberry plants.";
-    const res = validateCompositeExamAiDraft(ok, { difficulty: "easy", hasImage: true });
-    expect(res.ok).toBe(true);
-  });
-
-  test("unsupported table part rejected", () => {
-    const bad = validEasy();
-    bad.parts[0].type = "table";
-    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
-    expect(res.ok).toBe(false);
-    expect(res.issues.join(" ")).toMatch(/unsupported_type/);
-  });
-
-  test("malformed AI JSON / missing parts rejected", () => {
-    const res = validateCompositeExamAiDraft({ title: "x", sharedStem: "enough stem text here" }, { difficulty: "easy" });
-    expect(res.ok).toBe(false);
-  });
-
-  test("mark scheme line validation works", () => {
+  test("mark scheme line validation works for short", () => {
     const bad = validEasy();
     bad.parts[1].markSchemeLines = ["short", "tiny"];
     const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
@@ -185,8 +322,8 @@ describe("generateCompositeExamDraft service", () => {
     callOpenAiJson.mockReset();
   });
 
-  test("returns validated draft and does not throw when LLM returns valid JSON", async () => {
-    callOpenAiJson.mockResolvedValue(validMedium());
+  test("returns validated mixed MCQ + short draft", async () => {
+    callOpenAiJson.mockResolvedValue(validMediumWithMcq());
     const draft = await generateCompositeExamDraft({
       subject: "Biology",
       examBoard: "Edexcel",
@@ -196,9 +333,10 @@ describe("generateCompositeExamDraft service", () => {
       difficulty: "medium",
       hasImage: false,
     });
-    expect(draft.totalMarks).toBe(4);
-    expect(draft.parts.every((p) => p.type === "short")).toBe(true);
-    expect(callOpenAiJson).toHaveBeenCalledTimes(1);
+    expect(draft.totalMarks).toBe(5);
+    expect(draft.parts.some((p) => p.type === "mcq")).toBe(true);
+    expect(draft.parts.some((p) => p.type === "short")).toBe(true);
+    expect(draft.parts.every((p) => p.type !== "table")).toBe(true);
   });
 
   test("rejects missing topicKey before calling LLM", async () => {

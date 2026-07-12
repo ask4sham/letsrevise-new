@@ -25,11 +25,20 @@ function validEasyDraft() {
     parts: [
       {
         label: "a",
-        type: "short",
+        type: "mcq",
         marks: 1,
-        questionText: "State what is meant by asexual reproduction.",
-        markSchemeLines: ["Award 1 mark for reproduction involving one parent / no gametes / genetically identical offspring."],
-        commandWord: "State",
+        questionText: "Which statement best describes asexual reproduction?",
+        options: [
+          "Offspring are produced by two parents and are genetically varied",
+          "Offspring are produced by one parent and are genetically identical",
+          "Gametes fuse to form a zygote",
+          "Meiosis always occurs before fertilisation",
+        ],
+        correctIndex: 1,
+        markSchemeLines: [
+          "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
+        ],
+        commandWord: "Identify",
         skill: "recall",
       },
       {
@@ -43,6 +52,108 @@ function validEasyDraft() {
         ],
         commandWord: "Describe",
         skill: "describe",
+      },
+    ],
+    warnings: [],
+  };
+}
+
+function validMediumDraft() {
+  return {
+    title: "Comparing reproductive strategies",
+    sharedStem: "Some plants reproduce asexually while others reproduce sexually.",
+    difficulty: "medium",
+    totalMarks: 5,
+    parts: [
+      {
+        label: "a",
+        type: "mcq",
+        marks: 1,
+        questionText: "Which statement best describes asexual reproduction?",
+        options: [
+          "Offspring are produced by two parents and are genetically varied",
+          "Offspring are produced by one parent and are genetically identical",
+          "Gametes fuse to form a zygote",
+          "Meiosis always occurs before fertilisation",
+        ],
+        correctIndex: 1,
+        markSchemeLines: [
+          "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
+        ],
+        commandWord: "Identify",
+        skill: "recall",
+      },
+      {
+        label: "b",
+        type: "short",
+        marks: 2,
+        questionText: "Explain why asexual offspring are genetically identical to the parent.",
+        markSchemeLines: [
+          "Award 1 mark for mitosis / no mixing of gametes.",
+          "Award 1 mark for identical DNA / clones of the parent.",
+        ],
+        commandWord: "Explain",
+        skill: "explain",
+      },
+      {
+        label: "c",
+        type: "short",
+        marks: 2,
+        questionText: "Suggest why asexual reproduction can be a disadvantage after an environmental change.",
+        markSchemeLines: [
+          "Award 1 mark for low genetic variation / all offspring similar.",
+          "Award 1 mark for population may all be vulnerable / less likely to survive change.",
+        ],
+        commandWord: "Suggest",
+        skill: "apply",
+      },
+    ],
+    warnings: [],
+  };
+}
+
+function validHardDraft() {
+  return {
+    title: "Higher-tier reproduction analysis",
+    sharedStem: "Organisms can reproduce sexually or asexually depending on conditions.",
+    difficulty: "hard",
+    totalMarks: 6,
+    parts: [
+      {
+        label: "a",
+        type: "short",
+        marks: 2,
+        questionText: "Compare asexual and sexual reproduction in terms of genetic variation.",
+        markSchemeLines: [
+          "Award 1 mark for asexual produces clones / little variation.",
+          "Award 1 mark for sexual produces genetic variation / mixing of alleles.",
+        ],
+        commandWord: "Compare",
+        skill: "compare",
+      },
+      {
+        label: "b",
+        type: "short",
+        marks: 2,
+        questionText: "Evaluate the benefit of sexual reproduction in a changing environment.",
+        markSchemeLines: [
+          "Award 1 mark for variation increases chance some individuals survive.",
+          "Award 1 mark for linked explanation of changing selection pressures.",
+        ],
+        commandWord: "Evaluate",
+        skill: "evaluate",
+      },
+      {
+        label: "c",
+        type: "short",
+        marks: 2,
+        questionText: "Justify why farmers may still prefer asexual methods for some crops.",
+        markSchemeLines: [
+          "Award 1 mark for desirable traits conserved / uniform yield.",
+          "Award 1 mark for faster production / no need for pollination.",
+        ],
+        commandWord: "Justify",
+        skill: "justify",
       },
     ],
     warnings: [],
@@ -98,8 +209,40 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
     expect(res.body.success).toBe(true);
     expect(res.body.draft.totalMarks).toBe(3);
     expect(res.body.draft.parts).toHaveLength(2);
+    expect(res.body.draft.parts[0].type).toBe("mcq");
+    expect(res.body.draft.parts[1].type).toBe("short");
     const after = await ExamQuestion.countDocuments();
     expect(after).toBe(before);
+  });
+
+  test("medium can return MCQ + short", async () => {
+    callOpenAiJson.mockResolvedValue(validMediumDraft());
+    const res = await request(app)
+      .post("/api/exam-questions/ai-draft-composite")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        topicKey: "edexcel-igcse-biology:sexual-asexual",
+        difficulty: "medium",
+        hasImage: false,
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.draft.parts.some((p) => p.type === "mcq")).toBe(true);
+    expect(res.body.draft.parts.some((p) => p.type === "short")).toBe(true);
+  });
+
+  test("hard can return short-heavy draft", async () => {
+    callOpenAiJson.mockResolvedValue(validHardDraft());
+    const res = await request(app)
+      .post("/api/exam-questions/ai-draft-composite")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        topicKey: "edexcel-igcse-biology:sexual-asexual",
+        difficulty: "hard",
+        hasImage: false,
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.draft.parts.every((p) => p.type === "short")).toBe(true);
+    expect(res.body.draft.totalMarks).toBe(6);
   });
 
   test("rejects missing topic", async () => {
