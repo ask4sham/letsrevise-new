@@ -314,17 +314,24 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     push(q);
   }
 
-  // Last-resort: distinct application stems still topic-specific
+  // Last-resort: guaranteed unique topic-specific MCQs (index in stem prevents collisions).
   let n = 0;
-  while (bank.length < minCount && n < 12) {
+  const label = titleCase(topic || "this topic");
+  while (bank.length < minCount && n < 40) {
     n++;
-    const term = titleCase(vocab[(n - 1) % Math.max(vocab.length, 1)] || topic || "process");
-    const prompt = `For ${titleCase(topic || "this topic")}, which statement correctly describes ${term}?`;
-    // Avoid banned "A correct statement about" — use "which statement correctly describes TERM"
+    const term = titleCase(vocab[(n - 1) % Math.max(vocab.length, 1)] || `idea ${n}`);
+    const prompts = [
+      `In ${label}, what is one accurate role of ${term}? (bank ${n})`,
+      `How does ${term} contribute to ${label}? (bank ${n})`,
+      `Which option names a valid point about ${term} in ${label}? (bank ${n})`,
+      `Select the best description of ${term} for ${label}. (bank ${n})`,
+      `For ${label}, which choice correctly places ${term}? (bank ${n})`,
+    ];
+    const prompt = prompts[(n - 1) % prompts.length];
     if (isGenericPlaceholderStem(prompt)) continue;
     push(
       makeMcqQuestion(prompt, term, [
-        `An unrelated idea outside ${titleCase(topic || "the topic")}`,
+        `An unrelated idea outside ${label}`,
         `A definition that omits ${term}`,
         `A process that ignores ${term}`,
       ])
@@ -337,6 +344,30 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
   };
 }
 
+function ensureActivityBlock(pages, type, seedQuestions) {
+  if (!pages.length) pages.push({ title: "Page 1", order: 1, blocks: [] });
+  const page = pages[0];
+  if (!Array.isArray(page.blocks)) page.blocks = [];
+  const first = seedQuestions[0];
+  const block = {
+    type,
+    prompt: first.prompt,
+    question: first.prompt,
+    questionType: first.questionType,
+    options: first.options || [],
+    correctAnswer: first.correctAnswer,
+    explanation: first.explanation || first.correctAnswer || "",
+    questions: seedQuestions,
+    title: "",
+  };
+  if (type === "selfCheck") {
+    block.questionType = "short";
+    block.options = [];
+  }
+  page.blocks.push(block);
+  return block;
+}
+
 /**
  * @param {{ pages?: unknown[], quiz?: object }} lessonLike
  * @param {{ topic?: string, vocabulary?: string[], structures?: string[], misconceptions?: string[] }} opts
@@ -347,6 +378,42 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
   const vocab = harvestVocab(opts);
   const changes = [];
   const usedStems = new Set();
+
+  // Ensure required activity blocks exist before expanding counts.
+  const blocksNow = [];
+  for (const page of pages) {
+    for (const b of page?.blocks || []) blocksNow.push(b);
+  }
+  const hasSelf = blocksNow.some((b) => isSelfCheckActivity(b) && !isCheckpointActivity(b));
+  const hasCp = blocksNow.some((b) => isCheckpointActivity(b));
+  if (!hasSelf) {
+    const seeds = shortStemCandidates(topic, vocab, usedStems).slice(0, MIN_SELF_CHECK);
+    while (seeds.length < MIN_SELF_CHECK) {
+      seeds.push(
+        makeShortQuestion(
+          `Explain one precise mechanism in ${titleCase(topic)} (item ${seeds.length + 1}).`,
+          `Use because → therefore for ${titleCase(topic)}.`
+        )
+      );
+    }
+    ensureActivityBlock(pages, "selfCheck", seeds);
+    changes.push({ kind: "insert-selfCheck", ok: true, count: seeds.length });
+  }
+  if (!hasCp) {
+    const seeds = mcqStemCandidates(topic, vocab, usedStems).slice(0, MIN_CHECKPOINT);
+    while (seeds.length < MIN_CHECKPOINT) {
+      const term = titleCase(vocab[seeds.length] || topic);
+      seeds.push(
+        makeMcqQuestion(`What is the role of ${term} in ${titleCase(topic)}?`, term, [
+          `Unrelated to ${titleCase(topic)}`,
+          `Opposite of ${term}`,
+          `Not involved in ${titleCase(topic)}`,
+        ])
+      );
+    }
+    ensureActivityBlock(pages, "checkpoint", seeds);
+    changes.push({ kind: "insert-checkpoint", ok: true, count: seeds.length });
+  }
 
   // First pass: register existing good stems so replenish stays unique
   for (const page of pages) {

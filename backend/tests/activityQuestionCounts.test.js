@@ -238,6 +238,52 @@ describe("validateLessonActivityQuestionCounts", () => {
     expect(r.issues.some((i) => i.startsWith("activity_generic_placeholder_stem"))).toBe(true);
   });
 
+  test("rejects missing self-check activity", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [
+            {
+              type: "checkpoint",
+              questions: [
+                {
+                  prompt: "CP1?",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "A",
+                },
+                {
+                  prompt: "CP2?",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "B",
+                },
+                {
+                  prompt: "CP3?",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "C",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      quiz: {
+        questions: Array.from({ length: 5 }, (_, i) => ({
+          id: String(i),
+          type: "mcq",
+          question: `Quiz ${i}?`,
+          options: ["A", "B", "C", "D"],
+          correctAnswer: "A",
+        })),
+      },
+    };
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i === "activity_missing:selfCheck")).toBe(true);
+  });
+
   test("existing valid lesson passes", () => {
     const lesson = validLesson();
     const r = validateLessonActivityQuestionCounts(lesson);
@@ -310,6 +356,34 @@ describe("repairLessonActivityQuestionCounts", () => {
     });
     const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
     expect(sc.questions.length).toBeGreaterThanOrEqual(MIN_SELF_CHECK);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair inserts missing self-check and reaches quiz 5", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [
+            {
+              type: "checkpoint",
+              prompt: "Only checkpoint?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "A",
+            },
+          ],
+        },
+      ],
+      quiz: { questions: [] },
+    };
+    const out = repairLessonActivityQuestionCounts(lesson, {
+      topic: "Sexual & Asexual Reproduction: Differences",
+      vocabulary: ["gamete", "clone", "mitosis", "meiosis", "variation"],
+    });
+    const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
+    expect(sc).toBeTruthy();
+    expect(sc.questions.length).toBeGreaterThanOrEqual(MIN_SELF_CHECK);
+    expect(out.quiz.questions.length).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
     expect(out.validation.ok).toBe(true);
   });
 

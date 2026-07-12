@@ -5958,6 +5958,32 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
     }
 
+    // Re-apply role fallbacks and refresh structure issues on the post-repair draft.
+    // Stale pre-journey structure issues must not block an otherwise repaired lesson.
+    applyRoleFallbacksToLesson(sanitized);
+    {
+      const blocks = sanitized?.pages?.[0]?.blocks;
+      if (Array.isArray(blocks) && !blocks.some((b) => String(b?.role || "").trim() === "coreRule")) {
+        const keyIdea = blocks.find((b) => String(b?.type || "") === "keyIdea");
+        if (keyIdea) {
+          keyIdea.role = "coreRule";
+          if (!String(keyIdea.title || "").trim()) keyIdea.title = "CORE RULE";
+        } else {
+          blocks.splice(Math.min(3, blocks.length), 0, {
+            type: "keyIdea",
+            role: "coreRule",
+            title: "CORE RULE",
+            content: `<p>Core rule for <strong>${safeStr(subTopicDisplay || topic, "this topic")}</strong>: name the mechanism, then the outcome.</p>`,
+          });
+        }
+      }
+      const structNow = validateLessonStructure(sanitized, { isManual: false });
+      finalStructureIssues = [
+        ...mergeStructureValidationForScoring(structNow),
+        ...validateBlockTypeRequirements(sanitized),
+      ];
+    }
+
     if (process.env.NODE_ENV !== "production") {
       const allBlocks = (finalDraft.pages || []).flatMap((p) => p.blocks || []);
       const worked = allBlocks.find((b) => safeStr(b.role, "") === "workedExample");

@@ -105,10 +105,11 @@ function isSelfCheckActivity(block) {
   return true;
 }
 
-/** Primary checkpoint activity. */
+/** Primary checkpoint activity (exclude worked examples). */
 function isCheckpointActivity(block) {
   const t = blockType(block);
   const role = blockRole(block);
+  if (role === "workedexample" || role === "worked-example") return false;
   if (t === "checkpoint") return true;
   if (t === "selfcheck" && role === "checkpoint") return true;
   return false;
@@ -161,6 +162,13 @@ function validateLessonActivityQuestionCounts(lessonLike) {
   // Exclusive: role=checkpoint on a selfCheck block counts as checkpoint only.
   const checkpoints = blocks.filter(isCheckpointActivity);
   const selfChecks = blocks.filter((b) => isSelfCheckActivity(b) && !isCheckpointActivity(b));
+
+  if (selfChecks.length === 0) {
+    issues.push("activity_missing:selfCheck");
+  }
+  if (checkpoints.length === 0) {
+    issues.push("activity_missing:checkpoint");
+  }
 
   for (let i = 0; i < selfChecks.length; i++) {
     const qs = extractQuestionsFromBlock(selfChecks[i]);
