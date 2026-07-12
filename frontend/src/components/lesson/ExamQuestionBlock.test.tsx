@@ -398,6 +398,57 @@ describe("ExamQuestionBlock data-table stimulus", () => {
   });
 });
 
+describe("ExamQuestionBlock data-table stimulus", () => {
+  test("composite with metadata.stimulusTable renders read-only table and short parts", () => {
+    render(
+      <ExamQuestionBlock
+        question={{
+          ...COMPOSITE_QUESTION,
+          parts: [
+            {
+              label: "a",
+              type: "short",
+              marks: 1,
+              questionText: "State the temperature with the highest rate.",
+              markScheme: ["Award 1 mark for 40 °C."],
+            },
+            {
+              label: "b",
+              type: "short",
+              marks: 2,
+              questionText: "Describe the trend shown by the rate results.",
+              markScheme: [
+                "Award 1 mark for rate increases to 40 °C.",
+                "Award 1 mark for rate decreases after 40 °C.",
+              ],
+            },
+          ],
+          metadata: {
+            questionStyle: "data_table",
+            stimulusTable: {
+              title: "Effect of temperature on enzyme activity",
+              columns: [
+                { heading: "Temperature", unit: "°C" },
+                { heading: "Rate", unit: "s⁻¹" },
+              ],
+              rows: [
+                ["20", "0.013"],
+                ["30", "0.022"],
+                ["40", "0.040"],
+              ],
+            },
+          },
+        }}
+        mode="student"
+      />
+    );
+    expect(screen.getByTestId("exam-composite-stimulus-table")).toHaveTextContent("Temperature");
+    expect(screen.getByTestId("exam-composite-stimulus-table")).toHaveTextContent("0.040");
+    expect(screen.queryByTestId("exam-composite-table-0")).not.toBeInTheDocument();
+    expect(screen.getByText(/State the temperature with the highest rate/i)).toBeInTheDocument();
+  });
+});
+
 describe("ExamQuestionBlock inline exam images", () => {
   const DISPLAY_URL = "https://cdn.example.com/exam-questions/fetus-in-uterus.display.png";
   const ORIGINAL_URL = "https://cdn.example.com/exam-questions/fetus-in-uterus.png";

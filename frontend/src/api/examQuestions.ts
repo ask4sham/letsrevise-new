@@ -231,6 +231,12 @@ export type CompositeAiDraft = {
   totalMarks: number;
   parts: CompositeAiDraftPart[];
   warnings?: string[];
+  questionStyle?: string;
+  dataTable?: {
+    title?: string;
+    columns: Array<{ heading: string; unit?: string }>;
+    rows: string[][];
+  };
 };
 
 export type GenerateCompositeQuestionDraftPayload = {
@@ -244,37 +250,47 @@ export type GenerateCompositeQuestionDraftPayload = {
   hasImage?: boolean;
 };
 
-/**
- * POST /exam-questions/ai-draft-composite — returns draft JSON only (no DB write).
- */
-export async function generateCompositeQuestionDraft(
-  payload: GenerateCompositeQuestionDraftPayload
+function friendlyCompositeAiCode(
+  code?: string,
+  status?: number,
+  msg?: string,
+  opts?: { dataTable?: boolean }
+): string | null {
+  if (status === 429 || code === "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR") {
+    return "Too many AI draft requests. Try again in a minute.";
+  }
+  if (code === "LLM_NOT_CONFIGURED") return "AI service is not configured on the server.";
+  if (code === "LLM_EMPTY" || code === "LLM_BAD_JSON") {
+    return "AI service returned an unusable response. Please try again.";
+  }
+  if (code === "TOPIC_REQUIRED") return "Select a topic before generating.";
+  if (code === "INVALID_DIFFICULTY") return "Choose Easy, Medium, or Hard.";
+  if (code === "AI_DRAFT_INVALID" || status === 422) {
+    if (opts?.dataTable) {
+      return "AI generated an invalid data table. Please try again.";
+    }
+    return msg && msg.trim() ? msg : "AI draft failed validation. Try again.";
+  }
+  if (status === 404) {
+    return "AI draft endpoint is not available on this server. Restart the local backend on the feature branch, or wait for deploy.";
+  }
+  if (status === 503) return msg && msg.trim() ? msg : "AI service is temporarily unavailable. Please try again.";
+  return null;
+}
+
+function formatAiDraftIssues(issues?: string[]): string {
+  if (!Array.isArray(issues) || !issues.length) return "";
+  // Keep compact machine codes for debugging without exposing prompts/secrets.
+  if (process.env.NODE_ENV === "production") return "";
+  return ` (${issues.slice(0, 3).join(", ")})`;
+}
+
+async function postCompositeAiDraft(
+  path: string,
+  payload: GenerateCompositeQuestionDraftPayload,
+  fallbackError: string,
+  opts?: { dataTable?: boolean }
 ): Promise<CompositeAiDraft> {
-  const friendlyFromCode = (code?: string, status?: number, msg?: string): string | null => {
-    if (status === 429 || code === "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR") {
-      return "Too many AI draft requests. Try again in a minute.";
-    }
-    if (code === "LLM_NOT_CONFIGURED") return "AI service is not configured on the server.";
-    if (code === "LLM_EMPTY" || code === "LLM_BAD_JSON") {
-      return "AI service returned an unusable response. Please try again.";
-    }
-    if (code === "TOPIC_REQUIRED") return "Select a topic before generating.";
-    if (code === "INVALID_DIFFICULTY") return "Choose Easy, Medium, or Hard.";
-    if (code === "AI_DRAFT_INVALID" || status === 422) {
-      return msg && msg.trim() ? msg : "AI draft failed validation. Try again.";
-    }
-    if (status === 404) {
-      return "AI draft endpoint is not available on this server. Restart the local backend on the feature branch, or wait for deploy.";
-    }
-    if (status === 503) return msg && msg.trim() ? msg : "AI service is temporarily unavailable. Please try again.";
-    return null;
-  };
-
-  const formatIssues = (issues?: string[]): string => {
-    if (!Array.isArray(issues) || !issues.length) return "";
-    return ` (${issues.slice(0, 3).join(", ")})`;
-  };
-
   try {
     const res = await api.post<{
       success?: boolean;
@@ -283,24 +299,26 @@ export async function generateCompositeQuestionDraft(
       error?: string;
       issues?: string[];
       code?: string;
-    }>("/exam-questions/ai-draft-composite", payload);
+    }>(path, payload);
     if (!res.data?.success || !res.data.draft) {
       const friendly =
-        friendlyFromCode(res.data?.code, undefined, res.data?.msg) ||
+        friendlyCompositeAiCode(res.data?.code, undefined, res.data?.msg, opts) ||
         res.data?.msg ||
         res.data?.error ||
-        "Failed to generate composite draft";
-      throw new Error(friendly + formatIssues(res.data?.issues));
+        fallbackError;
+      throw new Error(friendly + formatAiDraftIssues(res.data?.issues));
     }
     return res.data.draft;
   } catch (err: unknown) {
-    // Shared api client rejects with { message, status, data } (not AxiosError.response).
     if (err && typeof err === "object") {
       const e = err as {
         message?: string;
         status?: number;
         data?: { msg?: string; error?: string; message?: string; issues?: string[]; code?: string };
-        response?: { status?: number; data?: { msg?: string; error?: string; message?: string; issues?: string[]; code?: string } };
+        response?: {
+          status?: number;
+          data?: { msg?: string; error?: string; message?: string; issues?: string[]; code?: string };
+        };
       };
       const status = typeof e.status === "number" ? e.status : e.response?.status;
       const data = e.data || e.response?.data;
@@ -311,13 +329,40 @@ export async function generateCompositeQuestionDraft(
         (typeof data?.message === "string" && data.message) ||
         (typeof e.message === "string" && e.message) ||
         "";
-      const friendly = friendlyFromCode(code, status, rawMsg);
-      if (friendly) throw new Error(friendly + formatIssues(data?.issues));
-      if (rawMsg.trim() && rawMsg !== "Failed to generate composite draft") {
-        throw new Error(rawMsg.trim() + formatIssues(data?.issues));
+      const friendly = friendlyCompositeAiCode(code, status, rawMsg, opts);
+      if (friendly) throw new Error(friendly + formatAiDraftIssues(data?.issues));
+      if (rawMsg.trim() && rawMsg !== fallbackError) {
+        throw new Error(rawMsg.trim() + formatAiDraftIssues(data?.issues));
       }
     }
     if (err instanceof Error && err.message.trim()) throw err;
-    throw new Error("Failed to generate composite draft");
+    throw new Error(fallbackError);
   }
+}
+
+/**
+ * POST /exam-questions/ai-draft-composite — returns draft JSON only (no DB write).
+ */
+export async function generateCompositeQuestionDraft(
+  payload: GenerateCompositeQuestionDraftPayload
+): Promise<CompositeAiDraft> {
+  return postCompositeAiDraft(
+    "/exam-questions/ai-draft-composite",
+    payload,
+    "Failed to generate composite draft"
+  );
+}
+
+/**
+ * POST /exam-questions/ai-draft-composite-data-table — data-table stimulus + short parts (no DB write).
+ */
+export async function generateCompositeDataTableQuestionDraft(
+  payload: GenerateCompositeQuestionDraftPayload
+): Promise<CompositeAiDraft> {
+  return postCompositeAiDraft(
+    "/exam-questions/ai-draft-composite-data-table",
+    payload,
+    "Failed to generate data-table composite draft",
+    { dataTable: true }
+  );
 }
