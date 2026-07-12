@@ -122,7 +122,9 @@ Difficulty band:
 - totalMarks: ${band.minMarks}-${band.maxMarks}
 - style: ${mixHint}
 - REQUIRED: dataTable with 2–5 columns, 3–6 rows, no blank cells, units on numeric columns
+- Prefer quantitative experimental results (measurements over time/temperature/concentration), not vague comparison lists.
 - FORBIDDEN: type "mcq"; type "table"; fill-in blanks; diagrams/graphs/images
+- FORBIDDEN: fewer than 3 data rows
 
 Return JSON only.`;
 

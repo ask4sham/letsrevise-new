@@ -226,6 +226,7 @@ function checkTrendConsistency(part, table, issues, warnings) {
   const text = `${part.questionText} ${part.skill} ${part.dataDependency}`.toLowerCase();
   if (!/\b(trend|increases?|decreases?|rises?|falls?)\b/.test(text)) return;
 
+  // Only hard-check trends on clearly quantitative series (avoid comparison/text tables).
   let colIndex = findColumnIndex(table.columns, "rate");
   if (colIndex < 0) {
     for (let c = table.columns.length - 1; c >= 0; c -= 1) {
@@ -235,7 +236,7 @@ function checkTrendConsistency(part, table, issues, warnings) {
       }
     }
   }
-  if (colIndex < 0) {
+  if (colIndex < 0 || !columnLooksNumeric(table.rows, colIndex)) {
     warnings.push(`could_not_verify_trend:part_${part.label}`);
     return;
   }
@@ -257,7 +258,6 @@ function checkTrendConsistency(part, table, issues, warnings) {
   const mentionsIncrease = /\b(increase|increases|rising|rises|higher)\b/.test(scheme);
   const mentionsDecrease = /\b(decrease|decreases|falling|falls|lower|denatur)\b/.test(scheme);
 
-  // Overall trend questions must match the full pattern; scoped "from X to Y" may be one-sided.
   const overallTrend =
     /\bdescribe the trend\b/.test(text) ||
     String(part.skill || "")
@@ -270,18 +270,20 @@ function checkTrendConsistency(part, table, issues, warnings) {
   } else if (downs > 0 && ups === 0 && !mentionsDecrease) {
     issues.push(`trend_contradiction:part_${part.label}_expected_decrease`);
   } else if (ups > 0 && downs > 0 && overallTrend && !scopedSegment) {
-    if (!(mentionsIncrease && mentionsDecrease)) {
-      issues.push(`trend_contradiction:part_${part.label}_expected_increase_and_decrease`);
+    if (/\b(constant|no change|unchanged|stays the same|does not change)\b/.test(scheme)) {
+      issues.push(`trend_contradiction:part_${part.label}_claimed_constant`);
+    } else if (!(mentionsIncrease && mentionsDecrease)) {
+      // Soft: peak patterns are common; teacher reviews incomplete wording.
+      warnings.push(`trend_pattern_unclear:part_${part.label}_expected_increase_and_decrease`);
     }
   } else if (ups > 0 && downs > 0 && scopedSegment) {
-    // Soft: require at least one matching direction word; hard reject only if scheme contradicts both.
     if (!mentionsIncrease && !mentionsDecrease) {
-      issues.push(`trend_contradiction:part_${part.label}_missing_direction`);
+      warnings.push(`trend_direction_unclear:part_${part.label}`);
     }
   }
 }
 
-function validateDataDependency(part, table, issues) {
+function validateDataDependency(part, table, issues, warnings) {
   const dep = String(part.dataDependency || "").trim();
   if (!dep || dep.length < 4) {
     issues.push(`data_dependency_missing:part_${part.label}`);
@@ -295,9 +297,12 @@ function validateDataDependency(part, table, issues) {
     return h && (depLower.includes(h) || h.includes(depLower.slice(0, Math.min(12, depLower.length))));
   });
   const genericHit =
-    /\b(row|column|table|rate|trend|temperature|time|value|result|data)\b/i.test(dep);
+    /\b(row|column|table|rate|trend|temperature|time|value|result|data|compare|comparison|method|type)\b/i.test(
+      dep
+    );
   if (!headingHit && !genericHit) {
-    issues.push(`data_dependency_unknown:part_${part.label}`);
+    // Soft: keep editable; teacher can fix dependency wording.
+    warnings.push(`data_dependency_unknown:part_${part.label}`);
   }
 }
 
@@ -432,7 +437,7 @@ function validateCompositeDataTableAiDraft(raw, opts = {}) {
     };
 
     if (table) {
-      validateDataDependency(partOut, table, issues);
+      validateDataDependency(partOut, table, issues, warnings);
       checkHighestLowestConsistency(partOut, table, issues, warnings);
       checkTrendConsistency(partOut, table, issues, warnings);
     }

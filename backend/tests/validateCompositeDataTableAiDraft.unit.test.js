@@ -277,8 +277,17 @@ describe("validateCompositeDataTableAiDraft", () => {
       "Award 1 mark for no change with temperature.",
     ];
     const result = validateCompositeDataTableAiDraft(draft, { difficulty: "easy" });
+    // Monotonic-up-only / down-only contradictions remain hard rejects; peak patterns may warn.
     expect(result.ok).toBe(false);
     expect(result.issues.some((i) => i.startsWith("trend_contradiction"))).toBe(true);
+  });
+
+  test("unknown dataDependency is a warning not a hard reject", () => {
+    const draft = validEasy();
+    draft.parts[0].dataDependency = "xyzzy unrelated phrase here";
+    const result = validateCompositeDataTableAiDraft(draft, { difficulty: "easy" });
+    expect(result.ok).toBe(true);
+    expect(result.draft.warnings.some((w) => w.startsWith("data_dependency_unknown"))).toBe(true);
   });
 
   test("normalizeDifficulty accepts bands", () => {
