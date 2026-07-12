@@ -245,6 +245,157 @@ describe("ExamQuestionBlock composite question marking", () => {
     const revealBtn = screen.getByTestId("exam-composite-reveal-btn");
     expect(revealBtn).not.toBeDisabled();
   });
+
+  test("standard composite without stimulusTable is unchanged", () => {
+    render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="student" />);
+    expect(screen.queryByTestId("exam-composite-stimulus-table")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Prophase/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /your answer/i })).toBeInTheDocument();
+  });
+});
+
+describe("ExamQuestionBlock data-table stimulus", () => {
+  const DATA_TABLE_QUESTION: ExamQuestion = {
+    ...COMPOSITE_QUESTION,
+    parts: [
+      {
+        label: "a",
+        type: "short",
+        marks: 1,
+        questionText: "State the temperature with the highest rate.",
+        markScheme: ["Award 1 mark for 40 °C."],
+      },
+      {
+        label: "b",
+        type: "short",
+        marks: 2,
+        questionText: "Describe the trend shown by the rate results.",
+        markScheme: [
+          "Award 1 mark for rate increases to 40 °C.",
+          "Award 1 mark for rate decreases after 40 °C.",
+        ],
+      },
+    ],
+    metadata: {
+      questionStyle: "data_table",
+      stimulusTable: {
+        title: "Effect of temperature on enzyme activity",
+        columns: [
+          { heading: "Temperature", unit: "°C" },
+          { heading: "Rate", unit: "s⁻¹" },
+        ],
+        rows: [
+          ["20", "0.013"],
+          ["30", "0.022"],
+          ["40", "0.040"],
+        ],
+      },
+    },
+  };
+
+  test("composite with metadata.stimulusTable renders read-only table under stem before parts", () => {
+    const { container } = render(
+      <ExamQuestionBlock question={DATA_TABLE_QUESTION} mode="student" />
+    );
+    const stem = container.querySelector(".exam-composite__stem");
+    const table = screen.getByTestId("exam-composite-stimulus-table");
+    const partA = screen.getByText(/State the temperature with the highest rate/i);
+    expect(stem).toBeTruthy();
+    expect(table).toHaveTextContent("Effect of temperature on enzyme activity");
+    expect(table).toHaveTextContent("Temperature");
+    expect(table).toHaveTextContent("0.040");
+    expect(stem!.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(table.compareDocumentPosition(partA) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(table.querySelectorAll("input").length).toBe(0);
+    expect(screen.queryByTestId("exam-composite-table-0")).not.toBeInTheDocument();
+    expect(screen.getByText(/Describe the trend shown by the rate results/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Exam question/i })).toBeInTheDocument();
+  });
+
+  test("known published reproduction data-table question renders Frog/Bacteria/Daisy rows", () => {
+    render(
+      <ExamQuestionBlock
+        question={{
+          _id: "6a53b05488cdc36953051df6",
+          questionMode: "composite",
+          type: "composite",
+          title: "Differences Between Sexual and Asexual Reproduction",
+          sharedStem:
+            "The table below shows the average time taken for different organisms to reproduce sexually and asexually under controlled conditions.",
+          question:
+            "The table below shows the average time taken for different organisms to reproduce sexually and asexually under controlled conditions.",
+          totalMarks: 5,
+          parts: [
+            {
+              label: "a",
+              type: "short",
+              marks: 2,
+              questionText: "Compare the average reproduction times for frogs and daisies.",
+              markScheme: ["Award 1 mark for stating that frogs take longer than daisies."],
+            },
+            {
+              label: "b",
+              type: "short",
+              marks: 2,
+              questionText:
+                "Calculate the difference in asexual reproduction time between frogs and daisies.",
+              markScheme: ["Award 1 mark for stating the difference is 5 days."],
+            },
+            {
+              label: "c",
+              type: "short",
+              marks: 1,
+              questionText:
+                "Explain the trend observed in the reproduction times for sexual and asexual reproduction.",
+              markScheme: [
+                "Award 1 mark for explaining that asexual reproduction is generally faster.",
+              ],
+            },
+          ],
+          metadata: {
+            questionStyle: "data_table",
+            stimulusTable: {
+              title: "Reproduction Time Data",
+              columns: [
+                { heading: "Organism", unit: "" },
+                { heading: "Sexual Reproduction Time", unit: "days" },
+                { heading: "Asexual Reproduction Time", unit: "days" },
+              ],
+              rows: [
+                ["Frog", "30", "15"],
+                ["Bacteria", "N/A", "1"],
+                ["Daisy", "20", "10"],
+              ],
+            },
+          },
+        }}
+        mode="editor"
+      />
+    );
+    const table = screen.getByTestId("exam-composite-stimulus-table");
+    expect(table).toHaveTextContent("Reproduction Time Data");
+    expect(table).toHaveTextContent("Frog");
+    expect(table).toHaveTextContent("Bacteria");
+    expect(table).toHaveTextContent("Daisy");
+    expect(table.querySelectorAll("input").length).toBe(0);
+    expect(screen.getByText(/Compare the average reproduction times/i)).toBeInTheDocument();
+    expect(screen.getByTestId("exam-composite-reveal-btn")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Exam question/i })).toBeInTheDocument();
+    expect(screen.queryByText(/COMPOSITE QUESTION/i)).not.toBeInTheDocument();
+  });
+
+  test("invalid or missing stimulusTable does not render a table", () => {
+    render(
+      <ExamQuestionBlock
+        question={{
+          ...COMPOSITE_QUESTION,
+          metadata: { questionStyle: "data_table", stimulusTable: { columns: [], rows: [] } },
+        }}
+        mode="student"
+      />
+    );
+    expect(screen.queryByTestId("exam-composite-stimulus-table")).not.toBeInTheDocument();
+  });
 });
 
 describe("ExamQuestionBlock inline exam images", () => {
