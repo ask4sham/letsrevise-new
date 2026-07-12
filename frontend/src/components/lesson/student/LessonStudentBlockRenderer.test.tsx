@@ -3,8 +3,26 @@ import { render, screen } from "@testing-library/react";
 import { LessonStudentBlockRenderer } from "./LessonStudentBlockRenderer";
 import { TEACHER_BRAIN_DESIGN_BRIEF_MARKER } from "../../../utils/teacherBrainDesignBrief";
 
+jest.mock("../InlineSelfCheckBlock", () => ({
+  InlineSelfCheckBlock: ({
+    hideHeadingLabel,
+    prompt,
+  }: {
+    hideHeadingLabel?: boolean;
+    prompt?: string;
+  }) => (
+    <div
+      data-testid="self-check"
+      data-hide-heading={hideHeadingLabel ? "1" : "0"}
+      data-prompt={prompt ?? ""}
+    />
+  ),
+}));
+
 jest.mock("../LessonCheckpoint", () => ({
-  LessonCheckpoint: () => <div data-testid="lesson-checkpoint" />,
+  LessonCheckpoint: ({ prompt }: { prompt?: string }) => (
+    <div data-testid="lesson-checkpoint" data-prompt={prompt ?? ""} />
+  ),
 }));
 
 jest.mock("../DragDropMatchBlock", () => ({
@@ -20,12 +38,6 @@ jest.mock("../DragDropMatchBlock", () => ({
       data-match-mode={block.matchMode ?? ""}
       data-hide-title={hideTitle ? "1" : "0"}
     />
-  ),
-}));
-
-jest.mock("../InlineSelfCheckBlock", () => ({
-  InlineSelfCheckBlock: ({ hideHeadingLabel }: { hideHeadingLabel?: boolean }) => (
-    <div data-testid="self-check" data-hide-heading={hideHeadingLabel ? "1" : "0"} />
   ),
 }));
 
@@ -79,6 +91,82 @@ describe("LessonStudentBlockRenderer", () => {
       />
     );
     expect(screen.getByTestId("lesson-checkpoint")).toBeInTheDocument();
+  });
+
+  it("renders multi-question checkpoint with pager (no Question 1/1)", () => {
+    render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        block={{
+          type: "checkpoint",
+          prompt: "Legacy",
+          options: ["A", "B"],
+          correctAnswer: "A",
+          questions: [
+            {
+              prompt: "CP Q1?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "A",
+            },
+            {
+              prompt: "CP Q2?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "B",
+            },
+            {
+              prompt: "CP Q3?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "C",
+            },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByTestId("activity-question-pager")).toHaveTextContent("Question 1/3");
+    expect(screen.getByTestId("lesson-checkpoint")).toHaveAttribute("data-prompt", "CP Q1?");
+  });
+
+  it("renders multi-question self-check with pager", () => {
+    render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        block={{
+          type: "selfCheck",
+          prompt: "Legacy SC",
+          questionType: "short",
+          correctAnswer: "x",
+          questions: [
+            { prompt: "SC1?", questionType: "short", correctAnswer: "a" },
+            { prompt: "SC2?", questionType: "short", correctAnswer: "b" },
+            { prompt: "SC3?", questionType: "short", correctAnswer: "c" },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByTestId("activity-question-pager")).toHaveTextContent("Question 1/3");
+    expect(screen.getByTestId("self-check")).toHaveAttribute("data-prompt", "SC1?");
+  });
+
+  it("legacy one-question self-check still renders without pager", () => {
+    render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        block={{
+          type: "selfCheck",
+          prompt: "Only one self-check?",
+          questionType: "short",
+          correctAnswer: "yes",
+        }}
+      />
+    );
+    expect(screen.getByTestId("self-check")).toHaveAttribute(
+      "data-prompt",
+      "Only one self-check?"
+    );
+    expect(screen.queryByTestId("activity-question-pager")).not.toBeInTheDocument();
   });
 
   it("does not surface Teacher Brain design brief note in student view", () => {

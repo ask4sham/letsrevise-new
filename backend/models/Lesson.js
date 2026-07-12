@@ -182,6 +182,11 @@ const LessonPageBlockSchema = new mongoose.Schema(
     options: { type: [String], default: undefined },
     correctAnswer: { type: String, default: undefined },
     explanation: { type: String, default: undefined },
+    /**
+     * Multi-question activity bank (selfCheck / checkpoint). Additive — legacy single
+     * prompt/question/options/correctAnswer still supported when questions is absent.
+     */
+    questions: { type: [mongoose.Schema.Types.Mixed], default: undefined },
     // diagram block (when type === "diagram") — references VisualModel; PR11: mode, annotations, steps
     visualId: { type: mongoose.Schema.Types.ObjectId, ref: "VisualModel", default: undefined },
     caption: { type: String, default: "" },

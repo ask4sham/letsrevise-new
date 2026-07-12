@@ -86,6 +86,19 @@ export type StudentLessonPageBlock = {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
+  /** Multi-question self-check / checkpoint bank (additive; legacy single fields still work). */
+  questions?: Array<{
+    prompt?: string;
+    question?: string;
+    questionText?: string;
+    stem?: string;
+    questionType?: string;
+    options?: string[];
+    correctAnswer?: string;
+    answer?: string;
+    explanation?: string;
+    markScheme?: string | string[];
+  }>;
   visualId?: string;
   caption?: string;
   /** Diagram block: teacher explanation below the image */

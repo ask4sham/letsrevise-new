@@ -70,7 +70,7 @@ const STEM_TEMPLATES: Array<(prompt: string) => string> = [
   (p) => {
     const lower = p.trim();
     if (/^which\b/i.test(lower)) return `In revision: ${lower}`;
-    return `Which statement is correct? (${lower.replace(/\?$/, "")})`;
+    return `Revision check — ${lower.replace(/\?$/, "")}?`;
   },
 ];
 
@@ -145,6 +145,32 @@ export function extractCheckpointMcqFromBlock(b: LooseBlock): CheckpointMcqSourc
   };
 }
 
+/** Flatten questions[] plus legacy single prompt into MCQ sources. */
+export function extractCheckpointMcqsFromBlock(b: LooseBlock): CheckpointMcqSource[] {
+  const t = blockType(b);
+  if (t !== "checkpoint" && t !== "selfcheck" && t !== "quickcheck") return [];
+  const out: CheckpointMcqSource[] = [];
+  if (Array.isArray(b.questions) && b.questions.length) {
+    for (const raw of b.questions) {
+      if (!raw || typeof raw !== "object") continue;
+      const q = raw as LooseBlock;
+      const prompt = safeStr(q.prompt ?? q.question ?? q.questionText);
+      const opts = Array.isArray(q.options) ? q.options.map((o) => safeStr(o)).filter(Boolean) : [];
+      const ca = safeStr(q.correctAnswer ?? q.answer);
+      if (!prompt || opts.length < 2 || !ca) continue;
+      out.push({
+        prompt,
+        options: opts,
+        correctAnswer: ca,
+        explanation: safeStr(q.explanation) || undefined,
+      });
+    }
+    if (out.length) return out;
+  }
+  const single = extractCheckpointMcqFromBlock(b);
+  return single ? [single] : [];
+}
+
 function pushCheckpointMcq(
   out: CheckpointMcqSource[],
   seen: Set<string>,
@@ -173,7 +199,9 @@ export function collectCheckpointMcqsFromPages(
     const blocks = Array.isArray(p?.blocks) ? p.blocks : [];
     for (const raw of blocks) {
       if (!raw || typeof raw !== "object") continue;
-      pushCheckpointMcq(out, seen, extractCheckpointMcqFromBlock(raw as LooseBlock));
+      for (const mcq of extractCheckpointMcqsFromBlock(raw as LooseBlock)) {
+        pushCheckpointMcq(out, seen, mcq);
+      }
     }
   }
   return out;

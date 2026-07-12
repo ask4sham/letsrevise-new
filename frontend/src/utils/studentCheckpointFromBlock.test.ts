@@ -8,6 +8,34 @@ import {
 } from "./studentCheckpointFromBlock";
 
 describe("studentCheckpointFromBlock", () => {
+  it("prefers questions[0] when multi-question bank is present", () => {
+    const data = studentCheckpointFromBlock(
+      {
+        type: "checkpoint",
+        prompt: "Legacy only",
+        options: ["L1", "L2"],
+        correctAnswer: "L1",
+        questions: [
+          {
+            prompt: "From questions array?",
+            questionType: "mcq",
+            options: ["A", "B", "C", "D"],
+            correctAnswer: "B",
+          },
+          {
+            prompt: "Second Q",
+            questionType: "mcq",
+            options: ["A", "B", "C", "D"],
+            correctAnswer: "A",
+          },
+        ],
+      },
+      "multi"
+    );
+    expect(data?.prompt).toBe("From questions array?");
+    expect(data?.correctAnswer).toBe("B");
+  });
+
   it("accepts mcq checkpoint blocks with prompt and options", () => {
     const data = studentCheckpointFromBlock(
       {

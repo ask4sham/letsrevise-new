@@ -30,6 +30,12 @@ const { planAssessmentJourney, buildAssessmentJourneyPromptSection } = require("
 const { validateAssessmentIntent } = require("../services/assessmentIntentValidator");
 const { applyAssessmentJourneyFromPlan } = require("../services/assessmentJourneyApply");
 const { enforceQuestionDiversityOnDraft } = require("../../lib/questionDeduplicationGuard");
+const {
+  validateLessonActivityQuestionCounts,
+} = require("../utils/validateLessonActivityQuestionCounts");
+const {
+  repairLessonActivityQuestionCounts,
+} = require("../utils/repairLessonActivityQuestionCounts");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
@@ -5618,6 +5624,14 @@ router.post("/generate-and-save", auth, async (req, res) => {
       "- Do not use generic placeholder questions such as \"Which statement best matches this topic?\" or \"Which statement is correct?\".",
       "- Progress questions from recall → apply → explain → exam-style.",
       "- Each question must have a distinct teaching purpose.",
+      "",
+      "ACTIVITY QUESTION COUNT CONTRACT (MANDATORY):",
+      "- Each SELF-CHECK activity must contain at least 3 questions (questions[] preferred).",
+      "- Each CHECKPOINT activity must contain at least 3 questions (questions[] preferred).",
+      "- Lesson QUIZ PAGE / REVISION PRACTICE bank must contain at least 5 unique MCQ questions.",
+      "- Do not clone self-check or checkpoint stems into revision/quiz.",
+      "- Do not output Question 1/1 style pools.",
+      "- Ban stems like \"Which statement best explains a key idea about…\" / \"A correct statement about this topic is…\".",
     ].join("\n");
     engineInstructions = `${String(engineInstructions || "").trim()}\n\n${QUESTION_DIVERSITY_PROMPT}`.trim();
 
@@ -5858,6 +5872,89 @@ router.post("/generate-and-save", auth, async (req, res) => {
         err.code = "QUESTION_DIVERSITY_FAILED";
         err.details = { issues: (diversity.issues || []).slice(0, 8) };
         throw err;
+      }
+    }
+
+    // Activity question-count contract: validate → repair/replenish → re-validate → fail closed.
+    {
+      const topicLabelForCounts = subTopicDisplay || topic;
+      let topicSpecForCounts = null;
+      try {
+        topicSpecForCounts = resolveTopicSpecForGeneration(specKey, canonicalTopicKey, {
+          examCode: req.body?.examCode,
+        });
+      } catch (_) {
+        topicSpecForCounts = null;
+      }
+
+      let countCheck = validateLessonActivityQuestionCounts(sanitized);
+      if (!countCheck.ok) {
+        const repaired = repairLessonActivityQuestionCounts(sanitized, {
+          topic: topicLabelForCounts,
+          vocabulary: topicSpecForCounts?.requiredVocabulary || [],
+          structures: topicSpecForCounts?.requiredStructures || [],
+          misconceptions: topicSpecForCounts?.commonMisconceptions || [],
+        });
+        sanitized.pages = repaired.pages;
+        sanitized.quiz = repaired.quiz;
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[generate-and-save] activity question-count repair:", {
+            changes: repaired.changes,
+            issuesBefore: countCheck.issues?.slice(0, 6),
+          });
+        }
+
+        const diversityAfter = enforceQuestionDiversityOnDraft(sanitized, {
+          topic: topicLabelForCounts,
+          topicKey: canonicalTopicKey,
+        });
+        if (!diversityAfter.clean) {
+          const err = new Error(
+            "Lesson generation failed question diversity check after activity-count repair. Please regenerate."
+          );
+          err.status = 422;
+          err.code = "QUESTION_DIVERSITY_FAILED";
+          err.details = { issues: (diversityAfter.issues || []).slice(0, 8) };
+          throw err;
+        }
+
+        countCheck = validateLessonActivityQuestionCounts(sanitized);
+      }
+
+      if (!countCheck.ok) {
+        console.warn(
+          "[generate-and-save] activity question counts failed:",
+          countCheck.issues?.slice(0, 8)
+        );
+        const err = new Error(
+          "Lesson generation failed activity question-count contract: not enough unique assessment questions after repair. Please regenerate."
+        );
+        err.status = 422;
+        err.code = "ACTIVITY_QUESTION_COUNT_FAILED";
+        err.details = { issues: (countCheck.issues || []).slice(0, 12), summary: countCheck.summary };
+        throw err;
+      }
+
+      // Always materialise a quiz bank ≥5 when missing (revision/quiz pages rely on stored questions).
+      if (!sanitized.quiz || !Array.isArray(sanitized.quiz.questions) || sanitized.quiz.questions.length < 5) {
+        const ensured = repairLessonActivityQuestionCounts(sanitized, {
+          topic: topicLabelForCounts,
+          vocabulary: topicSpecForCounts?.requiredVocabulary || [],
+          structures: topicSpecForCounts?.requiredStructures || [],
+          misconceptions: topicSpecForCounts?.commonMisconceptions || [],
+        });
+        sanitized.pages = ensured.pages;
+        sanitized.quiz = ensured.quiz;
+        countCheck = validateLessonActivityQuestionCounts(sanitized);
+        if (!countCheck.ok) {
+          const err = new Error(
+            "Lesson generation failed activity question-count contract: quiz/revision pool too low after repair. Please regenerate."
+          );
+          err.status = 422;
+          err.code = "ACTIVITY_QUESTION_COUNT_FAILED";
+          err.details = { issues: (countCheck.issues || []).slice(0, 12), summary: countCheck.summary };
+          throw err;
+        }
       }
     }
 
@@ -6193,6 +6290,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
       // Gold structure
       pages: pagesForDb,
 
+      // Activity question bank (revision practice + quiz page) — enforced ≥5 before save
+      ...(sanitized.quiz &&
+        Array.isArray(sanitized.quiz.questions) &&
+        sanitized.quiz.questions.length > 0 && {
+          quiz: {
+            timeSeconds: sanitized.quiz.timeSeconds || 600,
+            questions: sanitized.quiz.questions,
+          },
+        }),
+
       // Ownership
       teacherId: req.user?._id || req.user?.userId || req.user?.id,
       teacherName,
@@ -6370,12 +6477,12 @@ router.post("/generate-and-save", auth, async (req, res) => {
       return res.status(status).json(payload);
     }
 
-    if (error?.code === "QUESTION_DIVERSITY_FAILED" || error?.status === 422) {
+    if (error?.code === "QUESTION_DIVERSITY_FAILED" || error?.code === "ACTIVITY_QUESTION_COUNT_FAILED" || error?.status === 422) {
       return res.status(422).json({
         error: "Failed to generate lesson materials",
-        code: "QUESTION_DIVERSITY_FAILED",
-        details: error.message || "Duplicate questions could not be repaired.",
-        ...(!IS_PRODUCTION && error.details ? { diversityIssues: error.details } : {}),
+        code: error?.code || "QUESTION_DIVERSITY_FAILED",
+        details: error.message || "Lesson quality gate failed.",
+        ...(!IS_PRODUCTION && error.details ? { gateIssues: error.details } : {}),
       });
     }
 

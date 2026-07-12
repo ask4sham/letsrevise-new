@@ -71,7 +71,19 @@ Generate a **single-page** lesson. Put all content in `blocks[]` on that page. U
 9. **Exam tips** (examTip) — At least 2 blocks. How to tackle exam questions, what examiners credit, typical mark allocations.
 10. **Worked exam example** (text) — **MANDATORY.** You MUST include at least one worked exam-style example with: the question, a model answer, and mark breakdown (e.g. "1 mark for…", "another mark for…", "full marks requires…").
 11. **Exam-style questions** (text) — **Do not use only one question style.** Include a varied set of exam-style questions covering Describe, Explain, Compare, Evaluate, Suggest (where appropriate). Mix command words. One or more text blocks with practice questions and **mark-scheme style answers**.
-12. **Checkpoint** (checkpoint) — Exactly one checkpoint block. A quality MCQ or short-answer question that tests understanding.
+12. **Checkpoint** (checkpoint) — Exactly one checkpoint **activity**. It must contain **at least 3 questions** (use a `questions` array). Do not output a one-question checkpoint.
+13. **Self-check** (selfCheck) — Exactly one self-check **activity**. It must contain **at least 3 questions** (use a `questions` array). Do not output Question 1/1.
+14. **Quiz / revision bank** — Persist at least **5 unique MCQ questions** on the lesson quiz bank for Quiz Page and Revision Practice. Do not clone self-check/checkpoint stems into the quiz bank.
+
+ACTIVITY QUESTION COUNT CONTRACT (MANDATORY — fail closed if unmet after repair):
+- each SELF-CHECK ≥ 3 questions
+- each CHECKPOINT ≥ 3 questions
+- QUIZ PAGE source bank ≥ 5 unique questions
+- REVISION PRACTICE source bank ≥ 5 unique questions
+- questions must be varied (no exact/near clones across self-check, checkpoint, revision, quiz)
+- ban generic placeholder stems such as "Which statement best explains a key idea about…", "Which statement best matches this topic?", "A correct statement about this topic is…"
+- include at least one harder/application item where supported
+- do not output Question 1/1 style pools
 
 ---
 
@@ -82,7 +94,8 @@ Generate a **single-page** lesson. Put all content in `blocks[]` on that page. U
 - **examTip** — Exam technique. Match the board's mark scheme style.
 - **commonMistake** — **Minimum 3.** Misconception → why wrong → correct understanding.
 - **stretch** (Higher only) — Deeper/extension content. Omit for Foundation.
-- **checkpoint** — One per draft. Fields: `prompt`, `questionType` ("mcq" or "short"), `options` (4 for mcq), `correctAnswer`, `explanation`.
+- **checkpoint** — One activity per draft with **≥ 3 questions**. Preferred shape: `questions: [{ prompt, questionType, options, correctAnswer, explanation }, ...]`. Legacy single `prompt` fields remain readable but new generation must use `questions`.
+- **selfCheck** — One activity per draft with **≥ 3 questions** in `questions` (same item shape as checkpoint).
 
 ---
 
