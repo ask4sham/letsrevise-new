@@ -179,3 +179,68 @@ export function applyKeyTermsToBlockContent(
   }
   return { nextContent: c, notFoundTerms };
 }
+
+/**
+ * Unwrap a single `<span data-key-term=…>…</span>` range, keeping the inner HTML/text.
+ * Returns null if the range is not a well-formed key-term span.
+ */
+export function unwrapDataKeyTermSpanAt(
+  content: string,
+  start: number,
+  end: number
+): string | null {
+  if (start < 0 || end > content.length || start >= end) return null;
+  const segment = content.slice(start, end);
+  if (!/^<span\b/i.test(segment) || !/\bdata-key-term\s*=/.test(segment)) return null;
+  const tagEndRel = segment.indexOf(">");
+  const closeRel = segment.lastIndexOf("</span>");
+  if (tagEndRel < 0 || closeRel < 0 || closeRel <= tagEndRel) return null;
+  const inner = segment.slice(tagEndRel + 1, closeRel);
+  return content.slice(0, start) + inner + content.slice(end);
+}
+
+/**
+ * Remove `data-key-term` span wrappers that intersect the selection (or contain the caret).
+ * Preserves inner text and surrounding markup (e.g. `<strong>`). Does not touch unrelated spans.
+ *
+ * Selection rules (V1):
+ * - Collapsed caret inside a key-term span → unwrap that span.
+ * - Non-empty selection overlapping one or more key-term spans → unwrap all overlapping spans.
+ * - No overlapping key-term span → content unchanged.
+ */
+export function removeDataKeyTermSpansInRange(
+  content: string,
+  selectionStart: number,
+  selectionEnd: number
+): { nextContent: string; removed: number; cursor: number } {
+  const lo = Math.min(selectionStart, selectionEnd);
+  const hi = Math.max(selectionStart, selectionEnd);
+  const ranges = findDataKeyTermSpanRanges(content);
+
+  const targets =
+    lo === hi
+      ? ranges.filter((r) => lo >= r.start && lo < r.end)
+      : ranges.filter((r) => !(hi <= r.start || lo >= r.end));
+
+  if (!targets.length) {
+    return { nextContent: content, removed: 0, cursor: hi };
+  }
+
+  // Unwrap from the end so earlier indices stay valid.
+  let next = content;
+  for (let i = targets.length - 1; i >= 0; i--) {
+    const r = targets[i];
+    const unwrapped = unwrapDataKeyTermSpanAt(next, r.start, r.end);
+    if (unwrapped != null) next = unwrapped;
+  }
+
+  // Place caret at the start of the first former span's visible text.
+  const first = targets[0];
+  const firstSeg = content.slice(first.start, first.end);
+  const tagEndRel = firstSeg.indexOf(">");
+  const innerStart = first.start + (tagEndRel >= 0 ? tagEndRel + 1 : 0);
+  // After unwraps before `first`, content to the left of `first.start` is unchanged.
+  const cursor = Math.min(Math.max(0, innerStart), next.length);
+
+  return { nextContent: next, removed: targets.length, cursor };
+}

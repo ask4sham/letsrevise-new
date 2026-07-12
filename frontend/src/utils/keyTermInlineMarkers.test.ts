@@ -3,6 +3,7 @@ import {
   buildKeyTermSpanHtml,
   findFirstUnmarkedTermOccurrence,
   MAX_KEY_TERM_DATA_ATTR_LEN,
+  removeDataKeyTermSpansInRange,
   selectionIntersectsDataKeyTermSpan,
   validateAndNormalizeKeyTermForSpan,
 } from "./keyTermInlineMarkers";
@@ -48,7 +49,9 @@ describe("buildKeyTermSpanHtml", () => {
 describe("double-wrap prevention", () => {
   it("applyKeyTermsToBlockContent does not wrap text already inside a data-key-term span", () => {
     const wrapped = '<span data-key-term="osmosis">osmosis</span> in water.';
-    const { nextContent, notFoundTerms } = applyKeyTermsToBlockContent(wrapped, [{ term: "osmosis", definition: "" }]);
+    const { nextContent, notFoundTerms } = applyKeyTermsToBlockContent(wrapped, [
+      { term: "osmosis", definition: "" },
+    ]);
     expect(nextContent).toBe(wrapped);
     expect(notFoundTerms).toContain("osmosis");
   });
@@ -70,5 +73,72 @@ describe("double-wrap prevention", () => {
     const open = c.indexOf("<span");
     const after = c.indexOf("</span>") + "</span>".length;
     expect(selectionIntersectsDataKeyTermSpan(c, open + 1, after - 1)).toBe(true);
+  });
+});
+
+describe("removeDataKeyTermSpansInRange", () => {
+  it("removes one data-key-term span and keeps the text", () => {
+    const c = '<p><span data-key-term="Gamete">Gamete</span> means sex cell.</p>';
+    const start = c.indexOf("<span");
+    const end = c.indexOf("</span>") + "</span>".length;
+    const { nextContent, removed } = removeDataKeyTermSpansInRange(c, start, end);
+    expect(removed).toBe(1);
+    expect(nextContent).toBe("<p>Gamete means sex cell.</p>");
+  });
+
+  it("removes key term inside bold and keeps bold", () => {
+    const c =
+      '<p><strong><span data-key-term="Meiosis">Meiosis</span></strong> halves the chromosome number.</p>';
+    const start = c.indexOf("<span");
+    const { nextContent, removed } = removeDataKeyTermSpansInRange(c, start + 10, start + 12);
+    expect(removed).toBe(1);
+    expect(nextContent).toBe(
+      "<p><strong>Meiosis</strong> halves the chromosome number.</p>"
+    );
+  });
+
+  it("removes multiple selected key-term spans", () => {
+    const c =
+      'A <span data-key-term="Meiosis">Meiosis</span> and <span data-key-term="Mitosis">Mitosis</span> end.';
+    const { nextContent, removed } = removeDataKeyTermSpansInRange(c, 0, c.length);
+    expect(removed).toBe(2);
+    expect(nextContent).toBe("A Meiosis and Mitosis end.");
+  });
+
+  it("does not remove unrelated spans", () => {
+    const c =
+      '<span class="lesson-inline lesson-fc-red">Red</span> and <span data-key-term="Clone">Clone</span>.';
+    const start = c.indexOf("data-key-term");
+    const open = c.lastIndexOf("<span", start);
+    const end = c.indexOf("</span>", start) + "</span>".length;
+    const { nextContent, removed } = removeDataKeyTermSpansInRange(c, open, end);
+    expect(removed).toBe(1);
+    expect(nextContent).toBe(
+      '<span class="lesson-inline lesson-fc-red">Red</span> and Clone.'
+    );
+  });
+
+  it("does not change plain text with no key terms", () => {
+    const c = "<p><strong>Meiosis</strong> halves the chromosome number.</p>";
+    const { nextContent, removed } = removeDataKeyTermSpansInRange(c, 0, c.length);
+    expect(removed).toBe(0);
+    expect(nextContent).toBe(c);
+  });
+
+  it("unwraps when caret is inside a key-term span", () => {
+    const c = 'See <span data-key-term="x">xyz</span> here.';
+    const inner = c.indexOf("xyz") + 1;
+    const { nextContent, removed } = removeDataKeyTermSpansInRange(c, inner, inner);
+    expect(removed).toBe(1);
+    expect(nextContent).toBe("See xyz here.");
+  });
+
+  it("existing add key-term behaviour still works after remove helpers exist", () => {
+    const html = buildKeyTermSpanHtml("osmosis", "osmosis");
+    expect(html).toBe('<span data-key-term="osmosis">osmosis</span>');
+    const { nextContent } = applyKeyTermsToBlockContent("osmosis in water.", [
+      { term: "osmosis", definition: "…" },
+    ]);
+    expect(nextContent).toContain('data-key-term="osmosis"');
   });
 });

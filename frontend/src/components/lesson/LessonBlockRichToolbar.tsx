@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { pasteRawBufferToLessonMarkdown } from "../../utils/lessonEditorPaste";
+import { removeDataKeyTermSpansInRange } from "../../utils/keyTermInlineMarkers";
 
 export const LESSON_FONT_SIZE_LABELS = ["Small", "Normal", "Large", "Extra Large"] as const;
 export const LESSON_FONT_SIZE_CLASSES = [
@@ -245,24 +246,51 @@ export function LessonBlockRichToolbar({
           </button>
         ))}
         {onKeyTermClick ? (
-          <button
-            type="button"
-            title="Add glossary definition"
-            aria-label="Add glossary definition (key term)"
-            onClick={onKeyTermClick}
-            style={{
-              ...toolbarBtn,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "2px 8px",
-              fontSize: 12,
-              lineHeight: 1.2,
-            }}
-          >
-            <span style={{ fontSize: 15 }} aria-hidden>🔑</span>
-            <span>Key term</span>
-          </button>
+          <>
+            <button
+              type="button"
+              title="Add glossary definition"
+              aria-label="Add glossary definition (key term)"
+              onClick={onKeyTermClick}
+              style={{
+                ...toolbarBtn,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                fontSize: 12,
+                lineHeight: 1.2,
+              }}
+            >
+              <span style={{ fontSize: 15 }} aria-hidden>🔑</span>
+              <span>Key term</span>
+            </button>
+            <button
+              type="button"
+              title="Remove key term markup from the selection (keeps the text)"
+              aria-label="Remove key term"
+              onClick={() =>
+                apply((el) => {
+                  const start = el.selectionStart ?? 0;
+                  const end = el.selectionEnd ?? 0;
+                  const result = removeDataKeyTermSpansInRange(el.value, start, end);
+                  return { next: result.nextContent, cursor: result.cursor };
+                })
+              }
+              style={{
+                ...toolbarBtn,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                fontSize: 12,
+                lineHeight: 1.2,
+              }}
+            >
+              <span style={{ fontSize: 15 }} aria-hidden>🔑</span>
+              <span>Remove key term</span>
+            </button>
+          </>
         ) : null}
         {onSuggestKeyTermsClick ? (
           <button
