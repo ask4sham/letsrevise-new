@@ -5,6 +5,8 @@ export const SS1_NUMBERED_TITLE_PREFIX_RE = /^([\d]+[a-zA-Z]?)\s*[\u2014\u2013\-
 
 const CORE_TEACHING_LABEL_RE = /\bcore\s+teaching\b/gi;
 const SCENARIO_HOOK_LABEL_RE = /\bscenario\s*\/\s*hook\b/gi;
+/** Internal type name — never show as the student/lesson SS1 heading. */
+const COMPOSITE_QUESTION_LABEL_RE = /\bcomposite\s+question\b/gi;
 
 /** Rename legacy generator SS1 label in stored titles (display + load normalisation). */
 export function normalizeLegacyBlockLabel(label: string): string {
@@ -17,6 +19,11 @@ export function normalizeLegacyBlockLabel(label: string): string {
     if (match === match.toUpperCase()) return "SCENARIO";
     if (match[0] === match[0].toUpperCase()) return "Scenario";
     return "scenario";
+  });
+  out = out.replace(COMPOSITE_QUESTION_LABEL_RE, (match) => {
+    if (match === match.toUpperCase()) return "EXAM QUESTION";
+    if (match[0] === match[0].toUpperCase()) return "Exam Question";
+    return "exam question";
   });
   return out;
 }
@@ -69,7 +76,7 @@ export function fallbackActivityTitleFromBlockType(blockType?: string | null): s
       return "EXAM QUESTION";
     case "composite":
     case "compositequestion":
-      return "COMPOSITE QUESTION";
+      return "EXAM QUESTION";
     case "dragdropmatch":
       return "DRAG AND DROP MATCH";
     case "interactivesequence":
