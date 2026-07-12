@@ -2,7 +2,7 @@
  * Unit-ish tests for generateCompositeQuestionDraft error mapping.
  * Mocks the shared api client reject shape { message, status, data }.
  */
-import { generateCompositeQuestionDraft } from "./examQuestions";
+import { generateCompositeQuestionDraft, generateCompositeDataTableQuestionDraft } from "./examQuestions";
 
 jest.mock("../services/api", () => ({
   __esModule: true,
@@ -72,5 +72,74 @@ describe("generateCompositeQuestionDraft error handling", () => {
         difficulty: "easy",
       })
     ).rejects.toThrow(/Select a topic before generating/);
+  });
+});
+
+describe("generateCompositeDataTableQuestionDraft", () => {
+  beforeEach(() => {
+    mockedPost.mockReset();
+  });
+
+  test("calls data-table endpoint", async () => {
+    mockedPost.mockResolvedValue({
+      data: {
+        success: true,
+        draft: {
+          title: "T",
+          sharedStem: "A student investigated enzyme activity carefully.",
+          difficulty: "easy",
+          questionStyle: "data_table",
+          totalMarks: 3,
+          dataTable: {
+            columns: [
+              { heading: "T", unit: "°C" },
+              { heading: "R", unit: "s⁻¹" },
+            ],
+            rows: [
+              ["20", "1"],
+              ["30", "2"],
+              ["40", "3"],
+            ],
+          },
+          parts: [],
+        },
+      },
+    });
+    await generateCompositeDataTableQuestionDraft({
+      subject: "Biology",
+      examBoard: "Edexcel",
+      level: "IGCSE",
+      topic: "Enzymes",
+      topicKey: "enzymes",
+      difficulty: "easy",
+    });
+    expect(mockedPost).toHaveBeenCalledWith(
+      "/exam-questions/ai-draft-composite-data-table",
+      expect.objectContaining({ topicKey: "enzymes", difficulty: "easy" })
+    );
+  });
+
+  test("standard endpoint path unchanged", async () => {
+    mockedPost.mockResolvedValue({
+      data: {
+        success: true,
+        draft: {
+          title: "T",
+          sharedStem: "A gardener grows identical strawberry plants from runners.",
+          difficulty: "easy",
+          totalMarks: 2,
+          parts: [],
+        },
+      },
+    });
+    await generateCompositeQuestionDraft({
+      subject: "Biology",
+      examBoard: "Edexcel",
+      level: "IGCSE",
+      topic: "X",
+      topicKey: "x",
+      difficulty: "easy",
+    });
+    expect(mockedPost).toHaveBeenCalledWith("/exam-questions/ai-draft-composite", expect.any(Object));
   });
 });

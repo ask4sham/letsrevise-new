@@ -11,7 +11,7 @@ import {
   getSpecTopicFieldLabel,
   type SpecKey,
 } from "../api/taxonomy";
-import { aiRewriteExamQuestion, generateCompositeQuestionDraft, publishExamQuestion } from "../api/examQuestions";
+import { aiRewriteExamQuestion, generateCompositeQuestionDraft, generateCompositeDataTableQuestionDraft, publishExamQuestion } from "../api/examQuestions";
 import { getApiClientErrorMessage } from "../utils/apiErrorMessage";
 import { getExamPublishReadinessUi } from "../utils/examQuestionPublishReadinessUi";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
@@ -20,8 +20,10 @@ import { CompositePartsEditor } from "./examBank/CompositePartsEditor";
 import { CompositeAiDraftPanel } from "./examBank/CompositeAiDraftPanel";
 import {
   applyAiCompositeDraftToFormFields,
+  buildCompositeStimulusMetadata,
   compositeFormHasDraftContent,
   type AiCompositeDifficulty,
+  type AiCompositeQuestionStyle,
 } from "./examBank/compositeAiDraft";
 import {
   type CompositePartForm,
@@ -33,6 +35,10 @@ import {
 } from "./examBank/compositeTableEditorUtils";
 import { isCompositePartTypeEnabled } from "../components/lesson/examComposite/featureFlags";
 import { CompositePartType } from "../components/lesson/examComposite/types";
+import {
+  getStimulusTableFromMetadata,
+  type StimulusTable,
+} from "../components/lesson/examComposite/stimulusTable";
 
 const QUESTION_TYPES = ["mcq", "short", "label", "table", "data"] as const;
 const SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science", "Other"];
@@ -56,6 +62,8 @@ type ExamBankForm = {
   sharedStem: string;
   title: string;
   parts: CompositePartForm[];
+  /** Display-only data-table stimulus (not a fill-in TABLE part). */
+  stimulusTable: StimulusTable | null;
 };
 
 /** Set `REACT_APP_DEBUG_EXAM_BANK=true` in `.env.local` to enable fetch logging (only when `NODE_ENV === "development"`). */
@@ -99,6 +107,8 @@ type ExamQuestion = {
     qualityScore?: number;
     qualityBand?: "high" | "medium" | "low";
     qualityFlags?: string[];
+    stimulusTable?: StimulusTable;
+    questionStyle?: string;
     [k: string]: unknown;
   };
   createdAt?: string;
@@ -134,6 +144,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [imageUploading, setImageUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [aiDraftDifficulty, setAiDraftDifficulty] = useState<AiCompositeDifficulty>("medium");
+  const [aiQuestionStyle, setAiQuestionStyle] = useState<AiCompositeQuestionStyle>("standard");
   const [aiDraftGenerating, setAiDraftGenerating] = useState(false);
   const [aiDraftStatus, setAiDraftStatus] = useState<string | null>(null);
   const [aiDraftError, setAiDraftError] = useState<string | null>(null);
@@ -158,6 +169,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       sharedStem: "",
       title: "",
       parts: [] as CompositePartForm[],
+      stimulusTable: null,
     };
   });
 
@@ -183,6 +195,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       sharedStem: "",
       title: "",
       parts: [] as CompositePartForm[],
+      stimulusTable: null,
     };
   }, [specKey]);
 
@@ -326,6 +339,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     setAiDraftStatus(null);
     setAiDraftError(null);
     setAiDraftDifficulty("medium");
+    setAiQuestionStyle("standard");
     setForm(
       mode === "composite"
         ? { ...defaultForm, questionMode: "composite", parts: [makeEmptyCompositePart(0)] }
@@ -342,6 +356,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     const parts: CompositePartForm[] = isComposite && Array.isArray(q.parts)
       ? q.parts.map((p, i) => mapApiPartToCompositePartForm(p, i, tablePartsEnabled))
       : [];
+    const stimulusTable = getStimulusTableFromMetadata(q.metadata);
     setForm({
       ...defaultForm,
       subject: q.subject || "Biology",
@@ -360,7 +375,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       sharedStem: isComposite ? (q.sharedStem || q.question || "") : "",
       title: isComposite ? (q.title || "") : "",
       parts,
+      stimulusTable,
     });
+    setAiQuestionStyle(stimulusTable ? "data_table" : "standard");
     setFormError(null);
     setImageUploadError(null);
     setEditingId(q._id);
@@ -468,6 +485,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         title: form.title,
         sharedStem: form.sharedStem,
         parts: form.parts,
+        stimulusTable: form.stimulusTable,
       })
     ) {
       const ok = window.confirm(
@@ -477,7 +495,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     }
     setAiDraftGenerating(true);
     try {
-      const draft = await generateCompositeQuestionDraft({
+      const payload = {
         subject: form.subject,
         examBoard: form.examBoard,
         level: form.level,
@@ -486,15 +504,24 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         difficulty: aiDraftDifficulty,
         title: form.title || undefined,
         hasImage: Boolean(form.imageUrl?.trim()),
-      });
+      };
+      const draft =
+        aiQuestionStyle === "data_table"
+          ? await generateCompositeDataTableQuestionDraft(payload)
+          : await generateCompositeQuestionDraft(payload);
       const mapped = applyAiCompositeDraftToFormFields(draft);
       setForm((f) => ({
         ...f,
         title: mapped.title,
         sharedStem: mapped.sharedStem,
         parts: mapped.parts.length ? mapped.parts : [makeEmptyCompositePart(0)],
+        stimulusTable: mapped.stimulusTable,
       }));
-      setAiDraftStatus("AI draft filled — review before Save Draft.");
+      setAiDraftStatus(
+        aiQuestionStyle === "data_table"
+          ? "AI data-table draft filled — review before Save Draft."
+          : "AI draft filled — review before Save Draft."
+      );
     } catch (e: unknown) {
       setAiDraftError(getApiClientErrorMessage(e, "Failed to generate composite draft."));
     } finally {
@@ -529,6 +556,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       };
       let payload: Record<string, unknown>;
       if (form.questionMode === "composite") {
+        const stimulusMeta = buildCompositeStimulusMetadata(form.stimulusTable);
         payload = {
           ...sharedMeta,
           questionMode: "composite",
@@ -536,6 +564,8 @@ const TeacherExamQuestionBankPage: React.FC = () => {
           sharedStem: form.sharedStem.trim(),
           parts: buildCompositeSaveParts(form.parts),
           ...(compositeSaveHasTablePart(form.parts) ? { schemaVersion: 2 } : {}),
+          // Persist or clear display-only stimulus (never a fill-in TABLE part).
+          ...(form.stimulusTable || editingId ? { metadata: stimulusMeta } : {}),
         };
       } else {
         const markScheme = form.correctAnswerMarkScheme
@@ -1218,6 +1248,8 @@ const TeacherExamQuestionBankPage: React.FC = () => {
               {form.questionMode === "composite" && (
                 <>
                   <CompositeAiDraftPanel
+                    questionStyle={aiQuestionStyle}
+                    onQuestionStyleChange={setAiQuestionStyle}
                     difficulty={aiDraftDifficulty}
                     onDifficultyChange={setAiDraftDifficulty}
                     onGenerate={() => void handleGenerateCompositeAiDraft()}
@@ -1225,6 +1257,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                     status={aiDraftStatus}
                     error={aiDraftError}
                     disabled={saving || imageUploading}
+                    stimulusPreview={form.stimulusTable}
                   />
                   <CompositePartsEditor form={form} setForm={setForm} />
                 </>

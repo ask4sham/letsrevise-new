@@ -31,6 +31,7 @@ const {
   resolveSpecKeyForTopicQuery,
 } = require("../utils/examQuestionTopicSelectorMatch");
 const { generateCompositeExamDraft } = require("../services/generateCompositeExamDraft");
+const { generateCompositeDataTableDraft } = require("../services/generateCompositeDataTableDraft");
 const aiCompositeDraftRateLimit = require("../middleware/aiCompositeDraftRateLimit");
 
 /** In-memory score-on-read, optional band filter, sort (matches topic flashcards/quiz list). */
@@ -456,6 +457,36 @@ router.post("/ai-draft-composite", auth, aiCompositeDraftRateLimit, async (req, 
   }
 });
 
+// POST /api/exam-questions/ai-draft-composite-data-table — LLM data-table draft only (no DB write)
+router.post("/ai-draft-composite-data-table", auth, aiCompositeDraftRateLimit, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ success: false, msg: "Teachers and admins only" });
+  }
+  try {
+    const draft = await generateCompositeDataTableDraft({
+      subject: req.body?.subject,
+      examBoard: req.body?.examBoard,
+      level: req.body?.level,
+      topic: req.body?.topic,
+      topicKey: req.body?.topicKey,
+      difficulty: req.body?.difficulty,
+      title: req.body?.title,
+    });
+    return res.json({ success: true, draft });
+  } catch (err) {
+    if (err.code === "LLM_NOT_CONFIGURED" || err.code === "LLM_EMPTY" || err.code === "LLM_BAD_JSON") {
+      return res.status(503).json({ success: false, msg: err.message || "LLM unavailable", code: err.code });
+    }
+    const code = err.statusCode || 400;
+    return res.status(code >= 400 && code < 600 ? code : 400).json({
+      success: false,
+      msg: err.message || "Failed to generate data-table composite draft",
+      code: err.code,
+      issues: Array.isArray(err.issues) ? err.issues : undefined,
+    });
+  }
+});
+
 // POST /api/exam-questions/by-ids — batch fetch with lesson embed or teacher-owner scope
 router.post("/by-ids", auth, async (req, res) => {
   try {
@@ -628,6 +659,25 @@ router.put("/:id", auth, async (req, res) => {
     if (content !== undefined) question.content = content;
     if (imageUrl !== undefined) {
       question.imageUrl = imageUrl != null && String(imageUrl).trim() ? String(imageUrl).trim() : null;
+    }
+    // Merge metadata (e.g. stimulusTable for data-table composites) without wiping unrelated keys.
+    if (req.body.metadata !== undefined) {
+      const prev =
+        question.metadata && typeof question.metadata === "object" && !Array.isArray(question.metadata)
+          ? { ...question.metadata }
+          : {};
+      if (req.body.metadata === null) {
+        question.metadata = null;
+      } else if (typeof req.body.metadata === "object" && !Array.isArray(req.body.metadata)) {
+        const next = { ...prev, ...req.body.metadata };
+        if (req.body.metadata.stimulusTable === null) {
+          delete next.stimulusTable;
+        }
+        if (req.body.metadata.questionStyle === null) {
+          delete next.questionStyle;
+        }
+        question.metadata = Object.keys(next).length ? next : null;
+      }
     }
 
     // Composite update: rebuild shared stem / parts / total marks together so

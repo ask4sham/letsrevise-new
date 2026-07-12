@@ -293,3 +293,122 @@ describe("POST /api/exam-questions/ai-draft-composite", () => {
     expect(res.body.issues).toEqual(expect.arrayContaining(["mcq_required_exactly_one"]));
   });
 });
+
+function validDataTableEasyDraft() {
+  return {
+    title: "Enzyme temperature investigation",
+    sharedStem: "A student investigated the effect of temperature on enzyme activity.",
+    difficulty: "easy",
+    questionStyle: "data_table",
+    totalMarks: 3,
+    dataTable: {
+      title: "Effect of temperature on enzyme activity",
+      columns: [
+        { heading: "Temperature", unit: "°C" },
+        { heading: "Time taken", unit: "s" },
+        { heading: "Rate", unit: "s⁻¹" },
+      ],
+      rows: [
+        ["20", "80", "0.013"],
+        ["30", "45", "0.022"],
+        ["40", "25", "0.040"],
+        ["50", "60", "0.017"],
+      ],
+    },
+    parts: [
+      {
+        label: "a",
+        type: "short",
+        marks: 1,
+        questionText: "State the temperature at which the rate was highest.",
+        markSchemeLines: ["Award 1 mark for 40 °C."],
+        skill: "read_data",
+        dataDependency: "highest Rate value in Rate column",
+      },
+      {
+        label: "b",
+        type: "short",
+        marks: 2,
+        questionText: "Describe the trend shown by the rate results.",
+        markSchemeLines: [
+          "Award 1 mark for rate increases from 20 °C to 40 °C.",
+          "Award 1 mark for rate decreases at 50 °C.",
+        ],
+        skill: "describe_trend",
+        dataDependency: "Rate column trend across temperatures",
+      },
+    ],
+    warnings: [],
+  };
+}
+
+describe("POST /api/exam-questions/ai-draft-composite-data-table", () => {
+  let token;
+
+  beforeAll(async () => {
+    await User.create({
+      firstName: "Ai",
+      lastName: "DataTable",
+      email: "ai-composite-data-table@test.com",
+      password: hashedPassword,
+      userType: "teacher",
+    });
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "ai-composite-data-table@test.com", password: "password123" });
+    token = login.body?.token;
+    if (!token) throw new Error("Login failed");
+  });
+
+  beforeEach(() => {
+    callOpenAiJson.mockReset();
+  });
+
+  test("auth required", async () => {
+    const res = await request(app).post("/api/exam-questions/ai-draft-composite-data-table").send({
+      topicKey: "edexcel-igcse-biology:x",
+      difficulty: "easy",
+    });
+    expect(res.status).toBe(401);
+  });
+
+  test("Easy data-table draft returns stimulus + short parts and does not save", async () => {
+    callOpenAiJson.mockResolvedValue(validDataTableEasyDraft());
+    const before = await ExamQuestion.countDocuments();
+    const res = await request(app)
+      .post("/api/exam-questions/ai-draft-composite-data-table")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        subject: "Biology",
+        examBoard: "Edexcel",
+        level: "IGCSE",
+        topic: "Enzymes",
+        topicKey: "edexcel-igcse-biology:enzymes",
+        difficulty: "easy",
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.draft.questionStyle).toBe("data_table");
+    expect(res.body.draft.dataTable.rows).toHaveLength(4);
+    expect(res.body.draft.parts.every((p) => p.type === "short")).toBe(true);
+    expect(res.body.draft.parts.some((p) => p.type === "mcq")).toBe(false);
+    expect(res.body.draft.parts.some((p) => p.type === "table")).toBe(false);
+    expect(await ExamQuestion.countDocuments()).toBe(before);
+  });
+
+  test("rejects MCQ in data-table mode with 422", async () => {
+    const bad = validDataTableEasyDraft();
+    bad.parts[0].type = "mcq";
+    bad.parts[0].options = ["A", "B", "C", "D"];
+    bad.parts[0].correctIndex = 0;
+    callOpenAiJson.mockResolvedValue(bad);
+    const res = await request(app)
+      .post("/api/exam-questions/ai-draft-composite-data-table")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        topicKey: "edexcel-igcse-biology:enzymes",
+        difficulty: "easy",
+      });
+    expect(res.status).toBe(422);
+    expect(res.body.issues).toEqual(expect.arrayContaining(["mcq_not_allowed_in_data_table_mode"]));
+  });
+});
