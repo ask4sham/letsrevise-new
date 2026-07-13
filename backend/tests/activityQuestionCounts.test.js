@@ -5,6 +5,8 @@ const {
   validateLessonActivityQuestionCounts,
   MIN_SELF_CHECK,
   MIN_CHECKPOINT,
+  MAX_SELF_CHECK,
+  MAX_CHECKPOINT,
   MIN_QUIZ_POOL,
   inferQuestionPurpose,
 } = require("../utils/validateLessonActivityQuestionCounts");
@@ -557,5 +559,394 @@ describe("repairLessonActivityQuestionCounts", () => {
     expect(
       v.issues.some((i) => i.includes("quiz_pool_too_low") || i.includes("revision_pool_too_low"))
     ).toBe(true);
+  });
+});
+
+function collectActivityStems(lessonLike) {
+  const stems = [];
+  for (const page of lessonLike.pages || []) {
+    for (const block of page.blocks || []) {
+      for (const q of block.questions || []) {
+        stems.push(String(q.prompt || q.question || ""));
+      }
+      if (!block.questions?.length && (block.prompt || block.question)) {
+        stems.push(String(block.prompt || block.question));
+      }
+    }
+  }
+  for (const q of lessonLike.quiz?.questions || []) {
+    stems.push(String(q.question || q.prompt || ""));
+  }
+  return stems;
+}
+
+describe("activity question stem quality", () => {
+  test("validator rejects Identify the role of X in Y", () => {
+    const lesson = validLesson();
+    const sc = lesson.pages[0].blocks.find((b) => b.type === "selfCheck");
+    sc.questions[0].prompt =
+      "Identify the role of Gametes in Gametes & Fertilisation.";
+    sc.questions[0].question = sc.questions[0].prompt;
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("generic_placeholder_stem"))).toBe(true);
+  });
+
+  test("validator rejects Which option correctly defines X for Y", () => {
+    const lesson = validLesson();
+    const cp = lesson.pages[0].blocks.find((b) => b.type === "checkpoint");
+    cp.questions[0].prompt =
+      "Which option correctly defines Gametes for Gametes & Fertilisation?";
+    cp.questions[0].question = cp.questions[0].prompt;
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("generic_placeholder_stem"))).toBe(true);
+  });
+
+  test("validator rejects A student says X alone completes Y", () => {
+    const lesson = validLesson();
+    const sc = lesson.pages[0].blocks.find((b) => b.type === "selfCheck");
+    sc.questions[1].prompt =
+      "A student says Gametes alone completes Gametes & Fertilisation. Explain why this is a misconception.";
+    sc.questions[1].question = sc.questions[1].prompt;
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("generic_placeholder_stem"))).toBe(true);
+  });
+
+  test("repair for Gametes & Fertilisation produces biology-specific stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "acrosome", "oviduct"],
+    });
+    const stems = collectActivityStems({ pages: out.pages, quiz: out.quiz });
+    const joined = stems.join("\n");
+    expect(out.validation.ok).toBe(true);
+    expect(joined).toMatch(/gamete|fertilis|meiosis|zygote|chromosome/i);
+    expect(joined).not.toMatch(/Identify the role of/i);
+    expect(joined).not.toMatch(/Which option correctly defines .+ for/i);
+    expect(joined).not.toMatch(/alone completes/i);
+    expect(joined).not.toMatch(/use of .+ in medicine/i);
+  });
+
+  test("repair for Sexual & Asexual Reproduction produces biology-specific stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Sexual & Asexual Reproduction: Differences",
+      vocabulary: ["gamete", "clone", "mitosis", "meiosis", "variation"],
+    });
+    const stems = collectActivityStems({ pages: out.pages, quiz: out.quiz });
+    const joined = stems.join("\n");
+    expect(out.validation.ok).toBe(true);
+    expect(joined).toMatch(/sexual|asexual|meiosis|mitosis|variation|parent/i);
+    expect(joined).not.toMatch(/Identify the role of/i);
+    expect(joined).not.toMatch(/Which option correctly defines .+ for/i);
+    expect(joined).not.toMatch(/alone completes/i);
+  });
+
+  test("repair preserves self-check >= 3 with quality stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
+    expect(sc.questions.length).toBeGreaterThanOrEqual(MIN_SELF_CHECK);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair preserves checkpoint >= 3 with quality stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const cp = out.pages[0].blocks.find((b) => b.type === "checkpoint");
+    expect(cp.questions.length).toBeGreaterThanOrEqual(MIN_CHECKPOINT);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair preserves quiz/revision >= 5 with quality stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Sexual & Asexual Reproduction: Differences",
+      vocabulary: ["gamete", "clone", "mitosis", "meiosis"],
+    });
+    expect(out.quiz.questions.length).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair preserves purpose variety without weak templates", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "oviduct"],
+    });
+    const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
+    const purposes = new Set(sc.questions.map((q) => q.purpose || inferQuestionPurpose(q)));
+    expect(purposes.size).toBeGreaterThanOrEqual(3);
+    expect(out.validation.ok).toBe(true);
+    expect(out.validation.summary.varietyIssueCount).toBe(0);
+  });
+
+  test("no repeated Which statement best pattern beyond allowed misconception item", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const stems = collectActivityStems({ pages: out.pages, quiz: out.quiz });
+    const bestCount = stems.filter((s) => /^which statement best\b/i.test(s)).length;
+    expect(bestCount).toBeLessThanOrEqual(1);
+    const lesson = validLesson();
+    lesson.quiz.questions = fiveSamePatternMcqs();
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(
+      r.issues.some(
+        (i) => i.includes("which_statement") || i.includes("which_statement_best")
+      )
+    ).toBe(true);
+  });
+});
+
+describe("checkpoint/self-check max-3 and filler prune", () => {
+  test("validator rejects checkpoint with 4 questions", () => {
+    const lesson = validLesson();
+    const cp = lesson.pages[0].blocks.find((b) => b.type === "checkpoint");
+    cp.questions.push({
+      prompt: "Extra fourth checkpoint question about fertilisation?",
+      questionType: "mcq",
+      options: ["A", "B", "C", "D"],
+      correctAnswer: "A",
+      purpose: "evaluate",
+    });
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("activity_question_count_too_high:checkpoint"))).toBe(
+      true
+    );
+  });
+
+  test("validator rejects self-check with 4 questions", () => {
+    const lesson = validLesson();
+    const sc = lesson.pages[0].blocks.find((b) => b.type === "selfCheck");
+    sc.questions.push({
+      prompt: "Extra fourth self-check about zygotes?",
+      questionType: "short",
+      correctAnswer: "A",
+      purpose: "evaluate",
+    });
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("activity_question_count_too_high:selfCheck"))).toBe(
+      true
+    );
+  });
+
+  test("validator rejects weak checkpoint filler stems", () => {
+    const fillers = [
+      "Describe how Gametes & Fertilisation might be tested in an exam (2 marks).",
+      "Which cause → effect chain best explains Gametes & Fertilisation?",
+      "If a key factor in this process is missing, what is most likely?",
+      "Why is a later step in this process able to happen?",
+    ];
+    for (const stem of fillers) {
+      const lesson = validLesson();
+      const cp = lesson.pages[0].blocks.find((b) => b.type === "checkpoint");
+      cp.questions[0].prompt = stem;
+      cp.questions[0].question = stem;
+      const r = validateLessonActivityQuestionCounts(lesson);
+      expect(r.ok).toBe(false);
+      expect(r.issues.some((i) => i.includes("generic_placeholder_stem"))).toBe(true);
+    }
+  });
+
+  test("repair caps checkpoint to 3", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [
+            {
+              type: "selfCheck",
+              questions: [
+                { prompt: "Define a gamete.", questionType: "short", correctAnswer: "a", purpose: "definition" },
+                {
+                  prompt: "A student says fertilisation produces gametes. Explain why this is incorrect.",
+                  questionType: "short",
+                  correctAnswer: "b",
+                  purpose: "misconception",
+                },
+                {
+                  prompt: "Why must gametes be haploid?",
+                  questionType: "short",
+                  correctAnswer: "c",
+                  purpose: "explain",
+                },
+              ],
+            },
+            {
+              type: "checkpoint",
+              questions: [
+                { prompt: "What is a gamete?", questionType: "mcq", options: ["A", "B", "C", "D"], correctAnswer: "A", purpose: "recall" },
+                {
+                  prompt: "Why is meiosis needed before fertilisation?",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "A",
+                  purpose: "explain",
+                },
+                {
+                  prompt: "If an egg cell were diploid, what is most likely after fertilisation?",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "A",
+                  purpose: "application",
+                },
+                {
+                  prompt: "Describe fertilisation of nuclei.",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "A",
+                  purpose: "definition",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      quiz: { questions: [] },
+    };
+    const out = repairLessonActivityQuestionCounts(lesson, {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const cp = out.pages[0].blocks.find((b) => b.type === "checkpoint");
+    expect(cp.questions.length).toBeLessThanOrEqual(MAX_CHECKPOINT);
+    expect(cp.questions.length).toBe(MIN_CHECKPOINT);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair caps self-check to 3", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [
+            {
+              type: "selfCheck",
+              questions: [
+                { prompt: "Q1 define gamete", questionType: "short", correctAnswer: "a", purpose: "definition" },
+                { prompt: "Q2 misconception fertilisation", questionType: "short", correctAnswer: "b", purpose: "misconception" },
+                { prompt: "Q3 explain meiosis", questionType: "short", correctAnswer: "c", purpose: "explain" },
+                { prompt: "Q4 compare gamete body cell", questionType: "short", correctAnswer: "d", purpose: "comparison" },
+              ],
+            },
+            {
+              type: "checkpoint",
+              questions: [
+                { prompt: "What is a gamete?", questionType: "mcq", options: ["A", "B", "C", "D"], correctAnswer: "A", purpose: "recall" },
+                {
+                  prompt: "Why is meiosis needed before fertilisation?",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "A",
+                  purpose: "explain",
+                },
+                {
+                  prompt: "If an egg were diploid what happens?",
+                  questionType: "mcq",
+                  options: ["A", "B", "C", "D"],
+                  correctAnswer: "A",
+                  purpose: "application",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      quiz: { questions: [] },
+    };
+    const out = repairLessonActivityQuestionCounts(lesson, {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
+    expect(sc.questions.length).toBeLessThanOrEqual(MAX_SELF_CHECK);
+    expect(sc.questions.length).toBe(MIN_SELF_CHECK);
+  });
+
+  test("repair does not add second generic checkpoint block", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [
+            {
+              type: "selfCheck",
+              prompt: "Define fertilisation.",
+              questionType: "short",
+              correctAnswer: "Fusion of nuclei.",
+            },
+            {
+              type: "checkpoint",
+              prompt: "What is a gamete?",
+              questionType: "mcq",
+              options: ["Sex cell", "Liver", "Bone", "Skin"],
+              correctAnswer: "Sex cell",
+            },
+            {
+              type: "checkpoint",
+              prompt: "Which cause → effect chain best explains Gametes & Fertilisation?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "A",
+              role: "quickCheck",
+            },
+          ],
+        },
+      ],
+      quiz: { questions: [] },
+    };
+    const out = repairLessonActivityQuestionCounts(lesson, {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "meiosis"],
+    });
+    const cps = out.pages[0].blocks.filter((b) => b.type === "checkpoint");
+    expect(cps.length).toBe(1);
+    expect(cps[0].questions.length).toBe(MIN_CHECKPOINT);
+    const stems = cps[0].questions.map((q) => q.prompt).join("\n");
+    expect(stems).not.toMatch(/might be tested in an exam/i);
+    expect(stems).not.toMatch(/cause\s*(→|->|to)\s*effect chain best explains/i);
+    expect(stems).not.toMatch(/key factor in this process is missing/i);
+    expect(stems).not.toMatch(/later step in this process/i);
+    expect(out.quiz.questions.length).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("Gametes checkpoint repair produces topic-specific stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const cp = out.pages[0].blocks.find((b) => b.type === "checkpoint");
+    const joined = cp.questions.map((q) => q.prompt).join("\n");
+    expect(cp.questions.length).toBe(3);
+    expect(joined).toMatch(/gamete|fertilis|meiosis|zygote|chromosome|egg|sperm/i);
+    expect(joined).not.toMatch(/might be tested in an exam/i);
+    expect(joined).not.toMatch(/cause\s*(→|->|to)\s*effect chain best explains/i);
+  });
+
+  test("Sexual/Asexual checkpoint repair produces topic-specific stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Sexual & Asexual Reproduction: Differences",
+      vocabulary: ["gamete", "clone", "mitosis", "meiosis"],
+    });
+    const cp = out.pages[0].blocks.find((b) => b.type === "checkpoint");
+    const joined = cp.questions.map((q) => q.prompt).join("\n");
+    expect(cp.questions.length).toBe(3);
+    expect(joined).toMatch(/sexual|asexual|meiosis|mitosis|variation|parent|gamete/i);
+    expect(joined).not.toMatch(/might be tested in an exam/i);
+    expect(joined).not.toMatch(/later step in this process/i);
+  });
+
+  test("quiz/revision remains 5 after checkpoint cap repair", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    expect(out.quiz.questions.length).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
   });
 });

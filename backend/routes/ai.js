@@ -2149,36 +2149,83 @@ const CHECKPOINT_PLACEHOLDER_PROMPT = /^(which statement is correct\??\s*|choose
 
 /** Upgrade placeholder / too-short checkpoint prompts so per-checkpoint structure validation passes. */
 function upgradeWeakNonWorkedCheckpoints(checkpoints, safeTopic, workedBlock) {
+  let seedPrompt = null;
+  let seedAnswer = null;
+  try {
+    const {
+      resolveTopicPack,
+      genericShortCatalog,
+    } = require("../utils/activityQuestionStemPacks");
+    const pack = resolveTopicPack(safeTopic);
+    const hit =
+      (pack?.short || []).find((s) => s.purpose === "explain" || s.purpose === "recall") ||
+      (pack?.short || [])[0];
+    if (hit) {
+      seedPrompt = hit.prompt;
+      seedAnswer = hit.answer;
+    } else {
+      const g = genericShortCatalog(safeTopic).explain;
+      seedPrompt = g.prompt;
+      seedAnswer = g.answer;
+    }
+  } catch (_) {
+    seedPrompt = `Explain one reason why ${safeTopic} is important in living organisms (2 marks).`;
+    seedAnswer =
+      "Award 1 mark for a correct point and 1 mark for development or an example linked to the topic.";
+  }
+
   for (const b of checkpoints) {
     if (b === workedBlock) continue;
     const pr = safeStr(b.prompt, "") || safeStr(b.question, "");
-    if (!pr || pr.length < 15 || CHECKPOINT_PLACEHOLDER_PROMPT.test(pr.trim())) {
-      b.prompt = `Describe how ${safeTopic} might be tested in an exam (2 marks).`;
+    const weakFiller =
+      /might be tested in an exam/i.test(pr) ||
+      /cause\s*(→|->|to)\s*effect chain best explains/i.test(pr) ||
+      /key factor in this process is missing/i.test(pr) ||
+      /later step in this process/i.test(pr);
+    if (!pr || pr.length < 15 || CHECKPOINT_PLACEHOLDER_PROMPT.test(pr.trim()) || weakFiller) {
+      b.prompt = seedPrompt;
       b.question = b.prompt;
       b.questionType = "short";
       b.options = [];
-      if (!safeStr(b.correctAnswer, "")) {
+      if (!safeStr(b.correctAnswer, "") || weakFiller) {
         b.correctAnswer =
+          seedAnswer ||
           "Award 1 mark for a correct point and 1 mark for development or an example linked to the topic.";
       }
     }
   }
 }
 
-const WORKED_EXAMPLE_DEFAULT_QUESTION = (safeTopic) =>
-  `Explain one important use of ${safeTopic} in medicine (3 marks).`;
+const WORKED_EXAMPLE_DEFAULT_QUESTION = (safeTopic) => {
+  const t = String(safeTopic || "").trim() || "this topic";
+  if (/\bstem\s*cells?\b/i.test(t) || /\bmedicine\b/i.test(t)) {
+    return `Explain one important use of ${t} in medicine (3 marks).`;
+  }
+  return `Explain one real-world reason why ${t} matters for living organisms (3 marks).`;
+};
 
-const WORKED_EXAMPLE_DEFAULT_ANSWER =
-  "- Stem cells can differentiate into specialised cells.\n" +
-  "- This means they can replace damaged or diseased cells.\n" +
-  "- Example: bone marrow stem cells can be used to treat leukaemia.";
+const WORKED_EXAMPLE_DEFAULT_ANSWER = (safeTopic) => {
+  const t = String(safeTopic || "").trim();
+  if (/\bstem\s*cells?\b/i.test(t) || /\bmedicine\b/i.test(t)) {
+    return (
+      "- Stem cells can differentiate into specialised cells.\n" +
+      "- This means they can replace damaged or diseased cells.\n" +
+      "- Example: bone marrow stem cells can be used to treat leukaemia."
+    );
+  }
+  return (
+    `- Name a precise mechanism linked to ${t || "the topic"}.\n` +
+    "- Link it to a clear outcome using because → therefore.\n" +
+    "- For example, in a real-world environmental or population context, state one practical consequence."
+  );
+};
 
 /** Fill question / prompt / answer / explanation / correctAnswer on workedExample checkpoints (sanitized shape). */
 function syncWorkedExampleFields(b, safeTopic) {
   if (!b || b.type !== "checkpoint" || safeStr(b.role, "") !== "workedExample") return;
 
   const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
-  const defaultAns = WORKED_EXAMPLE_DEFAULT_ANSWER;
+  const defaultAns = WORKED_EXAMPLE_DEFAULT_ANSWER(safeTopic);
 
   if (!safeStr(b.question, "")) {
     b.question = safeStr(b.prompt, "") || defaultQ;
@@ -2208,7 +2255,7 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
 
   const safeTopic = safeStr(topicHint, "this topic").trim() || "this topic";
   const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
-  const modelBullets = WORKED_EXAMPLE_DEFAULT_ANSWER;
+  const modelBullets = WORKED_EXAMPLE_DEFAULT_ANSWER(safeTopic);
 
   for (const page of draft.pages || []) {
     const blocks = page.blocks;

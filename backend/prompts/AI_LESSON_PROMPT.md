@@ -86,16 +86,18 @@ ACTIVITY QUESTION COUNT + VARIETY CONTRACT (MANDATORY — fail closed if unmet a
 - Do not create repeated “Explain one key idea…” questions
 - questions must be varied (no exact/near clones across self-check, checkpoint, revision, quiz)
 - ban generic placeholder stems such as "Which statement best explains a key idea about…", "Which statement best matches this topic?", "A correct statement about this topic is…"
+- ban weak formulaic stems such as "Identify the role of X in Y", "Which option correctly defines X for Y", "A student says X alone completes Y", and "use of [topic] in medicine" unless the topic genuinely relates to medicine/stem cells
+- prefer topic-specific GCSE/IGCSE-style stems (mechanism, chromosome number, parents, variation) over topic-word substitution templates
 - do not output Question 1/1 style pools
 
-Poor (same style repeated):
-1. Which statement best explains gametes?
-2. Which statement best explains fertilisation?
-3. Which statement best explains zygotes?
+Poor (same style repeated / template-like):
+1. Identify the role of Gametes in Gametes & Fertilisation.
+2. Which option correctly defines Gametes for Gametes & Fertilisation?
+3. A student says Gametes alone completes Gametes & Fertilisation…
 
-Better (varied purposes):
-1. Identify the cell produced by meiosis. (recall)
-2. Which statement shows a common misconception about fertilisation? (misconception)
+Better (topic-specific, varied purposes):
+1. Which process produces gametes? (recall)
+2. A student says fertilisation produces gametes. Explain why this is incorrect. (misconception)
 3. Explain why fertilisation restores the chromosome number. (explain)
 
 ---
