@@ -182,6 +182,11 @@ const LessonPageBlockSchema = new mongoose.Schema(
     options: { type: [String], default: undefined },
     correctAnswer: { type: String, default: undefined },
     explanation: { type: String, default: undefined },
+    /**
+     * Multi-question activity bank (selfCheck / checkpoint). Additive — legacy single
+     * prompt/question/options/correctAnswer still supported when questions is absent.
+     */
+    questions: { type: [mongoose.Schema.Types.Mixed], default: undefined },
     // diagram block (when type === "diagram") — references VisualModel; PR11: mode, annotations, steps
     visualId: { type: mongoose.Schema.Types.ObjectId, ref: "VisualModel", default: undefined },
     caption: { type: String, default: "" },
@@ -452,6 +457,8 @@ const LessonSchema = new mongoose.Schema(
           markScheme: { type: [String], default: undefined },
 
           explanation: { type: String, default: "" },
+          /** Optional skill/purpose tag for variety contract (recall, misconception, …) */
+          purpose: { type: String, default: undefined },
           tags: { type: [String], default: [] },
           difficulty: { type: Number, min: 1, max: 3, default: 1 },
           marks: { type: Number, default: 1 },
@@ -478,6 +485,7 @@ const LessonSchema = new mongoose.Schema(
           correctAnswer: { type: String, default: "" },
           markScheme: { type: [String], default: undefined },
           explanation: { type: String, default: "" },
+          purpose: { type: String, default: undefined },
           tags: { type: [String], default: [] },
           difficulty: { type: Number, min: 1, max: 3, default: 1 },
           marks: { type: Number, default: 1 },

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import type { Components } from "react-markdown";
 import type {
   InteractiveDiagramHotspotPersisted,
@@ -21,6 +21,8 @@ import {
 import type { ContentKeywordItem } from "./contentKeywordHighlight";
 import { InlineSelfCheckBlock } from "../InlineSelfCheckBlock";
 import { LessonCheckpoint } from "../LessonCheckpoint";
+import { ActivityQuestionPager } from "../ActivityQuestionPager";
+import { extractActivityQuestionsFromBlock } from "../../../utils/activityQuestionsFromBlock";
 import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../InteractiveSequenceBlock";
 import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../DragDropMatchBlock";
@@ -136,6 +138,124 @@ function suppressInnerActivityTitle(
   return shouldSuppressInnerBlockTitle(outer, inner, true);
 }
 
+function StudentCheckpointActivity({
+  block,
+  blockIndex,
+  lessonId,
+  pageId,
+  checkpointEntitled,
+  studentPresentation,
+}: {
+  block: StudentLessonPageBlock;
+  blockIndex: number;
+  lessonId?: string;
+  pageId?: string;
+  checkpointEntitled: boolean;
+  studentPresentation: "default" | "v12";
+}): React.ReactElement | null {
+  const stored = extractActivityQuestionsFromBlock(block);
+  const legacy = stored.length ? null : studentCheckpointFromBlock(block, String(blockIndex));
+  const items =
+    stored.length > 0
+      ? stored
+      : legacy
+        ? [
+            {
+              prompt: legacy.prompt,
+              questionType: legacy.mode,
+              options: legacy.options,
+              correctAnswer: legacy.correctAnswer,
+              explanation: legacy.explanation,
+              markScheme: legacy.markScheme,
+            },
+          ]
+        : [];
+  const [index, setIndex] = useState(0);
+  if (!items.length) return null;
+  const safeIndex = Math.min(Math.max(index, 0), items.length - 1);
+  const q = items[safeIndex];
+  return (
+    <div
+      className={studentPresentation === "v12" ? "lesson-student-checkpoint-section" : undefined}
+    >
+      <ActivityQuestionPager total={items.length} index={safeIndex} onChange={setIndex} />
+      <LessonCheckpoint
+        mode={q.questionType}
+        prompt={q.prompt}
+        options={q.options}
+        correctAnswer={q.correctAnswer}
+        explanation={q.explanation}
+        markScheme={q.markScheme}
+        name={`checkpoint-${blockIndex}-${safeIndex}`}
+        lessonId={lessonId}
+        pageId={pageId}
+        entitled={checkpointEntitled}
+        presentation={studentPresentation}
+      />
+    </div>
+  );
+}
+
+function StudentSelfCheckActivity({
+  block,
+  enableMarkdownMediaSplit,
+  displayText,
+}: {
+  block: StudentLessonPageBlock;
+  enableMarkdownMediaSplit?: boolean;
+  displayText: string;
+}): React.ReactElement {
+  const stored = extractActivityQuestionsFromBlock(block);
+  const legacyFallback =
+    stored.length > 0
+      ? stored
+      : [
+          {
+            prompt: String(block.prompt ?? ""),
+            questionType: (block.questionType === "short" ? "short" : "mcq") as "mcq" | "short",
+            options: Array.isArray(block.options) ? block.options.map(String) : [],
+            correctAnswer: String(block.correctAnswer ?? ""),
+            explanation:
+              block.explanation != null
+                ? mergeCheckpointExplanationParts({
+                    explanation: String(block.explanation),
+                    markScheme: Array.isArray(block.markScheme) ? block.markScheme : undefined,
+                  })
+                : undefined,
+            markScheme: Array.isArray(block.markScheme) ? block.markScheme : undefined,
+          },
+        ];
+  const items = legacyFallback.filter((q) => String(q.prompt || "").trim());
+  const [index, setIndex] = useState(0);
+  const safeIndex = items.length ? Math.min(Math.max(index, 0), items.length - 1) : 0;
+  const q = items[safeIndex] || legacyFallback[0];
+  const rawMs = q?.markScheme ?? (Array.isArray(block.markScheme) ? block.markScheme : undefined);
+
+  return (
+    <>
+      <ActivityQuestionPager total={Math.max(items.length, 1)} index={safeIndex} onChange={setIndex} />
+      <InlineSelfCheckBlock
+        prompt={String(q?.prompt ?? "")}
+        questionType={q?.questionType === "short" ? "short" : "mcq"}
+        options={Array.isArray(q?.options) ? q.options : []}
+        correctAnswer={String(q?.correctAnswer ?? "")}
+        markScheme={rawMs}
+        explanation={
+          q?.explanation != null
+            ? String(q.explanation)
+            : mergeCheckpointExplanationParts({
+                explanation: block.explanation != null ? String(block.explanation) : undefined,
+                markScheme: Array.isArray(block.markScheme) ? block.markScheme : undefined,
+              })
+        }
+        contentFallback={typeof block.content === "string" ? block.content : ""}
+        presentation={enableMarkdownMediaSplit ? "v12" : "default"}
+        hideHeadingLabel={suppressInnerActivityTitle(block, displayText, "Self-check")}
+      />
+    </>
+  );
+}
+
 /**
  * Maps persisted lesson block types to premium student-facing shells. Unknown types fall back to explanation.
  */
@@ -173,28 +293,19 @@ export function LessonStudentBlockRenderer({
   );
 
   if (routed === "checkpoint") {
-    const data = studentCheckpointFromBlock(block, String(blockIndex));
-    if (!data) return null;
+    const storedQs = extractActivityQuestionsFromBlock(block);
+    const legacyData =
+      storedQs.length > 0 ? null : studentCheckpointFromBlock(block, String(blockIndex));
+    if (!storedQs.length && !legacyData) return null;
     const cp = (
-      <div
-        className={
-          studentPresentation === "v12" ? "lesson-student-checkpoint-section" : undefined
-        }
-      >
-        <LessonCheckpoint
-          mode={data.mode}
-          prompt={data.prompt}
-          options={data.options}
-          correctAnswer={data.correctAnswer}
-          explanation={data.explanation}
-          markScheme={data.markScheme}
-          name={data.name}
-          lessonId={lessonId}
-          pageId={pageId}
-          entitled={checkpointEntitled}
-          presentation={studentPresentation}
-        />
-      </div>
+      <StudentCheckpointActivity
+        block={block as StudentLessonPageBlock}
+        blockIndex={blockIndex}
+        lessonId={lessonId}
+        pageId={pageId}
+        checkpointEntitled={checkpointEntitled}
+        studentPresentation={studentPresentation}
+      />
     );
     return withStudentBlockHeading(cp, block, "");
   }
@@ -219,24 +330,11 @@ export function LessonStudentBlockRenderer({
   }
 
   if (routed === "selfCheck") {
-    const rawMs = (block as { markScheme?: string | string[] }).markScheme;
-    const scMs = Array.isArray(rawMs) ? rawMs : undefined;
     const sc = (
-      <InlineSelfCheckBlock
-        prompt={String(block.prompt ?? "")}
-        questionType={block.questionType === "short" ? "short" : "mcq"}
-        options={Array.isArray(block.options) ? block.options : []}
-        correctAnswer={String(block.correctAnswer ?? "")}
-        markScheme={scMs}
-        explanation={
-          mergeCheckpointExplanationParts({
-            explanation: block.explanation != null ? String(block.explanation) : undefined,
-            markScheme: scMs,
-          })
-        }
-        contentFallback={typeof block.content === "string" ? block.content : ""}
-        presentation={enableMarkdownMediaSplit ? "v12" : "default"}
-        hideHeadingLabel={suppressInnerActivityTitle(block, displayText, "Self-check")}
+      <StudentSelfCheckActivity
+        block={block as StudentLessonPageBlock}
+        enableMarkdownMediaSplit={enableMarkdownMediaSplit}
+        displayText={displayText}
       />
     );
     return withStudentBlockHeading(sc, block, displayText);

@@ -30,6 +30,13 @@ const { planAssessmentJourney, buildAssessmentJourneyPromptSection } = require("
 const { validateAssessmentIntent } = require("../services/assessmentIntentValidator");
 const { applyAssessmentJourneyFromPlan } = require("../services/assessmentJourneyApply");
 const { enforceQuestionDiversityOnDraft } = require("../../lib/questionDeduplicationGuard");
+const {
+  validateLessonActivityQuestionCounts,
+  isVarietyIssue,
+} = require("../utils/validateLessonActivityQuestionCounts");
+const {
+  repairLessonActivityQuestionCounts,
+} = require("../utils/repairLessonActivityQuestionCounts");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
@@ -5618,6 +5625,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
       "- Do not use generic placeholder questions such as \"Which statement best matches this topic?\" or \"Which statement is correct?\".",
       "- Progress questions from recall → apply → explain → exam-style.",
       "- Each question must have a distinct teaching purpose.",
+      "",
+      "ACTIVITY QUESTION COUNT + VARIETY CONTRACT (MANDATORY):",
+      "- Each SELF-CHECK activity must contain at least 3 questions with different purposes: recall + misconception + explain/application (questions[] preferred; optional purpose field).",
+      "- Each CHECKPOINT activity must contain at least 3 questions with different purposes: understanding + application/scenario + explanation.",
+      "- Lesson QUIZ PAGE / REVISION PRACTICE bank must contain at least 5 unique MCQ questions with varied purposes (recall, definition, comparison, misconception, application) — not five clones.",
+      "- Do not repeat the same stem opening phrase or command word across an activity.",
+      "- Do not create five \"Which statement best…\" MCQs or repeated \"Explain one key idea…\" stems.",
+      "- Do not clone self-check or checkpoint stems into revision/quiz.",
+      "- Do not output Question 1/1 style pools.",
+      "- Ban stems like \"Which statement best explains a key idea about…\" / \"A correct statement about this topic is…\".",
     ].join("\n");
     engineInstructions = `${String(engineInstructions || "").trim()}\n\n${QUESTION_DIVERSITY_PROMPT}`.trim();
 
@@ -5859,6 +5876,112 @@ router.post("/generate-and-save", auth, async (req, res) => {
         err.details = { issues: (diversity.issues || []).slice(0, 8) };
         throw err;
       }
+    }
+
+    // Activity question count + variety contract:
+    // validate → repair/replenish (counts + purposes) → re-validate → fail closed.
+    {
+      const topicLabelForCounts = subTopicDisplay || topic;
+      let topicSpecForCounts = null;
+      try {
+        topicSpecForCounts = resolveTopicSpecForGeneration(specKey, canonicalTopicKey, {
+          examCode: req.body?.examCode,
+        });
+      } catch (_) {
+        topicSpecForCounts = null;
+      }
+
+      const repairOpts = {
+        topic: topicLabelForCounts,
+        vocabulary: topicSpecForCounts?.requiredVocabulary || [],
+        structures: topicSpecForCounts?.requiredStructures || [],
+        misconceptions: topicSpecForCounts?.commonMisconceptions || [],
+      };
+
+      let countCheck = validateLessonActivityQuestionCounts(sanitized);
+      const quizLen = Array.isArray(sanitized?.quiz?.questions) ? sanitized.quiz.questions.length : 0;
+      const needsRepair = !countCheck.ok || quizLen < 5;
+
+      if (needsRepair) {
+        const repaired = repairLessonActivityQuestionCounts(sanitized, repairOpts);
+        sanitized.pages = repaired.pages;
+        sanitized.quiz = repaired.quiz;
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[generate-and-save] activity question count/variety repair:", {
+            changes: repaired.changes,
+            issuesBefore: countCheck.issues?.slice(0, 8),
+          });
+        }
+
+        const diversityAfter = enforceQuestionDiversityOnDraft(sanitized, {
+          topic: topicLabelForCounts,
+          topicKey: canonicalTopicKey,
+        });
+        if (!diversityAfter.clean) {
+          const err = new Error(
+            "Lesson generation failed question diversity check after activity-count repair. Please regenerate."
+          );
+          err.status = 422;
+          err.code = "QUESTION_DIVERSITY_FAILED";
+          err.details = { issues: (diversityAfter.issues || []).slice(0, 8) };
+          throw err;
+        }
+
+        countCheck = validateLessonActivityQuestionCounts(sanitized);
+      }
+
+      // Second pass: if variety still weak, repair again then re-validate.
+      if (!countCheck.ok && (countCheck.issues || []).some(isVarietyIssue)) {
+        const repairedVariety = repairLessonActivityQuestionCounts(sanitized, repairOpts);
+        sanitized.pages = repairedVariety.pages;
+        sanitized.quiz = repairedVariety.quiz;
+        countCheck = validateLessonActivityQuestionCounts(sanitized);
+      }
+
+      if (!countCheck.ok) {
+        const varietyOnly =
+          (countCheck.issues || []).length > 0 &&
+          (countCheck.issues || []).every(isVarietyIssue);
+        console.warn(
+          "[generate-and-save] activity question contract failed:",
+          countCheck.issues?.slice(0, 8)
+        );
+        const err = new Error(
+          varietyOnly
+            ? "Lesson generation failed activity question-variety contract: questions are too repetitive after repair. Please regenerate."
+            : "Lesson generation failed activity question-count contract: not enough unique assessment questions after repair. Please regenerate."
+        );
+        err.status = 422;
+        err.code = varietyOnly ? "ACTIVITY_QUESTION_VARIETY_FAILED" : "ACTIVITY_QUESTION_COUNT_FAILED";
+        err.details = { issues: (countCheck.issues || []).slice(0, 12), summary: countCheck.summary };
+        throw err;
+      }
+    }
+
+    // Re-apply role fallbacks and refresh structure issues on the post-repair draft.
+    // Stale pre-journey structure issues must not block an otherwise repaired lesson.
+    applyRoleFallbacksToLesson(sanitized);
+    {
+      const blocks = sanitized?.pages?.[0]?.blocks;
+      if (Array.isArray(blocks) && !blocks.some((b) => String(b?.role || "").trim() === "coreRule")) {
+        const keyIdea = blocks.find((b) => String(b?.type || "") === "keyIdea");
+        if (keyIdea) {
+          keyIdea.role = "coreRule";
+          if (!String(keyIdea.title || "").trim()) keyIdea.title = "CORE RULE";
+        } else {
+          blocks.splice(Math.min(3, blocks.length), 0, {
+            type: "keyIdea",
+            role: "coreRule",
+            title: "CORE RULE",
+            content: `<p>Core rule for <strong>${safeStr(subTopicDisplay || topic, "this topic")}</strong>: name the mechanism, then the outcome.</p>`,
+          });
+        }
+      }
+      const structNow = validateLessonStructure(sanitized, { isManual: false });
+      finalStructureIssues = [
+        ...mergeStructureValidationForScoring(structNow),
+        ...validateBlockTypeRequirements(sanitized),
+      ];
     }
 
     if (process.env.NODE_ENV !== "production") {
@@ -6193,6 +6316,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
       // Gold structure
       pages: pagesForDb,
 
+      // Activity question bank (revision practice + quiz page) — enforced ≥5 before save
+      ...(sanitized.quiz &&
+        Array.isArray(sanitized.quiz.questions) &&
+        sanitized.quiz.questions.length > 0 && {
+          quiz: {
+            timeSeconds: sanitized.quiz.timeSeconds || 600,
+            questions: sanitized.quiz.questions,
+          },
+        }),
+
       // Ownership
       teacherId: req.user?._id || req.user?.userId || req.user?.id,
       teacherName,
@@ -6370,12 +6503,12 @@ router.post("/generate-and-save", auth, async (req, res) => {
       return res.status(status).json(payload);
     }
 
-    if (error?.code === "QUESTION_DIVERSITY_FAILED" || error?.status === 422) {
+    if (error?.code === "QUESTION_DIVERSITY_FAILED" || error?.code === "ACTIVITY_QUESTION_COUNT_FAILED" || error?.code === "ACTIVITY_QUESTION_VARIETY_FAILED" || error?.status === 422) {
       return res.status(422).json({
         error: "Failed to generate lesson materials",
-        code: "QUESTION_DIVERSITY_FAILED",
-        details: error.message || "Duplicate questions could not be repaired.",
-        ...(!IS_PRODUCTION && error.details ? { diversityIssues: error.details } : {}),
+        code: error?.code || "QUESTION_DIVERSITY_FAILED",
+        details: error.message || "Lesson quality gate failed.",
+        ...(!IS_PRODUCTION && error.details ? { gateIssues: error.details } : {}),
       });
     }
 

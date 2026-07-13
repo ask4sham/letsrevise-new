@@ -33,6 +33,7 @@ export function isStudentCheckpointBlock(block: unknown): boolean {
 
 /**
  * Normalise a persisted checkpoint block for student LessonCheckpoint rendering.
+ * Prefers questions[0] when present; otherwise legacy single prompt fields.
  * Returns null when the block is incomplete (omit from student flow).
  */
 export function studentCheckpointFromBlock(
@@ -41,10 +42,38 @@ export function studentCheckpointFromBlock(
 ): StudentCheckpointRenderData | null {
   if (!isStudentCheckpointBlock(block)) return null;
   const b = block as Record<string, unknown>;
-  const mode = b.questionType === "short" ? "short" : "mcq";
-  const prompt = String(b.prompt ?? b.question ?? "").trim();
-  const options = nonEmptyOptions(b.options);
-  const correctAnswer = String(b.correctAnswer ?? b.answer ?? "").trim();
+
+  let mode: "mcq" | "short" = b.questionType === "short" ? "short" : "mcq";
+  let prompt = String(b.prompt ?? b.question ?? "").trim();
+  let options = nonEmptyOptions(b.options);
+  let correctAnswer = String(b.correctAnswer ?? b.answer ?? "").trim();
+  let explanation =
+    typeof b.explanation === "string" && b.explanation.trim()
+      ? b.explanation.trim()
+      : undefined;
+  let markScheme = markSchemeLines(b.markScheme);
+
+  if (Array.isArray(b.questions) && b.questions.length > 0) {
+    const first = b.questions[0];
+    if (first && typeof first === "object") {
+      const q = first as Record<string, unknown>;
+      const qPrompt = String(q.prompt ?? q.question ?? q.questionText ?? "").trim();
+      if (qPrompt) {
+        prompt = qPrompt;
+        options = nonEmptyOptions(q.options);
+        correctAnswer = String(q.correctAnswer ?? q.answer ?? "").trim();
+        mode =
+          String(q.questionType ?? "").toLowerCase() === "short" || options.length < 2
+            ? "short"
+            : "mcq";
+        if (typeof q.explanation === "string" && q.explanation.trim()) {
+          explanation = q.explanation.trim();
+        }
+        const qMs = markSchemeLines(q.markScheme);
+        if (qMs) markScheme = qMs;
+      }
+    }
+  }
 
   if (mode === "short") {
     if (!prompt) return null;
@@ -52,18 +81,13 @@ export function studentCheckpointFromBlock(
     return null;
   }
 
-  const explanation =
-    typeof b.explanation === "string" && b.explanation.trim()
-      ? b.explanation.trim()
-      : undefined;
-
   return {
     mode,
     prompt: prompt || "Quick check",
     options,
     correctAnswer,
     explanation,
-    markScheme: markSchemeLines(b.markScheme),
+    markScheme,
     name: `checkpoint-${nameSuffix}`,
   };
 }

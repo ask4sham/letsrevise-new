@@ -19,14 +19,40 @@ function buildCheckpointBlock(item, role = "") {
   const ex = item.exemplar || {};
   const options = Array.isArray(ex.options) ? ex.options.filter(Boolean) : [];
   const questionType = ex.questionType || (options.length >= 2 ? "mcq" : "short");
-  const block = {
-    type: "checkpoint",
+  const primary = {
     prompt: ex.question,
     question: ex.question,
     questionType,
     options: questionType === "mcq" ? options : [],
     correctAnswer: ex.answer || options[0] || "",
     explanation: ex.modelAnswer || ex.answer || "",
+  };
+  const extras = Array.isArray(item.extraExemplars)
+    ? item.extraExemplars
+        .map((e) => {
+          if (!e || !e.question) return null;
+          const opts = Array.isArray(e.options) ? e.options.filter(Boolean) : [];
+          const qt = e.questionType || (opts.length >= 2 ? "mcq" : "short");
+          return {
+            prompt: e.question,
+            question: e.question,
+            questionType: qt,
+            options: qt === "mcq" ? opts : [],
+            correctAnswer: e.answer || opts[0] || "",
+            explanation: e.modelAnswer || e.answer || "",
+          };
+        })
+        .filter(Boolean)
+    : [];
+  const block = {
+    type: "checkpoint",
+    prompt: primary.prompt,
+    question: primary.prompt,
+    questionType,
+    options: primary.options,
+    correctAnswer: primary.correctAnswer,
+    explanation: primary.explanation,
+    questions: [primary, ...extras],
     title: "",
   };
   if (role) block.role = role;
@@ -40,15 +66,39 @@ function buildCheckpointBlock(item, role = "") {
 
 function buildSelfCheckBlock(item) {
   const ex = item.exemplar || {};
-  return {
-    type: "selfCheck",
+  const primary = {
     prompt: ex.question,
     question: ex.question,
     questionType: "short",
     options: [],
     correctAnswer: ex.answer || "",
     explanation: wrapRevealAnswer(ex.answer || ex.modelAnswer || ""),
-    content: wrapRevealAnswer(ex.answer || ex.modelAnswer || ""),
+  };
+  const extras = Array.isArray(item.extraExemplars)
+    ? item.extraExemplars
+        .map((e) => {
+          if (!e || !e.question) return null;
+          return {
+            prompt: e.question,
+            question: e.question,
+            questionType: "short",
+            options: [],
+            correctAnswer: e.answer || "",
+            explanation: wrapRevealAnswer(e.answer || e.modelAnswer || ""),
+          };
+        })
+        .filter(Boolean)
+    : [];
+  return {
+    type: "selfCheck",
+    prompt: primary.prompt,
+    question: primary.prompt,
+    questionType: "short",
+    options: [],
+    correctAnswer: primary.correctAnswer,
+    explanation: primary.explanation,
+    content: primary.explanation,
+    questions: [primary, ...extras],
     title: "",
   };
 }
