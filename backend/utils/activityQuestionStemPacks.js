@@ -463,7 +463,7 @@ function genericMcqCatalog(topic, vocabTerms) {
   const c = terms[2] || "an outcome";
   return {
     recall: mcqQ(
-      "Which idea is most directly linked to this topic?",
+      `Which term is a key structure or idea in ${label}?`,
       a,
       [b, c, "An unrelated idea outside this topic"],
       "recall"
@@ -597,6 +597,45 @@ function genericMcqExtras(topic, vocabTerms) {
   const label = String(topic || "").trim() || "this process";
   const terms = (vocabTerms || []).map((t) => String(t || "").trim()).filter(Boolean);
   const out = [];
+  // Distinct recall/definition openings so checkpoint repair does not exhaust the only quiz stems.
+  out.push(
+    mcqQ(
+      `Name the role most closely associated with ${terms[0] || "a key structure"} in this topic.`,
+      terms[0] || "a key structure",
+      [terms[1] || "an unrelated label", terms[2] || "a random outcome", "Something outside biology"],
+      "recall"
+    ),
+    mcqQ(
+      `Identify one accurate fact examiners expect about ${label}.`,
+      `A precise fact involving ${terms[0] || "a key structure"}`,
+      [
+        "A vague claim with no biological mechanism",
+        "An unrelated idea from another topic",
+        "A single keyword with no meaning",
+      ],
+      "recall"
+    ),
+    mcqQ(
+      `What is the best short definition of ${terms[0] || "the key idea"} in this topic?`,
+      `A clear meaning of ${terms[0] || "the key idea"} within ${label}`,
+      [
+        `A vague claim that ${label} just happens`,
+        `An unrelated definition of ${terms[1] || "another idea"}`,
+        "A keyword with no meaning attached",
+      ],
+      "definition"
+    ),
+    mcqQ(
+      `Which sentence correctly states what ${terms[1] || "a linked idea"} means here?`,
+      `A precise meaning of ${terms[1] || "a linked idea"} in ${label}`,
+      [
+        "An everyday guess with no biology",
+        "A definition copied from an unrelated topic",
+        "Only naming the word with no meaning",
+      ],
+      "definition"
+    )
+  );
   const openings = [
     (t) =>
       mcqQ(
