@@ -2165,20 +2165,36 @@ function upgradeWeakNonWorkedCheckpoints(checkpoints, safeTopic, workedBlock) {
   }
 }
 
-const WORKED_EXAMPLE_DEFAULT_QUESTION = (safeTopic) =>
-  `Explain one important use of ${safeTopic} in medicine (3 marks).`;
+const WORKED_EXAMPLE_DEFAULT_QUESTION = (safeTopic) => {
+  const t = String(safeTopic || "").trim() || "this topic";
+  if (/\bstem\s*cells?\b/i.test(t) || /\bmedicine\b/i.test(t)) {
+    return `Explain one important use of ${t} in medicine (3 marks).`;
+  }
+  return `Explain one real-world reason why ${t} matters for living organisms (3 marks).`;
+};
 
-const WORKED_EXAMPLE_DEFAULT_ANSWER =
-  "- Stem cells can differentiate into specialised cells.\n" +
-  "- This means they can replace damaged or diseased cells.\n" +
-  "- Example: bone marrow stem cells can be used to treat leukaemia.";
+const WORKED_EXAMPLE_DEFAULT_ANSWER = (safeTopic) => {
+  const t = String(safeTopic || "").trim();
+  if (/\bstem\s*cells?\b/i.test(t) || /\bmedicine\b/i.test(t)) {
+    return (
+      "- Stem cells can differentiate into specialised cells.\n" +
+      "- This means they can replace damaged or diseased cells.\n" +
+      "- Example: bone marrow stem cells can be used to treat leukaemia."
+    );
+  }
+  return (
+    `- Name a precise mechanism linked to ${t || "the topic"}.\n` +
+    "- Link it to a clear outcome using because → therefore.\n" +
+    "- For example, in a real-world environmental or population context, state one practical consequence."
+  );
+};
 
 /** Fill question / prompt / answer / explanation / correctAnswer on workedExample checkpoints (sanitized shape). */
 function syncWorkedExampleFields(b, safeTopic) {
   if (!b || b.type !== "checkpoint" || safeStr(b.role, "") !== "workedExample") return;
 
   const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
-  const defaultAns = WORKED_EXAMPLE_DEFAULT_ANSWER;
+  const defaultAns = WORKED_EXAMPLE_DEFAULT_ANSWER(safeTopic);
 
   if (!safeStr(b.question, "")) {
     b.question = safeStr(b.prompt, "") || defaultQ;
@@ -2208,7 +2224,7 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
 
   const safeTopic = safeStr(topicHint, "this topic").trim() || "this topic";
   const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
-  const modelBullets = WORKED_EXAMPLE_DEFAULT_ANSWER;
+  const modelBullets = WORKED_EXAMPLE_DEFAULT_ANSWER(safeTopic);
 
   for (const page of draft.pages || []) {
     const blocks = page.blocks;

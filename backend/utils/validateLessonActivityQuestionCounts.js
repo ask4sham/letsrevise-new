@@ -22,6 +22,11 @@ const QUESTION_PURPOSES = [
   "exam_style",
 ];
 
+const {
+  WEAK_FORMULAIC_STEM_PATTERNS,
+  isWeakFormulaicStem,
+} = require("./activityQuestionStemPacks");
+
 const GENERIC_STEM_PATTERNS = [
   /^which statement best (explains|matches)/i,
   /^which statement is correct\??$/i,
@@ -35,7 +40,10 @@ const GENERIC_STEM_PATTERNS = [
 ];
 
 const WHICH_STATEMENT_PATTERN = /^which statement\b/i;
+const WHICH_STATEMENT_BEST_PATTERN = /^which statement best\b/i;
 const BANK_FORMULAIC_PATTERN = /\(bank\s+\d+\)\s*$/i;
+/** Formulaic "... for {Topic}?" endings that signal topic-word substitution. */
+const FOR_TOPIC_ENDING_PATTERN = /\bfor\s+[A-Z][^?]{2,80}\?\s*$/;
 
 function normalizeStem(s) {
   return String(s || "")
@@ -48,6 +56,7 @@ function normalizeStem(s) {
 function isGenericPlaceholderStem(stem) {
   const raw = String(stem || "").trim();
   if (!raw) return true;
+  if (isWeakFormulaicStem(raw)) return true;
   return GENERIC_STEM_PATTERNS.some((re) => re.test(raw));
 }
 
@@ -318,6 +327,20 @@ function validateActivityVariety(activityKey, questions, rules, issues) {
     issues.push(`activity_repeated_stem_pattern:${activityKey}:which_statement`);
   }
 
+  const whichStatementBestCount = questions.filter((q) =>
+    WHICH_STATEMENT_BEST_PATTERN.test(String(q.prompt || ""))
+  ).length;
+  if (whichStatementBestCount >= 2) {
+    issues.push(`activity_repeated_stem_pattern:${activityKey}:which_statement_best`);
+  }
+
+  const forTopicEndingCount = questions.filter((q) =>
+    FOR_TOPIC_ENDING_PATTERN.test(String(q.prompt || "").trim())
+  ).length;
+  if (forTopicEndingCount >= 2) {
+    issues.push(`activity_repeated_stem_pattern:${activityKey}:for_topic_ending`);
+  }
+
   const formulaic = questions.filter((q) => isFormulaicRepairStem(q.prompt));
   if (formulaic.length >= 2) {
     issues.push(`activity_repeated_stem_pattern:${activityKey}:formulaic_bank`);
@@ -533,8 +556,10 @@ module.exports = {
   MIN_REVISION_POOL,
   QUESTION_PURPOSES,
   GENERIC_STEM_PATTERNS,
+  WEAK_FORMULAIC_STEM_PATTERNS,
   normalizeStem,
   isGenericPlaceholderStem,
+  isWeakFormulaicStem,
   isFormulaicRepairStem,
   inferQuestionPurpose,
   extractQuestionsFromBlock,

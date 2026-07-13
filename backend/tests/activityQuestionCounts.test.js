@@ -559,3 +559,145 @@ describe("repairLessonActivityQuestionCounts", () => {
     ).toBe(true);
   });
 });
+
+function collectActivityStems(lessonLike) {
+  const stems = [];
+  for (const page of lessonLike.pages || []) {
+    for (const block of page.blocks || []) {
+      for (const q of block.questions || []) {
+        stems.push(String(q.prompt || q.question || ""));
+      }
+      if (!block.questions?.length && (block.prompt || block.question)) {
+        stems.push(String(block.prompt || block.question));
+      }
+    }
+  }
+  for (const q of lessonLike.quiz?.questions || []) {
+    stems.push(String(q.question || q.prompt || ""));
+  }
+  return stems;
+}
+
+describe("activity question stem quality", () => {
+  test("validator rejects Identify the role of X in Y", () => {
+    const lesson = validLesson();
+    const sc = lesson.pages[0].blocks.find((b) => b.type === "selfCheck");
+    sc.questions[0].prompt =
+      "Identify the role of Gametes in Gametes & Fertilisation.";
+    sc.questions[0].question = sc.questions[0].prompt;
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("generic_placeholder_stem"))).toBe(true);
+  });
+
+  test("validator rejects Which option correctly defines X for Y", () => {
+    const lesson = validLesson();
+    const cp = lesson.pages[0].blocks.find((b) => b.type === "checkpoint");
+    cp.questions[0].prompt =
+      "Which option correctly defines Gametes for Gametes & Fertilisation?";
+    cp.questions[0].question = cp.questions[0].prompt;
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("generic_placeholder_stem"))).toBe(true);
+  });
+
+  test("validator rejects A student says X alone completes Y", () => {
+    const lesson = validLesson();
+    const sc = lesson.pages[0].blocks.find((b) => b.type === "selfCheck");
+    sc.questions[1].prompt =
+      "A student says Gametes alone completes Gametes & Fertilisation. Explain why this is a misconception.";
+    sc.questions[1].question = sc.questions[1].prompt;
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.includes("generic_placeholder_stem"))).toBe(true);
+  });
+
+  test("repair for Gametes & Fertilisation produces biology-specific stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "acrosome", "oviduct"],
+    });
+    const stems = collectActivityStems({ pages: out.pages, quiz: out.quiz });
+    const joined = stems.join("\n");
+    expect(out.validation.ok).toBe(true);
+    expect(joined).toMatch(/gamete|fertilis|meiosis|zygote|chromosome/i);
+    expect(joined).not.toMatch(/Identify the role of/i);
+    expect(joined).not.toMatch(/Which option correctly defines .+ for/i);
+    expect(joined).not.toMatch(/alone completes/i);
+    expect(joined).not.toMatch(/use of .+ in medicine/i);
+  });
+
+  test("repair for Sexual & Asexual Reproduction produces biology-specific stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Sexual & Asexual Reproduction: Differences",
+      vocabulary: ["gamete", "clone", "mitosis", "meiosis", "variation"],
+    });
+    const stems = collectActivityStems({ pages: out.pages, quiz: out.quiz });
+    const joined = stems.join("\n");
+    expect(out.validation.ok).toBe(true);
+    expect(joined).toMatch(/sexual|asexual|meiosis|mitosis|variation|parent/i);
+    expect(joined).not.toMatch(/Identify the role of/i);
+    expect(joined).not.toMatch(/Which option correctly defines .+ for/i);
+    expect(joined).not.toMatch(/alone completes/i);
+  });
+
+  test("repair preserves self-check >= 3 with quality stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
+    expect(sc.questions.length).toBeGreaterThanOrEqual(MIN_SELF_CHECK);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair preserves checkpoint >= 3 with quality stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const cp = out.pages[0].blocks.find((b) => b.type === "checkpoint");
+    expect(cp.questions.length).toBeGreaterThanOrEqual(MIN_CHECKPOINT);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair preserves quiz/revision >= 5 with quality stems", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Sexual & Asexual Reproduction: Differences",
+      vocabulary: ["gamete", "clone", "mitosis", "meiosis"],
+    });
+    expect(out.quiz.questions.length).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
+    expect(out.validation.ok).toBe(true);
+  });
+
+  test("repair preserves purpose variety without weak templates", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote", "oviduct"],
+    });
+    const sc = out.pages[0].blocks.find((b) => b.type === "selfCheck");
+    const purposes = new Set(sc.questions.map((q) => q.purpose || inferQuestionPurpose(q)));
+    expect(purposes.size).toBeGreaterThanOrEqual(3);
+    expect(out.validation.ok).toBe(true);
+    expect(out.validation.summary.varietyIssueCount).toBe(0);
+  });
+
+  test("no repeated Which statement best pattern beyond allowed misconception item", () => {
+    const out = repairLessonActivityQuestionCounts(weakLesson(), {
+      topic: "Gametes & Fertilisation",
+      vocabulary: ["sperm", "egg", "zygote"],
+    });
+    const stems = collectActivityStems({ pages: out.pages, quiz: out.quiz });
+    const bestCount = stems.filter((s) => /^which statement best\b/i.test(s)).length;
+    expect(bestCount).toBeLessThanOrEqual(1);
+    const lesson = validLesson();
+    lesson.quiz.questions = fiveSamePatternMcqs();
+    const r = validateLessonActivityQuestionCounts(lesson);
+    expect(r.ok).toBe(false);
+    expect(
+      r.issues.some(
+        (i) => i.includes("which_statement") || i.includes("which_statement_best")
+      )
+    ).toBe(true);
+  });
+});

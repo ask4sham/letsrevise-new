@@ -10,12 +10,20 @@ const {
   normalizeStem,
   isGenericPlaceholderStem,
   isFormulaicRepairStem,
+  isWeakFormulaicStem,
   extractQuestionsFromBlock,
   isSelfCheckActivity,
   isCheckpointActivity,
   validateLessonActivityQuestionCounts,
   inferQuestionPurpose,
 } = require("./validateLessonActivityQuestionCounts");
+const {
+  resolveTopicPack,
+  genericShortCatalog,
+  genericMcqCatalog,
+  genericShortExtras,
+  genericMcqExtras,
+} = require("./activityQuestionStemPacks");
 
 function titleCase(s) {
   return String(s || "")
@@ -83,93 +91,61 @@ function termAt(vocab, i, topic) {
   return titleCase(vocab[i % Math.max(vocab.length, 1)] || topic || "this idea");
 }
 
+function stemIsUsable(prompt, usedStems) {
+  if (!prompt) return false;
+  if (isGenericPlaceholderStem(prompt) || isFormulaicRepairStem(prompt) || isWeakFormulaicStem(prompt)) {
+    return false;
+  }
+  const key = normalizeStem(prompt);
+  if (!key || usedStems.has(key)) return false;
+  return true;
+}
+
+function pushUniqueQuestion(out, usedStems, q) {
+  if (!q || !stemIsUsable(q.prompt, usedStems)) return false;
+  const key = normalizeStem(q.prompt);
+  if (out.some((x) => normalizeStem(x.prompt) === key)) return false;
+  out.push(q);
+  return true;
+}
+
 /**
  * Purpose-tagged short stems for self-check (and checkpoint explain items).
+ * Prefer topic-specific GCSE/IGCSE packs; fall back to exam-style generics (no weak templates).
  */
 function purposeShortCandidates(topic, vocab, usedStems, purposesWanted) {
-  const label = titleCase(topic || "this process");
-  const a = termAt(vocab, 0, label);
-  const b = termAt(vocab, 1, label);
-  const c = termAt(vocab, 2, label);
-  const catalog = {
-    recall: makeShortQuestion(
-      `Identify the role of ${a} in ${label}.`,
-      `${a} is a named part of ${label}; state what it does.`,
-      "recall"
-    ),
-    definition: makeShortQuestion(
-      `Define ${b} in the context of ${label}.`,
-      `${b} means a precise idea used when explaining ${label}.`,
-      "definition"
-    ),
-    misconception: makeShortQuestion(
-      `A student says ${a} alone completes ${label}. Explain why this is a misconception.`,
-      `Naming ${a} is not enough; ${label} also needs mechanism and outcome.`,
-      "misconception"
-    ),
-    explain: makeShortQuestion(
-      `Explain why ${c} matters for the outcome of ${label}.`,
-      `Because ${c} changes how ${label} works; therefore the outcome changes.`,
-      "explain"
-    ),
-    application: makeShortQuestion(
-      `Apply your knowledge: how would a change in ${a} affect ${label} in practice?`,
-      `Use because → therefore linking ${a} to a measurable outcome in ${label}.`,
-      "application"
-    ),
-    comparison: makeShortQuestion(
-      `Compare ${a} and ${b} in ${label}: state one clear difference.`,
-      `${a} and ${b} play different roles in ${label}; name both roles.`,
-      "comparison"
-    ),
-    exam_style: makeShortQuestion(
-      `Explain one reason examiners credit for linking ${a} to ${label}.`,
-      `Credit comes from mechanism + outcome, not a lone keyword.`,
-      "exam_style"
-    ),
-    sequence: makeShortQuestion(
-      `Describe the order: where does ${a} fit before the final outcome of ${label}?`,
-      `Place ${a} in the cause → effect sequence for ${label}.`,
-      "sequence"
-    ),
-  };
-
-  const wanted = purposesWanted?.length ? purposesWanted : Object.keys(catalog);
+  const pack = resolveTopicPack(topic);
+  const generic = genericShortCatalog(topic);
+  const wanted = purposesWanted?.length ? purposesWanted : Object.keys(generic);
   const out = [];
-  for (const purpose of wanted) {
-    const q = catalog[purpose];
-    if (!q) continue;
-    if (isGenericPlaceholderStem(q.prompt) || isFormulaicRepairStem(q.prompt)) continue;
-    const key = normalizeStem(q.prompt);
-    if (usedStems.has(key)) continue;
-    out.push(q);
-  }
-  // Extra rotated variants if still short
-  for (let i = 0; i < vocab.length && out.length < 8; i++) {
-    const t = termAt(vocab, i, label);
-    const extras = [
-      makeShortQuestion(
-        `State one accurate fact about ${t} in ${label}.`,
-        `${t} supports ${label} through a clear role.`,
-        "recall"
-      ),
-      makeShortQuestion(
-        `Which common error about ${t} should you avoid when revising ${label}? Explain briefly.`,
-        `Avoid treating ${t} as the whole of ${label} without mechanism.`,
-        "misconception"
-      ),
-      makeShortQuestion(
-        `Why must ${t} be linked to an outcome when explaining ${label}?`,
-        `Exam answers need because → therefore, not a label alone.`,
-        "explain"
-      ),
-    ];
-    for (const q of extras) {
-      const key = normalizeStem(q.prompt);
-      if (usedStems.has(key) || isGenericPlaceholderStem(q.prompt)) continue;
-      if (out.some((x) => normalizeStem(x.prompt) === key)) continue;
-      out.push(q);
+
+  if (pack) {
+    for (const purpose of wanted) {
+      const hit = (pack.short || []).find(
+        (s) =>
+          s.purpose === purpose &&
+          stemIsUsable(s.prompt, usedStems) &&
+          !out.some((x) => normalizeStem(x.prompt) === normalizeStem(s.prompt))
+      );
+      if (hit) {
+        pushUniqueQuestion(out, usedStems, makeShortQuestion(hit.prompt, hit.answer, hit.purpose));
+      }
     }
+    for (const s of pack.short || []) {
+      if (out.length >= 10) break;
+      pushUniqueQuestion(out, usedStems, makeShortQuestion(s.prompt, s.answer, s.purpose));
+    }
+  }
+
+  for (const purpose of wanted) {
+    const g = generic[purpose];
+    if (!g) continue;
+    pushUniqueQuestion(out, usedStems, makeShortQuestion(g.prompt, g.answer, g.purpose));
+  }
+
+  for (const s of genericShortExtras(topic, vocab)) {
+    if (out.length >= 12) break;
+    pushUniqueQuestion(out, usedStems, makeShortQuestion(s.prompt, s.answer, s.purpose));
   }
   return out;
 }
@@ -178,133 +154,54 @@ function purposeShortCandidates(topic, vocab, usedStems, purposesWanted) {
  * Purpose-tagged MCQ stems for checkpoint / quiz.
  */
 function purposeMcqCandidates(topic, vocab, usedStems, purposesWanted) {
-  const label = titleCase(topic || "this process");
-  const a = termAt(vocab, 0, label);
-  const b = termAt(vocab, 1, label);
-  const c = termAt(vocab, 2, label);
-  const d = termAt(vocab, 3, label);
-  const distract = (correct) =>
-    [b, c, d, `Unrelated idea outside ${label}`].filter((x) => normalizeStem(x) !== normalizeStem(correct)).slice(0, 3);
-
-  const catalog = {
-    recall: makeMcqQuestion(
-      `What is produced as a direct result of ${label}?`,
-      a,
-      distract(a),
-      "recall"
-    ),
-    definition: makeMcqQuestion(
-      `Which option correctly defines ${a} for ${label}?`,
-      a,
-      distract(a),
-      "definition"
-    ),
-    misconception: makeMcqQuestion(
-      `Which statement shows a common misconception about ${label}?`,
-      `${a} alone is the complete process of ${label}`,
-      [
-        `${a} is one part of a larger mechanism in ${label}`,
-        `${b} can contribute to ${label}`,
-        `Outcomes of ${label} depend on more than one factor`,
-      ],
-      "misconception"
-    ),
-    application: makeMcqQuestion(
-      `In a scenario where ${a} is missing, what is the most likely effect on ${label}?`,
-      `The expected outcome of ${label} is disrupted`,
-      [
-        `Nothing changes in ${label}`,
-        `${label} speeds up without ${a}`,
-        `${b} fully replaces every role of ${a}`,
-      ],
-      "application"
-    ),
-    comparison: makeMcqQuestion(
-      `How do ${a} and ${b} differ in ${label}?`,
-      `They have different roles in the ${label} sequence`,
-      [
-        `They are identical in every way`,
-        `Neither is involved in ${label}`,
-        `Only one of them can ever be named in ${label}`,
-      ],
-      "comparison"
-    ),
-    explain: makeMcqQuestion(
-      `Why is ${c} needed before the final outcome of ${label}?`,
-      `It enables a later step in the ${label} mechanism`,
-      [
-        `It is decorative only`,
-        `It happens after the outcome is finished`,
-        `It replaces the need for ${label}`,
-      ],
-      "explain"
-    ),
-    sequence: makeMcqQuestion(
-      `In ${label}, which comes earlier in a typical sequence: ${a} or the final outcome?`,
-      a,
-      [d || `Final outcome of ${label}`, `Neither belongs in ${label}`, `Both only after the outcome`],
-      "sequence"
-    ),
-    exam_style: makeMcqQuestion(
-      `Which answer would earn a mark for explaining ${label} (not just naming a word)?`,
-      `A because → therefore link involving ${a}`,
-      [
-        `The single word ${a} with no mechanism`,
-        `A vague claim that ${label} happens`,
-        `An unrelated definition of ${b}`,
-      ],
-      "exam_style"
-    ),
-    evaluate: makeMcqQuestion(
-      `Which claim about ${label} is weakest for an exam answer?`,
-      `Just writing the word ${a} without linking it to an outcome`,
-      [
-        `Linking ${a} to a clear mechanism in ${label}`,
-        `Comparing ${a} and ${b} with a difference`,
-        `Explaining why a misconception about ${label} is wrong`,
-      ],
-      "evaluate"
-    ),
-  };
-
-  // Fix misconception correctAnswer to be the misconception statement (it's in options)
-  // Already set correctly above.
-
-  const wanted = purposesWanted?.length ? purposesWanted : Object.keys(catalog);
+  const pack = resolveTopicPack(topic);
+  const generic = genericMcqCatalog(topic, vocab);
+  const wanted = purposesWanted?.length ? purposesWanted : Object.keys(generic);
   const out = [];
-  for (const purpose of wanted) {
-    const q = catalog[purpose];
-    if (!q) continue;
-    if (isGenericPlaceholderStem(q.prompt) || isFormulaicRepairStem(q.prompt)) continue;
-    const key = normalizeStem(q.prompt);
-    if (usedStems.has(key)) continue;
-    out.push(q);
+
+  if (pack) {
+    for (const purpose of wanted) {
+      const hit = (pack.mcq || []).find(
+        (s) =>
+          s.purpose === purpose &&
+          stemIsUsable(s.prompt, usedStems) &&
+          !out.some((x) => normalizeStem(x.prompt) === normalizeStem(s.prompt))
+      );
+      if (hit) {
+        pushUniqueQuestion(
+          out,
+          usedStems,
+          makeMcqQuestion(hit.prompt, hit.correct, hit.distractors, hit.purpose)
+        );
+      }
+    }
+    for (const s of pack.mcq || []) {
+      if (out.length >= 12) break;
+      pushUniqueQuestion(
+        out,
+        usedStems,
+        makeMcqQuestion(s.prompt, s.correct, s.distractors, s.purpose)
+      );
+    }
   }
 
-  // Additional unique MCQs rotating vocab (varied openings, not bank-N)
-  const openings = [
-    (t) => ({ prompt: `Name the term that fits this function in ${label}: supporting ${t.toLowerCase()}.`, purpose: "recall" }),
-    (t) => ({ prompt: `Where does ${t} fit in the sequence for ${label}?`, purpose: "sequence" }),
-    (t) => ({ prompt: `How does ${t} change the outcome in ${label}?`, purpose: "application" }),
-    (t) => ({
-      prompt: `A student claims ${t} is unrelated to ${label}. Which response is best?`,
-      purpose: "misconception",
-    }),
-    (t) => ({ prompt: `What is one precise difference between naming ${t} and explaining ${label}?`, purpose: "comparison" }),
-  ];
-  for (let i = 0; i < vocab.length; i++) {
-    const t = termAt(vocab, i, label);
-    const spec = openings[i % openings.length](t);
-    const q = makeMcqQuestion(
-      spec.prompt,
-      t,
-      distract(t).length ? distract(t) : [`Unrelated to ${label}`, `Opposite of ${t}`, `Not in ${label}`],
-      spec.purpose
+  for (const purpose of wanted) {
+    const g = generic[purpose];
+    if (!g) continue;
+    pushUniqueQuestion(
+      out,
+      usedStems,
+      makeMcqQuestion(g.prompt, g.correct, g.distractors, g.purpose)
     );
-    const key = normalizeStem(q.prompt);
-    if (usedStems.has(key) || isGenericPlaceholderStem(q.prompt)) continue;
-    if (out.some((x) => normalizeStem(x.prompt) === key)) continue;
-    out.push(q);
+  }
+
+  for (const s of genericMcqExtras(topic, vocab)) {
+    if (out.length >= 16) break;
+    pushUniqueQuestion(
+      out,
+      usedStems,
+      makeMcqQuestion(s.prompt, s.correct, s.distractors, s.purpose)
+    );
   }
   return out;
 }
@@ -373,7 +270,10 @@ function missingPurposes(questions, requiredGroups) {
  */
 function expandBlockQuestions(block, minCount, requiredGroups, generators, usedStems, preferShort) {
   let qs = extractQuestionsFromBlock(block).filter(
-    (q) => !isGenericPlaceholderStem(q.prompt) && !isFormulaicRepairStem(q.prompt)
+    (q) =>
+      !isGenericPlaceholderStem(q.prompt) &&
+      !isFormulaicRepairStem(q.prompt) &&
+      !isWeakFormulaicStem(q.prompt)
   );
   const seenLocal = new Set();
   qs = qs.filter((q) => {
@@ -389,7 +289,7 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
     if (!candidate) return false;
     const key = normalizeStem(candidate.prompt);
     if (!key || usedStems.has(key) || isGenericPlaceholderStem(candidate.prompt)) return false;
-    if (isFormulaicRepairStem(candidate.prompt)) return false;
+    if (isFormulaicRepairStem(candidate.prompt) || isWeakFormulaicStem(candidate.prompt)) return false;
     usedStems.add(key);
     candidate.purpose = candidate.purpose || inferQuestionPurpose(candidate);
     qs.push(candidate);
@@ -493,7 +393,13 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     if (!q || q.questionType !== "mcq") return false;
     const key = normalizeStem(q.prompt);
     if (!key || seen.has(key) || usedAcrossActivities.has(key)) return false;
-    if (isGenericPlaceholderStem(q.prompt) || isFormulaicRepairStem(q.prompt)) return false;
+    if (
+      isGenericPlaceholderStem(q.prompt) ||
+      isFormulaicRepairStem(q.prompt) ||
+      isWeakFormulaicStem(q.prompt)
+    ) {
+      return false;
+    }
     if (!Array.isArray(q.options) || q.options.length < 2) return false;
     if (!String(q.correctAnswer || "").trim()) return false;
     seen.add(key);
@@ -647,10 +553,21 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
       "explain",
     ]).slice(0, MIN_SELF_CHECK);
     while (seeds.length < MIN_SELF_CHECK) {
+      const used = new Set(seeds.map((s) => normalizeStem(s.prompt)));
+      const more = purposeShortCandidates(topic, vocab, used, [
+        "explain",
+        "application",
+        "comparison",
+        "definition",
+      ]);
+      if (more.length) {
+        seeds.push(more[0]);
+        continue;
+      }
       seeds.push(
         makeShortQuestion(
-          `Explain one precise mechanism in ${titleCase(topic)} involving ${termAt(vocab, seeds.length, topic)}.`,
-          `Use because → therefore for ${titleCase(topic)}.`,
+          `Outline cause-and-effect link ${seeds.length + 1} for this process.`,
+          `State a cause and its effect linked to ${titleCase(topic) || "this process"}.`,
           "explain"
         )
       );
@@ -665,13 +582,24 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
       "explain",
     ]).slice(0, MIN_CHECKPOINT);
     while (seeds.length < MIN_CHECKPOINT) {
-      const term = termAt(vocab, seeds.length, topic);
+      const used = new Set(seeds.map((s) => normalizeStem(s.prompt)));
+      const more = purposeMcqCandidates(topic, vocab, used, [
+        "application",
+        "sequence",
+        "explain",
+        "comparison",
+      ]);
+      if (more.length) {
+        seeds.push(more[0]);
+        continue;
+      }
+      const g = genericMcqCatalog(topic, vocab).application;
       seeds.push(
         makeMcqQuestion(
-          `How does ${term} affect the outcome in ${titleCase(topic)}?`,
-          term,
-          [`Unrelated to ${titleCase(topic)}`, `Opposite of ${term}`, `Not involved`],
-          "application"
+          `${g.prompt} (check ${seeds.length + 1})`,
+          g.correct,
+          g.distractors,
+          g.purpose
         )
       );
     }
@@ -683,7 +611,11 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
     for (const block of page?.blocks || []) {
       if (!isSelfCheckActivity(block) && !isCheckpointActivity(block)) continue;
       for (const q of extractQuestionsFromBlock(block)) {
-        if (!isGenericPlaceholderStem(q.prompt) && !isFormulaicRepairStem(q.prompt)) {
+        if (
+          !isGenericPlaceholderStem(q.prompt) &&
+          !isFormulaicRepairStem(q.prompt) &&
+          !isWeakFormulaicStem(q.prompt)
+        ) {
           usedStems.add(normalizeStem(q.prompt));
         }
       }
