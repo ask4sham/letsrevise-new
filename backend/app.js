@@ -149,6 +149,9 @@ app.use("/api/reviews", require("./routes/reviews"));
 
 // PR3: AQA GCSE Biology lesson factory
 app.use("/api/ai", require("./routes/ai"));
+// Lesson Generator V2 scaffold (three-phase). Independent of V1 generate-and-save.
+// Enable with LESSON_GENERATOR_V2_ENABLED=1. Does not alter V1 behaviour.
+app.use("/api/ai", require("./routes/aiLessonV2"));
 
 // Canonical taxonomy (teacher UI topic picker, diagram mapping)
 app.use("/api/taxonomy", require("./routes/taxonomy"));
