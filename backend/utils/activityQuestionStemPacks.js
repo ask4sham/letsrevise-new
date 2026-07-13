@@ -23,6 +23,11 @@ const WEAK_FORMULAIC_STEM_PATTERNS = [
   /^what is the key idea (about|of)\b/i,
   /^what is the main comparison\b/i,
   /^what is the main exam point\b/i,
+  /might be tested in an exam/i,
+  /cause\s*(→|->|to)\s*effect chain best explains/i,
+  /key factor in this process is missing/i,
+  /later step in this process/i,
+  /^which idea is most directly linked to this topic/i,
 ];
 
 /**
@@ -237,7 +242,7 @@ const PACK_SEXUAL_ASEXUAL = {
   ],
   mcq: [
     mcqQ(
-      "Which type of cell division produces gametes?",
+      "Which division forms gametes for sexual reproduction?",
       "Meiosis",
       ["Mitosis only", "Binary fission only", "Budding only"],
       "recall"
@@ -484,11 +489,11 @@ function genericMcqCatalog(topic, vocabTerms) {
       "misconception"
     ),
     application: mcqQ(
-      "If a key factor in this process is missing, what is most likely?",
-      "The expected outcome is disrupted",
+      "Suggest how a change in conditions could affect this process.",
+      "The expected outcome is disrupted or altered",
       [
         "Nothing changes at all",
-        "The process always speeds up",
+        "The process always speeds up with no downside",
         "Every other factor becomes irrelevant forever",
       ],
       "application"
@@ -504,11 +509,11 @@ function genericMcqCatalog(topic, vocabTerms) {
       "comparison"
     ),
     explain: mcqQ(
-      "Why is a later step in this process able to happen?",
-      "An earlier step enables the mechanism that follows",
+      "Explain one reason why this process is biologically important.",
+      "An earlier step enables a later outcome in living organisms",
       [
-        "Later steps are decorative only",
-        "The outcome finishes before any step starts",
+        "It is decorative only",
+        "It never links to an outcome",
         "No mechanism is needed",
       ],
       "explain"

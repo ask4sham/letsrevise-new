@@ -5,7 +5,9 @@
 
 const {
   MIN_SELF_CHECK,
+  MAX_SELF_CHECK,
   MIN_CHECKPOINT,
+  MAX_CHECKPOINT,
   MIN_QUIZ_POOL,
   normalizeStem,
   isGenericPlaceholderStem,
@@ -264,11 +266,222 @@ function missingPurposes(questions, requiredGroups) {
   return missing;
 }
 
+function purposePriority(purpose) {
+  const p = String(purpose || "").toLowerCase();
+  if (p === "recall" || p === "definition") return 0;
+  if (p === "misconception") return 1;
+  if (p === "explain" || p === "application" || p === "sequence") return 2;
+  return 3;
+}
+
+/**
+ * Keep up to maxCount questions, preferring purpose coverage then priority.
+ */
+function selectBestQuestions(questions, maxCount, requiredGroups) {
+  const list = (questions || []).map((q) => ({
+    ...q,
+    purpose: q.purpose || inferQuestionPurpose(q),
+  }));
+  if (list.length <= maxCount) return list;
+
+  const picked = [];
+  const used = new Set();
+  const takeOne = (pred) => {
+    for (let i = 0; i < list.length; i++) {
+      if (used.has(i)) continue;
+      if (!pred(list[i])) continue;
+      used.add(i);
+      picked.push(list[i]);
+      return true;
+    }
+    return false;
+  };
+
+  for (const group of requiredGroups || []) {
+    if (picked.length >= maxCount) break;
+    takeOne((q) => group.includes(q.purpose));
+  }
+  const byPri = list
+    .map((q, i) => ({ q, i }))
+    .filter(({ i }) => !used.has(i))
+    .sort((a, b) => purposePriority(a.q.purpose) - purposePriority(b.q.purpose));
+  for (const { q, i } of byPri) {
+    if (picked.length >= maxCount) break;
+    used.add(i);
+    picked.push(q);
+  }
+  return picked.slice(0, maxCount);
+}
+
+function isMostlyGenericCheckpoint(block) {
+  const qs = extractQuestionsFromBlock(block).filter((q) => String(q.prompt || "").trim());
+  if (!qs.length) return true;
+  const weak = qs.filter(
+    (q) =>
+      isGenericPlaceholderStem(q.prompt) ||
+      isFormulaicRepairStem(q.prompt) ||
+      isWeakFormulaicStem(q.prompt)
+  );
+  return weak.length === qs.length;
+}
+
+function checkpointQualityScore(block) {
+  const qs = extractQuestionsFromBlock(block);
+  let score = 0;
+  for (const q of qs) {
+    if (!q.prompt) continue;
+    if (isWeakFormulaicStem(q.prompt) || isGenericPlaceholderStem(q.prompt)) score -= 2;
+    else score += 3;
+    const p = q.purpose || inferQuestionPurpose(q);
+    if (["misconception", "application", "explain", "sequence"].includes(p)) score += 1;
+  }
+  return score;
+}
+
+/**
+ * Prefer one strong primary checkpoint. Drop extra checkpoints that are only filler
+ * or thin single-stem clones. Keep a secondary only when it already has 2+ strong stems.
+ */
+function pruneFillerCheckpointClones(pages) {
+  const refs = [];
+  for (const page of pages) {
+    if (!Array.isArray(page?.blocks)) continue;
+    page.blocks.forEach((block, index) => {
+      if (isCheckpointActivity(block)) refs.push({ page, index, block });
+    });
+  }
+  if (refs.length <= 1) return { removed: 0 };
+
+  const strongCount = (block) =>
+    extractQuestionsFromBlock(block).filter(
+      (q) =>
+        String(q.prompt || "").trim() &&
+        !isGenericPlaceholderStem(q.prompt) &&
+        !isFormulaicRepairStem(q.prompt) &&
+        !isWeakFormulaicStem(q.prompt)
+    ).length;
+
+  const ranked = refs
+    .map((r) => ({
+      ...r,
+      score: checkpointQualityScore(r.block),
+      strong: strongCount(r.block),
+      generic: isMostlyGenericCheckpoint(r.block),
+    }))
+    .sort((a, b) => b.score - a.score || b.strong - a.strong);
+
+  const primary = ranked.find((r) => !r.generic && r.strong > 0) || ranked[0];
+  const keep = new Set([primary.block]);
+
+  for (const r of ranked) {
+    if (r.block === primary.block) continue;
+    // Keep only if already a distinct natural activity (2+ strong stems).
+    if (!r.generic && r.strong >= 2) keep.add(r.block);
+  }
+
+  let removed = 0;
+  for (const page of pages) {
+    if (!Array.isArray(page?.blocks)) continue;
+    const next = [];
+    for (const block of page.blocks) {
+      if (isCheckpointActivity(block) && !keep.has(block)) {
+        removed += 1;
+        continue;
+      }
+      next.push(block);
+    }
+    page.blocks = next;
+  }
+  return { removed };
+}
+
+/**
+ * If self-check and checkpoint share an exact stem (e.g. same pack item in short+mcq),
+ * replace the later collision with an unused candidate.
+ */
+function dedupeActivityStemsAcrossBlocks(pages, topic, vocab, usedStems) {
+  const claimed = new Map();
+  let replaced = 0;
+
+  const visit = (block, owner, preferShort) => {
+    let qs = extractQuestionsFromBlock(block);
+    let changed = false;
+    for (let i = 0; i < qs.length; i++) {
+      const key = normalizeStem(qs[i].prompt);
+      if (!key) continue;
+      if (!claimed.has(key)) {
+        claimed.set(key, owner);
+        continue;
+      }
+      if (claimed.get(key) === owner) continue;
+      const purpose = qs[i].purpose || inferQuestionPurpose(qs[i]);
+      const pool = [
+        ...purposeMcqCandidates(topic, vocab, usedStems, [purpose]),
+        ...purposeShortCandidates(topic, vocab, usedStems, [purpose]),
+        ...purposeMcqCandidates(topic, vocab, usedStems, null),
+        ...purposeShortCandidates(topic, vocab, usedStems, null),
+      ];
+      let replacement = null;
+      for (const cand of pool) {
+        const ck = normalizeStem(cand.prompt);
+        if (!ck || claimed.has(ck) || usedStems.has(ck)) continue;
+        if (isWeakFormulaicStem(cand.prompt) || isGenericPlaceholderStem(cand.prompt)) continue;
+        if (preferShort) {
+          replacement = makeShortQuestion(cand.prompt, cand.correctAnswer, cand.purpose || purpose);
+        } else if (cand.questionType === "mcq") {
+          replacement = cand;
+        } else {
+          replacement = makeMcqQuestion(
+            cand.prompt,
+            cand.correctAnswer || "Correct idea",
+            ["Unrelated idea", "Opposite idea", "Incomplete idea"],
+            cand.purpose || purpose
+          );
+        }
+        break;
+      }
+      if (!replacement) continue;
+      usedStems.delete(key);
+      usedStems.add(normalizeStem(replacement.prompt));
+      claimed.set(normalizeStem(replacement.prompt), owner);
+      qs[i] = replacement;
+      replaced += 1;
+      changed = true;
+    }
+    if (changed) {
+      qs = selectBestQuestions(
+        qs,
+        owner.startsWith("selfCheck") ? MAX_SELF_CHECK : MAX_CHECKPOINT,
+        owner.startsWith("selfCheck") ? SELF_CHECK_REQUIRE : CHECKPOINT_REQUIRE
+      );
+      syncLegacyFieldsFromQuestions(block, qs);
+    }
+  };
+
+  for (const page of pages) {
+    if (!Array.isArray(page?.blocks)) continue;
+    for (const block of page.blocks) {
+      if (isSelfCheckActivity(block) && !isCheckpointActivity(block)) {
+        visit(block, "selfCheck", true);
+      }
+    }
+  }
+  for (const page of pages) {
+    if (!Array.isArray(page?.blocks)) continue;
+    for (const block of page.blocks) {
+      if (isCheckpointActivity(block)) {
+        visit(block, "checkpoint", false);
+      }
+    }
+  }
+  return replaced;
+}
+
 /**
  * Expand to min count while also covering required purposes.
- * May replace formulaic / same-purpose clones when variety is weak.
+ * Caps at maxCount (exactly the product max for self-check/checkpoint).
  */
-function expandBlockQuestions(block, minCount, requiredGroups, generators, usedStems, preferShort) {
+function expandBlockQuestions(block, minCount, maxCount, requiredGroups, generators, usedStems, preferShort) {
   let qs = extractQuestionsFromBlock(block).filter(
     (q) =>
       !isGenericPlaceholderStem(q.prompt) &&
@@ -287,6 +500,7 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
 
   const tryAdd = (candidate) => {
     if (!candidate) return false;
+    if (qs.length >= maxCount) return false;
     const key = normalizeStem(candidate.prompt);
     if (!key || usedStems.has(key) || isGenericPlaceholderStem(candidate.prompt)) return false;
     if (isFormulaicRepairStem(candidate.prompt) || isWeakFormulaicStem(candidate.prompt)) return false;
@@ -301,6 +515,7 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
   while (guard++ < 24) {
     const need = missingPurposes(qs, requiredGroups);
     if (!need.length && qs.length >= minCount) break;
+    if (qs.length >= maxCount && !need.length) break;
     const purposeFocus = need.length ? need : null;
     let added = false;
     for (const gen of generators) {
@@ -310,7 +525,7 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
         let item = candidate;
         if (preferShort && candidate.questionType === "mcq") {
           item = makeShortQuestion(
-            candidate.prompt.replace(/\?$/, "."),
+            candidate.prompt,
             candidate.correctAnswer,
             candidate.purpose
           );
@@ -328,9 +543,9 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
 
   // Pad to min count with any remaining varied candidates
   for (const gen of generators) {
-    if (qs.length >= minCount) break;
+    if (qs.length >= minCount || qs.length >= maxCount) break;
     for (const candidate of gen(null)) {
-      if (qs.length >= minCount) break;
+      if (qs.length >= minCount || qs.length >= maxCount) break;
       let item = candidate;
       if (preferShort && candidate.questionType === "mcq") {
         item = makeShortQuestion(
@@ -343,7 +558,7 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
     }
   }
 
-  // Dedup purposes if we somehow got 3 identical purposes: swap last with a missing purpose
+  // Dedup purposes if we somehow got identical purposes: swap last with a missing purpose
   const needAfter = missingPurposes(qs, requiredGroups);
   if (needAfter.length && qs.length >= minCount) {
     for (const gen of generators) {
@@ -352,7 +567,7 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
         if (!needAfter.includes(candidate.purpose)) continue;
         const key = normalizeStem(candidate.prompt);
         if (usedStems.has(key)) continue;
-        // Replace the last duplicate-purpose item
+        if (isWeakFormulaicStem(candidate.prompt) || isGenericPlaceholderStem(candidate.prompt)) continue;
         const purposeCounts = {};
         qs.forEach((q) => {
           purposeCounts[q.purpose] = (purposeCounts[q.purpose] || 0) + 1;
@@ -364,7 +579,7 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
         let item = candidate;
         if (preferShort && candidate.questionType === "mcq") {
           item = makeShortQuestion(
-            candidate.prompt.replace(/\?$/, "."),
+            candidate.prompt,
             candidate.correctAnswer,
             candidate.purpose
           );
@@ -375,13 +590,31 @@ function expandBlockQuestions(block, minCount, requiredGroups, generators, usedS
     }
   }
 
+  qs = selectBestQuestions(qs, maxCount, requiredGroups);
   syncLegacyFieldsFromQuestions(block, qs);
-  return qs.length >= minCount && missingPurposes(qs, requiredGroups).length === 0;
+  return qs.length >= minCount && qs.length <= maxCount && missingPurposes(qs, requiredGroups).length === 0;
 }
 
 function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, minCount) {
   const bank = [];
   const seen = new Set();
+  const seenOpenings = new Set();
+  for (const stem of usedAcrossActivities) {
+    if (stem) seenOpenings.add(String(stem).split(/\s+/).slice(0, 4).join(" "));
+  }
+  // Also reserve openings from current page activities
+  for (const page of pages || []) {
+    for (const block of page?.blocks || []) {
+      if (!isSelfCheckActivity(block) && !isCheckpointActivity(block)) continue;
+      for (const q of extractQuestionsFromBlock(block)) {
+        const open = String(normalizeStem(q.prompt) || "")
+          .split(/\s+/)
+          .slice(0, 4)
+          .join(" ");
+        if (open) seenOpenings.add(open);
+      }
+    }
+  }
   const requiredGroups = [
     ["recall", "definition"],
     ["misconception"],
@@ -393,6 +626,8 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     if (!q || q.questionType !== "mcq") return false;
     const key = normalizeStem(q.prompt);
     if (!key || seen.has(key) || usedAcrossActivities.has(key)) return false;
+    const open = key.split(/\s+/).slice(0, 4).join(" ");
+    if (open && seenOpenings.has(open)) return false;
     if (
       isGenericPlaceholderStem(q.prompt) ||
       isFormulaicRepairStem(q.prompt) ||
@@ -403,6 +638,7 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     if (!Array.isArray(q.options) || q.options.length < 2) return false;
     if (!String(q.correctAnswer || "").trim()) return false;
     seen.add(key);
+    if (open) seenOpenings.add(open);
     const purpose = q.purpose || inferQuestionPurpose(q);
     bank.push({
       id: `gen-quiz-${bank.length + 1}`,
@@ -607,6 +843,11 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
     changes.push({ kind: "insert-checkpoint", ok: true, count: seeds.length });
   }
 
+  const pruned = pruneFillerCheckpointClones(pages);
+  if (pruned.removed > 0) {
+    changes.push({ kind: "prune-filler-checkpoints", ok: true, removed: pruned.removed });
+  }
+
   for (const page of pages) {
     for (const block of page?.blocks || []) {
       if (!isSelfCheckActivity(block) && !isCheckpointActivity(block)) continue;
@@ -629,6 +870,7 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
         const ok = expandBlockQuestions(
           block,
           MIN_SELF_CHECK,
+          MAX_SELF_CHECK,
           SELF_CHECK_REQUIRE,
           [
             (focus) => purposeShortCandidates(topic, vocab, usedStems, focus),
@@ -647,6 +889,7 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
         const ok = expandBlockQuestions(
           block,
           MIN_CHECKPOINT,
+          MAX_CHECKPOINT,
           CHECKPOINT_REQUIRE,
           [
             (focus) => purposeMcqCandidates(topic, vocab, usedStems, focus),
@@ -663,6 +906,12 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
         });
       }
     }
+  }
+
+  // Final cross-activity dedupe: replace checkpoint/self-check collisions with unused pack stems.
+  const crossDeduped = dedupeActivityStemsAcrossBlocks(pages, topic, vocab, usedStems);
+  if (crossDeduped > 0) {
+    changes.push({ kind: "cross-activity-dedupe", ok: true, replaced: crossDeduped });
   }
 
   const reserved = new Set(usedStems);
@@ -704,4 +953,6 @@ module.exports = {
   purposeMcqCandidates,
   expandBlockQuestions,
   buildQuizBank,
+  selectBestQuestions,
+  pruneFillerCheckpointClones,
 };

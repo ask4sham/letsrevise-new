@@ -5,7 +5,9 @@
  */
 
 const MIN_SELF_CHECK = 3;
+const MAX_SELF_CHECK = 3;
 const MIN_CHECKPOINT = 3;
+const MAX_CHECKPOINT = 3;
 const MIN_QUIZ_POOL = 5;
 const MIN_REVISION_POOL = 5;
 
@@ -400,13 +402,16 @@ function validateLessonActivityQuestionCounts(lessonLike) {
     if (qs.length < MIN_SELF_CHECK) {
       issues.push(`activity_question_count_too_low:selfCheck:${i}:got_${qs.length}_need_${MIN_SELF_CHECK}`);
     }
+    if (qs.length > MAX_SELF_CHECK) {
+      issues.push(`activity_question_count_too_high:selfCheck:${i}:got_${qs.length}_max_${MAX_SELF_CHECK}`);
+    }
     for (const q of qs) {
       if (isGenericPlaceholderStem(q.prompt)) {
         issues.push(`activity_generic_placeholder_stem:selfCheck:${i}:${normalizeStem(q.prompt).slice(0, 40)}`);
       }
     }
     validateActivityVariety(`selfCheck:${i}`, qs, {
-      minDistinct: 3,
+      minDistinct: Math.min(3, qs.length),
       require: [
         ["recall", "definition"],
         ["misconception"],
@@ -420,13 +425,16 @@ function validateLessonActivityQuestionCounts(lessonLike) {
     if (qs.length < MIN_CHECKPOINT) {
       issues.push(`activity_question_count_too_low:checkpoint:${i}:got_${qs.length}_need_${MIN_CHECKPOINT}`);
     }
+    if (qs.length > MAX_CHECKPOINT) {
+      issues.push(`activity_question_count_too_high:checkpoint:${i}:got_${qs.length}_max_${MAX_CHECKPOINT}`);
+    }
     for (const q of qs) {
       if (isGenericPlaceholderStem(q.prompt)) {
         issues.push(`activity_generic_placeholder_stem:checkpoint:${i}:${normalizeStem(q.prompt).slice(0, 40)}`);
       }
     }
     validateActivityVariety(`checkpoint:${i}`, qs, {
-      minDistinct: 3,
+      minDistinct: Math.min(3, qs.length),
       require: [
         ["recall", "definition", "explain"],
         ["application", "sequence"],
@@ -544,14 +552,16 @@ function isVarietyIssue(issue) {
 }
 
 function isCountIssue(issue) {
-  return /question_count_too_low|pool_too_low|activity_missing:|generic_placeholder|duplicate_stem/.test(
+  return /question_count_too_low|question_count_too_high|pool_too_low|activity_missing:|generic_placeholder|duplicate_stem/.test(
     String(issue || "")
   );
 }
 
 module.exports = {
   MIN_SELF_CHECK,
+  MAX_SELF_CHECK,
   MIN_CHECKPOINT,
+  MAX_CHECKPOINT,
   MIN_QUIZ_POOL,
   MIN_REVISION_POOL,
   QUESTION_PURPOSES,
