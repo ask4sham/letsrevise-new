@@ -30,6 +30,7 @@ jobs:
           npm run test:backend
         env:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'test-secret-for-ci-phase9' }}
+          NODE_OPTIONS: --max-old-space-size=8192
       - name: Slotgen stub rejects invalid job
         run: "! echo '{}' | npm run slotgen:stub"
       - name: Slotgen stub accepts valid job
