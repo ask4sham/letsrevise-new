@@ -75,12 +75,17 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
     if (
       error instanceof LessonV2QualityError ||
       code === "LESSON_V2_QUALITY_FAILED" ||
-      code === "LESSON_V2_PHASE1_FAILED"
+      code === "LESSON_V2_PHASE1_FAILED" ||
+      code === "LESSON_V2_PHASE2_FAILED"
     ) {
+      const mapped =
+        code === "LESSON_V2_PHASE1_FAILED" || code === "LESSON_V2_PHASE2_FAILED"
+          ? code
+          : "LESSON_V2_QUALITY_FAILED";
       return res.status(422).json({
         success: false,
         msg: error.message || "Lesson Generator V2 quality failed.",
-        code: code === "LESSON_V2_PHASE1_FAILED" ? "LESSON_V2_PHASE1_FAILED" : "LESSON_V2_QUALITY_FAILED",
+        code: mapped,
         details: error.details || undefined,
       });
     }

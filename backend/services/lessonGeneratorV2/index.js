@@ -13,6 +13,14 @@ const {
   PHASE1_REQUIRED_PLACEHOLDERS,
 } = require("./schemas");
 const { buildPhase1Lesson, validatePhase1Lesson } = require("./lessonBrain");
+const {
+  buildPhase2VisualActivities,
+  validatePhase2VisualActivities,
+} = require("./imageActivityBrain");
+const {
+  studentImageRevealsAnswer,
+  findRevealLeaks,
+} = require("./studentImageSafety");
 
 module.exports = {
   isLessonGeneratorV2PipelineEnabled,
@@ -24,4 +32,8 @@ module.exports = {
   PHASE1_REQUIRED_PLACEHOLDERS,
   buildPhase1Lesson,
   validatePhase1Lesson,
+  buildPhase2VisualActivities,
+  validatePhase2VisualActivities,
+  studentImageRevealsAnswer,
+  findRevealLeaks,
 };

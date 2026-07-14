@@ -97,7 +97,7 @@ describe("Lesson Generator V2 Phase 1 Lesson Brain", () => {
     expect(p1.imagePrompts).toEqual([]);
     expect(p1.activityPrompts).toEqual([]);
     expect(result.staged.phase3Questions.status).toBe(STAGE_STATUS.STUB);
-    expect(result.staged.phase2VisualActivities.status).toBe(STAGE_STATUS.STUB);
+    expect(result.staged.phase2VisualActivities.status).toBe(STAGE_STATUS.COMPLETE);
   });
 
   test("Phase 1 includes placeholders for later phases", () => {
