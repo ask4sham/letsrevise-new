@@ -27,7 +27,7 @@ function createEmptyStagedOutput(ctx = {}) {
     tier: String(ctx.tier || "").trim(),
     createdAt: new Date().toISOString(),
     pipeline: "lesson-generator-v2",
-    version: "phase2-0.1",
+    version: "phase3-0.1",
   };
 
   return {

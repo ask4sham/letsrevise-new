@@ -21,6 +21,11 @@ const {
   studentImageRevealsAnswer,
   findRevealLeaks,
 } = require("./studentImageSafety");
+const {
+  buildPhase3Questions,
+  validatePhase3Questions,
+} = require("./questionBrain");
+const { isBannedStem, findBannedStemHits } = require("./questionBanList");
 
 module.exports = {
   isLessonGeneratorV2PipelineEnabled,
@@ -36,4 +41,8 @@ module.exports = {
   validatePhase2VisualActivities,
   studentImageRevealsAnswer,
   findRevealLeaks,
+  buildPhase3Questions,
+  validatePhase3Questions,
+  isBannedStem,
+  findBannedStemHits,
 };

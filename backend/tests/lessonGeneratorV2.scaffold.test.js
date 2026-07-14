@@ -91,7 +91,11 @@ describe("Lesson Generator V2 scaffold", () => {
     expect(res.body.staged.criticReport.ok).toBe(false);
     expect(res.body.stageStatuses.phase1).toBe(STAGE_STATUS.COMPLETE);
     expect(res.body.stageStatuses.phase2).toBe(STAGE_STATUS.COMPLETE);
-    expect(res.body.stageStatuses.phase3).toBe(STAGE_STATUS.STUB);
+    expect(res.body.stageStatuses.phase3).toBe(STAGE_STATUS.COMPLETE);
+    expect(res.body.phase3Complete).toBe(true);
+    expect(res.body.staged.criticReport.phase3QualityOk).toBe(true);
+    expect(res.body.staged.criticReport.contentReady).toBe(true);
+    expect(res.body.staged.criticReport.issues).toContain("final_lesson_persistence_not_ready");
   });
 
   test("V2 route rejects missing topic/subject/level when enabled", async () => {
