@@ -85,11 +85,12 @@ describe("Lesson Generator V2 scaffold", () => {
     expect(res.body.scaffold).toBe(true);
     expect(res.body.saved).toBe(false);
     expect(res.body.phase1Complete).toBe(true);
+    expect(res.body.phase2Complete).toBe(true);
     expect(res.body.staged).toBeDefined();
     expect(res.body.staged.finalLesson).toBeNull();
     expect(res.body.staged.criticReport.ok).toBe(false);
     expect(res.body.stageStatuses.phase1).toBe(STAGE_STATUS.COMPLETE);
-    expect(res.body.stageStatuses.phase2).toBe(STAGE_STATUS.STUB);
+    expect(res.body.stageStatuses.phase2).toBe(STAGE_STATUS.COMPLETE);
     expect(res.body.stageStatuses.phase3).toBe(STAGE_STATUS.STUB);
   });
 

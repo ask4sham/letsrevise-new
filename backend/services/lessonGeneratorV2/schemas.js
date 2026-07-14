@@ -27,7 +27,7 @@ function createEmptyStagedOutput(ctx = {}) {
     tier: String(ctx.tier || "").trim(),
     createdAt: new Date().toISOString(),
     pipeline: "lesson-generator-v2",
-    version: "phase1-0.1",
+    version: "phase2-0.1",
   };
 
   return {
@@ -58,6 +58,8 @@ function createEmptyStagedOutput(ctx = {}) {
       retrievalActivities: [],
       /** retrieval/activity images must not reveal answers */
       studentSafe: true,
+      questionsFinalised: false,
+      imagePromptsFinalised: false,
       notes: "",
     },
     phase3Questions: {
