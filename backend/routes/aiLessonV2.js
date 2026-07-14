@@ -4,7 +4,7 @@
  * POST /api/ai/generate-and-save-v2
  * Feature flag: LESSON_GENERATOR_V2_ENABLED=1
  *
- * Scaffold only: runs stub brains, never saves a lesson.
+ * Phase 1 Lesson Brain is live; Phase 2–3 remain stubs. Never saves a lesson yet.
  */
 
 const express = require("express");
@@ -71,11 +71,16 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
 
     return res.status(200).json(result);
   } catch (error) {
-    if (error instanceof LessonV2QualityError || error?.code === "LESSON_V2_QUALITY_FAILED") {
+    const code = error?.code || error?.details?.code;
+    if (
+      error instanceof LessonV2QualityError ||
+      code === "LESSON_V2_QUALITY_FAILED" ||
+      code === "LESSON_V2_PHASE1_FAILED"
+    ) {
       return res.status(422).json({
         success: false,
         msg: error.message || "Lesson Generator V2 quality failed.",
-        code: "LESSON_V2_QUALITY_FAILED",
+        code: code === "LESSON_V2_PHASE1_FAILED" ? "LESSON_V2_PHASE1_FAILED" : "LESSON_V2_QUALITY_FAILED",
         details: error.details || undefined,
       });
     }

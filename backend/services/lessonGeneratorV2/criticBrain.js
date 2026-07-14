@@ -1,18 +1,22 @@
 /**
- * Phase 4 — Critic / Examiner Check (scaffold stub).
- * Future: reject weak stems, answer-revealing images, cloned checkpoints; regenerate Phase 3 once.
+ * Phase 4 — Critic / Examiner Check.
+ * Phase 1 may be complete; Phase 2–3 remain stubs → overall critic still fails closed (no save).
  */
 
 const { STAGE_STATUS } = require("./schemas");
 
 /**
- * Scaffold critic: never marks stub output as publishable.
  * @param {object} staged
  */
 async function runCriticBrain(staged) {
   const issues = [];
-  if (staged.phase1Lesson?.status === STAGE_STATUS.STUB) {
-    issues.push("phase1_not_implemented");
+
+  if (staged.phase1Lesson?.status !== STAGE_STATUS.COMPLETE) {
+    issues.push(
+      staged.phase1Lesson?.status === STAGE_STATUS.STUB
+        ? "phase1_not_implemented"
+        : "phase1_incomplete"
+    );
   }
   if (staged.phase2VisualActivities?.status === STAGE_STATUS.STUB) {
     issues.push("phase2_not_implemented");
@@ -29,7 +33,8 @@ async function runCriticBrain(staged) {
     ok: false,
     issues,
     regeneratedPhase3Once: false,
-    notes: "Scaffold critic always fails closed until brains are implemented.",
+    notes:
+      "Overall critic fails closed until Image Brain and Question Brain are implemented. Phase 1 may already be complete.",
   };
   staged.finalLesson = null;
   staged.saved = false;

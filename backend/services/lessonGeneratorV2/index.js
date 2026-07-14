@@ -10,7 +10,9 @@ const {
   STAGE_STATUS,
   createEmptyStagedOutput,
   validateStagedOutput,
+  PHASE1_REQUIRED_PLACEHOLDERS,
 } = require("./schemas");
+const { buildPhase1Lesson, validatePhase1Lesson } = require("./lessonBrain");
 
 module.exports = {
   isLessonGeneratorV2PipelineEnabled,
@@ -19,4 +21,7 @@ module.exports = {
   STAGE_STATUS,
   createEmptyStagedOutput,
   validateStagedOutput,
+  PHASE1_REQUIRED_PLACEHOLDERS,
+  buildPhase1Lesson,
+  validatePhase1Lesson,
 };
