@@ -1,7 +1,8 @@
 /**
- * Lesson Generator V2 orchestrator (scaffold).
+ * Lesson Generator V2 orchestrator.
  *
- * Three-phase pipeline + critic. Does NOT save lessons while phases are stubs.
+ * Phase 1 Lesson Brain is live; Phase 2–3 remain stubs.
+ * Critic still fails closed — never saves lessons yet.
  * Distinct from lib/lessonGeneratorV2 (V1 blueprint planner).
  */
 
@@ -15,15 +16,15 @@ class LessonV2QualityError extends Error {
   constructor(message, details = {}) {
     super(message);
     this.name = "LessonV2QualityError";
-    this.code = "LESSON_V2_QUALITY_FAILED";
+    this.code = details.code || "LESSON_V2_QUALITY_FAILED";
     this.status = 422;
     this.details = details;
   }
 }
 
 /**
- * Run the V2 scaffold pipeline. Never persists while brains are stubs.
- * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string }} input
+ * Run the V2 pipeline. Never persists while Phase 2–3 / critic are incomplete.
+ * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, phase1Override?: object }} input
  */
 async function runLessonGeneratorV2Scaffold(input = {}) {
   const ctx = {
@@ -44,7 +45,18 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
 
   let staged = createEmptyStagedOutput(ctx);
 
-  staged = await runLessonBrain(ctx, staged);
+  try {
+    staged = await runLessonBrain(ctx, staged, { phase1Override: input.phase1Override });
+  } catch (error) {
+    if (error?.code === "LESSON_V2_PHASE1_FAILED") {
+      throw new LessonV2QualityError(error.message, {
+        code: "LESSON_V2_PHASE1_FAILED",
+        issues: error.details?.issues || [],
+      });
+    }
+    throw error;
+  }
+
   staged = await runImageActivityBrain(ctx, staged);
   staged = await runQuestionBrain(ctx, staged);
   staged = await runCriticBrain(staged);
@@ -56,19 +68,20 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     });
   }
 
-  // Scaffold: critic always fails → never save partial/weak output.
-  if (!staged.criticReport?.ok || staged.saved) {
-    // Ensure hard no-save contract for scaffold.
-    staged.saved = false;
-    staged.finalLesson = null;
-  }
+  // Hard no-save until later phases + critic pass.
+  staged.saved = false;
+  staged.finalLesson = null;
+
+  const phase1Complete = staged.phase1Lesson?.status === STAGE_STATUS.COMPLETE;
 
   return {
     success: true,
     scaffold: true,
     saved: false,
-    message:
-      "Lesson Generator V2 scaffold ran Phase 1–3 stubs + critic. No lesson was saved. Implement brains next.",
+    phase1Complete,
+    message: phase1Complete
+      ? "Lesson Generator V2 Phase 1 (Lesson Brain) complete. Phase 2–3 still stubs. No lesson saved."
+      : "Lesson Generator V2 ran with incomplete Phase 1. No lesson was saved.",
     staged,
     stageStatuses: {
       phase1: staged.phase1Lesson?.status || STAGE_STATUS.PENDING,

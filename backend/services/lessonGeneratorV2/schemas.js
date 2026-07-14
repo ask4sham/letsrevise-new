@@ -1,7 +1,9 @@
 /**
- * Lesson Generator V2 — staged pipeline schemas (scaffold).
+ * Lesson Generator V2 — staged pipeline schemas.
  * Internal debug shape before any save. Not persisted to Lesson documents yet.
  */
+
+const { PHASE1_REQUIRED_PLACEHOLDERS } = require("./placeholders");
 
 const STAGE_STATUS = Object.freeze({
   PENDING: "pending",
@@ -12,8 +14,8 @@ const STAGE_STATUS = Object.freeze({
 });
 
 /**
- * Empty staged envelope used by the scaffold orchestrator.
- * @param {{ topic?: string, subject?: string, level?: string, board?: string, topicKey?: string }} ctx
+ * Empty staged envelope used by the orchestrator.
+ * @param {{ topic?: string, subject?: string, level?: string, board?: string, topicKey?: string, tier?: string }} ctx
  */
 function createEmptyStagedOutput(ctx = {}) {
   const meta = {
@@ -22,17 +24,32 @@ function createEmptyStagedOutput(ctx = {}) {
     level: String(ctx.level || "").trim(),
     board: String(ctx.board || "").trim(),
     topicKey: String(ctx.topicKey || "").trim(),
+    tier: String(ctx.tier || "").trim(),
     createdAt: new Date().toISOString(),
     pipeline: "lesson-generator-v2",
-    version: "scaffold-0.1",
+    version: "phase1-0.1",
   };
 
   return {
     meta,
     phase1Lesson: {
       status: STAGE_STATUS.PENDING,
-      teachingBlocks: [],
-      placeholders: ["SELF_CHECK_PLACEHOLDER", "CHECKPOINT_PLACEHOLDER", "QUIZ_PLACEHOLDER", "IMAGE_ACTIVITY_PLACEHOLDER"],
+      title: "",
+      topic: meta.topic,
+      subject: meta.subject,
+      examBoard: meta.board,
+      level: meta.level,
+      tier: meta.tier,
+      objectives: [],
+      priorKnowledge: "",
+      sections: [],
+      keyTerms: [],
+      misconceptions: [],
+      examTips: [],
+      summary: "",
+      placeholders: [...PHASE1_REQUIRED_PLACEHOLDERS],
+      questionsFinalised: false,
+      imagePromptsFinalised: false,
       notes: "",
     },
     phase2VisualActivities: {
@@ -105,4 +122,5 @@ module.exports = {
   STAGE_STATUS,
   createEmptyStagedOutput,
   validateStagedOutput,
+  PHASE1_REQUIRED_PLACEHOLDERS,
 };
