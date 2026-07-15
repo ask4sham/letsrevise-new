@@ -20,6 +20,12 @@ import ShareForReviewModal from "../components/teacher/ShareForReviewModal";
 import LessonCatalogueApprovalSection from "../components/teacher/LessonCatalogueApprovalSection";
 import { submitLessonForApproval } from "../api/lessons";
 import { fetchApprovedLessons, type ApprovedLessonCard } from "../api/approvedLessons";
+import {
+  isLessonGeneratorV2UiEnabled,
+  buildV2DraftGeneratePayload,
+  formatV2GenerateError,
+  isSuccessfulV2DraftSave,
+} from "../utils/lessonGeneratorV2Ui";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -195,7 +201,12 @@ const TeacherDashboard: React.FC = () => {
   // ✅ AI modal state
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiV2Loading, setAiV2Loading] = useState(false);
   const [aiError, setAiError] = useState<string>("");
+  const [aiV2Error, setAiV2Error] = useState<string>("");
+  const [aiV2Success, setAiV2Success] = useState<string>("");
+  const showLessonGeneratorV2Ui = isLessonGeneratorV2UiEnabled();
+  const aiBusy = aiLoading || aiV2Loading;
   const [aiForm, setAiForm] = useState({
     subject: "Biology",
     level: "GCSE",
@@ -718,6 +729,8 @@ const TeacherDashboard: React.FC = () => {
 
   const openAiModal = () => {
     setAiError("");
+    setAiV2Error("");
+    setAiV2Success("");
     setAiOpen(true);
   };
 
@@ -736,6 +749,7 @@ const TeacherDashboard: React.FC = () => {
   const handleAiTopicSelectionChange = (value: TopicSelectionValue) => {
     setAiTopicSelection(value);
     setAiError("");
+    setAiV2Error("");
     setAiForm((p) => ({
       ...p,
       subject: value.subject,
@@ -815,6 +829,63 @@ const TeacherDashboard: React.FC = () => {
       setAiError(display);
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  /**
+   * Controlled V2 draft generation — separate from V1 Generate Draft and from
+   * V1 "Lesson planner V2/V3" checkboxes (those still post to /ai/generate-and-save).
+   */
+  const handleAIGenerateV2Draft = async () => {
+    const topic = (aiForm.topic || "").trim();
+    const topicKey = (aiForm.topicKey || "").trim();
+    if (!topic && !topicKey) {
+      setAiV2Error("Please select a sub-topic or enter Topic (display).");
+      return;
+    }
+
+    setAiError("");
+    setAiV2Error("");
+    setAiV2Success("");
+    setAiV2Loading(true);
+    try {
+      const payload = buildV2DraftGeneratePayload(
+        {
+          subject: aiForm.subject,
+          level: aiForm.level,
+          topic,
+          topicKey,
+          board: aiForm.board,
+          tier: aiForm.tier,
+        },
+        aiTopicSelection.mainTopicTitle || ""
+      );
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[GenerateLessonV2Draft] request payload", payload);
+      }
+
+      const res = await api.post("/ai/generate-and-save-v2", payload, { timeout: 600000 });
+      if (!isSuccessfulV2DraftSave(res?.data)) {
+        setAiV2Error("V2 did not save a draft. Nothing was published.");
+        return;
+      }
+
+      const lessonId = String(res.data.lessonId);
+      setAiV2Success("V2 draft saved (unpublished)");
+      setAiOpen(false);
+
+      await fetchLessonsFromBackend();
+      await fetchTeacherStatsFromBackend();
+
+      navigate(`/edit-lesson/${lessonId}`, {
+        state: { generationWarning: "V2 draft saved (unpublished)" },
+      });
+    } catch (err: any) {
+      console.error("AI generate-and-save-v2 failed:", err);
+      setAiV2Error(formatV2GenerateError(err));
+    } finally {
+      setAiV2Loading(false);
     }
   };
 
@@ -2348,7 +2419,7 @@ const TeacherDashboard: React.FC = () => {
               zIndex: 9999,
               overflow: "hidden",
             }}
-            onClick={() => (aiLoading ? null : setAiOpen(false))}
+            onClick={() => (aiBusy ? null : setAiOpen(false))}
           >
             <div
               style={{
@@ -2374,12 +2445,12 @@ const TeacherDashboard: React.FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => (aiLoading ? null : setAiOpen(false))}
+                    onClick={() => (aiBusy ? null : setAiOpen(false))}
                     style={{
                       background: "transparent",
                       border: "none",
                       fontSize: "1.2rem",
-                      cursor: aiLoading ? "not-allowed" : "pointer",
+                      cursor: aiBusy ? "not-allowed" : "pointer",
                     }}
                     aria-label="Close"
                   >
@@ -2400,6 +2471,38 @@ const TeacherDashboard: React.FC = () => {
                     }}
                   >
                     {aiError}
+                  </div>
+                ) : null}
+                {aiV2Error ? (
+                  <div
+                    data-testid="ai-v2-error"
+                    style={{
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      background: "rgba(239,68,68,0.08)",
+                      border: "1px solid rgba(239,68,68,0.25)",
+                      color: "rgba(127,29,29,0.95)",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {aiV2Error}
+                  </div>
+                ) : null}
+                {aiV2Success ? (
+                  <div
+                    data-testid="ai-v2-success"
+                    style={{
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      background: "rgba(16,185,129,0.08)",
+                      border: "1px solid rgba(16,185,129,0.25)",
+                      color: "rgba(6,95,70,0.95)",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {aiV2Success}
                   </div>
                 ) : null}
               </div>
@@ -2790,13 +2893,13 @@ const TeacherDashboard: React.FC = () => {
                 }}
               >
                 <button
-                  onClick={() => (aiLoading ? null : setAiOpen(false))}
+                  onClick={() => (aiBusy ? null : setAiOpen(false))}
                   style={{
                     padding: "10px 14px",
                     borderRadius: "8px",
                     border: "1px solid #e5e7eb",
                     background: "white",
-                    cursor: aiLoading ? "not-allowed" : "pointer",
+                    cursor: aiBusy ? "not-allowed" : "pointer",
                     fontWeight: 700,
                   }}
                 >
@@ -2805,21 +2908,58 @@ const TeacherDashboard: React.FC = () => {
 
                 <button
                   onClick={handleAIGenerate}
-                  disabled={aiLoading || !aiTopicOk}
+                  disabled={aiBusy || !aiTopicOk}
                   style={{
                     padding: "10px 14px",
                     borderRadius: "8px",
                     border: "none",
-                    background: aiLoading || !aiTopicOk ? "#6b7280" : "#111827",
+                    background: aiBusy || !aiTopicOk ? "#6b7280" : "#111827",
                     color: "white",
-                    cursor: aiLoading || !aiTopicOk ? "not-allowed" : "pointer",
+                    cursor: aiBusy || !aiTopicOk ? "not-allowed" : "pointer",
                     fontWeight: 800,
                   }}
                   title={!aiTopicOk ? "Enter a topic to generate a draft" : undefined}
                 >
                   {aiLoading ? "Generating..." : "Generate Draft"}
                 </button>
+
+                {showLessonGeneratorV2Ui ? (
+                  <button
+                    data-testid="generate-with-v2-draft"
+                    onClick={handleAIGenerateV2Draft}
+                    disabled={aiBusy || !aiTopicOk}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid #1d4ed8",
+                      background: aiBusy || !aiTopicOk ? "#93c5fd" : "#2563eb",
+                      color: "white",
+                      cursor: aiBusy || !aiTopicOk ? "not-allowed" : "pointer",
+                      fontWeight: 800,
+                    }}
+                    title={
+                      !aiTopicOk
+                        ? "Enter a topic to generate a V2 draft"
+                        : "Experimental V2 pipeline — saves unpublished draft only"
+                    }
+                  >
+                    {aiV2Loading ? "Generating V2..." : "Generate with V2 (draft)"}
+                  </button>
+                ) : null}
               </div>
+              {showLessonGeneratorV2Ui ? (
+                <p
+                  data-testid="generate-with-v2-help"
+                  style={{
+                    margin: "0 20px 16px",
+                    color: "#6b7280",
+                    fontSize: "0.8rem",
+                    textAlign: "right",
+                  }}
+                >
+                  Experimental. Saves an unpublished draft via the V2 pipeline. Does not replace Generate Draft.
+                </p>
+              ) : null}
             </div>
           </div>
         )}
