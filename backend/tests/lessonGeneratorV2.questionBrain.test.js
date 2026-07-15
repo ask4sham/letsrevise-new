@@ -147,8 +147,7 @@ describe("Lesson Generator V2 Phase 3 Question Brain", () => {
     expect(result.staged.criticReport.phase3QualityOk).toBe(true);
     expect(result.staged.criticReport.ok).toBe(true);
     expect(result.staged.criticReport.assemblyOk).toBe(true);
-    expect(result.staged.criticReport.persistenceReady).toBe(false);
-    expect(result.staged.criticReport.issues).toContain("db_persistence_not_implemented");
+    expect(result.staged.criticReport.persistenceReady).toBe(true);
     expect(result.finalLesson).toBeTruthy();
     return result;
   }
