@@ -1,16 +1,17 @@
 /**
- * Phase 4 — Critic / Examiner Check.
+ * Phase 4 — Critic / Examiner Check + assembly gate (PR A).
  *
- * Phase 1–3 content quality is checked here. Final lesson persistence remains
- * disabled in this PR — critic reports Phase 3 clearly but never saves.
+ * ok=true when Phase 1–3 + assembled finalLesson pass validation.
+ * DB persistence is still intentionally disabled (persistenceReady=false).
  */
 
 const { STAGE_STATUS } = require("./schemas");
 
 /**
  * @param {object} staged
+ * @param {{ assemblyOk?: boolean, finalValidationOk?: boolean, assemblyIssues?: string[] }} [assembly]
  */
-async function runCriticBrain(staged) {
+async function runCriticBrain(staged, assembly = {}) {
   const issues = [];
   const phase3 = staged.phase3Questions || {};
 
@@ -66,8 +67,19 @@ async function runCriticBrain(staged) {
     issues.push("phase2_student_safety_failed");
   }
 
-  // Persistence is intentionally not enabled yet.
-  issues.push("final_lesson_persistence_not_ready");
+  const assemblyOk = assembly.assemblyOk === true && staged.finalLesson && typeof staged.finalLesson === "object";
+  const finalValidationOk = assembly.finalValidationOk === true;
+  if (!assemblyOk) {
+    issues.push("assembly_failed");
+    for (const i of assembly.assemblyIssues || []) issues.push(`assembly:${i}`);
+  }
+  if (assemblyOk && !finalValidationOk) {
+    issues.push("final_validation_failed");
+    for (const i of assembly.assemblyIssues || []) issues.push(`final:${i}`);
+  }
+
+  // PR A: content/assembly may pass, but Mongo persistence is not implemented yet.
+  issues.push("db_persistence_not_implemented");
 
   const contentReady =
     staged.phase1Lesson?.status === STAGE_STATUS.COMPLETE &&
@@ -75,20 +87,47 @@ async function runCriticBrain(staged) {
     phase3QualityOk &&
     staged.phase2VisualActivities?.studentSafe === true;
 
+  const ok = Boolean(contentReady && assemblyOk && finalValidationOk);
+
+  if (staged.finalLesson && typeof staged.finalLesson === "object") {
+    staged.finalLesson.metadata = {
+      ...(staged.finalLesson.metadata || {}),
+      v2CriticSnapshot: {
+        ok,
+        contentReady,
+        assemblyOk,
+        finalValidationOk,
+        persistenceReady: false,
+        issues: [...issues],
+      },
+      persistence: {
+        implemented: false,
+        saved: false,
+      },
+    };
+  }
+
   staged.criticReport = {
     status: STAGE_STATUS.COMPLETE,
-    // Content may be ready, but overall ok stays false until persistence is designed.
-    ok: false,
+    ok,
     contentReady: Boolean(contentReady),
     phase3QualityOk: Boolean(phase3QualityOk),
+    assemblyOk: Boolean(assemblyOk),
+    finalValidationOk: Boolean(finalValidationOk),
+    persistenceReady: false,
+    saveReady: false,
     issues,
     regeneratedPhase3Once: false,
-    notes: contentReady
-      ? "Phase 1–3 content quality passed (including Question Brain). Critic still blocks save because final lesson persistence is not enabled yet."
-      : "Critic fail-closed: incomplete phases, Phase 3 quality issues, and/or persistence disabled. Retrieval images must remain student-safe.",
+    notes: ok
+      ? "Phase 1–3 + finalLesson assembly/validation passed. Critic ok=true for content, but DB persistence is not implemented in PR A (saved remains false)."
+      : "Critic fail-closed: incomplete phases, assembly/validation issues, and/or persistence disabled.",
   };
-  staged.finalLesson = null;
+
+  // Never save in PR A.
   staged.saved = false;
+  if (!ok) {
+    staged.finalLesson = null;
+  }
   return staged;
 }
 
