@@ -105,9 +105,9 @@ describe("Lesson Generator V2 Phase 2 Image / Activity Brain", () => {
       board: "AQA",
     });
     expect(result.stageStatuses.phase2).toBe(STAGE_STATUS.COMPLETE);
-    expect(result.stageStatuses.phase3).toBe(STAGE_STATUS.STUB);
+    expect(result.stageStatuses.phase3).toBe(STAGE_STATUS.COMPLETE);
     expect(result.staged.phase2VisualActivities.questionsFinalised).toBe(false);
-    expect(result.staged.phase3Questions.selfCheck).toEqual([]);
+    expect(result.staged.phase3Questions.selfCheck).toHaveLength(3);
   });
 
   test("Phase 2 fail-closed when student image reveals the answer", async () => {

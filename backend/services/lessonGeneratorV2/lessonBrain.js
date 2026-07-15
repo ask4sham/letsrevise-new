@@ -130,6 +130,106 @@ function resolveTopicPack(topic) {
     };
   }
 
+  if (/\bgamete|\bfertilis|\bfertiliz/.test(n)) {
+    return {
+      keyTerms: ["gamete", "sperm", "egg", "fertilisation", "zygote", "haploid", "diploid"],
+      priorKnowledge:
+        "Students should recall that body cells are diploid and that meiosis produces cells with half the chromosome number.",
+      objectives: [
+        "Define gametes and state that they are haploid",
+        "Describe fertilisation as the fusion of gametes to form a zygote",
+        "Explain why fertilisation restores the diploid chromosome number",
+      ],
+      sections: [
+        {
+          id: "core",
+          title: "Core teaching",
+          content:
+            "Gametes are sex cells such as sperm and egg. They are haploid, meaning they contain half the normal chromosome number. Fertilisation is the fusion of gametes. When haploid nuclei fuse, a diploid zygote is formed with the full chromosome number for the species.",
+        },
+        {
+          id: "examples",
+          title: "Key examples",
+          content:
+            "In humans, a sperm cell and an egg cell each contribute 23 chromosomes. Fusion produces a zygote with 46 chromosomes. Sperm are adapted for movement to reach the egg; the egg provides cytoplasm and nutrients for early development.",
+        },
+        {
+          id: "exam-link",
+          title: "Exam thinking",
+          content:
+            "Exam answers should use haploid, diploid, gamete, fertilisation and zygote precisely. Link meiosis to gamete formation and fertilisation to restoring diploid number and increasing variation.",
+        },
+      ],
+      misconceptions: [
+        {
+          wrong: "Fertilisation halves the chromosome number.",
+          correct:
+            "Meiosis halves the chromosome number when gametes form; fertilisation restores the diploid number in the zygote.",
+        },
+      ],
+      examTips: [
+        "State haploid → fusion → diploid zygote for chromosome-number questions.",
+        "Mention genetic material from two parents when explaining variation after fertilisation.",
+      ],
+      summary:
+        "Gametes are haploid sex cells; fertilisation fuses them to form a diploid zygote and can increase genetic variation.",
+    };
+  }
+
+  if (/\bsexual\b.*\basexual\b|\basexual\b.*\bsexual\b|\bsexual and asexual\b|\basexual and sexual\b/.test(n)) {
+    return {
+      keyTerms: [
+        "sexual reproduction",
+        "asexual reproduction",
+        "gamete",
+        "clone",
+        "variation",
+        "mitosis",
+        "meiosis",
+      ],
+      priorKnowledge:
+        "Students should know that organisms can produce offspring and that genetic information is passed from parents to offspring.",
+      objectives: [
+        "Define sexual and asexual reproduction",
+        "Compare variation and parental involvement in each type",
+        "Apply examples such as runners or fertilisation to the correct type",
+      ],
+      sections: [
+        {
+          id: "core",
+          title: "Core teaching",
+          content:
+            "Sexual reproduction involves the fusion of gametes and usually produces genetically varied offspring. Asexual reproduction does not involve gamete fusion; one parent produces genetically identical offspring (clones), often by mitosis.",
+        },
+        {
+          id: "examples",
+          title: "Key examples",
+          content:
+            "Sexual example: sperm and egg fuse at fertilisation. Asexual example: strawberry runners or binary fission produce new organisms from one parent without gametes. Compare: sexual increases variation; asexual is fast and preserves successful genotypes in stable conditions.",
+        },
+        {
+          id: "exam-link",
+          title: "Exam thinking",
+          content:
+            "Examiners want clear definitions, a comparison of variation, and a named example for each type. Do not claim asexual reproduction needs two parents.",
+        },
+      ],
+      misconceptions: [
+        {
+          wrong: "Asexual reproduction always produces more variation than sexual reproduction.",
+          correct:
+            "Asexual offspring are genetically identical to the parent; sexual reproduction mixes alleles and usually increases variation.",
+        },
+      ],
+      examTips: [
+        "Use the words gamete, fusion, clone and variation in comparisons.",
+        "Give one advantage and one disadvantage for each reproduction type when asked to evaluate.",
+      ],
+      summary:
+        "Sexual reproduction uses gamete fusion and increases variation; asexual reproduction produces clones quickly from one parent.",
+    };
+  }
+
   // Generic GCSE Biology teaching scaffold — still topic-specific via injected topic label.
   const label = titleCaseTopic(topic) || "this topic";
   return {

@@ -1,8 +1,8 @@
 /**
  * Lesson Generator V2 orchestrator.
  *
- * Phase 1 Lesson Brain + Phase 2 Image/Activity Brain are live.
- * Phase 3 Question Brain remains a stub. Critic fails closed — never saves yet.
+ * Phase 1 Lesson Brain + Phase 2 Image/Activity Brain + Phase 3 Question Brain are live.
+ * Critic reports Phase 3 quality but still blocks save (persistence not enabled).
  * Distinct from lib/lessonGeneratorV2 (V1 blueprint planner).
  */
 
@@ -23,7 +23,11 @@ class LessonV2QualityError extends Error {
 }
 
 function rethrowPhaseError(error) {
-  if (error?.code === "LESSON_V2_PHASE1_FAILED" || error?.code === "LESSON_V2_PHASE2_FAILED") {
+  if (
+    error?.code === "LESSON_V2_PHASE1_FAILED" ||
+    error?.code === "LESSON_V2_PHASE2_FAILED" ||
+    error?.code === "LESSON_V2_PHASE3_FAILED"
+  ) {
     throw new LessonV2QualityError(error.message, {
       code: error.code,
       issues: error.details?.issues || [],
@@ -33,7 +37,7 @@ function rethrowPhaseError(error) {
 }
 
 /**
- * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, phase1Override?: object, phase2Override?: object }} input
+ * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, phase1Override?: object, phase2Override?: object, phase3Override?: object }} input
  */
 async function runLessonGeneratorV2Scaffold(input = {}) {
   const ctx = {
@@ -66,7 +70,12 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     rethrowPhaseError(error);
   }
 
-  staged = await runQuestionBrain(ctx, staged);
+  try {
+    staged = await runQuestionBrain(ctx, staged, { phase3Override: input.phase3Override });
+  } catch (error) {
+    rethrowPhaseError(error);
+  }
+
   staged = await runCriticBrain(staged);
 
   const schemaCheck = validateStagedOutput(staged);
@@ -81,6 +90,7 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
 
   const phase1Complete = staged.phase1Lesson?.status === STAGE_STATUS.COMPLETE;
   const phase2Complete = staged.phase2VisualActivities?.status === STAGE_STATUS.COMPLETE;
+  const phase3Complete = staged.phase3Questions?.status === STAGE_STATUS.COMPLETE;
 
   return {
     success: true,
@@ -88,9 +98,10 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     saved: false,
     phase1Complete,
     phase2Complete,
-    message: phase2Complete
-      ? "Lesson Generator V2 Phase 1–2 complete (Lesson + Image/Activity Brain). Phase 3 still stub. No lesson saved."
-      : "Lesson Generator V2 ran with incomplete Phase 2. No lesson was saved.",
+    phase3Complete,
+    message: phase3Complete
+      ? "Lesson Generator V2 Phase 1–3 complete (Lesson + Image/Activity + Question Brain). Critic blocks save until persistence is enabled."
+      : "Lesson Generator V2 ran with incomplete Phase 3. No lesson was saved.",
     staged,
     stageStatuses: {
       phase1: staged.phase1Lesson?.status || STAGE_STATUS.PENDING,

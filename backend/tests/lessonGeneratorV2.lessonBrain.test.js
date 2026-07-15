@@ -81,14 +81,13 @@ describe("Lesson Generator V2 Phase 1 Lesson Brain", () => {
     expect(p1.summary.length).toBeGreaterThan(30);
   });
 
-  test("Phase 1 does not finalise questions or image prompts", async () => {
-    const result = await runLessonGeneratorV2Scaffold({
+  test("Phase 1 build does not finalise questions or image prompts", () => {
+    const p1 = buildPhase1Lesson({
       topic: "Homeostasis",
       subject: "Biology",
       level: "GCSE",
       board: "AQA",
     });
-    const p1 = result.staged.phase1Lesson;
     expect(p1.questionsFinalised).toBe(false);
     expect(p1.imagePromptsFinalised).toBe(false);
     expect(p1.selfCheck).toEqual([]);
@@ -96,8 +95,19 @@ describe("Lesson Generator V2 Phase 1 Lesson Brain", () => {
     expect(p1.quiz).toEqual([]);
     expect(p1.imagePrompts).toEqual([]);
     expect(p1.activityPrompts).toEqual([]);
-    expect(result.staged.phase3Questions.status).toBe(STAGE_STATUS.STUB);
+  });
+
+  test("Full pipeline completes Phase 2 and Phase 3 after Phase 1", async () => {
+    const result = await runLessonGeneratorV2Scaffold({
+      topic: "Homeostasis",
+      subject: "Biology",
+      level: "GCSE",
+      board: "AQA",
+    });
+    expect(result.staged.phase1Lesson.status).toBe(STAGE_STATUS.COMPLETE);
     expect(result.staged.phase2VisualActivities.status).toBe(STAGE_STATUS.COMPLETE);
+    expect(result.staged.phase3Questions.status).toBe(STAGE_STATUS.COMPLETE);
+    expect(result.saved).toBe(false);
   });
 
   test("Phase 1 includes placeholders for later phases", () => {
