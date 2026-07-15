@@ -171,6 +171,7 @@ import {
   tryParseFlexibleCheckpointMcq,
   markSchemeFromFlexibleCheckpointParse,
 } from "../utils/parseFlexibleCheckpointPaste";
+import { withPreservedActivityQuestions } from "../utils/activityQuestionBankRoundTrip";
 import {
   getHotspotLetter,
   isInteractiveDiagramHotspotPlaced,
@@ -246,6 +247,8 @@ interface LessonPageBlock {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
+  /** V2 / multi-question activity bank — must survive hydrate → PUT round-trip. */
+  questions?: Array<Record<string, unknown>>;
   /** Checkpoint/self-check: string[]; graph block: plain-text mark scheme. */
   markScheme?: string[] | string;
   /** Page Quiz block fields (when type === "pageQuiz") — written to lesson.quiz.questions with pageId */
@@ -389,6 +392,8 @@ interface QuizQuestion {
   options?: string[];
   correctAnswer: string;
   explanation?: string;
+  /** Optional skill/purpose tag (V2 banks). */
+  purpose?: string;
   tags?: string[];
   difficulty?: number;
   marks?: number;
@@ -1633,7 +1638,7 @@ const EditLessonPage: React.FC = () => {
                     if (ms.length) out.markScheme = ms;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
-                  return out;
+                  return withPreservedActivityQuestions(out, b);
                 }
                 if (normalizeBlockType(String(b?.type ?? "")) === "selfCheck") {
                   /** Editor + student render `prompt`; DB may store stem in `question` only (pageQuiz-parity fields). */
@@ -1656,7 +1661,26 @@ const EditLessonPage: React.FC = () => {
                     if (ms.length) out.markScheme = ms;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
-                  return out;
+                  return withPreservedActivityQuestions(out, b);
+                }
+                if (b?.type === "pageQuiz") {
+                  const mergedStem = safeStr(
+                    (b as { question?: string }).question,
+                    safeStr(b.prompt, "")
+                  );
+                  const out = {
+                    type: "pageQuiz" as const,
+                    question: mergedStem,
+                    prompt: mergedStem,
+                    questionType: b?.questionType === "short" ? "short" : "mcq",
+                    options: Array.isArray(b.options)
+                      ? b.options.map((o: any) => String(o ?? ""))
+                      : [],
+                    correctAnswer: safeStr(b.correctAnswer, ""),
+                    explanation: safeStr(b.explanation, ""),
+                  } as Record<string, unknown>;
+                  if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
+                  return withPreservedActivityQuestions(out, b);
                 }
                 if (b?.type === "diagram") {
                   const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
@@ -3746,7 +3770,7 @@ const EditLessonPage: React.FC = () => {
               ...(markSchemeBlk ? { markScheme: markSchemeBlk } : {}),
             };
             if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
-            return cpOut;
+            return withPreservedActivityQuestions(cpOut, b);
           }
           if (b.type === "selfCheck") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
@@ -3763,20 +3787,21 @@ const EditLessonPage: React.FC = () => {
               ...(markSchemeSc ? { markScheme: markSchemeSc } : {}),
             };
             if (typeof b.role === "string" && b.role.trim()) scOut.role = b.role.trim();
-            return scOut;
+            return withPreservedActivityQuestions(scOut, b);
           }
           if (b.type === "pageQuiz") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
             const pqOut: Record<string, unknown> = {
               type: "pageQuiz",
               question: String(b.question ?? b.prompt ?? "").trim(),
+              prompt: String(b.prompt ?? b.question ?? "").trim(),
               questionType: b.questionType === "short" ? "short" : "mcq",
               options: opts,
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
             };
             if (typeof b.role === "string" && b.role.trim()) pqOut.role = b.role.trim();
-            return pqOut;
+            return withPreservedActivityQuestions(pqOut, b);
           }
           if (b.type === "diagram") {
             return attachPersistedBlockNumber(diagramBlockForPersist(b), b);
@@ -3848,13 +3873,47 @@ const EditLessonPage: React.FC = () => {
           ),
       }));
 
-      // Build quiz.questions from pageQuiz blocks + existing end-of-lesson questions
+      // Build quiz.questions from pageQuiz banks + legacy single fields + existing page-scoped items.
       const pageQuizQuestions: QuizQuestion[] = [];
+      const pagesCoveredByBlockBank = new Set<string>();
       for (const p of sanitizedPages) {
         const pageId = p.pageId;
         if (!pageId) continue;
         for (const b of p.blocks || []) {
           if (b.type !== "pageQuiz") continue;
+          const bank = Array.isArray((b as { questions?: unknown[] }).questions)
+            ? ((b as { questions: unknown[] }).questions as Array<Record<string, unknown>>)
+            : [];
+          if (bank.length > 0) {
+            pagesCoveredByBlockBank.add(String(pageId));
+            bank.forEach((raw, qi) => {
+              const qText = String(raw.prompt ?? raw.question ?? "").trim();
+              const correctAnswer = String(raw.correctAnswer ?? "").trim();
+              if (!qText || !correctAnswer) return;
+              const qt =
+                String(raw.questionType ?? raw.type ?? "").toLowerCase() === "short" ? "short" : "mcq";
+              const opts = Array.isArray(raw.options)
+                ? raw.options.map((o) => String(o ?? "").trim()).filter(Boolean)
+                : [];
+              if (qt === "mcq" && opts.length < 2) return;
+              pageQuizQuestions.push({
+                id: String(raw.id || `pq_${pageId}_${qi}_${Date.now()}`),
+                type: qt as "mcq" | "short",
+                question: qText,
+                options: qt === "mcq" ? opts : undefined,
+                correctAnswer,
+                explanation:
+                  raw.explanation != null ? String(raw.explanation).trim() : undefined,
+                purpose: raw.purpose != null ? String(raw.purpose).trim() : undefined,
+                tags: Array.isArray(raw.tags)
+                  ? raw.tags.map((t) => String(t ?? "").trim()).filter(Boolean)
+                  : undefined,
+                marks: Number(raw.marks) > 0 ? Number(raw.marks) : 1,
+                pageId,
+              } as QuizQuestion);
+            });
+            continue;
+          }
           const qText = String(b.question ?? b.prompt ?? "").trim();
           if (!qText) continue;
           const correctAnswer = String(b.correctAnswer ?? "").trim();
@@ -3881,10 +3940,23 @@ const EditLessonPage: React.FC = () => {
         if (!pid || pid === "END" || !pageIdsInLesson.has(pid)) return false;
         return Boolean(q.sourceQuestionId || q.sourceType === "topicQuizQuestion");
       });
+      // Preserve V2 / other page-scoped quiz items that are not topic-bank attachments.
+      const preservedPageScopedQuiz = (lesson.quiz?.questions || []).filter((q: QuizQuestion & { sourceQuestionId?: string; sourceType?: string }) => {
+        const pid = String(q?.pageId ?? "").trim();
+        if (!pid || pid === "END" || !pageIdsInLesson.has(pid)) return false;
+        if (q.sourceQuestionId || q.sourceType === "topicQuizQuestion") return false;
+        if (pagesCoveredByBlockBank.has(pid)) return false;
+        return Boolean(String(q.question || "").trim() && String(q.correctAnswer || "").trim());
+      });
       const endOfLessonQuestions = (lesson.quiz?.questions || []).filter(
         (q: QuizQuestion) => !q.pageId || String(q.pageId) === "END"
       );
-      const mergedQuizQuestions = [...pageQuizQuestions, ...bankAttachedPageQuiz, ...endOfLessonQuestions];
+      const mergedQuizQuestions = [
+        ...pageQuizQuestions,
+        ...preservedPageScopedQuiz,
+        ...bankAttachedPageQuiz,
+        ...endOfLessonQuestions,
+      ];
 
     warnLearningMetaIfMissing(sanitizedPages, "edit lesson");
 

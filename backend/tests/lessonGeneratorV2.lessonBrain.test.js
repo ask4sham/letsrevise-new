@@ -177,4 +177,21 @@ describe("Lesson Generator V2 Phase 1 Lesson Brain", () => {
     );
     expect(hasV1).toBe(true);
   });
+
+  test("edexcel-igcse topicKey maps to Edexcel IGCSE not AQA/GCSE", () => {
+    const p1 = buildPhase1Lesson({
+      topic: "Adaptations for Pollination",
+      subject: "Biology",
+      level: "GCSE", // form default; topicKey must win
+      board: "Edexcel",
+      topicKey: "edexcel-igcse-biology:adaptations-for-pollination",
+    });
+    expect(p1.board).toBe("Edexcel");
+    expect(p1.examBoard).toBe("Edexcel");
+    expect(p1.level).toBe("IGCSE");
+    expect(p1.specKey).toBe("edexcel-igcse-biology");
+    expect(p1.title).toMatch(/Edexcel IGCSE/i);
+    expect(p1.title).not.toMatch(/AQA/i);
+    expect(p1.title).not.toMatch(/Edexcel GCSE/i);
+  });
 });

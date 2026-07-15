@@ -28,6 +28,27 @@ function mapQuestionForBlock(q, index, prefix) {
   };
 }
 
+/** Legacy single-field mirror of questions[0] for older editor / sanitizer paths. */
+function legacyFieldsFromQuestions(mappedQuestions) {
+  const first = Array.isArray(mappedQuestions) && mappedQuestions.length ? mappedQuestions[0] : null;
+  if (!first) {
+    return {
+      prompt: "",
+      question: "",
+      questionType: "short",
+      options: [],
+      correctAnswer: "",
+    };
+  }
+  return {
+    prompt: first.prompt || first.question || "",
+    question: first.question || first.prompt || "",
+    questionType: first.questionType || first.type || "short",
+    options: Array.isArray(first.options) ? first.options : [],
+    correctAnswer: first.correctAnswer || "",
+  };
+}
+
 function mapQuestionForQuiz(q, index) {
   const mapped = mapQuestionForBlock(q, index, "qz");
   return {
@@ -75,6 +96,8 @@ function assembleFinalLesson(staged, authCtx = {}) {
   const level = String(phase1.level || meta.level || "").trim();
   const board = String(phase1.board || phase1.examBoard || meta.board || "").trim();
   const tier = String(phase1.tier || meta.tier || "").trim();
+  const topicKey = String(phase1.topicKey || meta.topicKey || "").trim();
+  const specKey = String(phase1.specKey || meta.specKey || "").trim();
   const title = String(phase1.title || `${topic} (${board || "GCSE"} ${level})`).trim();
 
   const objectives = Array.isArray(phase1.objectives) ? phase1.objectives.filter((o) => nonEmpty(o, 8)) : [];
@@ -191,27 +214,47 @@ function assembleFinalLesson(staged, authCtx = {}) {
   }
 
   const scMapped = selfCheck.map((q, i) => mapQuestionForBlock(q, i, "sc"));
+  const scLegacy = legacyFieldsFromQuestions(scMapped);
   blocks.push({
     type: "selfCheck",
     role: "selfCheck",
-    prompt: scMapped[0]?.prompt || "",
-    questionType: scMapped[0]?.questionType || "short",
+    prompt: scLegacy.prompt,
+    question: scLegacy.question,
+    questionType: scLegacy.questionType,
+    options: scLegacy.questionType === "mcq" ? scLegacy.options : [],
+    correctAnswer: scLegacy.correctAnswer,
     questions: scMapped,
   });
 
   const cpMapped = checkpoint.map((q, i) => mapQuestionForBlock(q, i, "cp"));
+  const cpLegacy = legacyFieldsFromQuestions(cpMapped);
   blocks.push({
     type: "checkpoint",
     role: "checkpoint",
-    prompt: cpMapped[0]?.prompt || "",
-    questionType: cpMapped[0]?.questionType || "mcq",
+    prompt: cpLegacy.prompt,
+    question: cpLegacy.question,
+    questionType: cpLegacy.questionType,
+    options: cpLegacy.questionType === "mcq" ? cpLegacy.options : [],
+    correctAnswer: cpLegacy.correctAnswer,
     questions: cpMapped,
   });
 
   const quizMapped = quiz.map((q, i) => mapQuestionForQuiz(q, i));
+  const quizLegacy = legacyFieldsFromQuestions(
+    quizMapped.map((q) => ({
+      ...q,
+      prompt: q.question || q.prompt,
+      questionType: q.type,
+    }))
+  );
   blocks.push({
     type: "pageQuiz",
     role: "pageQuiz",
+    prompt: quizLegacy.prompt,
+    question: quizLegacy.question,
+    questionType: quizLegacy.questionType,
+    options: quizLegacy.questionType === "mcq" ? quizLegacy.options : [],
+    correctAnswer: quizLegacy.correctAnswer,
     questions: quizMapped,
   });
 
@@ -246,7 +289,8 @@ function assembleFinalLesson(staged, authCtx = {}) {
     board: board || undefined,
     examBoardName: board || undefined,
     tier: tier || undefined,
-    topicKey: String(phase1.topicKey || meta.topicKey || "").trim() || undefined,
+    topicKey: topicKey || undefined,
+    specKey: specKey || undefined,
     teacherId: authCtx.teacherId || undefined,
     teacherName: authCtx.teacherName || undefined,
     status: "draft",
