@@ -1,8 +1,8 @@
 /**
  * Lesson Generator V2 orchestrator.
  *
- * Phase 1 Lesson Brain + Phase 2 Image/Activity Brain + Phase 3 Question Brain are live.
- * Critic reports Phase 3 quality but still blocks save (persistence not enabled).
+ * Phase 1–3 + in-memory finalLesson assembler + critic (PR A).
+ * Never persists to MongoDB in this PR.
  * Distinct from lib/lessonGeneratorV2 (V1 blueprint planner).
  */
 
@@ -10,6 +10,8 @@ const { createEmptyStagedOutput, validateStagedOutput, STAGE_STATUS } = require(
 const { runLessonBrain } = require("./lessonBrain");
 const { runImageActivityBrain } = require("./imageActivityBrain");
 const { runQuestionBrain } = require("./questionBrain");
+const { assembleFinalLesson } = require("./assembleFinalLesson");
+const { validateFinalLesson } = require("./validateFinalLesson");
 const { runCriticBrain } = require("./criticBrain");
 
 class LessonV2QualityError extends Error {
@@ -26,7 +28,9 @@ function rethrowPhaseError(error) {
   if (
     error?.code === "LESSON_V2_PHASE1_FAILED" ||
     error?.code === "LESSON_V2_PHASE2_FAILED" ||
-    error?.code === "LESSON_V2_PHASE3_FAILED"
+    error?.code === "LESSON_V2_PHASE3_FAILED" ||
+    error?.code === "LESSON_V2_ASSEMBLY_FAILED" ||
+    error?.code === "LESSON_V2_CRITIC_FAILED"
   ) {
     throw new LessonV2QualityError(error.message, {
       code: error.code,
@@ -37,7 +41,7 @@ function rethrowPhaseError(error) {
 }
 
 /**
- * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, phase1Override?: object, phase2Override?: object, phase3Override?: object }} input
+ * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, teacherId?: string, teacherName?: string, phase1Override?: object, phase2Override?: object, phase3Override?: object }} input
  */
 async function runLessonGeneratorV2Scaffold(input = {}) {
   const ctx = {
@@ -76,7 +80,60 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     rethrowPhaseError(error);
   }
 
-  staged = await runCriticBrain(staged);
+  const assembled = assembleFinalLesson(staged, {
+    teacherId: input.teacherId,
+    teacherName: input.teacherName,
+  });
+  if (!assembled.ok || !assembled.finalLesson) {
+    staged.finalLesson = null;
+    staged.saved = false;
+    const err = new Error(
+      `Lesson Generator V2 assembly failed: ${(assembled.issues || []).slice(0, 5).join("; ")}`
+    );
+    err.status = 422;
+    err.code = "LESSON_V2_ASSEMBLY_FAILED";
+    err.details = { issues: assembled.issues || [] };
+    throw new LessonV2QualityError(err.message, {
+      code: "LESSON_V2_ASSEMBLY_FAILED",
+      issues: assembled.issues || [],
+    });
+  }
+
+  staged.finalLesson = assembled.finalLesson;
+
+  const finalCheck = validateFinalLesson(staged.finalLesson, {
+    phase2: staged.phase2VisualActivities,
+    topic: ctx.topic,
+  });
+  if (!finalCheck.ok) {
+    staged.finalLesson = null;
+    staged.saved = false;
+    throw new LessonV2QualityError(
+      `Lesson Generator V2 final validation failed: ${(finalCheck.issues || []).slice(0, 5).join("; ")}`,
+      {
+        code: "LESSON_V2_ASSEMBLY_FAILED",
+        issues: finalCheck.issues || [],
+      }
+    );
+  }
+
+  staged = await runCriticBrain(staged, {
+    assemblyOk: true,
+    finalValidationOk: true,
+    assemblyIssues: [],
+  });
+
+  if (!staged.criticReport?.ok) {
+    staged.saved = false;
+    staged.finalLesson = null;
+    throw new LessonV2QualityError(
+      `Lesson Generator V2 critic failed: ${(staged.criticReport?.issues || []).slice(0, 5).join("; ")}`,
+      {
+        code: "LESSON_V2_CRITIC_FAILED",
+        issues: staged.criticReport?.issues || [],
+      }
+    );
+  }
 
   const schemaCheck = validateStagedOutput(staged);
   if (!schemaCheck.ok) {
@@ -85,8 +142,8 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     });
   }
 
+  // PR A hard contract: never persist.
   staged.saved = false;
-  staged.finalLesson = null;
 
   const phase1Complete = staged.phase1Lesson?.status === STAGE_STATUS.COMPLETE;
   const phase2Complete = staged.phase2VisualActivities?.status === STAGE_STATUS.COMPLETE;
@@ -99,9 +156,11 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     phase1Complete,
     phase2Complete,
     phase3Complete,
-    message: phase3Complete
-      ? "Lesson Generator V2 Phase 1–3 complete (Lesson + Image/Activity + Question Brain). Critic blocks save until persistence is enabled."
-      : "Lesson Generator V2 ran with incomplete Phase 3. No lesson was saved.",
+    criticOk: staged.criticReport?.ok === true,
+    persistenceReady: false,
+    finalLesson: staged.finalLesson,
+    message:
+      "Lesson Generator V2 assembled an in-memory finalLesson draft. Critic ok. DB persistence not implemented — nothing saved.",
     staged,
     stageStatuses: {
       phase1: staged.phase1Lesson?.status || STAGE_STATUS.PENDING,

@@ -4,7 +4,8 @@
  * POST /api/ai/generate-and-save-v2
  * Feature flag: LESSON_GENERATOR_V2_ENABLED=1
  *
- * Phase 1–3 brains are live (Lesson, Image/Activity, Question). Critic blocks save until persistence is enabled.
+ * Phase 1–3 + in-memory finalLesson assembler + critic (PR A).
+ * Never saves a lesson to MongoDB in this PR.
  */
 
 const express = require("express");
@@ -51,6 +52,9 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
       tier,
     } = req.body || {};
 
+    const teacherId = req.user?._id ? String(req.user._id) : undefined;
+    const teacherName = [req.user?.firstName, req.user?.lastName].filter(Boolean).join(" ").trim() || undefined;
+
     const result = await runLessonGeneratorV2Scaffold({
       topic,
       subject,
@@ -58,13 +62,15 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
       board,
       topicKey,
       tier,
+      teacherId,
+      teacherName,
     });
 
-    // Explicit no-save contract for scaffold.
+    // Explicit no-save contract for PR A (and safety net thereafter).
     if (result.saved) {
       return res.status(422).json({
         success: false,
-        msg: "Lesson Generator V2 scaffold must not save lessons.",
+        msg: "Lesson Generator V2 must not save lessons until persistence PR is enabled.",
         code: "LESSON_V2_QUALITY_FAILED",
       });
     }
@@ -77,12 +83,16 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
       code === "LESSON_V2_QUALITY_FAILED" ||
       code === "LESSON_V2_PHASE1_FAILED" ||
       code === "LESSON_V2_PHASE2_FAILED" ||
-      code === "LESSON_V2_PHASE3_FAILED"
+      code === "LESSON_V2_PHASE3_FAILED" ||
+      code === "LESSON_V2_ASSEMBLY_FAILED" ||
+      code === "LESSON_V2_CRITIC_FAILED"
     ) {
       const mapped =
         code === "LESSON_V2_PHASE1_FAILED" ||
         code === "LESSON_V2_PHASE2_FAILED" ||
-        code === "LESSON_V2_PHASE3_FAILED"
+        code === "LESSON_V2_PHASE3_FAILED" ||
+        code === "LESSON_V2_ASSEMBLY_FAILED" ||
+        code === "LESSON_V2_CRITIC_FAILED"
           ? code
           : "LESSON_V2_QUALITY_FAILED";
       return res.status(422).json({
@@ -90,6 +100,8 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
         msg: error.message || "Lesson Generator V2 quality failed.",
         code: mapped,
         details: error.details || undefined,
+        saved: false,
+        finalLesson: null,
       });
     }
     if (error?.status === 400 || error?.code === "LESSON_V2_BAD_REQUEST") {

@@ -26,6 +26,8 @@ const {
   validatePhase3Questions,
 } = require("./questionBrain");
 const { isBannedStem, findBannedStemHits } = require("./questionBanList");
+const { assembleFinalLesson } = require("./assembleFinalLesson");
+const { validateFinalLesson } = require("./validateFinalLesson");
 
 module.exports = {
   isLessonGeneratorV2PipelineEnabled,
@@ -45,4 +47,6 @@ module.exports = {
   validatePhase3Questions,
   isBannedStem,
   findBannedStemHits,
+  assembleFinalLesson,
+  validateFinalLesson,
 };

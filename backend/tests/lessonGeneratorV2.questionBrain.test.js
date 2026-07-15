@@ -145,8 +145,11 @@ describe("Lesson Generator V2 Phase 3 Question Brain", () => {
     expect(phase1.keyTerms.some((t) => blob.includes(String(t).toLowerCase()))).toBe(true);
 
     expect(result.staged.criticReport.phase3QualityOk).toBe(true);
-    expect(result.staged.criticReport.ok).toBe(false);
-    expect(result.staged.criticReport.issues).toContain("final_lesson_persistence_not_ready");
+    expect(result.staged.criticReport.ok).toBe(true);
+    expect(result.staged.criticReport.assemblyOk).toBe(true);
+    expect(result.staged.criticReport.persistenceReady).toBe(false);
+    expect(result.staged.criticReport.issues).toContain("db_persistence_not_implemented");
+    expect(result.finalLesson).toBeTruthy();
     return result;
   }
 

@@ -87,15 +87,19 @@ describe("Lesson Generator V2 scaffold", () => {
     expect(res.body.phase1Complete).toBe(true);
     expect(res.body.phase2Complete).toBe(true);
     expect(res.body.staged).toBeDefined();
-    expect(res.body.staged.finalLesson).toBeNull();
-    expect(res.body.staged.criticReport.ok).toBe(false);
+    expect(res.body.phase3Complete).toBe(true);
     expect(res.body.stageStatuses.phase1).toBe(STAGE_STATUS.COMPLETE);
     expect(res.body.stageStatuses.phase2).toBe(STAGE_STATUS.COMPLETE);
     expect(res.body.stageStatuses.phase3).toBe(STAGE_STATUS.COMPLETE);
-    expect(res.body.phase3Complete).toBe(true);
+    expect(res.body.staged.criticReport.ok).toBe(true);
     expect(res.body.staged.criticReport.phase3QualityOk).toBe(true);
     expect(res.body.staged.criticReport.contentReady).toBe(true);
-    expect(res.body.staged.criticReport.issues).toContain("final_lesson_persistence_not_ready");
+    expect(res.body.staged.criticReport.assemblyOk).toBe(true);
+    expect(res.body.staged.criticReport.persistenceReady).toBe(false);
+    expect(res.body.staged.criticReport.issues).toContain("db_persistence_not_implemented");
+    expect(res.body.finalLesson).toBeTruthy();
+    expect(res.body.staged.finalLesson).toBeTruthy();
+    expect(res.body.saved).toBe(false);
   });
 
   test("V2 route rejects missing topic/subject/level when enabled", async () => {
@@ -136,7 +140,8 @@ describe("Lesson Generator V2 scaffold", () => {
     });
     expect(result.saved).toBe(false);
     expect(result.staged.saved).toBe(false);
-    expect(result.staged.finalLesson).toBeNull();
-    expect(result.staged.criticReport.ok).toBe(false);
+    expect(result.staged.finalLesson).toBeTruthy();
+    expect(result.staged.criticReport.ok).toBe(true);
+    expect(result.staged.criticReport.persistenceReady).toBe(false);
   });
 });
