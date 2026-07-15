@@ -4,7 +4,7 @@
  * NOTE: This is NOT lib/lessonGeneratorV2 (blueprint planner used inside V1 generate-and-save).
  */
 
-const { isLessonGeneratorV2PipelineEnabled } = require("./flags");
+const { isLessonGeneratorV2PipelineEnabled, isLessonGeneratorV2PersistEnabled } = require("./flags");
 const { runLessonGeneratorV2Scaffold, LessonV2QualityError } = require("./orchestrator");
 const {
   STAGE_STATUS,
@@ -28,9 +28,11 @@ const {
 const { isBannedStem, findBannedStemHits } = require("./questionBanList");
 const { assembleFinalLesson } = require("./assembleFinalLesson");
 const { validateFinalLesson } = require("./validateFinalLesson");
+const { persistFinalLessonDraft } = require("./persistFinalLessonDraft");
 
 module.exports = {
   isLessonGeneratorV2PipelineEnabled,
+  isLessonGeneratorV2PersistEnabled,
   runLessonGeneratorV2Scaffold,
   LessonV2QualityError,
   STAGE_STATUS,
@@ -49,4 +51,5 @@ module.exports = {
   findBannedStemHits,
   assembleFinalLesson,
   validateFinalLesson,
+  persistFinalLessonDraft,
 };

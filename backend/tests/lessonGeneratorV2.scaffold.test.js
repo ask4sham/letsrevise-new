@@ -95,8 +95,7 @@ describe("Lesson Generator V2 scaffold", () => {
     expect(res.body.staged.criticReport.phase3QualityOk).toBe(true);
     expect(res.body.staged.criticReport.contentReady).toBe(true);
     expect(res.body.staged.criticReport.assemblyOk).toBe(true);
-    expect(res.body.staged.criticReport.persistenceReady).toBe(false);
-    expect(res.body.staged.criticReport.issues).toContain("db_persistence_not_implemented");
+    expect(res.body.staged.criticReport.persistenceReady).toBe(true);
     expect(res.body.finalLesson).toBeTruthy();
     expect(res.body.staged.finalLesson).toBeTruthy();
     expect(res.body.saved).toBe(false);
@@ -142,6 +141,6 @@ describe("Lesson Generator V2 scaffold", () => {
     expect(result.staged.saved).toBe(false);
     expect(result.staged.finalLesson).toBeTruthy();
     expect(result.staged.criticReport.ok).toBe(true);
-    expect(result.staged.criticReport.persistenceReady).toBe(false);
+    expect(result.staged.criticReport.persistenceReady).toBe(true);
   });
 });

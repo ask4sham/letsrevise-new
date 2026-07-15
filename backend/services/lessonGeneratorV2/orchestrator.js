@@ -1,18 +1,19 @@
 /**
  * Lesson Generator V2 orchestrator.
  *
- * Phase 1–3 + in-memory finalLesson assembler + critic (PR A).
- * Never persists to MongoDB in this PR.
+ * Phase 1–3 + assembler + critic + optional guarded draft persistence.
  * Distinct from lib/lessonGeneratorV2 (V1 blueprint planner).
  */
 
 const { createEmptyStagedOutput, validateStagedOutput, STAGE_STATUS } = require("./schemas");
+const { isLessonGeneratorV2PersistEnabled } = require("./flags");
 const { runLessonBrain } = require("./lessonBrain");
 const { runImageActivityBrain } = require("./imageActivityBrain");
 const { runQuestionBrain } = require("./questionBrain");
 const { assembleFinalLesson } = require("./assembleFinalLesson");
 const { validateFinalLesson } = require("./validateFinalLesson");
 const { runCriticBrain } = require("./criticBrain");
+const { persistFinalLessonDraft } = require("./persistFinalLessonDraft");
 
 class LessonV2QualityError extends Error {
   constructor(message, details = {}) {
@@ -30,7 +31,9 @@ function rethrowPhaseError(error) {
     error?.code === "LESSON_V2_PHASE2_FAILED" ||
     error?.code === "LESSON_V2_PHASE3_FAILED" ||
     error?.code === "LESSON_V2_ASSEMBLY_FAILED" ||
-    error?.code === "LESSON_V2_CRITIC_FAILED"
+    error?.code === "LESSON_V2_CRITIC_FAILED" ||
+    error?.code === "LESSON_V2_PERSIST_DISABLED" ||
+    error?.code === "LESSON_V2_PERSIST_FAILED"
   ) {
     throw new LessonV2QualityError(error.message, {
       code: error.code,
@@ -41,7 +44,7 @@ function rethrowPhaseError(error) {
 }
 
 /**
- * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, teacherId?: string, teacherName?: string, phase1Override?: object, phase2Override?: object, phase3Override?: object }} input
+ * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, teacherId?: string, teacherName?: string, persist?: boolean, phase1Override?: object, phase2Override?: object, phase3Override?: object }} input
  */
 async function runLessonGeneratorV2Scaffold(input = {}) {
   const ctx = {
@@ -59,6 +62,8 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     err.code = "LESSON_V2_BAD_REQUEST";
     throw err;
   }
+
+  const wantPersist = input.persist === true || input.persist === "true" || input.persist === 1;
 
   let staged = createEmptyStagedOutput(ctx);
 
@@ -87,16 +92,13 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
   if (!assembled.ok || !assembled.finalLesson) {
     staged.finalLesson = null;
     staged.saved = false;
-    const err = new Error(
-      `Lesson Generator V2 assembly failed: ${(assembled.issues || []).slice(0, 5).join("; ")}`
+    throw new LessonV2QualityError(
+      `Lesson Generator V2 assembly failed: ${(assembled.issues || []).slice(0, 5).join("; ")}`,
+      {
+        code: "LESSON_V2_ASSEMBLY_FAILED",
+        issues: assembled.issues || [],
+      }
     );
-    err.status = 422;
-    err.code = "LESSON_V2_ASSEMBLY_FAILED";
-    err.details = { issues: assembled.issues || [] };
-    throw new LessonV2QualityError(err.message, {
-      code: "LESSON_V2_ASSEMBLY_FAILED",
-      issues: assembled.issues || [],
-    });
   }
 
   staged.finalLesson = assembled.finalLesson;
@@ -142,8 +144,63 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
     });
   }
 
-  // PR A hard contract: never persist.
+  let lessonId = null;
   staged.saved = false;
+
+  if (wantPersist) {
+    if (!isLessonGeneratorV2PersistEnabled()) {
+      throw new LessonV2QualityError(
+        "Lesson Generator V2 persistence is disabled. Set LESSON_GENERATOR_V2_PERSIST=1 to enable draft saves.",
+        {
+          code: "LESSON_V2_PERSIST_DISABLED",
+          issues: ["persist_env_disabled"],
+        }
+      );
+    }
+
+    const persisted = await persistFinalLessonDraft(staged.finalLesson, {
+      teacherId: input.teacherId,
+      teacherName: input.teacherName,
+      topic: ctx.topic,
+      phase2: staged.phase2VisualActivities,
+    });
+
+    if (!persisted.ok) {
+      staged.saved = false;
+      throw new LessonV2QualityError(
+        `Lesson Generator V2 persist failed: ${(persisted.issues || []).slice(0, 5).join("; ")}`,
+        {
+          code: persisted.code || "LESSON_V2_PERSIST_FAILED",
+          issues: persisted.issues || [],
+        }
+      );
+    }
+
+    staged.saved = true;
+    lessonId = persisted.lessonId;
+    if (staged.finalLesson?.metadata) {
+      staged.finalLesson.metadata.persistence = {
+        implemented: true,
+        saved: true,
+        lessonId,
+      };
+    }
+    if (staged.criticReport) {
+      staged.criticReport.issues = (staged.criticReport.issues || []).filter(
+        (i) => i !== "db_persistence_not_implemented"
+      );
+    }
+  }
+
+  // Schema: saved=true requires finalLesson + critic ok (already true here).
+  const schemaCheck2 = validateStagedOutput(staged);
+  if (!schemaCheck2.ok) {
+    // If we already wrote, surface persist integrity failure rather than leaving ambiguous state.
+    throw new LessonV2QualityError("Lesson Generator V2 staged output failed after persist.", {
+      code: staged.saved ? "LESSON_V2_PERSIST_FAILED" : "LESSON_V2_QUALITY_FAILED",
+      issues: schemaCheck2.issues,
+    });
+  }
 
   const phase1Complete = staged.phase1Lesson?.status === STAGE_STATUS.COMPLETE;
   const phase2Complete = staged.phase2VisualActivities?.status === STAGE_STATUS.COMPLETE;
@@ -151,16 +208,20 @@ async function runLessonGeneratorV2Scaffold(input = {}) {
 
   return {
     success: true,
-    scaffold: true,
-    saved: false,
+    scaffold: !staged.saved,
+    saved: staged.saved === true,
+    lessonId,
     phase1Complete,
     phase2Complete,
     phase3Complete,
     criticOk: staged.criticReport?.ok === true,
-    persistenceReady: false,
+    persistenceReady: staged.criticReport?.persistenceReady === true,
+    persistRequested: wantPersist,
+    persistEnvEnabled: isLessonGeneratorV2PersistEnabled(),
     finalLesson: staged.finalLesson,
-    message:
-      "Lesson Generator V2 assembled an in-memory finalLesson draft. Critic ok. DB persistence not implemented — nothing saved.",
+    message: staged.saved
+      ? "Lesson Generator V2 saved a draft lesson (unpublished). V1 untouched."
+      : "Lesson Generator V2 assembled an in-memory finalLesson draft. Critic ok. Nothing saved (persist not requested or not enabled).",
     staged,
     stageStatuses: {
       phase1: staged.phase1Lesson?.status || STAGE_STATUS.PENDING,

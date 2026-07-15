@@ -1,8 +1,8 @@
 /**
- * Phase 4 — Critic / Examiner Check + assembly gate (PR A).
+ * Phase 4 — Critic / Examiner Check + assembly gate.
  *
  * ok=true when Phase 1–3 + assembled finalLesson pass validation.
- * DB persistence is still intentionally disabled (persistenceReady=false).
+ * persistenceReady=true when content is ready for optional gated Mongo save.
  */
 
 const { STAGE_STATUS } = require("./schemas");
@@ -78,9 +78,6 @@ async function runCriticBrain(staged, assembly = {}) {
     for (const i of assembly.assemblyIssues || []) issues.push(`final:${i}`);
   }
 
-  // PR A: content/assembly may pass, but Mongo persistence is not implemented yet.
-  issues.push("db_persistence_not_implemented");
-
   const contentReady =
     staged.phase1Lesson?.status === STAGE_STATUS.COMPLETE &&
     staged.phase2VisualActivities?.status === STAGE_STATUS.COMPLETE &&
@@ -88,6 +85,7 @@ async function runCriticBrain(staged, assembly = {}) {
     staged.phase2VisualActivities?.studentSafe === true;
 
   const ok = Boolean(contentReady && assemblyOk && finalValidationOk);
+  const persistenceReady = ok;
 
   if (staged.finalLesson && typeof staged.finalLesson === "object") {
     staged.finalLesson.metadata = {
@@ -97,11 +95,11 @@ async function runCriticBrain(staged, assembly = {}) {
         contentReady,
         assemblyOk,
         finalValidationOk,
-        persistenceReady: false,
+        persistenceReady,
         issues: [...issues],
       },
       persistence: {
-        implemented: false,
+        implemented: true,
         saved: false,
       },
     };
@@ -114,16 +112,16 @@ async function runCriticBrain(staged, assembly = {}) {
     phase3QualityOk: Boolean(phase3QualityOk),
     assemblyOk: Boolean(assemblyOk),
     finalValidationOk: Boolean(finalValidationOk),
-    persistenceReady: false,
-    saveReady: false,
+    persistenceReady: Boolean(persistenceReady),
+    saveReady: Boolean(persistenceReady),
     issues,
     regeneratedPhase3Once: false,
     notes: ok
-      ? "Phase 1–3 + finalLesson assembly/validation passed. Critic ok=true for content, but DB persistence is not implemented in PR A (saved remains false)."
-      : "Critic fail-closed: incomplete phases, assembly/validation issues, and/or persistence disabled.",
+      ? "Phase 1–3 + finalLesson assembly/validation passed. Draft Mongo save is available only when LESSON_GENERATOR_V2_PERSIST=1 and persist:true."
+      : "Critic fail-closed: incomplete phases and/or assembly/validation issues.",
   };
 
-  // Never save in PR A.
+  // Critic never writes to DB; orchestrator may persist after this returns.
   staged.saved = false;
   if (!ok) {
     staged.finalLesson = null;

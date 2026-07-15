@@ -71,7 +71,7 @@ describe("Lesson Generator V2 Critic + Assembler (PR A)", () => {
     expect(result.phase3Complete).toBe(true);
     expect(result.saved).toBe(false);
     expect(result.criticOk).toBe(true);
-    expect(result.persistenceReady).toBe(false);
+    expect(result.persistenceReady).toBe(true);
 
     const fl = result.finalLesson;
     expect(fl).toBeTruthy();
@@ -101,7 +101,7 @@ describe("Lesson Generator V2 Critic + Assembler (PR A)", () => {
     expect(result.staged.criticReport.ok).toBe(true);
     expect(result.staged.criticReport.assemblyOk).toBe(true);
     expect(result.staged.criticReport.finalValidationOk).toBe(true);
-    expect(result.staged.criticReport.persistenceReady).toBe(false);
+    expect(result.staged.criticReport.persistenceReady).toBe(true);
 
     const afterCount = await Lesson.countDocuments({ "metadata.generator": "v2" });
     expect(afterCount).toBe(beforeCount);
@@ -201,7 +201,7 @@ describe("Lesson Generator V2 Critic + Assembler (PR A)", () => {
     expect(res.body.finalLesson.status).toBe("draft");
     expect(res.body.finalLesson.isPublished).toBe(false);
     expect(res.body.staged.criticReport.ok).toBe(true);
-    expect(res.body.staged.criticReport.persistenceReady).toBe(false);
+    expect(res.body.staged.criticReport.persistenceReady).toBe(true);
     const after = await Lesson.countDocuments({});
     expect(after).toBe(before);
   });

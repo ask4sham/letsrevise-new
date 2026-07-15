@@ -2,10 +2,9 @@
  * Lesson Generator V2 HTTP route — independent of V1 /api/ai/generate-and-save.
  *
  * POST /api/ai/generate-and-save-v2
- * Feature flag: LESSON_GENERATOR_V2_ENABLED=1
- *
- * Phase 1–3 + in-memory finalLesson assembler + critic (PR A).
- * Never saves a lesson to MongoDB in this PR.
+ * Feature flags:
+ * - LESSON_GENERATOR_V2_ENABLED=1 — run pipeline
+ * - LESSON_GENERATOR_V2_PERSIST=1 — allow draft Mongo save when body.persist=true
  */
 
 const express = require("express");
@@ -50,6 +49,7 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
       board,
       topicKey,
       tier,
+      persist,
     } = req.body || {};
 
     const teacherId = req.user?._id ? String(req.user._id) : undefined;
@@ -64,14 +64,17 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
       tier,
       teacherId,
       teacherName,
+      persist,
     });
 
-    // Explicit no-save contract for PR A (and safety net thereafter).
-    if (result.saved) {
+    // Safety: saved without lessonId is never acceptable.
+    if (result.saved && !result.lessonId) {
       return res.status(422).json({
         success: false,
-        msg: "Lesson Generator V2 must not save lessons until persistence PR is enabled.",
-        code: "LESSON_V2_QUALITY_FAILED",
+        msg: "Lesson Generator V2 reported saved without lessonId.",
+        code: "LESSON_V2_PERSIST_FAILED",
+        saved: false,
+        finalLesson: null,
       });
     }
 
@@ -85,17 +88,23 @@ router.post("/generate-and-save-v2", auth, async (req, res) => {
       code === "LESSON_V2_PHASE2_FAILED" ||
       code === "LESSON_V2_PHASE3_FAILED" ||
       code === "LESSON_V2_ASSEMBLY_FAILED" ||
-      code === "LESSON_V2_CRITIC_FAILED"
+      code === "LESSON_V2_CRITIC_FAILED" ||
+      code === "LESSON_V2_PERSIST_DISABLED" ||
+      code === "LESSON_V2_PERSIST_FAILED"
     ) {
-      const mapped =
-        code === "LESSON_V2_PHASE1_FAILED" ||
-        code === "LESSON_V2_PHASE2_FAILED" ||
-        code === "LESSON_V2_PHASE3_FAILED" ||
-        code === "LESSON_V2_ASSEMBLY_FAILED" ||
-        code === "LESSON_V2_CRITIC_FAILED"
-          ? code
-          : "LESSON_V2_QUALITY_FAILED";
-      return res.status(422).json({
+      const mapped = [
+        "LESSON_V2_PHASE1_FAILED",
+        "LESSON_V2_PHASE2_FAILED",
+        "LESSON_V2_PHASE3_FAILED",
+        "LESSON_V2_ASSEMBLY_FAILED",
+        "LESSON_V2_CRITIC_FAILED",
+        "LESSON_V2_PERSIST_DISABLED",
+        "LESSON_V2_PERSIST_FAILED",
+      ].includes(code)
+        ? code
+        : "LESSON_V2_QUALITY_FAILED";
+      const status = code === "LESSON_V2_PERSIST_DISABLED" ? 503 : 422;
+      return res.status(status).json({
         success: false,
         msg: error.message || "Lesson Generator V2 quality failed.",
         code: mapped,
