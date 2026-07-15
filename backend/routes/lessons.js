@@ -21,6 +21,10 @@ const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = r
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
 const { resolveSpecIdentity } = require("../config/specRegistry");
+const {
+  sanitizeCheckpointOrSelfCheckBlock,
+  sanitizePageQuizBlock,
+} = require("../utils/sanitizeActivityBlockQuestions");
 const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const {
@@ -428,88 +432,25 @@ function sanitisePageInput(p, isUpdate = false) {
         else if (compactType === "selfcheck") rawType = "selfCheck";
         else if (compactType === "examquestion") rawType = "examQuestion";
         const type = allowedBlockTypes.includes(rawType) ? rawType : "text";
-        if (type === "checkpoint") {
-          const prompt = typeof b?.prompt === "string" ? b.prompt : "";
-          const options = Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [];
-          const correctAnswer = typeof b?.correctAnswer === "string" ? b.correctAnswer : "";
-          const questionType = b?.questionType === "short" ? "short" : "mcq";
-          const nonEmptyOpts = options.filter((o) => String(o || "").trim());
-          const hasPrompt = String(prompt || "").trim().length > 0;
-          const isValidMcq = questionType === "mcq" ? nonEmptyOpts.length >= 2 && nonEmptyOpts.some((o) => String(o).trim() === String(correctAnswer || "").trim()) : hasPrompt && String(correctAnswer || "").trim().length > 0;
-          if (!hasPrompt || !isValidMcq) {
-            return {
-              type: "checkpoint",
-              prompt: "Which statement is correct?",
-              questionType: "mcq",
-              options: ["Option 1", "Option 2", "Option 3", "Option 4"],
-              correctAnswer: "Option 1",
-              explanation: "",
-            };
+        if (type === "checkpoint" || type === "selfCheck") {
+          const sanitized = sanitizeCheckpointOrSelfCheckBlock(b, type);
+          if (sanitized.error) {
+            const err = new Error(sanitized.error);
+            err.status = 400;
+            err.code = sanitized.code || "ACTIVITY_QUESTION_BANK_INVALID";
+            throw err;
           }
-          const markSchemeBlk = Array.isArray(b?.markScheme)
-            ? b.markScheme.map((x) => String(x).trim()).filter(Boolean).slice(0, 20)
-            : undefined;
-          const explanationTrim =
-            typeof b?.explanation === "string" && b.explanation.trim()
-              ? b.explanation.trim().slice(0, 8000)
-              : undefined;
-          const cpOut = {
-            type: "checkpoint",
-            prompt: prompt.trim(),
-            questionType,
-            options: questionType === "mcq" ? nonEmptyOpts.slice(0, 6) : [],
-            correctAnswer: correctAnswer.trim(),
-            ...(explanationTrim ? { explanation: explanationTrim } : {}),
-            ...(markSchemeBlk && markSchemeBlk.length ? { markScheme: markSchemeBlk } : {}),
-          };
-          if (typeof b?.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
-          return cpOut;
-        }
-        if (type === "selfCheck") {
-          const prompt = typeof b?.prompt === "string" ? b.prompt : "";
-          const options = Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [];
-          const correctAnswer = typeof b?.correctAnswer === "string" ? b.correctAnswer : "";
-          const questionType = b?.questionType === "short" ? "short" : "mcq";
-          const nonEmptyOpts = options.filter((o) => String(o || "").trim());
-          const hasPrompt = String(prompt || "").trim().length > 0;
-          const isValidMcq =
-            questionType === "mcq"
-              ? nonEmptyOpts.length >= 2 &&
-                nonEmptyOpts.some((o) => String(o).trim() === String(correctAnswer || "").trim())
-              : hasPrompt && String(correctAnswer || "").trim().length > 0;
-          if (!hasPrompt || !isValidMcq) {
-            return {
-              type: "selfCheck",
-              prompt: "Which statement is correct?",
-              questionType: "mcq",
-              options: ["Option 1", "Option 2", "Option 3", "Option 4"],
-              correctAnswer: "Option 1",
-              explanation: "",
-            };
-          }
-          const scOut = {
-            type: "selfCheck",
-            prompt: prompt.trim(),
-            questionType,
-            options: questionType === "mcq" ? nonEmptyOpts.slice(0, 6) : [],
-            correctAnswer: correctAnswer.trim(),
-            explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
-          };
-          if (typeof b?.role === "string" && b.role.trim()) scOut.role = b.role.trim();
-          return scOut;
+          return sanitized.block;
         }
         if (type === "pageQuiz") {
-          const qText = typeof b?.question === "string" ? b.question : (typeof b?.prompt === "string" ? b.prompt : "");
-          const pqOut = {
-            type: "pageQuiz",
-            question: qText,
-            questionType: b?.questionType === "short" || b?.type === "shortAnswer" ? "short" : "mcq",
-            options: Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [],
-            correctAnswer: typeof b?.correctAnswer === "string" ? b.correctAnswer : "",
-            explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
-          };
-          if (typeof b?.role === "string" && b.role.trim()) pqOut.role = b.role.trim();
-          return pqOut;
+          const sanitized = sanitizePageQuizBlock(b);
+          if (sanitized.error) {
+            const err = new Error(sanitized.error);
+            err.status = 400;
+            err.code = sanitized.code || "ACTIVITY_QUESTION_BANK_INVALID";
+            throw err;
+          }
+          return sanitized.block;
         }
         if (type === "diagram") {
           const visualId =
@@ -958,7 +899,17 @@ function sanitisePageInput(p, isUpdate = false) {
   const hasValidQuestionMcq = String(checkpoint?.question || "").trim().length > 0;
   const hasEnoughOptionsMcq = nonEmptyOptsMcq.length >= 2;
   const answerMatchesMcq = nonEmptyOptsMcq.some((o) => String(o).trim() === String(checkpoint?.answer || "").trim());
-  if (
+  const hasBlockCheckpointBank = (blocks || []).some(
+    (b) =>
+      b &&
+      b.type === "checkpoint" &&
+      Array.isArray(b.questions) &&
+      b.questions.length > 0
+  );
+  if (hasBlockCheckpointBank) {
+    // V2 / multi-question checkpoint lives on the block — do not invent page.checkpoint Option 1 filler.
+    checkpoint = undefined;
+  } else if (
     !checkpoint ||
     (checkpoint.type !== "shortExplain" &&
       (!hasValidQuestionMcq || !hasEnoughOptionsMcq || !answerMatchesMcq))
@@ -4259,6 +4210,12 @@ router.put("/:id", auth, async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
+    if (err?.code === "ACTIVITY_QUESTION_BANK_INVALID" || err?.status === 400) {
+      return res.status(400).json({
+        msg: err.message || "Invalid activity question bank",
+        code: err.code || "ACTIVITY_QUESTION_BANK_INVALID",
+      });
+    }
     return res.status(500).send("Server error");
   }
 });

@@ -112,6 +112,7 @@ async function persistFinalLessonDraft(finalLesson, ctx = {}) {
       board: safe.board || "",
       tier: safe.tier || undefined,
       topicKey: safe.topicKey || null,
+      specKey: safe.specKey || undefined,
       pages: safe.pages || [],
       quiz: safe.quiz || { questions: [] },
       status: "draft",

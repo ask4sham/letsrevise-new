@@ -14,6 +14,7 @@ const { assembleFinalLesson } = require("./assembleFinalLesson");
 const { validateFinalLesson } = require("./validateFinalLesson");
 const { runCriticBrain } = require("./criticBrain");
 const { persistFinalLessonDraft } = require("./persistFinalLessonDraft");
+const { resolveSpecIdentity } = require("../../config/specRegistry");
 
 class LessonV2QualityError extends Error {
   constructor(message, details = {}) {
@@ -47,13 +48,23 @@ function rethrowPhaseError(error) {
  * @param {{ topic: string, subject: string, level: string, board?: string, topicKey?: string, tier?: string, teacherId?: string, teacherName?: string, persist?: boolean, phase1Override?: object, phase2Override?: object, phase3Override?: object }} input
  */
 async function runLessonGeneratorV2Scaffold(input = {}) {
+  const topic = String(input.topic || "").trim();
+  const topicKey = String(input.topicKey || "").trim();
+  const identity = resolveSpecIdentity({
+    topicKey,
+    board: input.board,
+    subject: input.subject,
+    level: input.level,
+    topic,
+  });
   const ctx = {
-    topic: String(input.topic || "").trim(),
-    subject: String(input.subject || "").trim(),
-    level: String(input.level || "").trim(),
-    board: String(input.board || "").trim(),
-    topicKey: String(input.topicKey || "").trim(),
+    topic,
+    subject: String(identity.subject || input.subject || "").trim(),
+    level: String(identity.level || input.level || "").trim(),
+    board: String(identity.board || input.board || "").trim(),
+    topicKey,
     tier: String(input.tier || "").trim(),
+    specKey: String(identity.specKey || "").trim(),
   };
 
   if (!ctx.topic || !ctx.subject || !ctx.level) {

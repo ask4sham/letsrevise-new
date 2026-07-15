@@ -25,6 +25,7 @@ function createEmptyStagedOutput(ctx = {}) {
     board: String(ctx.board || "").trim(),
     topicKey: String(ctx.topicKey || "").trim(),
     tier: String(ctx.tier || "").trim(),
+    specKey: String(ctx.specKey || "").trim(),
     createdAt: new Date().toISOString(),
     pipeline: "lesson-generator-v2",
     version: "phase4-persist-0.1",

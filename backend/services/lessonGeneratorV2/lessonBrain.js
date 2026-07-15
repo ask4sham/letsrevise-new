@@ -11,6 +11,7 @@
 const { STAGE_STATUS } = require("./schemas");
 const { PHASE1_REQUIRED_PLACEHOLDERS } = require("./placeholders");
 const { validatePhase1Lesson } = require("./validatePhase1Lesson");
+const { resolveSpecIdentity } = require("../../config/specRegistry");
 
 function titleCaseTopic(topic) {
   return String(topic || "")
@@ -285,10 +286,20 @@ function buildPhase1Lesson(ctx, opts = {}) {
   }
 
   const topic = titleCaseTopic(ctx.topic);
-  const subject = String(ctx.subject || "Biology").trim();
-  const level = String(ctx.level || "GCSE").trim();
-  const examBoard = String(ctx.board || ctx.examBoard || "AQA").trim();
+  const identity = resolveSpecIdentity({
+    topicKey: ctx.topicKey,
+    board: ctx.board || ctx.examBoard,
+    subject: ctx.subject,
+    level: ctx.level,
+    topic: ctx.topic,
+  });
+  const subject = String(identity.subject || ctx.subject || "Biology").trim();
+  // Prefer taxonomy identity (e.g. IGCSE from edexcel-igcse-biology:*) over form defaults.
+  const level = String(identity.level || ctx.level || "").trim() || "GCSE";
+  const examBoard = String(identity.board || ctx.board || ctx.examBoard || "").trim() || "AQA";
   const tier = String(ctx.tier || "").trim();
+  const topicKey = String(ctx.topicKey || "").trim();
+  const specKey = String(identity.specKey || "").trim();
   const pack = resolveTopicPack(topic);
 
   return {
@@ -300,7 +311,8 @@ function buildPhase1Lesson(ctx, opts = {}) {
     board: examBoard,
     level,
     tier,
-    topicKey: String(ctx.topicKey || "").trim(),
+    topicKey,
+    specKey: specKey || undefined,
     objectives: pack.objectives,
     priorKnowledge: pack.priorKnowledge,
     sections: pack.sections,
