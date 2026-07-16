@@ -144,6 +144,12 @@ app.use("/api/lessons", require("./routes/lessonRevisionPackExport.routes"));
 app.use("/api/lessons", require("./routes/lessons"));
 app.use("/api/teachers", require("./routes/teachers"));
 
+// Lesson Synthesiser draft receiver (scoped service token; draft-only; isolated from POST /api/lessons).
+app.use(
+  "/api/lesson-synthesiser",
+  require("./routes/lessonSynthesiserDrafts")
+);
+
 // Phase 9D: reviews (lesson workflow approve/reject)
 app.use("/api/reviews", require("./routes/reviews"));
 
