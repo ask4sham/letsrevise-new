@@ -31,8 +31,17 @@ function fromRecord(q: Record<string, unknown>): ActivityQuestionItem | null {
   const prompt = String(q.prompt ?? q.question ?? q.questionText ?? q.stem ?? "").trim();
   if (!prompt) return null;
   const options = nonEmptyOptions(q.options);
+  const typeHint = String(q.questionType ?? q.type ?? "").toLowerCase();
   const questionType: "mcq" | "short" =
-    String(q.questionType ?? "").toLowerCase() === "short" || options.length < 2 ? "short" : "mcq";
+    typeHint === "short"
+      ? "short"
+      : typeHint === "mcq"
+        ? options.length >= 2
+          ? "mcq"
+          : "short"
+        : options.length < 2
+          ? "short"
+          : "mcq";
   const correctAnswer = String(q.correctAnswer ?? q.answer ?? "").trim();
   if (questionType === "mcq" && options.length < 2) return null;
   return {
