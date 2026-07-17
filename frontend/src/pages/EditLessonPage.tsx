@@ -173,6 +173,10 @@ import {
 } from "../utils/parseFlexibleCheckpointPaste";
 import { withPreservedActivityQuestions } from "../utils/activityQuestionBankRoundTrip";
 import {
+  resolveActivityPreviewQuestion,
+  withEditorCompatFromActivityBank,
+} from "../utils/activityBankEditorCompat";
+import {
   getHotspotLetter,
   isInteractiveDiagramHotspotPlaced,
   normalizeInteractiveDiagramHotspot,
@@ -1638,7 +1642,12 @@ const EditLessonPage: React.FC = () => {
                     if (ms.length) out.markScheme = ms;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
-                  return withPreservedActivityQuestions(out, b);
+                  // Synthesiser banks: fill empty legacy fields from questions[] for existing form UI.
+                  const compat = withEditorCompatFromActivityBank(out, b);
+                  if (compat.questionType === "mcq") {
+                    compat.options = [...coerceLessonMcqOptionsFour(compat.options)];
+                  }
+                  return compat;
                 }
                 if (normalizeBlockType(String(b?.type ?? "")) === "selfCheck") {
                   /** Editor + student render `prompt`; DB may store stem in `question` only (pageQuiz-parity fields). */
@@ -1661,7 +1670,11 @@ const EditLessonPage: React.FC = () => {
                     if (ms.length) out.markScheme = ms;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
-                  return withPreservedActivityQuestions(out, b);
+                  const compat = withEditorCompatFromActivityBank(out, b);
+                  if (compat.questionType === "mcq") {
+                    compat.options = [...selfCheckMcqOptionsForEditorHydrate(compat.options)];
+                  }
+                  return compat;
                 }
                 if (b?.type === "pageQuiz") {
                   const mergedStem = safeStr(
@@ -1680,7 +1693,7 @@ const EditLessonPage: React.FC = () => {
                     explanation: safeStr(b.explanation, ""),
                   } as Record<string, unknown>;
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
-                  return withPreservedActivityQuestions(out, b);
+                  return withEditorCompatFromActivityBank(out, b);
                 }
                 if (b?.type === "diagram") {
                   const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
@@ -10221,12 +10234,45 @@ const EditLessonPage: React.FC = () => {
                         correctAnswer?: string;
                         explanation?: string;
                         markScheme?: string[];
+                        questions?: unknown;
                       };
                       const cpPg = currentPage?.checkpoint;
-                      const q = safeStr(cb.prompt ?? cpPg?.question, "");
-                      const optsB = [...coerceLessonMcqOptionsFour(cb.options)];
+                      const bankPreview = resolveActivityPreviewQuestion(b);
+                      const q = safeStr(
+                        bankPreview?.prompt ?? cb.prompt ?? cpPg?.question,
+                        ""
+                      );
+                      const optsB = [
+                        ...coerceLessonMcqOptionsFour(
+                          bankPreview?.questionType === "mcq"
+                            ? bankPreview.options
+                            : cb.options
+                        ),
+                      ];
                       const optsCp = [...coerceLessonMcqOptionsFour(cpPg?.options)];
-                      const useOpts = optsB.filter(Boolean).length >= 2 ? optsB : optsCp;
+                      const useOpts =
+                        bankPreview?.questionType === "mcq" && bankPreview.options.length >= 2
+                          ? [...coerceLessonMcqOptionsFour(bankPreview.options)]
+                          : optsB.filter(Boolean).length >= 2
+                            ? optsB
+                            : optsCp;
+                      const answer = safeStr(
+                        bankPreview?.correctAnswer ?? cb.correctAnswer ?? cpPg?.answer,
+                        ""
+                      );
+                      const explanation =
+                        safeStr(
+                          bankPreview?.explanation ?? cb.explanation ?? cpPg?.explanation,
+                          ""
+                        ) || undefined;
+                      const markScheme =
+                        Array.isArray(bankPreview?.markScheme)
+                          ? bankPreview!.markScheme
+                          : Array.isArray(cb.markScheme)
+                            ? cb.markScheme
+                            : Array.isArray(cpPg?.markScheme)
+                              ? cpPg.markScheme
+                              : undefined;
                       return (
                         <div
                           key={`${currentPage!.pageId}_prev_${idx}`}
@@ -10244,17 +10290,9 @@ const EditLessonPage: React.FC = () => {
                           <CheckpointCard
                             question={q}
                             options={useOpts}
-                            answer={safeStr(cb.correctAnswer ?? cpPg?.answer, "")}
-                            explanation={
-                              safeStr(cb.explanation ?? cpPg?.explanation, "") || undefined
-                            }
-                            markScheme={
-                              Array.isArray(cb.markScheme)
-                                ? cb.markScheme
-                                : Array.isArray(cpPg?.markScheme)
-                                  ? cpPg.markScheme
-                                  : undefined
-                            }
+                            answer={answer}
+                            explanation={explanation}
+                            markScheme={markScheme}
                           />
                         </div>
                       );
@@ -10267,7 +10305,20 @@ const EditLessonPage: React.FC = () => {
                         correctAnswer?: string;
                         explanation?: string;
                         markScheme?: string[];
+                        questions?: unknown;
                       };
+                      const bankPreview = resolveActivityPreviewQuestion(b);
+                      const previewType =
+                        bankPreview?.questionType === "short" ||
+                        (!bankPreview && sb.questionType === "short")
+                          ? "short"
+                          : "mcq";
+                      const previewOptions =
+                        bankPreview?.questionType === "mcq"
+                          ? bankPreview.options
+                          : Array.isArray(sb.options)
+                            ? sb.options
+                            : [];
                       return (
                         <div
                           key={`${currentPage!.pageId}_prev_${idx}`}
@@ -10283,14 +10334,84 @@ const EditLessonPage: React.FC = () => {
                           }}
                         >
                           <InlineSelfCheckBlock
-                            prompt={safeStr(sb.prompt, "")}
-                            questionType={sb.questionType === "short" ? "short" : "mcq"}
-                            options={Array.isArray(sb.options) ? sb.options : []}
-                            correctAnswer={safeStr(sb.correctAnswer, "")}
+                            prompt={safeStr(bankPreview?.prompt ?? sb.prompt, "")}
+                            questionType={previewType}
+                            options={previewOptions}
+                            correctAnswer={safeStr(
+                              bankPreview?.correctAnswer ?? sb.correctAnswer,
+                              ""
+                            )}
                             explanation={mergeCheckpointExplanationParts({
-                              explanation: sb.explanation != null ? String(sb.explanation) : undefined,
-                              markScheme: Array.isArray(sb.markScheme) ? sb.markScheme : undefined,
+                              explanation:
+                                bankPreview?.explanation != null
+                                  ? String(bankPreview.explanation)
+                                  : sb.explanation != null
+                                    ? String(sb.explanation)
+                                    : undefined,
+                              markScheme: Array.isArray(bankPreview?.markScheme)
+                                ? bankPreview!.markScheme
+                                : Array.isArray(sb.markScheme)
+                                  ? sb.markScheme
+                                  : undefined,
                             })}
+                          />
+                        </div>
+                      );
+                    }
+                    if (blockType === "pageQuiz") {
+                      const bankPreview = resolveActivityPreviewQuestion(b);
+                      const pq = b as {
+                        prompt?: string;
+                        question?: string;
+                        questionType?: string;
+                        options?: string[];
+                        correctAnswer?: string;
+                        explanation?: string;
+                      };
+                      const previewType =
+                        bankPreview?.questionType === "short" ||
+                        (!bankPreview && pq.questionType === "short")
+                          ? "short"
+                          : "mcq";
+                      const previewOptions =
+                        bankPreview?.questionType === "mcq"
+                          ? bankPreview.options
+                          : Array.isArray(pq.options)
+                            ? pq.options
+                            : [];
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          <InlineSelfCheckBlock
+                            headingLabel="Page quiz"
+                            prompt={safeStr(
+                              bankPreview?.prompt ?? pq.prompt ?? pq.question,
+                              ""
+                            )}
+                            questionType={previewType}
+                            options={previewOptions}
+                            correctAnswer={safeStr(
+                              bankPreview?.correctAnswer ?? pq.correctAnswer,
+                              ""
+                            )}
+                            explanation={
+                              bankPreview?.explanation != null
+                                ? String(bankPreview.explanation)
+                                : pq.explanation != null
+                                  ? String(pq.explanation)
+                                  : undefined
+                            }
                           />
                         </div>
                       );

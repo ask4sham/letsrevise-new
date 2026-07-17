@@ -29,7 +29,7 @@ function asTrimmedString(v: unknown): string {
 export function normalizeActivityBankQuestion(raw: unknown, index = 0): ActivityBankQuestion | null {
   if (!raw || typeof raw !== "object") return null;
   const q = raw as Record<string, unknown>;
-  const prompt = asTrimmedString(q.prompt || q.question);
+  const prompt = asTrimmedString(q.prompt || q.question || q.stem);
   if (!prompt) return null;
 
   const questionTypeRaw = asTrimmedString(q.questionType || q.type).toLowerCase();
@@ -38,6 +38,7 @@ export function normalizeActivityBankQuestion(raw: unknown, index = 0): Activity
     ? q.options.map((o) => asTrimmedString(o)).filter(Boolean)
     : [];
 
+  const correctAnswer = asTrimmedString(q.correctAnswer ?? q.answer);
   const out: ActivityBankQuestion = {
     id: asTrimmedString(q.id) || `q${index + 1}`,
     prompt,
@@ -45,8 +46,14 @@ export function normalizeActivityBankQuestion(raw: unknown, index = 0): Activity
     questionType,
     type: questionType,
     options: questionType === "mcq" ? options : [],
-    correctAnswer: asTrimmedString(q.correctAnswer ?? q.answer),
+    correctAnswer,
   };
+
+  const stem = asTrimmedString(q.stem);
+  if (stem) out.stem = stem;
+
+  const answer = asTrimmedString(q.answer ?? q.correctAnswer);
+  if (answer) out.answer = answer;
 
   const purpose = asTrimmedString(q.purpose);
   if (purpose) out.purpose = purpose;
@@ -60,6 +67,16 @@ export function normalizeActivityBankQuestion(raw: unknown, index = 0): Activity
 
   const explanation = asTrimmedString(q.explanation);
   if (explanation) out.explanation = explanation;
+
+  if (Array.isArray(q.markScheme)) {
+    const ms = q.markScheme.map((x) => asTrimmedString(x)).filter(Boolean);
+    if (ms.length) out.markScheme = ms;
+  }
+
+  if (Array.isArray(q.sourceIds)) {
+    const ids = q.sourceIds.map((x) => asTrimmedString(x)).filter(Boolean);
+    if (ids.length) out.sourceIds = ids;
+  }
 
   if (q.metadata && typeof q.metadata === "object") {
     out.metadata = q.metadata as Record<string, unknown>;
