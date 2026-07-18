@@ -1,6 +1,6 @@
 // /frontend/src/App.tsx
 // PR-AUTH-UI-2: ProtectedRoute/RoleBasedRedirect use useCurrentUser (no direct localStorage auth reads).
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { clearAuth as clearAuthStorage } from "./utils/authStorage";
@@ -161,21 +161,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireTeacherOrAdmin = false,
   requireAdminOrContentManager = false,
 }) => {
-  const { token, user, refresh } = useCurrentUser({ watchLocation: true });
+  const { token, user } = useCurrentUser({ watchLocation: true });
   const auth = token && user ? { token, user } : null;
-
-  if (!auth) {
-    clearAuthStorage();
-    refresh();
-    return <Navigate to="/login" replace />;
-  }
-
   const userType = user?.userType as UserType | undefined;
   const staffRole = (user as { staffRole?: string })?.staffRole;
+  const userTypeInvalid =
+    !!auth &&
+    (!userType || !["student", "teacher", "parent", "admin"].includes(userType));
 
-  // If userType is missing/invalid, treat as logged out
-  if (!userType || !["student", "teacher", "parent", "admin"].includes(userType)) {
-    clearAuthStorage();
+  // Never clearAuth/refresh during render (causes "Too many re-renders").
+  // Token validation in useCurrentUser already clears invalid sessions.
+  useEffect(() => {
+    if (userTypeInvalid) clearAuthStorage();
+  }, [userTypeInvalid]);
+
+  if (!auth || userTypeInvalid) {
     return <Navigate to="/login" replace />;
   }
 
@@ -206,12 +206,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 ========================= */
 
 const RoleBasedRedirect: React.FC = () => {
-  const { token, user, refresh } = useCurrentUser({ watchLocation: true });
+  const { token, user } = useCurrentUser({ watchLocation: true });
   const auth = token && user ? { token, user } : null;
 
+  // No clearAuth/refresh during render — navigate only.
   if (!auth) {
-    clearAuthStorage();
-    refresh();
     return <Navigate to="/login" replace />;
   }
 
