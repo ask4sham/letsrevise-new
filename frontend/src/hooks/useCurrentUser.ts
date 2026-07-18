@@ -9,6 +9,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { readAuth as readAuthStorage, clearAuth } from "../utils/authStorage";
 import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+import { getApiHost } from "../services/api";
+
+/** Same API host as axios (`REACT_APP_API_BASE` / proxy). Never force window.location.origin. */
+function usersMeUrl(): string {
+  const host = getApiHost().replace(/\/+$/, "");
+  return host ? `${host}/api/users/me` : "/api/users/me";
+}
 
 export interface CurrentUser {
   _id?: string;
@@ -53,15 +60,12 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
     refresh();
   }, [refresh]);
 
-  // Validate token when we have one — clears stale auth so user sees public home
+  // Validate token when we have one — clears stale auth so user sees public home.
+  // Must use the same API host as axios (staging/local/prod), not the UI origin.
   useEffect(() => {
     const { token } = readAuth();
     if (!token) return;
-    const url =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/api/users/me`
-        : "";
-    if (!url) return;
+    const url = usersMeUrl();
     let cancelled = false;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (res) => {
