@@ -273,6 +273,74 @@ describe("Lesson Synthesiser draft receiver", () => {
     ).toBe(true);
   });
 
+  test("27b: accepts V1 Learn interactive teaching blocks", async () => {
+    const payload = getLessonSynthesiserPr10DraftFixture();
+    payload.draft.pages[0].blocks.push(
+      {
+        type: "dragDropMatch",
+        title: "Match gamete terms",
+        intro: "Learning match — not a scored quiz.",
+        matchMode: "text",
+        pairs: [
+          {
+            id: "p1",
+            prompt: "Specialised sex cell",
+            answer: "Gamete",
+          },
+        ],
+      },
+      {
+        type: "interactiveSequence",
+        title: "Fertilisation steps",
+        sequenceSteps: [
+          {
+            id: "s1",
+            title: "Haploid gametes",
+            description: "Each gamete has half the chromosome number.",
+          },
+        ],
+      },
+      {
+        type: "interactiveDiagram",
+        title: "Sperm egg zygote",
+        imageUrl: "",
+        hotspots: [
+          {
+            id: "h1",
+            x: 20,
+            y: 40,
+            label: "Sperm",
+            description: "Male gamete",
+          },
+        ],
+      }
+    );
+    const res = await request(app)
+      .post("/api/lesson-synthesiser/drafts")
+      .set(authHeader())
+      .send(payload);
+    expect(res.status).toBe(201);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.status).toBe("draft");
+    expect(res.body.isPublished).toBe(false);
+    const Lesson = require("../models/Lesson");
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    const types = (lesson.pages || [])
+      .flatMap((p) => p.blocks || [])
+      .map((b) => b.type);
+    expect(types).toEqual(
+      expect.arrayContaining([
+        "dragDropMatch",
+        "interactiveSequence",
+        "interactiveDiagram",
+      ])
+    );
+    const drag = (lesson.pages || [])
+      .flatMap((p) => p.blocks || [])
+      .find((b) => b.type === "dragDropMatch");
+    expect(drag.pairs?.[0]?.answer).toBe("Gamete");
+  });
+
   test("28: rejects imageActivity block type", async () => {
     const payload = getLessonSynthesiserPr10DraftFixture();
     payload.draft.pages[0].blocks.push({
