@@ -5037,6 +5037,8 @@ const LessonViewPage: React.FC = () => {
                     specKey={specKey}
                     topicKey={studentTutorTopicKey}
                     lessonId={id || undefined}
+                    lessonTitle={lesson?.title ? String(lesson.title) : undefined}
+                    pageTitle={currentPage?.title ? String(currentPage.title) : undefined}
                     suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
                   />
                 )}
@@ -6043,6 +6045,7 @@ const LessonViewPage: React.FC = () => {
               specKey={specKey}
               topicKey={studentTutorTopicKey}
               lessonId={id || undefined}
+              lessonTitle={lesson?.title ? String(lesson.title) : undefined}
               suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
             />
           </>

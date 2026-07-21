@@ -14,6 +14,12 @@ import { Link } from "react-router-dom";
 import { CitationsList } from "./CitationsList";
 import { InlineDiagramBlock } from "./InlineDiagramBlock";
 import { SuggestedActionsBar } from "./SuggestedActionsBar";
+import {
+  buildLessonNativeStarterChips,
+  buildStudentTutorHeading,
+  buildStudentTutorPlaceholder,
+  buildStudentTutorSubcopy,
+} from "../../utils/askAiStudentLessonNative";
 
 /** Learning reinforcement (not grading) — full string sent as the next enquiry in-thread. */
 const LEARNING_FOLLOW_UPS: { label: string; prompt: string }[] = [
@@ -36,6 +42,9 @@ type Props = {
   topicKey: string;
   specKey: string;
   lessonId?: string;
+  /** Slice 3 — display/prompt context only (not sent as separate API fields). */
+  lessonTitle?: string;
+  pageTitle?: string;
   /** When true, skip auto-scroll to messages end (e.g. preview entry, keeps lesson at top) */
   suppressAutoScroll?: boolean;
 };
@@ -85,7 +94,19 @@ function toLatestPair(messages: ChatMessage[]): ChatMessage[] {
   return [last];
 }
 
-export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScroll = false }: Props) {
+export function AskAiStudentPanel({
+  topicKey,
+  specKey,
+  lessonId,
+  lessonTitle,
+  pageTitle,
+  suppressAutoScroll = false,
+}: Props) {
+  const heading = buildStudentTutorHeading(pageTitle, lessonTitle);
+  const subcopy = buildStudentTutorSubcopy(pageTitle, lessonTitle);
+  const placeholder = buildStudentTutorPlaceholder(pageTitle, lessonTitle);
+  const lessonNativeChips = buildLessonNativeStarterChips(pageTitle, lessonTitle);
+
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationInitFailed, setConversationInitFailed] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -273,11 +294,10 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 8, color: "#166534", fontSize: "1.1rem" }}>
-        Ask for help on this topic
+        {heading}
       </div>
       <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#15803d" }}>
-        Ask a question about this lesson… Tutor actions and follow-ups still use the same thread; only your latest
-        exchange is shown here.
+        {subcopy}
       </p>
 
       <div style={{ marginBottom: 12 }}>
@@ -391,6 +411,37 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
         </div>
       )}
 
+      {/* Slice 3: lesson/page-named starters (before generic tutor actions) */}
+      {lessonNativeChips.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#64748b",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: 6,
+            }}
+          >
+            About this lesson
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {lessonNativeChips.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => sendTutorPrompt(chip.prompt, "explain")}
+                disabled={loading || !canSend}
+                style={tutorChipStyle(loading || !canSend)}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* PR-033: Tutor action chips — one-tap follow-ups */}
       <div style={{ marginBottom: 12 }}>
         <div
@@ -465,7 +516,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
           id="lesson-ask-ai-tutor-input"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="e.g. What do I need to know about…? / Explain simpler"
+          placeholder={placeholder}
           rows={2}
           disabled={loading || !canSend}
           maxLength={500}
