@@ -7160,9 +7160,13 @@ const EXPLAIN_CHUNK_MAX_TEXT_LENGTH = 4000;
  * @returns {Promise<string>} Assistant content
  */
 async function callOpenAIChat(systemPrompt, userPrompt, maxTokens = 800) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("Missing OPENAI_API_KEY in environment");
-  const model = safeStr(process.env.OPENAI_MODEL, "gpt-4o-mini");
+  const apiKey = String(process.env.OPENAI_API_KEY || process.env.LLM_API_KEY || "").trim();
+  if (!apiKey) {
+    const err = new Error("LLM_API_KEY or OPENAI_API_KEY is required for lesson asset generation");
+    err.code = "LLM_NOT_CONFIGURED";
+    throw err;
+  }
+  const model = safeStr(process.env.OPENAI_MODEL || process.env.LLM_MODEL, "gpt-4o-mini");
   const resp = await axios.post(
     "https://api.openai.com/v1/chat/completions",
     {
@@ -7270,6 +7274,12 @@ router.post("/explain-chunk", auth, async (req, res) => {
     });
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
+    if (err.code === "LLM_NOT_CONFIGURED") {
+      return res.status(503).json({
+        error: err.message || "LLM_API_KEY or OPENAI_API_KEY is required for lesson asset generation",
+        code: "LLM_NOT_CONFIGURED",
+      });
+    }
     console.error("POST /api/ai/explain-chunk error:", err.message);
     return sendInternalError("ai/explain-chunk", err, res, {
       extra: { error: "Failed to get explanation" },
@@ -8204,12 +8214,15 @@ router.post("/inject-teacher-brain-briefs", auth, async (req, res) => {
 
 // @route   GET /api/ai/health
 router.get("/health", (req, res) => {
-  const hasKey = !!process.env.OPENAI_API_KEY;
+  const hasKey = !!(
+    String(process.env.OPENAI_API_KEY || "").trim() ||
+    String(process.env.LLM_API_KEY || "").trim()
+  );
   res.json({
     status: hasKey ? "OK" : "ERROR",
     message: hasKey ? "AI service is configured" : "Missing OpenAI API key",
     hasOpenAIKey: hasKey,
-    model: safeStr(process.env.OPENAI_MODEL, "gpt-4o-mini"),
+    model: safeStr(process.env.OPENAI_MODEL || process.env.LLM_MODEL, "gpt-4o-mini"),
   });
 });
 

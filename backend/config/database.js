@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
-const dotenv = require("dotenv");
+const { loadBackendEnv } = require("./loadEnv");
 const { IS_PRODUCTION } = require("../utils/safeErrorResponse");
 
-dotenv.config();
+loadBackendEnv();
 
 /** Mask password in mongodb+srv:// or mongodb:// URIs for logs */
 function maskMongoUri(uri) {

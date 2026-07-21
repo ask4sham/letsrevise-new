@@ -5,6 +5,7 @@
 import { deriveLessonRetrieval } from "./deriveLessonRetrieval";
 import {
   buildQuizVariantsFromCheckpoints,
+  buildEndOfLessonVariantsFromCheckpoints,
   buildRevisionVariantsFromCheckpoints,
   collectCheckpointMcqsFromPages,
   filterQuizRecordsNotMatchingCheckpoints,
@@ -41,9 +42,41 @@ export type LayerQuizQuestion = {
 function inferStoredSource(raw: Record<string, unknown>): QuestionSource {
   const tags = Array.isArray(raw.tags) ? raw.tags.map(String) : [];
   const meta = raw.metadata && typeof raw.metadata === "object" ? (raw.metadata as Record<string, unknown>) : {};
+  if (tags.some((t) => /page-quiz|pagequiz/i.test(t)) || meta.source === "pageQuiz") return "quiz";
   if (tags.some((t) => /ai/i.test(t)) || meta.source === "ai_lesson_assets") return "ai-generated";
   if (tags.some((t) => /topic-bank|auto-attached/i.test(t))) return "topic-bank";
   return "quiz";
+}
+
+function isPageQuizTagged(raw: Record<string, unknown>): boolean {
+  const tags = Array.isArray(raw.tags) ? raw.tags.map(String) : [];
+  if (tags.some((t) => /page-quiz|pagequiz/i.test(t))) return true;
+  const meta = raw.metadata && typeof raw.metadata === "object" ? (raw.metadata as Record<string, unknown>) : {};
+  return meta.source === "pageQuiz" || String(raw.sourceType || "").toLowerCase() === "pagequiz";
+}
+
+function excludeFingerprints(questions: LayerQuizQuestion[]): Set<string> {
+  const seen = new Set<string>();
+  for (const q of questions) {
+    seen.add(mcqFingerprintFromRecord(q));
+    const stem = normalizeQuestionStem(q.question);
+    if (stem) seen.add(`stem:${stem}`);
+  }
+  return seen;
+}
+
+function conflictsExcludedPool(
+  q: LayerQuizQuestion,
+  excluded: LayerQuizQuestion[],
+  opts?: { strictPair?: boolean }
+): boolean {
+  const strictPair = opts?.strictPair !== false;
+  return excluded.some((ex) => {
+    if (mcqFingerprintFromRecord(ex) === mcqFingerprintFromRecord(q)) return true;
+    if (normalizeQuestionStem(ex.question) === normalizeQuestionStem(q.question)) return true;
+    if (!strictPair) return false;
+    return isDuplicateMcqPair(q, { question: ex.question, correctAnswer: ex.correctAnswer });
+  });
 }
 
 function recordToLayer(
@@ -133,6 +166,8 @@ export function buildRevisionPracticePool(
 
   const bankFiltered = filterQuizRecordsNotMatchingCheckpoints(storedQuiz, checkpoints);
   for (let i = 0; i < bankFiltered.length && out.length < max; i++) {
+    // Page-quiz bank belongs to Quiz Page — do not reuse it as revision practice.
+    if (isPageQuizTagged(bankFiltered[i])) continue;
     const layer = recordToLayer(bankFiltered[i], inferStoredSource(bankFiltered[i]), "rev-bank", i);
     if (!layer || conflictsCheckpoint(layer, checkpoints)) continue;
     pushUnique(out, seen, layer);
@@ -190,6 +225,65 @@ export function buildQuizPagePool(
     const layer = variantToLayer(v, "variant-generated", pageId);
     if (conflictsQuizLayer(layer, checkpoints, revisionPractice)) continue;
     pushUnique(out, seen, layer);
+  }
+
+  return out;
+}
+
+/**
+ * End-of-lesson test: must never repeat Quiz Page / revision stems.
+ * Prefers topic-bank / END items; otherwise builds differently seeded variants.
+ */
+export function buildEndOfLessonQuizPool(
+  pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>,
+  storedQuiz: Array<Record<string, unknown>>,
+  pageQuizQuestions: LayerQuizQuestion[],
+  revisionPractice: LayerQuizQuestion[],
+  opts?: { max?: number }
+): LayerQuizQuestion[] {
+  const max = opts?.max ?? 8;
+  const checkpoints = collectCheckpointMcqsFromPages(pages);
+  const excluded = [...pageQuizQuestions, ...revisionPractice];
+  const seen = excludeFingerprints(excluded);
+  const out: LayerQuizQuestion[] = [];
+
+  const prefer = storedQuiz.filter((q) => {
+    if (isPageQuizTagged(q)) return false;
+    const pid = String(q.pageId ?? "").trim();
+    const source = inferStoredSource(q);
+    if (source === "topic-bank" || source === "ai-generated") return true;
+    if (pid === "END") return true;
+    // Unscoped items that are not page-quiz tagged may still be end-of-lesson bank.
+    if (!pid && !isPageQuizTagged(q)) return true;
+    return false;
+  });
+
+  for (let i = 0; i < prefer.length && out.length < max; i++) {
+    const layer = recordToLayer(prefer[i], inferStoredSource(prefer[i]), "eol-bank", i);
+    if (!layer) continue;
+    if (conflictsCheckpoint(layer, checkpoints)) continue;
+    // Strict against Quiz Page; stem-only against revision so EOL can still fill.
+    if (conflictsExcludedPool(layer, pageQuizQuestions, { strictPair: true })) continue;
+    if (conflictsExcludedPool(layer, revisionPractice, { strictPair: false })) continue;
+    pushUnique(out, seen, { ...layer, questionSource: layer.questionSource === "quiz" ? "topic-bank" : layer.questionSource });
+  }
+
+  // Differently seeded variants ONLY when Quiz Page has no bank items yet.
+  // Prefer an empty EOL over paraphrasing the same checkpoint set (repeat questions).
+  if (pageQuizQuestions.length === 0) {
+    for (const v of buildEndOfLessonVariantsFromCheckpoints(checkpoints, max)) {
+      if (out.length >= max) break;
+      let stem = String(v.question || "").trim();
+      if (!/^end-of-lesson\b/i.test(stem)) {
+        stem = `End-of-lesson: ${stem.replace(/^\?+/, "").trim()}`;
+      }
+      if (!stem.endsWith("?")) stem = `${stem.replace(/\?+$/, "")}?`;
+      const layer = variantToLayer({ ...v, question: stem }, "variant-generated");
+      if (conflictsExcludedPool(layer, pageQuizQuestions, { strictPair: true })) continue;
+      if (conflictsExcludedPool(layer, revisionPractice, { strictPair: false })) continue;
+      if (conflictsExcludedPool(layer, out, { strictPair: false })) continue;
+      pushUnique(out, seen, layer);
+    }
   }
 
   return out;

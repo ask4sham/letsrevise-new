@@ -95,6 +95,11 @@ import {
   lessonMetaFromExport,
 } from "../utils/lessonGeneratorImport";
 import {
+  isLearnTeachingPage,
+  stripLearnPageTestingBlocks,
+  emptyPageQuizBankEditorWarning,
+} from "../utils/lessonPageGuards";
+import {
   coerceLessonMcqOptionsFour,
   lessonCheckpointWholeCellPaste,
   tryParseFlexibleCheckpointMcq,
@@ -514,7 +519,7 @@ const CreateLessonPage: React.FC = () => {
 
   /** Per block `pageId:idx`: AI drag-drop pair generation (Create flow) */
   const [dragDropPairAiUi, setDragDropPairAiUi] = useState<
-    Record<string, { loading: boolean; message: "error" | "empty" | null }>
+    Record<string, { loading: boolean; message: string | null }>
   >({});
   const [dragDropAiTopicPrompt, setDragDropAiTopicPrompt] = useState<Record<string, string>>({});
   const [dragDropDiagramPlacingId, setDragDropDiagramPlacingId] = useState<Record<string, string | null>>({});
@@ -690,7 +695,9 @@ const CreateLessonPage: React.FC = () => {
       if (meta.tier === "foundation" || meta.tier === "higher") {
         setFormData((prev) => ({
           ...prev,
-          ...(prev.level === "GCSE" ? { tier: meta.tier } : {}),
+          ...(prev.level === "GCSE" || prev.level === "IGCSE"
+            ? { tier: meta.tier }
+            : {}),
         }));
       }
 
@@ -742,15 +749,17 @@ const CreateLessonPage: React.FC = () => {
                   typeof row.hero.caption === "string" ? row.hero.caption : undefined,
               }
             : { type: "none", src: "", caption: "" },
-        checkpoint: {
-          question: row.checkpoint.question,
-          options: clampOptions(row.checkpoint.options),
-          answer: row.checkpoint.answer,
-          explanation: safeStr(row.checkpoint.explanation),
-          markScheme: Array.isArray(row.checkpoint.markScheme)
-            ? [...row.checkpoint.markScheme]
-            : [],
-        },
+        checkpoint: row.checkpoint
+          ? {
+              question: row.checkpoint.question,
+              options: clampOptions(row.checkpoint.options),
+              answer: row.checkpoint.answer,
+              explanation: safeStr(row.checkpoint.explanation),
+              markScheme: Array.isArray(row.checkpoint.markScheme)
+                ? [...row.checkpoint.markScheme]
+                : [],
+            }
+          : { question: "", options: ["", "", "", ""], answer: "", explanation: "", markScheme: [] },
         blocks: (row.blocks ?? []).map((b) =>
           normalizeImportedLessonPageBlock(b as Record<string, unknown>)
         ),
@@ -1494,8 +1503,14 @@ const CreateLessonPage: React.FC = () => {
         }
         if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
         if (blockType === "checkpoint" && p.checkpoint) {
+          const bcp = b as LessonPageBlock;
+          const qType = bcp.questionType === "short" ? "short" : "mcq";
           out.prompt = safeStr(p.checkpoint.question, "");
-          out.options = clampOptions((p.checkpoint.options || []) as string[]);
+          out.questionType = qType;
+          out.options =
+            qType === "short"
+              ? []
+              : clampOptions((p.checkpoint.options || []) as string[]);
           out.correctAnswer = safeStr(p.checkpoint.answer, "");
           const chkExpl = safeStr(p.checkpoint.explanation, "").trim();
           if (chkExpl) out.explanation = chkExpl;
@@ -1514,12 +1529,59 @@ const CreateLessonPage: React.FC = () => {
           out.options = scOpts;
           out.correctAnswer = String(bsc.correctAnswer ?? "").trim();
         }
+        if (blockType === "pageQuiz") {
+          const bpq = b as LessonPageBlock & { questions?: unknown[] };
+          const bank = Array.isArray(bpq.questions) ? bpq.questions : [];
+          const questions = bank
+            .map((raw, qi) => {
+              if (!raw || typeof raw !== "object") return null;
+              const q = raw as Record<string, unknown>;
+              const prompt = String(q.prompt ?? q.question ?? "").trim();
+              const correctAnswer = String(q.correctAnswer ?? q.answer ?? "").trim();
+              if (!prompt || !correctAnswer) return null;
+              const qt =
+                String(q.questionType ?? q.type ?? "").toLowerCase() === "short" ? "short" : "mcq";
+              const opts = Array.isArray(q.options)
+                ? q.options.map((o) => String(o ?? "").trim()).filter(Boolean)
+                : [];
+              if (qt === "mcq" && opts.length < 2) return null;
+              return {
+                id: String(q.id || `pq_${qi + 1}`),
+                prompt,
+                question: prompt,
+                questionType: qt,
+                type: qt,
+                options: qt === "mcq" ? opts : [],
+                correctAnswer,
+                ...(q.explanation != null && String(q.explanation).trim()
+                  ? { explanation: String(q.explanation).trim() }
+                  : {}),
+                ...(q.purpose != null ? { purpose: String(q.purpose) } : {}),
+                marks: Number(q.marks) > 0 ? Number(q.marks) : 1,
+              };
+            })
+            .filter(Boolean);
+          out.questions = questions;
+          const first = questions[0] as
+            | { prompt?: string; questionType?: string; options?: string[]; correctAnswer?: string; explanation?: string }
+            | undefined;
+          if (first) {
+            out.prompt = first.prompt || "";
+            out.questionType = first.questionType === "short" ? "short" : "mcq";
+            out.options = Array.isArray(first.options) ? first.options : [];
+            out.correctAnswer = first.correctAnswer || "";
+            if (first.explanation) out.explanation = first.explanation;
+          }
+        }
         return out;
       })
         .map((out, idx) =>
           attachLearningMetaForPersist(out, (p.blocks || [])[idx])
         ),
       checkpoint: (() => {
+        if (isLearnTeachingPage(p)) {
+          return undefined as unknown as LessonPage["checkpoint"];
+        }
         if (!p.checkpoint) {
           return { question: "", options: ["", "", "", ""], answer: "" };
         }
@@ -1535,9 +1597,55 @@ const CreateLessonPage: React.FC = () => {
           ...(ms.length ? { markScheme: ms } : {}),
         };
       })(),
-    }));
+    })).map((page) => {
+      if (!isLearnTeachingPage(page)) return page;
+      return {
+        ...page,
+        blocks: stripLearnPageTestingBlocks(page.blocks || []),
+        checkpoint: undefined as unknown as LessonPage["checkpoint"],
+      };
+    });
 
     warnLearningMetaIfMissing(sanitizedPages, "create lesson");
+
+    // Build quiz.questions from imported/authored pageQuiz banks (parity with Edit Lesson).
+    const pageQuizQuestions: Array<Record<string, unknown>> = [];
+    for (const p of sanitizedPages) {
+      const pageId = String(p.pageId || "").trim();
+      if (!pageId) continue;
+      for (const b of p.blocks || []) {
+        if (String((b as { type?: string }).type) !== "pageQuiz") continue;
+        const bank = Array.isArray((b as { questions?: unknown[] }).questions)
+          ? ((b as { questions: unknown[] }).questions as Array<Record<string, unknown>>)
+          : [];
+        bank.forEach((raw, qi) => {
+          const qText = String(raw.prompt ?? raw.question ?? "").trim();
+          const correctAnswer = String(raw.correctAnswer ?? "").trim();
+          if (!qText || !correctAnswer) return;
+          const qt =
+            String(raw.questionType ?? raw.type ?? "").toLowerCase() === "short" ? "short" : "mcq";
+          const opts = Array.isArray(raw.options)
+            ? raw.options.map((o) => String(o ?? "").trim()).filter(Boolean)
+            : [];
+          if (qt === "mcq" && opts.length < 2) return;
+          pageQuizQuestions.push({
+            id: String(raw.id || `pq_${pageId}_${qi}`),
+            type: qt,
+            question: qText,
+            options: qt === "mcq" ? opts : undefined,
+            correctAnswer,
+            explanation:
+              raw.explanation != null ? String(raw.explanation).trim() : undefined,
+            purpose: raw.purpose != null ? String(raw.purpose).trim() : undefined,
+            marks: Number(raw.marks) > 0 ? Number(raw.marks) : 1,
+            pageId,
+            tags: ["page-quiz"],
+            sourceType: "pageQuiz",
+            metadata: { source: "pageQuiz" },
+          });
+        });
+      }
+    }
 
     const payload: Record<string, unknown> = {
       title: formData.title,
@@ -1551,6 +1659,10 @@ const CreateLessonPage: React.FC = () => {
       externalResources: formData.externalResources,
       estimatedDuration: formData.estimatedDuration,
       pages: sanitizedPages,
+      quiz: {
+        timeSeconds: 600,
+        questions: pageQuizQuestions,
+      },
     };
     if (formData.topicKey.trim()) {
       payload.topicKey = formData.topicKey.trim();
@@ -2573,6 +2685,28 @@ const CreateLessonPage: React.FC = () => {
                               </div>
                             </div>
 
+                            {(() => {
+                              const pqWarn = emptyPageQuizBankEditorWarning(b);
+                              if (!pqWarn) return null;
+                              return (
+                              <div
+                                style={{
+                                  marginTop: 8,
+                                  padding: "8px 12px",
+                                  borderRadius: 8,
+                                  background: "#fffbeb",
+                                  border: "1px solid #f59e0b",
+                                  fontSize: 13,
+                                  color: "#92400e",
+                                  lineHeight: 1.45,
+                                }}
+                                role="status"
+                              >
+                                {pqWarn}
+                              </div>
+                              );
+                            })()}
+
                             {b.type === "interactiveSequence" ||
                             b.type === "interactiveDiagram" ||
                             b.type === "dragDropMatch" ||
@@ -3231,10 +3365,21 @@ const CreateLessonPage: React.FC = () => {
                                                     ...prev,
                                                     [key]: { loading: false, message: null },
                                                   }));
-                                                } catch {
+                                                } catch (err: unknown) {
+                                                  const msg =
+                                                    err && typeof err === "object" && "message" in err
+                                                      ? String((err as { message?: string }).message || "")
+                                                      : "";
                                                   setDragDropPairAiUi((prev) => ({
                                                     ...prev,
-                                                    [key]: { loading: false, message: "error" },
+                                                    [key]: {
+                                                      loading: false,
+                                                      message:
+                                                        msg &&
+                                                        /OPENAI|LLM_API_KEY|not configured|disabled/i.test(msg)
+                                                          ? msg
+                                                          : "error",
+                                                    },
                                                   }));
                                                 }
                                               }}
@@ -3258,6 +3403,10 @@ const CreateLessonPage: React.FC = () => {
                                             ) : dndAi.message === "empty" ? (
                                               <span style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
                                                 No suitable pairs generated.
+                                              </span>
+                                            ) : dndAi.message ? (
+                                              <span style={{ fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>
+                                                {dndAi.message}
                                               </span>
                                             ) : null}
                                           </>

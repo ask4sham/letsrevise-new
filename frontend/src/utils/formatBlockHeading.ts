@@ -44,6 +44,18 @@ export type BlockHeadingSource = {
   type?: unknown;
 };
 
+/** Coerce API/Mongo number fields (number | numeric string) to a positive int. */
+export function coercePositiveBlockNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.trunc(value);
+  }
+  if (typeof value === "string" && /^\d+[a-zA-Z]?$/.test(value.trim())) {
+    const n = parseInt(value.trim(), 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
 /** Strip one or more stacked SS1 prefixes (`8 — 7b — Title` → `Title`). */
 export function stripSs1PrefixFromTitle(title: string): string {
   let t = String(title ?? "").trim();
@@ -134,7 +146,7 @@ export function formatDisplaySectionHeading(
 
 /**
  * Canonical student heading: always `block.number — cleanLabel`.
- * Never preserves legacy subsection ids (e.g. `7b`) when `number` is set.
+ * Never resurrects authored SS1 slot ids from the title alone (that re-breaks 16→13→12 sequences).
  * Uses a type-based fallback title when the block has a number but no title.
  */
 export function formatStudentBlockHeading(block: BlockHeadingSource | null | undefined): string {
@@ -145,14 +157,13 @@ export function formatStudentBlockHeading(block: BlockHeadingSource | null | und
     block.type != null ? String(block.type) : undefined
   );
   const label = fromTitle || fallback;
-  const n = block.number;
-  if (typeof n === "number" && Number.isFinite(n) && n > 0) {
+  const n = coercePositiveBlockNumber(block.number);
+  if (n != null) {
     if (!label) return "";
-    return `${Math.trunc(n)} — ${label}`;
+    return `${n} — ${label}`;
   }
 
-  const raw = String(block.title ?? "").trim();
-  if (raw && titleAlreadyHasSs1Prefix(raw)) return normalizeLegacySs1Heading(raw);
+  // Label only — do not keep authored `16 — …` prefixes when no display number was applied.
   return label;
 }
 
@@ -160,7 +171,7 @@ export function formatStudentBlockHeading(block: BlockHeadingSource | null | und
 export function normalizePersistedBlockTitle<T extends BlockHeadingSource>(block: T): T {
   if (!block || typeof block !== "object") return block;
   const label = normalizeLegacyBlockLabel(stripSs1PrefixFromTitle(String(block.title ?? "")));
-  if (!label && !block.number) return block;
+  if (!label && coercePositiveBlockNumber(block.number) == null) return block;
   return { ...block, title: label };
 }
 
@@ -348,23 +359,76 @@ export function resolveSs1BlockNumber(
   block: BlockHeadingSource,
   lessonOrdinal: number
 ): number | undefined {
-  const n = block.number;
-  if (typeof n === "number" && Number.isFinite(n) && n > 0) return Math.trunc(n);
-  if (lessonOrdinal > 0) return lessonOrdinal;
-  return undefined;
+  // Prefer visual lesson ordinal when provided — authored slots must not win in student view.
+  if (lessonOrdinal > 0) return Math.trunc(lessonOrdinal);
+  return coercePositiveBlockNumber(block.number) ?? undefined;
+}
+
+/**
+ * Student-facing cell number: always the visual ordinal in lesson flow.
+ * Ignores authored SS1 slot ids (11/15/17/28…) so headings stay in sequence on page 1 & 2.
+ */
+export function sequentialStudentBlockNumber(lessonOrdinal: number): number {
+  if (typeof lessonOrdinal === "number" && Number.isFinite(lessonOrdinal) && lessonOrdinal > 0) {
+    return Math.trunc(lessonOrdinal);
+  }
+  return 1;
+}
+
+/**
+ * Display-only: force visual lesson order onto blocks (1, 2, 3…), ignoring authored SS1 slots.
+ * Strips any `N —` prefix from titles so headings cannot show 16 → 13 → 12.
+ */
+export function applySequentialStudentDisplayNumbers<T extends BlockHeadingSource>(
+  blocks: T[],
+  startOrdinal = 1
+): T[] {
+  const start =
+    typeof startOrdinal === "number" && Number.isFinite(startOrdinal) && startOrdinal > 0
+      ? Math.trunc(startOrdinal)
+      : 1;
+  return (Array.isArray(blocks) ? blocks : []).map((b, i) => {
+    const number = sequentialStudentBlockNumber(start + i);
+    const withNumber = { ...(b as object), number } as T;
+    return normalizePersistedBlockTitle(withNumber);
+  });
+}
+
+/**
+ * True when student display numbers are strictly sequential from `startOrdinal`
+ * and titles no longer carry authored SS1 prefixes.
+ */
+export function studentDisplayNumbersAreSequential(
+  blocks: Array<BlockHeadingSource | null | undefined>,
+  startOrdinal = 1
+): boolean {
+  const start =
+    typeof startOrdinal === "number" && Number.isFinite(startOrdinal) && startOrdinal > 0
+      ? Math.trunc(startOrdinal)
+      : 1;
+  for (let i = 0; i < blocks.length; i++) {
+    const expected = start + i;
+    const n = coercePositiveBlockNumber(blocks[i]?.number);
+    if (n !== expected) return false;
+    const title = String(blocks[i]?.title ?? "").trim();
+    if (titleAlreadyHasSs1Prefix(title)) return false;
+  }
+  return true;
 }
 
 /**
  * Display-only footer ordinals after the last numbered page block.
  * Legacy `page.checkpoint` (outside `pages.blocks`) must consume the next number when present.
+ * When the footer Quiz Page section is hidden (inline pageQuiz already shown), do not reserve its number.
  */
 export function allocateLessonFlowFooterOrdinals(
   lastBlockOrdinal: number,
-  hasPageCheckpoint: boolean
+  hasPageCheckpoint: boolean,
+  opts?: { showQuizPage?: boolean }
 ): {
   pageCheckpoint: number | null;
   revisionPractice: number;
-  quizPage: number;
+  quizPage: number | null;
   practiceQuestions: number;
 } {
   const base =
@@ -373,10 +437,14 @@ export function allocateLessonFlowFooterOrdinals(
       : 0;
   let next = base;
   const pageCheckpoint = hasPageCheckpoint ? ++next : null;
+  const revisionPractice = ++next;
+  const showQuizPage = opts?.showQuizPage !== false;
+  const quizPage = showQuizPage ? ++next : null;
+  const practiceQuestions = ++next;
   return {
     pageCheckpoint,
-    revisionPractice: next + 1,
-    quizPage: next + 2,
-    practiceQuestions: next + 3,
+    revisionPractice,
+    quizPage,
+    practiceQuestions,
   };
 }

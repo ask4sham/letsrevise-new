@@ -847,11 +847,31 @@ function sanitisePageInput(p, isUpdate = false) {
       })
     : [];
 
-  const VALID_DEFAULT_CHECKPOINT = {
-    question: "Which statement is correct?",
-    options: ["Option 1", "Option 2", "Option 3", "Option 4"],
-    answer: "Option 1",
-    type: "mcq",
+  const pageTitleLower = String(p?.title || "").trim().toLowerCase();
+  const pageTypeLower = String(p?.pageType || "").trim().toLowerCase();
+  const isLearnTeachingPage =
+    pageTypeLower === "learn" ||
+    pageTypeLower === "teaching" ||
+    pageTitleLower === "learn" ||
+    /^learn\b/.test(pageTitleLower) ||
+    /page-1-learn|page\s*1\s*\(learn\)/.test(pageTitleLower);
+
+  const isPlaceholderOrEmptyCheckpoint = (cp) => {
+    if (!cp || typeof cp !== "object") return true;
+    const q = String(cp.question || "").trim();
+    const opts = Array.isArray(cp.options)
+      ? cp.options.map((o) => String(o || "").trim()).filter(Boolean)
+      : [];
+    if (!q) return true;
+    if (opts.length === 0) return true;
+    if (opts.every((o) => /^\[?option\s*\d+\]?$/i.test(o))) return true;
+    if (
+      /^which statement is correct\??$/i.test(q) &&
+      opts.every((o) => /^\[?option\s*\d+\]?$/i.test(o))
+    ) {
+      return true;
+    }
+    return false;
   };
 
   let checkpoint;
@@ -877,16 +897,19 @@ function sanitisePageInput(p, isUpdate = false) {
       ...(autoMark ? { autoMark } : {}),
     };
 
-    if (cpType === "shortExplain") {
+    if (isLearnTeachingPage || isPlaceholderOrEmptyCheckpoint(base)) {
+      // Learn is teaching-only; never persist invented Option 1–4 self-check fillers.
+      checkpoint = undefined;
+    } else if (cpType === "shortExplain") {
       const hasValidQuestion = String(base.question || "").trim().length > 0;
-      checkpoint = hasValidQuestion ? base : VALID_DEFAULT_CHECKPOINT;
+      checkpoint = hasValidQuestion ? base : undefined;
     } else {
       const nonEmptyOpts = (base.options || []).filter((o) => String(o || "").trim());
       const hasValidQuestion = String(base.question || "").trim().length > 0;
       const hasEnoughOptions = nonEmptyOpts.length >= 2;
       const answerMatches = nonEmptyOpts.some((o) => String(o).trim() === String(base.answer || "").trim());
       if (!hasValidQuestion || !hasEnoughOptions || !answerMatches) {
-        checkpoint = VALID_DEFAULT_CHECKPOINT;
+        checkpoint = undefined;
       } else {
         checkpoint = { ...base, options: nonEmptyOpts.slice(0, 4) };
       }
@@ -906,16 +929,24 @@ function sanitisePageInput(p, isUpdate = false) {
       Array.isArray(b.questions) &&
       b.questions.length > 0
   );
-  if (hasBlockCheckpointBank) {
+  if (hasBlockCheckpointBank || isLearnTeachingPage) {
     // V2 / multi-question checkpoint lives on the block — do not invent page.checkpoint Option 1 filler.
+    // Learn pages never carry a page.checkpoint self-check.
     checkpoint = undefined;
   } else if (
     !checkpoint ||
     (checkpoint.type !== "shortExplain" &&
       (!hasValidQuestionMcq || !hasEnoughOptionsMcq || !answerMatchesMcq))
   ) {
-    checkpoint = VALID_DEFAULT_CHECKPOINT;
+    // Prefer omit over inventing "Which statement is correct?" / Option 1–4.
+    checkpoint = undefined;
   }
+
+  // Strip testing blocks that must never live on Learn (defence in depth).
+  const LEARN_TESTING_TYPES = new Set(["checkpoint", "selfCheck", "pageQuiz"]);
+  const finalBlocks = isLearnTeachingPage
+    ? (blocks || []).filter((b) => !LEARN_TESTING_TYPES.has(String(b?.type || "")))
+    : blocks;
 
   // ✅ NEW (non-breaking): allow saving visualModelId if provided
   const visualModelId =
@@ -931,7 +962,7 @@ function sanitisePageInput(p, isUpdate = false) {
     order,
     pageType: typeof p?.pageType === "string" ? p.pageType : "",
     hero,
-    blocks,
+    blocks: finalBlocks,
     checkpoint,
     ...(visualModelId ? { visualModelId } : {}),
     ...(pageMetadata ? { metadata: pageMetadata } : {}),

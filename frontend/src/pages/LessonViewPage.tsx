@@ -79,10 +79,10 @@ import {
 } from "../components/lesson/graphBlockTypes";
 import {
   allocateLessonFlowFooterOrdinals,
+  applySequentialStudentDisplayNumbers,
   formatDisplaySectionHeading,
   formatStudentBlockHeading,
-  normalizePersistedBlockTitle,
-  resolveSs1BlockNumber,
+  studentDisplayNumbersAreSequential,
 } from "../utils/formatBlockHeading";
 import { StudentBlockHeading } from "../components/lesson/student/StudentBlockHeading";
 import { hydrateDiagramBlockForDisplay } from "../utils/lessonBlockPersist";
@@ -125,7 +125,16 @@ import { StudentRetrievalSection } from "../components/lesson/student/StudentRet
 import {
   buildQuizPagePool,
   buildRevisionPracticePool,
+  buildEndOfLessonQuizPool,
 } from "../utils/lessonQuestionPools";
+import {
+  isLearnTeachingPage,
+  isRenderablePageCheckpoint,
+  isStudentVisiblePageQuizBlock,
+  stripLearnPageTestingBlocks,
+  LEARN_TESTING_BLOCK_TYPES,
+} from "../utils/lessonPageGuards";
+import { extractActivityQuestionsFromBlock } from "../utils/activityQuestionsFromBlock";
 import { KeywordGlossaryProvider } from "../components/lesson/student/keywordGlossaryContext";
 import type { GlossaryFlashcardLite } from "../components/lesson/student/keywordGlossaryFlashcards";
 
@@ -1887,12 +1896,27 @@ const LessonViewPage: React.FC = () => {
 
   const endOfLessonQuizQuestions = useMemo(() => {
     if (isSinglePage) return [];
-    const scoped = storedQuizRecords.filter((q) => {
-      const pid = String(q.pageId ?? "").trim();
-      return !pid || pid === "END";
-    });
-    return buildQuizPagePool(orderedPages, scoped, revisionPracticePool, { max: 8 });
-  }, [isSinglePage, storedQuizRecords, orderedPages, revisionPracticePool]);
+    // Only show on the last page — End of Lesson must not clone Quiz Page stems.
+    if (hasStructuredPages && currentPage) {
+      const last = orderedPages[orderedPages.length - 1];
+      if (last && String(currentPage.pageId) !== String(last.pageId)) return [];
+    }
+    return buildEndOfLessonQuizPool(
+      orderedPages,
+      storedQuizRecords,
+      pageQuizQuestions,
+      revisionPracticePool,
+      { max: 8 }
+    );
+  }, [
+    isSinglePage,
+    hasStructuredPages,
+    currentPage,
+    storedQuizRecords,
+    orderedPages,
+    pageQuizQuestions,
+    revisionPracticePool,
+  ]);
 
   // ✅ SINGLE SOURCE OF TRUTH: Flashcards
   const flashcards = useMemo(() => {
@@ -3086,23 +3110,9 @@ const LessonViewPage: React.FC = () => {
     }
 
     if (kind === "pageQuiz") {
-      return (
-        <div
-          key={idx}
-          className="lesson-content"
-          style={{
-            ...base,
-            padding: "12px 14px",
-            background: "#fbfbfc",
-            border: "2px solid rgba(0,0,0,0.10)",
-            boxShadow: "0 0 0 2px rgba(0,0,0,0.03)",
-          }}
-        >
-          <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
-            {preprocessMarkdownAssetUrls(text)}
-          </LessonMarkdown>
-        </div>
-      );
+      // Structured student view renders pageQuiz via QuizView on the block path.
+      // This callout helper only receives markdown text — never invent an empty shell.
+      return null;
     }
 
     if (kind === "keyIdea") {
@@ -3718,38 +3728,83 @@ const LessonViewPage: React.FC = () => {
     const lessonTitleDisplay = getLessonTitleDisplayParts(lesson);
 
     // PR-UX-LESSON-3: Single checkpoint per page — prefer page.checkpoint, else first valid block
+    // Guard rail: Learn = teaching only; never show placeholder Option 1–4 as SELF-CHECK.
+    const pageIsLearn = isLearnTeachingPage(currentPage);
     const pageCp = currentPage.checkpoint;
     const hasPageCheckpoint =
-      Boolean(pageCp?.question && Array.isArray(pageCp?.options)) &&
-      (pageCp!.options!.filter((o: any) => o != null && String(o).trim()).length >= 2);
-    const blocks = currentPage.blocks || [];
-    let ss1LessonOrdinal = 0;
-    const blockRenderList = blocks
-      .map((b, idx) => ({ block: b, idx }))
-      .filter(({ block: b }) => {
+      !pageIsLearn && isRenderablePageCheckpoint(pageCp);
+
+    const filterStudentVisibleBlocks = (
+      page: { title?: string; pageType?: string; blocks?: unknown[] } | null | undefined
+    ): any[] => {
+      const learn = isLearnTeachingPage(page);
+      const raw = (page?.blocks || []) as any[];
+      const scoped = learn
+        ? stripLearnPageTestingBlocks(raw)
+        : raw.filter((b) => {
+            const t = String((b as { type?: string }).type || "");
+            if (!LEARN_TESTING_BLOCK_TYPES.has(t)) return true;
+            if (t === "pageQuiz") {
+              // Keep only when the block bank has items. Bank-only quizzes render in the footer.
+              return isStudentVisiblePageQuizBlock(b);
+            }
+            const opts = Array.isArray((b as { options?: unknown }).options)
+              ? ((b as { options: unknown[] }).options as unknown[])
+              : [];
+            const prompt = String(
+              (b as { prompt?: unknown; question?: unknown }).prompt ??
+                (b as { question?: unknown }).question ??
+                ""
+            ).trim();
+            return isRenderablePageCheckpoint({ question: prompt, options: opts });
+          });
+      return scoped.filter((b) => {
         if (b.type === "stretch" && !showDeeperKnowledge) return false;
         if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return false;
         return true;
-      })
-      .map(({ block: b, idx }) => {
-        ss1LessonOrdinal += 1;
-        const number = resolveSs1BlockNumber(b, ss1LessonOrdinal);
-        const withNumber =
-          number != null && typeof (b as { number?: unknown }).number !== "number"
-            ? { ...b, number }
-            : b;
-        let enriched = normalizePersistedBlockTitle(withNumber);
-        if (resolveLessonDisplayBlockType(enriched) === "diagram") {
-          enriched = hydrateDiagramBlockForDisplay(enriched);
-        }
-        if (
-          resolveLessonDisplayBlockType(enriched) === "graph" ||
-          contentLooksLikeGraphJson((enriched as { content?: unknown }).content)
-        ) {
-          enriched = normalizeGraphBlockForDisplay(enriched) as typeof enriched;
-        }
-        return { block: enriched, idx };
       });
+    };
+
+    const blocks = filterStudentVisibleBlocks(currentPage);
+    // Lesson-wide sequence: page 2 continues after page 1 (no restart at 1, no authored 28→9 jumps).
+    const priorVisibleCount = orderedPages
+      .slice(0, currentPageIndex)
+      .reduce((sum, page) => sum + filterStudentVisibleBlocks(page).length, 0);
+
+    // Inline pageQuiz already renders QuizView — avoid a duplicate footer Quiz Page.
+    const hasInlinePageQuiz = blocks.some((b) => resolveLessonDisplayBlockType(b) === "pageQuiz");
+
+    const startOrdinal = priorVisibleCount + 1;
+    const sequentiallyNumbered = applySequentialStudentDisplayNumbers(blocks, startOrdinal);
+    if (
+      typeof process !== "undefined" &&
+      process.env.NODE_ENV === "development" &&
+      !studentDisplayNumbersAreSequential(sequentiallyNumbered, startOrdinal)
+    ) {
+      console.error(
+        "[LessonViewPage] Regression: student block numbers are not sequential after renumber.",
+        sequentiallyNumbered.map((b) => ({
+          type: (b as { type?: string }).type,
+          number: (b as { number?: unknown }).number,
+          title: (b as { title?: unknown }).title,
+        }))
+      );
+    }
+
+    const blockRenderList = sequentiallyNumbered.map((enriched0, idx) => {
+      let enriched = enriched0 as (typeof sequentiallyNumbered)[number];
+      if (resolveLessonDisplayBlockType(enriched) === "diagram") {
+        enriched = hydrateDiagramBlockForDisplay(enriched);
+      }
+      if (
+        resolveLessonDisplayBlockType(enriched) === "graph" ||
+        contentLooksLikeGraphJson((enriched as { content?: unknown }).content)
+      ) {
+        enriched = normalizeGraphBlockForDisplay(enriched) as typeof enriched;
+      }
+      return { block: enriched, idx };
+    });
+    const ss1LessonOrdinal = priorVisibleCount + sequentiallyNumbered.length;
 
     // Regression guard: when SHOW_PAGE_KICKER is false, no kicker-like block must be rendered
     if (typeof process !== "undefined" && process.env.NODE_ENV === "development" && !SHOW_PAGE_KICKER) {
@@ -3794,9 +3849,13 @@ const LessonViewPage: React.FC = () => {
         }
       : null;
 
+    // Hide duplicate footer Quiz Page when an inline pageQuiz already renders — do not reserve its number.
+    const showFooterQuizSection =
+      !hasInlinePageQuiz || endOfLessonQuizQuestions.length > 0;
     const flowFooterOrdinals = allocateLessonFlowFooterOrdinals(
       ss1LessonOrdinal,
-      Boolean(checkpointData)
+      Boolean(checkpointData),
+      { showQuizPage: showFooterQuizSection }
     );
     const pageCheckpointHeading =
       flowFooterOrdinals.pageCheckpoint != null
@@ -4552,6 +4611,17 @@ const LessonViewPage: React.FC = () => {
                                 embeddedExamQuestionsById={embeddedExamQuestions}
                                 embeddedExamQuestionsLoading={embeddedExamQuestionsLoading}
                                 classroomMode={isClassroomPresentation}
+                                onQuestionAnswered={
+                                  topicKeyForBank && isStudent
+                                    ? (correct) => handleQuestionAnswered(correct)
+                                    : undefined
+                                }
+                                pageQuizFallbackQuestions={
+                                  resolveLessonDisplayBlockType(b) === "pageQuiz" &&
+                                  extractActivityQuestionsFromBlock(b).length === 0
+                                    ? (pageQuizQuestions as Array<Record<string, unknown>>)
+                                    : undefined
+                                }
                               />
                               {user && id && !isClassroomPresentation && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
@@ -4671,6 +4741,38 @@ const LessonViewPage: React.FC = () => {
                                   }
                                   entitled={Boolean(accessDecision?.allowed)}
                                   presentation={v12StudentPresentation ? "v12" : "default"}
+                                />
+                              );
+                            })()
+                          ) : blockKind === "pageQuiz" ? (
+                            (() => {
+                              const fromBlock = extractActivityQuestionsFromBlock(b);
+                              const quizRaw =
+                                fromBlock.length > 0
+                                  ? fromBlock.map((q, i) => ({
+                                      id: `page-quiz-${idx}-${i}`,
+                                      type: q.questionType,
+                                      question: q.prompt,
+                                      prompt: q.prompt,
+                                      options: q.options,
+                                      correctAnswer: q.correctAnswer,
+                                      explanation: q.explanation,
+                                      ...(q.markScheme ? { markScheme: q.markScheme } : {}),
+                                      tags: ["page-quiz"],
+                                    }))
+                                  : (pageQuizQuestions as Array<Record<string, unknown>>);
+                              if (!quizRaw.length) return null;
+                              return (
+                                <QuizView
+                                  title=""
+                                  questions={quizRaw.map((rawQ, qIdx) =>
+                                    normalizeQuizQuestion(rawQ, qIdx)
+                                  )}
+                                  onQuestionAnswered={
+                                    topicKeyForBank && isStudent
+                                      ? handleQuestionAnswered
+                                      : undefined
+                                  }
                                 />
                               );
                             })()
@@ -4961,7 +5063,8 @@ const LessonViewPage: React.FC = () => {
                       : undefined
                   }
                 />
-                {/* Page Quiz — page-aware in structured view */}
+                {/* Page Quiz — skipped when an inline pageQuiz block already renders QuizView */}
+                {showFooterQuizSection && flowFooterOrdinals.quizPage != null && (
                 <Section
                   title={formatDisplaySectionHeading(flowFooterOrdinals.quizPage, "Quiz Page")}
                   variant="card"
@@ -4985,30 +5088,32 @@ const LessonViewPage: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      {pageQuizQuestions.length === 0 ? (
-                        <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
-                          {showTeacherLessonChrome ? (
-                            id ? (
-                              <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
+                      {!hasInlinePageQuiz && (
+                        pageQuizQuestions.length === 0 ? (
+                          <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
+                            {showTeacherLessonChrome ? (
+                              id ? (
+                                <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
+                              ) : (
+                                <>No page quiz questions yet. Add them in Edit Lesson → Attach Quiz Page From Question Bank.</>
+                              )
                             ) : (
-                              <>No page quiz questions yet. Add them in Edit Lesson → Attach Quiz Page From Question Bank.</>
-                            )
-                          ) : (
-                            <>No page quiz questions yet.</>
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          <QuizView
-                            title=""
-                            questions={pageQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
-                            onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
-                            onContinueLesson={() => window.scrollBy({ top: 400, behavior: "smooth" })}
-                          />
-                        </div>
+                              <>No page quiz questions yet.</>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            <QuizView
+                              title=""
+                              questions={pageQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                              onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
+                              onContinueLesson={() => window.scrollBy({ top: 400, behavior: "smooth" })}
+                            />
+                          </div>
+                        )
                       )}
                       {endOfLessonQuizQuestions.length > 0 && (
-                        <div style={{ marginTop: 24 }}>
+                        <div style={{ marginTop: hasInlinePageQuiz ? 0 : 24 }}>
                           <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 15 }}>End of Lesson Test</div>
                           <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>Topic-bank questions for this sub-topic</div>
                           <QuizView
@@ -5022,6 +5127,7 @@ const LessonViewPage: React.FC = () => {
                     </>
                   )}
                 </Section>
+                )}
 
                 {/* PR — Adaptive Testing Loop: adaptive feedback based on quiz mastery */}
                 {isStudent && topicKeyForBank && masteryData && (

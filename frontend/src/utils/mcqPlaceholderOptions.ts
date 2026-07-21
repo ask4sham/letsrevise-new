@@ -2,6 +2,7 @@ import { parseGeneratorMcqForSelfCheckImport } from "./parseGeneratorMcqForSelfC
 import { htmlToPlainText } from "./parseFlexibleCheckpointPaste";
 
 const PLACEHOLDER_OPTION_RE = /^\[?Option\s*\d+\]?$/i;
+const GENERIC_CHECKPOINT_PROMPT_RE = /^which statement is correct\??$/i;
 
 /** True when MCQ options are editor placeholders, not real distractors. */
 export function isPlaceholderMcqOptions(options: unknown): boolean {
@@ -9,6 +10,11 @@ export function isPlaceholderMcqOptions(options: unknown): boolean {
   const trimmed = arr.map((o) => String(o ?? "").trim()).filter(Boolean);
   if (trimmed.length === 0) return true;
   return trimmed.every((o) => PLACEHOLDER_OPTION_RE.test(o));
+}
+
+/** True for the classic invent-filler prompt used by legacy save repair. */
+export function isGenericPlaceholderCheckpointPrompt(question: unknown): boolean {
+  return GENERIC_CHECKPOINT_PROMPT_RE.test(String(question ?? "").trim());
 }
 
 export type RecoveredMcqFields = {

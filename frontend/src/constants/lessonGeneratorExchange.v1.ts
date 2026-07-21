@@ -39,6 +39,7 @@ export const GENERATOR_KIND_TO_EDITOR_SPEC: Record<
   checkpoint: { editorType: "checkpoint", role: "checkpoint" },
   "worked-example": { editorType: "selfCheck", role: "workedExample" },
   "self-check-question": { editorType: "selfCheck", role: "selfCheck" },
+  "page-quiz": { editorType: "pageQuiz", role: "pageQuiz" },
   "final-memory-rule": { editorType: "keyIdeas", role: "finalMemoryRule" },
   keywords: { editorType: "keyWords", role: "keyWords" },
   "deeper-knowledge": { editorType: "deeperKnowledge", role: "deeperKnowledge" },

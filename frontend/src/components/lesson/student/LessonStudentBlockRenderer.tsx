@@ -30,6 +30,7 @@ import { GraphBlock } from "../GraphBlock";
 import { ExamQuestionBlock } from "../ExamQuestionBlock";
 import { isCompositeQuestion } from "../examComposite/compositeUtils";
 import type { ExamQuestion } from "../../../api/examQuestions";
+import { QuizView } from "../../revision/QuizView";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
 import {
@@ -47,6 +48,8 @@ import {
   dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
 } from "../../../utils/dragDropMatchDiagram";
+import { normalizeQuizQuestion } from "../../../utils/normalizeQuizQuestion";
+import { concealOpenExamPracticeMarkSchemes } from "../../../utils/formatExamPracticeContent";
 import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
 import { StudentBlockHeading } from "./StudentBlockHeading";
 import { UploadedDiagramActivityShell } from "./UploadedDiagramActivityShell";
@@ -88,6 +91,13 @@ export type LessonStudentBlockRendererProps = {
   embeddedExamQuestionsById?: Record<string, ExamQuestion>;
   embeddedExamQuestionsLoading?: boolean;
   classroomMode?: boolean;
+  /** Mastery / adaptive loop — same callback as footer Quiz Page */
+  onQuestionAnswered?: (correct: boolean) => void;
+  /**
+   * When the pageQuiz block has empty `questions[]` but the lesson quiz bank
+   * already holds page-scoped items, render those instead of an empty shell.
+   */
+  pageQuizFallbackQuestions?: Array<Record<string, unknown>>;
 };
 
 function withStudentBlockHeading(
@@ -278,6 +288,8 @@ export function LessonStudentBlockRenderer({
   embeddedExamQuestionsById = {},
   embeddedExamQuestionsLoading = false,
   classroomMode = false,
+  onQuestionAnswered,
+  pageQuizFallbackQuestions,
 }: LessonStudentBlockRendererProps): React.ReactElement | null {
   /** Interactive + diagram routing (handles mis-tagged drag-drop). */
   const routed = resolveLessonDisplayBlockType(block as { type?: unknown; pairs?: unknown });
@@ -287,10 +299,46 @@ export function LessonStudentBlockRenderer({
   const raw = typeof block.content === "string" ? block.content : "";
   const cleanedText = stripVideoMarkdown(raw);
   // Display-only: drop a leading prose heading that repeats the outer `N — TITLE`.
-  const displayText = stripLeadingDuplicateBlockHeading(
+  let displayText = stripLeadingDuplicateBlockHeading(
     cleanedText,
     formatStudentBlockHeading(block)
   );
+  // Exam practice: mark schemes must stay inside Reveal until the student opens it.
+  const roleRaw = String((block as { role?: unknown }).role ?? "").trim().toLowerCase();
+  const titleLooksLikePractice = /practice\s*questions/i.test(String(block.title ?? ""));
+  if (roleRaw === "exampractice" || titleLooksLikePractice) {
+    displayText = concealOpenExamPracticeMarkSchemes(displayText);
+  }
+
+  // Page Quiz: MCQs live in questions[] (or lesson.quiz bank) — never as empty markdown.
+  if (routed === "pageQuiz" || normalizeBlockType(kind) === "pageQuiz") {
+    const fromBlock = extractActivityQuestionsFromBlock(block);
+    const quizRaw: Array<Record<string, unknown>> =
+      fromBlock.length > 0
+        ? fromBlock.map((q, i) => ({
+            id: `page-quiz-${blockIndex}-${i}`,
+            type: q.questionType,
+            question: q.prompt,
+            prompt: q.prompt,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            ...(q.markScheme ? { markScheme: q.markScheme } : {}),
+            tags: ["page-quiz"],
+          }))
+        : Array.isArray(pageQuizFallbackQuestions)
+          ? pageQuizFallbackQuestions
+          : [];
+    if (quizRaw.length === 0) return null;
+    const quiz = (
+      <QuizView
+        title=""
+        questions={quizRaw.map((rawQ, idx) => normalizeQuizQuestion(rawQ, idx))}
+        onQuestionAnswered={onQuestionAnswered}
+      />
+    );
+    return withStudentBlockHeading(quiz, block, "");
+  }
 
   if (routed === "checkpoint") {
     const storedQs = extractActivityQuestionsFromBlock(block);
