@@ -536,6 +536,9 @@ function AssistantBubbleStudent({
   const noteWarnings = (response.answer.warnings || []).filter(
     (w) => !fallbackNotice || w.trim() !== fallbackNotice
   );
+  const insufficientSources = noteWarnings.some((w) =>
+    /insufficient trusted sources/i.test(w)
+  );
 
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
@@ -555,21 +558,39 @@ function AssistantBubbleStudent({
           <strong>General knowledge:</strong> {fallbackNotice}
         </div>
       )}
-      {noteWarnings.length > 0 && (
+      {insufficientSources && (
         <div
           style={{
             marginBottom: 12,
-                padding: 12,
-                borderRadius: 8,
-                background: "#fefce8",
-                border: "1px solid #fde047",
-                color: "#854d0e",
-                fontSize: 14,
-              }}
-            >
-              <strong>Note:</strong> {noteWarnings.join(" ")}
-            </div>
-          )}
+            padding: 12,
+            borderRadius: 8,
+            background: "#fff7ed",
+            border: "1px solid #fdba74",
+            color: "#9a3412",
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>Grounded to this lesson:</strong> I only answer from trusted
+          curriculum content here. Ask about something covered on this page, or
+          rephrase using the topic’s key terms.
+        </div>
+      )}
+      {noteWarnings.length > 0 && !insufficientSources && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: 12,
+            borderRadius: 8,
+            background: "#fefce8",
+            border: "1px solid #fde047",
+            color: "#854d0e",
+            fontSize: 14,
+          }}
+        >
+          <strong>Note:</strong> {noteWarnings.join(" ")}
+        </div>
+      )}
 
           {/* PR-007: Practice first */}
       {response.answer.practice && response.answer.practice.length > 0 && enquiryLogId && (

@@ -14,6 +14,16 @@ const { getProvider: getEmbeddingsProvider } = require("../services/embeddings/p
 const mongoose = require("mongoose");
 const { getCached, setCached } = require("../services/enquiry/enquiryCache");
 const { getLessonLocalRetrieval, mergeRetrievalResults } = require("../services/enquiry/lessonLocalRetrieval");
+const {
+  WEAK_SCORE_THRESHOLD,
+  LESSON_LOCAL_STRONG_THRESHOLD,
+  groundingCacheSegment,
+  isWeakEvidence,
+  shouldUseGeneralKnowledgeFallback,
+  shouldShortCircuitUngroundedStudentAnswer,
+  buildUngroundedStudentAnswer,
+  isFallbackAiCachedResponse,
+} = require("../services/enquiry/enquiryGroundingGate");
 const { buildSuggestedActions } = require("../services/enquiry/suggestedActions");
 const { buildLearningSuggestions } = require("../services/enquiry/learningSuggestions");
 const { computeConfidence } = require("../services/enquiry/confidence");
@@ -27,9 +37,6 @@ const { sendInternalError } = require("../utils/safeErrorResponse");
 const Conversation = require("../models/Conversation");
 const ConversationMessage = require("../models/ConversationMessage");
 
-const WEAK_SCORE_THRESHOLD = 0.35;
-/** Lesson-local scores use a different scale than embedding similarity; treat above this as “strong” for fallback/external. */
-const LESSON_LOCAL_STRONG_THRESHOLD = 0.18;
 const CONVERSATION_CONTEXT_PAIRS = 3; // last 3 user+assistant pairs = 6 messages
 
 /** Set DEBUG_ENQUIRY=1 for one JSON line per request: grep [enquiry_debug]. */
@@ -184,10 +191,31 @@ async function handleEnquiry(req, res) {
 
     const topN = Math.min(20, Math.max(1, parseInt(limit, 10) || 8));
     const modeVal = normalizeEnquiryMode(mode);
+    const strictCurriculumOnly = isTruthyEnv("STRICT_CURRICULUM_ONLY");
+    const groundingPolicy = groundingCacheSegment({
+      isStudentUser,
+      strictCurriculumOnly,
+    });
 
     // PR-006: Check cache before retrieval + LLM (PR-019: conversationId, PR-020: responseMode, PR-021: allowExternal in key)
-    const cached = await getCached(spec, topicKey || null, modeVal, q, convIdValid, responseMode, allowExternalVal, lessonIdForCache);
-    if (cached.hit && cached.response) {
+    // Slice 2: groundingPolicy keeps student fail-closed answers off teacher GK cache keys.
+    const cached = await getCached(
+      spec,
+      topicKey || null,
+      modeVal,
+      q,
+      convIdValid,
+      responseMode,
+      allowExternalVal,
+      lessonIdForCache,
+      groundingPolicy
+    );
+    // Never serve cached general-knowledge answers to students.
+    if (
+      cached.hit &&
+      cached.response &&
+      !(isStudentUser && isFallbackAiCachedResponse(cached.response))
+    ) {
       const userId = req.user?._id || req.user?.userId || req.user?.id;
       const msgCount = await (convIdValid
         ? ConversationMessage.countDocuments({ conversationId: convIdValid })
@@ -392,13 +420,18 @@ async function handleEnquiry(req, res) {
 
     const mergedTopScore = retrievalResults.length > 0 ? Number(retrievalResults[0].score) || 0 : 0;
     // Vector top score can dominate merged order; lesson-local uses a different scale — treat strong lesson-local as non-weak.
-    const weakEvidence =
-      retrievalResults.length === 0 ||
-      (mergedTopScore < WEAK_SCORE_THRESHOLD && !lessonLocalStrong);
-    const strictCurriculumOnly = isTruthyEnv("STRICT_CURRICULUM_ONLY");
+    const weakEvidence = isWeakEvidence({
+      retrievalResults,
+      lessonLocalStrong,
+      weakScoreThreshold: WEAK_SCORE_THRESHOLD,
+    });
     const noCurriculumSources = retrievalResults.length === 0;
-    // Tutor fallback: curriculum retrieval above; GK answer only if weak AND not strict (never bypass strict).
-    const useGeneralKnowledgeFallback = !strictCurriculumOnly && weakEvidence;
+    // Slice 2: students never get general-knowledge inventing; teachers keep GK unless STRICT_CURRICULUM_ONLY.
+    const useGeneralKnowledgeFallback = shouldUseGeneralKnowledgeFallback({
+      isStudentUser,
+      strictCurriculumOnly,
+      weakEvidence,
+    });
 
     if (DEBUG_ENQUIRY) {
       const b = req.body || {};
@@ -420,6 +453,11 @@ async function handleEnquiry(req, res) {
           weakEvidence,
           useGeneralKnowledgeFallback,
           strictCurriculumOnly,
+          groundingPolicy,
+          studentShortCircuit: shouldShortCircuitUngroundedStudentAnswer({
+            isStudentUser,
+            weakEvidence,
+          }),
           llmProvider: getLlmProvider(),
         })
       );
@@ -449,21 +487,35 @@ async function handleEnquiry(req, res) {
 
     const docMap = new Map(retrievalResults.map((r) => [String(r.knowledgeDocumentId), r]));
 
-    let answer = await generateEnquiryAnswer({
-      question: q,
-      contextChunks,
-      constraints: {
-        weakEvidence: weakEvidence && !useGeneralKnowledgeFallback,
-        generalKnowledgeFallback: useGeneralKnowledgeFallback,
-        noCurriculumSources,
-        specKey: spec,
-        topicKey: topicKey || null,
-        includePractice,
-        studentMode: isStudentUser,
-        conversationContext: conversationContext.length > 0 ? conversationContext : undefined,
-        responseMode: responseMode || undefined,
-      },
-    });
+    let answer;
+    if (
+      shouldShortCircuitUngroundedStudentAnswer({
+        isStudentUser,
+        weakEvidence,
+      })
+    ) {
+      // Fail closed: do not call the LLM when student evidence is thin.
+      answer = buildUngroundedStudentAnswer({
+        nearestTopicKey:
+          (retrievalResults[0] && retrievalResults[0].topicKey) || topicKey || null,
+      });
+    } else {
+      answer = await generateEnquiryAnswer({
+        question: q,
+        contextChunks,
+        constraints: {
+          weakEvidence: weakEvidence && !useGeneralKnowledgeFallback,
+          generalKnowledgeFallback: useGeneralKnowledgeFallback,
+          noCurriculumSources,
+          specKey: spec,
+          topicKey: topicKey || null,
+          includePractice,
+          studentMode: isStudentUser,
+          conversationContext: conversationContext.length > 0 ? conversationContext : undefined,
+          responseMode: responseMode || undefined,
+        },
+      });
+    }
 
     const citationsIn = Array.isArray(answer.citations) ? answer.citations : [];
     const warningsBeforeMerge = [...(answer.warnings || [])];
@@ -594,6 +646,10 @@ async function handleEnquiry(req, res) {
       return base;
     });
 
+    const studentUngrounded = shouldShortCircuitUngroundedStudentAnswer({
+      isStudentUser,
+      weakEvidence,
+    });
     const usedSourcesForResponse = useGeneralKnowledgeFallback
       ? [
           {
@@ -605,7 +661,9 @@ async function handleEnquiry(req, res) {
             score: 0,
           },
         ]
-      : usedSourcesPayload;
+      : studentUngrounded
+        ? []
+        : usedSourcesPayload;
 
     const confidence = computeConfidence({
       usedSources: usedSourcesForResponse,
@@ -641,24 +699,35 @@ async function handleEnquiry(req, res) {
         : [];
 
     // PR-006: Store in cache (PR-037: learningSuggestions)
-    await setCached(spec, topicKey || null, modeVal, q, {
-      question: q,
-      usedSources: usedSourcesForResponse,
-      answer: {
-        explanation: answer.explanation,
-        keyPoints: answer.keyPoints,
-        memoryHook: answer.memoryHook != null ? String(answer.memoryHook) : "",
-        citations: answer.citations,
-        practice: answer.practice,
-        warnings: answer.warnings,
+    await setCached(
+      spec,
+      topicKey || null,
+      modeVal,
+      q,
+      {
+        question: q,
+        usedSources: usedSourcesForResponse,
+        answer: {
+          explanation: answer.explanation,
+          keyPoints: answer.keyPoints,
+          memoryHook: answer.memoryHook != null ? String(answer.memoryHook) : "",
+          citations: answer.citations,
+          practice: answer.practice,
+          warnings: answer.warnings,
+        },
+        ...(externalUsed && {
+          externalUsed: true,
+          externalSources,
+          ...(externalExamContextUsed && { externalExamContextUsed: true }),
+        }),
+        ...(learningSuggestions.length > 0 && { learningSuggestions }),
       },
-      ...(externalUsed && {
-        externalUsed: true,
-        externalSources,
-        ...(externalExamContextUsed && { externalExamContextUsed: true }),
-      }),
-      ...(learningSuggestions.length > 0 && { learningSuggestions }),
-    }, convIdValid, responseMode, allowExternalVal, lessonIdForCache);
+      convIdValid,
+      responseMode,
+      allowExternalVal,
+      lessonIdForCache,
+      groundingPolicy
+    );
 
     const responsePayload = {
       enquiryLogId: logDoc._id?.toString() || null,
