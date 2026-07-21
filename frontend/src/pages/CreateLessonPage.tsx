@@ -95,6 +95,10 @@ import {
   lessonMetaFromExport,
 } from "../utils/lessonGeneratorImport";
 import {
+  assertGeneratorExportV1QualityFloor,
+  formatQualityFloorErrorMessage,
+} from "../utils/generatorExportV1QualityFloor";
+import {
   isLearnTeachingPage,
   stripLearnPageTestingBlocks,
   emptyPageQuizBankEditorWarning,
@@ -652,6 +656,14 @@ const CreateLessonPage: React.FC = () => {
           "That file is not a LetsRevise Generator lesson export (expected format letsrevise.generator.export.v1)."
         );
         setTimeout(() => setError(""), 8000);
+        return;
+      }
+
+      // Slice 1 — fail closed before mutating Create Lesson form state.
+      const floor = assertGeneratorExportV1QualityFloor(doc);
+      if (!floor.ok) {
+        setError(formatQualityFloorErrorMessage(floor));
+        setTimeout(() => setError(""), 12000);
         return;
       }
 
