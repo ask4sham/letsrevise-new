@@ -1,8 +1,6 @@
 /**
- * PR: Every newly created lesson includes a valid checkpoint.
- * - Manual creation (POST /api/lessons) → valid page.checkpoint
- * - Invalid checkpoint on save → repaired to valid default
- * - Student view hides invalid checkpoint (existing behavior)
+ * Checkpoint persistence: real checkpoints kept; empty/invalid never invent Option 1–4.
+ * Learn pages strip testing blocks and omit page.checkpoint.
  */
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
@@ -76,12 +74,12 @@ describe("Lesson checkpoint creation (PR)", () => {
     expect(lesson.pages[0].checkpoint.answer).toBe("Option 1");
   });
 
-  test("POST /api/lessons with empty checkpoint → repaired to valid default", async () => {
+  test("POST /api/lessons with empty checkpoint → omits invented Option 1–4 filler", async () => {
     const res = await request(app)
       .post("/api/lessons")
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
-        title: "Empty Checkpoint Repaired",
+        title: "Empty Checkpoint Omitted",
         description: "Test",
         content: "Content",
         subject: "Biology",
@@ -102,19 +100,15 @@ describe("Lesson checkpoint creation (PR)", () => {
     expect(res.status).toBe(200);
     const lesson = await Lesson.findById(res.body.lesson._id).lean();
     expect(lesson.pages).toHaveLength(1);
-    expect(lesson.pages[0].checkpoint).toBeDefined();
-    expect(String(lesson.pages[0].checkpoint.question || "").trim()).toBeTruthy();
-    const opts = (lesson.pages[0].checkpoint.options || []).filter((o) => String(o || "").trim());
-    expect(opts.length).toBeGreaterThanOrEqual(2);
-    expect(String(lesson.pages[0].checkpoint.answer || "").trim()).toBeTruthy();
+    expect(lesson.pages[0].checkpoint == null || !String(lesson.pages[0].checkpoint.question || "").trim()).toBe(true);
   });
 
-  test("POST /api/lessons without checkpoint → gets valid default", async () => {
+  test("POST /api/lessons without checkpoint → omits invented default filler", async () => {
     const res = await request(app)
       .post("/api/lessons")
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
-        title: "No Checkpoint Gets Default",
+        title: "No Checkpoint No Invent",
         description: "Test",
         content: "Content",
         subject: "Biology",
@@ -134,18 +128,60 @@ describe("Lesson checkpoint creation (PR)", () => {
     expect(res.status).toBe(200);
     const lesson = await Lesson.findById(res.body.lesson._id).lean();
     expect(lesson.pages).toHaveLength(1);
-    expect(lesson.pages[0].checkpoint).toBeDefined();
-    expect(lesson.pages[0].checkpoint.question).toBe("Which statement is correct?");
-    expect(lesson.pages[0].checkpoint.options).toEqual(["Option 1", "Option 2", "Option 3", "Option 4"]);
-    expect(lesson.pages[0].checkpoint.answer).toBe("Option 1");
+    expect(lesson.pages[0].checkpoint == null || !String(lesson.pages[0].checkpoint?.question || "").trim()).toBe(true);
   });
 
-  test("POST /api/lessons with invalid checkpoint block → repaired to valid", async () => {
+  test("POST /api/lessons Learn page strips testing blocks and checkpoint", async () => {
     const res = await request(app)
       .post("/api/lessons")
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
-        title: "Invalid Block Repaired",
+        title: "Learn Teaching Only",
+        description: "Test",
+        content: "Content",
+        subject: "Biology",
+        level: "GCSE",
+        topic: "Cell structure",
+        estimatedDuration: 30,
+        pages: [
+          {
+            pageId: "p1",
+            title: "Learn",
+            order: 1,
+            pageType: "learn",
+            blocks: [
+              { type: "text", content: "Teaching" },
+              {
+                type: "selfCheck",
+                prompt: "Which statement is correct?",
+                options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+                correctAnswer: "Option 1",
+              },
+            ],
+            checkpoint: {
+              question: "Which statement is correct?",
+              options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+              answer: "Option 1",
+            },
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lesson._id).lean();
+    expect(lesson.pages).toHaveLength(1);
+    expect(lesson.pages[0].checkpoint == null || !String(lesson.pages[0].checkpoint?.question || "").trim()).toBe(true);
+    const types = (lesson.pages[0].blocks || []).map((b) => b.type);
+    expect(types).not.toContain("selfCheck");
+    expect(types).toContain("text");
+  });
+
+  test("POST /api/lessons with invalid checkpoint block → left without inventing Option 1–4 on page.checkpoint", async () => {
+    const res = await request(app)
+      .post("/api/lessons")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        title: "Invalid Block No Invent",
         description: "Test",
         content: "Content",
         subject: "Biology",
@@ -167,10 +203,6 @@ describe("Lesson checkpoint creation (PR)", () => {
 
     expect(res.status).toBe(200);
     const lesson = await Lesson.findById(res.body.lesson._id).lean();
-    const cpBlock = (lesson.pages[0].blocks || []).find((b) => b.type === "checkpoint");
-    expect(cpBlock).toBeDefined();
-    expect(String(cpBlock.prompt || "").trim()).toBeTruthy();
-    const opts = (cpBlock.options || []).filter((o) => String(o || "").trim());
-    expect(opts.length).toBeGreaterThanOrEqual(2);
+    expect(lesson.pages[0].checkpoint == null || !String(lesson.pages[0].checkpoint?.question || "").trim()).toBe(true);
   });
 });

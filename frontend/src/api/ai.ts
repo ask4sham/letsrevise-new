@@ -41,23 +41,44 @@ function extractTextFromExplainChunkResponse(data: unknown): string {
 }
 
 export async function explainChunk(params: ExplainChunkParams): Promise<ExplainChunkResponse> {
-  const res = await api.post<Record<string, unknown>>("/ai/explain-chunk", {
-    text: params.text,
-    level: params.level,
-    subject: params.subject,
-    verbatim: params.verbatim,
-    lessonId: params.lessonId,
-    generationKind: params.generationKind,
-    suggestedConceptId: params.suggestedConceptId,
-  });
-  const body = res.data ?? {};
-  const direct =
-    typeof body.explanation === "string" && String(body.explanation).trim() ? String(body.explanation) : "";
-  const explanation = direct || extractTextFromExplainChunkResponse(body) || "";
-  return {
-    explanation,
-    _disabled: typeof body._disabled === "boolean" ? body._disabled : undefined,
-  };
+  try {
+    const res = await api.post<Record<string, unknown>>("/ai/explain-chunk", {
+      text: params.text,
+      level: params.level,
+      subject: params.subject,
+      verbatim: params.verbatim,
+      lessonId: params.lessonId,
+      generationKind: params.generationKind,
+      suggestedConceptId: params.suggestedConceptId,
+    });
+    const body = res.data ?? {};
+    const direct =
+      typeof body.explanation === "string" && String(body.explanation).trim()
+        ? String(body.explanation)
+        : "";
+    const explanation = direct || extractTextFromExplainChunkResponse(body) || "";
+    return {
+      explanation,
+      _disabled: typeof body._disabled === "boolean" ? body._disabled : undefined,
+    };
+  } catch (e: unknown) {
+    const ax = e as {
+      response?: { status?: number; data?: { error?: string; code?: string; message?: string } };
+      message?: string;
+    };
+    const code = String(ax.response?.data?.code || "");
+    const msg =
+      String(ax.response?.data?.error || ax.response?.data?.message || ax.message || "").trim() ||
+      "AI request failed";
+    if (code === "LLM_NOT_CONFIGURED" || /OPENAI_API_KEY|LLM_API_KEY/i.test(msg)) {
+      const err = new Error(
+        "OpenAI is not configured on this API server. Set OPENAI_API_KEY (or LLM_API_KEY) and restart the backend."
+      );
+      (err as Error & { code?: string }).code = "LLM_NOT_CONFIGURED";
+      throw err;
+    }
+    throw e;
+  }
 }
 
 // Step 2: Explain my mistake
@@ -741,6 +762,13 @@ export async function generateDragDropPairsFromText(input: {
     lessonId: input.lessonId,
     generationKind: "activity",
   });
+  if (res._disabled) {
+    const err = new Error(
+      "AI is disabled on this server (DISABLE_OPENAI=1). Turn it off or use an environment with OpenAI configured."
+    );
+    (err as Error & { code?: string }).code = "LLM_DISABLED";
+    throw err;
+  }
   const raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
   if (!raw) {
     return [];

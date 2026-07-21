@@ -23,6 +23,10 @@ import {
   isPlaceholderMcqOptions,
   recoverMcqFieldsFromBlockContent,
 } from "./mcqPlaceholderOptions";
+import {
+  isLearnTeachingPage,
+  stripLearnPageTestingBlocks,
+} from "./lessonPageGuards";
 import { stripSs1PrefixFromTitle } from "./formatBlockHeading";
 import { mergeLessonBlockIntroFields } from "./lessonRichText";
 import { canonicalSlugFromText } from "./normalizeLessonTopicKey";
@@ -166,15 +170,29 @@ function resolveImportEditorType(record: GeneratorExportV1Block): LessonBlockTyp
   return fromEditor;
 }
 
-/** Page.checkpoint must mirror the first inline checkpoint block for CreateLesson save + student view. */
+/** Page.checkpoint must mirror the first inline checkpoint block for CreateLesson save + student view.
+ * Learn pages never get a page.checkpoint (teaching-only guard rail).
+ */
 function pageCheckpointFromFirstBlock(
-  blocks: Record<string, unknown>[]
-): CreateLessonPageShape["checkpoint"] {
+  blocks: Record<string, unknown>[],
+  pageMeta: { title?: string; pageType?: string } = {}
+): CreateLessonPageShape["checkpoint"] | undefined {
+  if (isLearnTeachingPage(pageMeta)) return undefined;
+  const empty: CreateLessonPageShape["checkpoint"] = {
+    question: "",
+    options: ["", "", "", ""],
+    answer: "",
+    explanation: "",
+    markScheme: [],
+  };
   const fallback: CreateLessonPageShape["checkpoint"] = {
     ...VALID_STARTER_PAGE_CHECKPOINT,
   };
   const cp = blocks.find((b) => b && String(b.type) === "checkpoint");
-  if (!cp) return fallback;
+  // Pages with no checkpoint blocks must not inherit the starter placeholder —
+  // that triggers Create Lesson "replace placeholder checkpoint" warnings and
+  // backend Option 1–4 invent (legacy).
+  if (!cp) return empty;
   let opts = padOptions(cp.options);
   let q = String(cp.prompt ?? (cp as { question?: unknown }).question ?? "").trim();
   let ans = String(cp.correctAnswer ?? (cp as { answer?: unknown }).answer ?? "").trim();
@@ -193,7 +211,7 @@ function pageCheckpointFromFirstBlock(
     : ([] as string[]);
   const hasMcqBody =
     opts.filter((o) => o.trim() && !isPlaceholderMcqOptions([o])).length >= 2 && q.length > 0;
-  if (!hasMcqBody) return fallback;
+  if (!hasMcqBody) return empty;
   return {
     question: q || fallback.question,
     options: opts,
@@ -376,24 +394,39 @@ function recordToLessonBlock(
 
   switch (t) {
     case "checkpoint": {
-      let opts = padOptions(payload.options);
+      const qType = payload.questionType === "short" ? "short" : "mcq";
+      let opts = qType === "mcq" ? padOptions(payload.options) : [];
       let prompt = String(
         payload.prompt ?? (payload as { question?: unknown }).question ?? "Question"
       );
-      let correctAnswer = String(payload.correctAnswer ?? payload.answer ?? opts[0] ?? "").trim();
+      let correctAnswer =
+        qType === "mcq"
+          ? normalizeMcqCorrectAnswer(
+              String(payload.correctAnswer ?? payload.answer ?? "").trim(),
+              opts
+            )
+          : String(payload.correctAnswer ?? payload.answer ?? "").trim();
       let explanation = String(payload.explanation ?? "");
-      const enriched = enrichMcqFromContentIfNeeded(
-        { prompt, options: opts, correctAnswer, explanation },
-        payload.content
-      );
-      opts = enriched.options;
-      prompt = enriched.prompt;
-      correctAnswer = enriched.correctAnswer || opts[0] || "";
-      explanation = resolveImportedCheckpointExplanation(
-        enriched.explanation,
-        correctAnswer,
-        lessonMeta
-      );
+      if (qType === "mcq") {
+        const enriched = enrichMcqFromContentIfNeeded(
+          { prompt, options: opts, correctAnswer, explanation },
+          payload.content
+        );
+        opts = enriched.options;
+        prompt = enriched.prompt;
+        correctAnswer = normalizeMcqCorrectAnswer(enriched.correctAnswer, opts);
+        explanation = resolveImportedCheckpointExplanation(
+          enriched.explanation,
+          correctAnswer,
+          lessonMeta
+        );
+      } else {
+        explanation = resolveImportedCheckpointExplanation(
+          explanation,
+          correctAnswer,
+          lessonMeta
+        );
+      }
       const tier = normalizeCheckpointDifficultyTier(
         (payload as { difficultyTier?: unknown; difficulty?: unknown }).difficultyTier ??
           (payload as { difficulty?: unknown }).difficulty
@@ -413,11 +446,76 @@ function recordToLessonBlock(
           title,
           ...(role ? { role } : {}),
           prompt,
-          questionType: "mcq" as const,
-          options: opts,
+          questionType: qType,
+          options: qType === "short" ? ["", "", "", ""] : opts,
           correctAnswer,
           explanation,
           ...(markScheme ? { markScheme } : {}),
+        },
+        record
+      );
+    }
+    case "pageQuiz": {
+      const bankRaw = Array.isArray(payload.questions) ? payload.questions : [];
+      const questions = bankRaw
+        .map((raw, i) => {
+          if (!raw || typeof raw !== "object") return null;
+          const q = raw as Record<string, unknown>;
+          const qType = String(q.questionType ?? q.type ?? "mcq").toLowerCase() === "short" ? "short" : "mcq";
+          let opts = qType === "mcq" ? padOptions(q.options) : [];
+          let prompt = String(q.prompt ?? q.question ?? q.stem ?? "").trim();
+          let correctAnswer =
+            qType === "mcq"
+              ? normalizeMcqCorrectAnswer(String(q.correctAnswer ?? q.answer ?? "").trim(), opts)
+              : String(q.correctAnswer ?? q.answer ?? "").trim();
+          let explanation = String(q.explanation ?? "").trim();
+          if (!prompt || !correctAnswer) return null;
+          if (qType === "mcq" && opts.filter((o) => o.trim()).length < 2) return null;
+          return {
+            id: String(q.id || `pq_${i + 1}`),
+            prompt,
+            question: prompt,
+            questionType: qType,
+            type: qType,
+            options: qType === "mcq" ? opts : [],
+            correctAnswer,
+            explanation,
+            purpose: q.purpose != null ? String(q.purpose) : "exam",
+            marks: Number(q.marks) > 0 ? Number(q.marks) : 1,
+            ...(Array.isArray(q.markScheme)
+              ? {
+                  markScheme: q.markScheme
+                    .map((x) => String(x ?? "").trim())
+                    .filter(Boolean)
+                    .slice(0, 20),
+                }
+              : {}),
+          };
+        })
+        .filter(Boolean) as Record<string, unknown>[];
+      const first = questions[0];
+      return attachBlockNumber(
+        {
+          type: "pageQuiz" as const,
+          content: String(payload.content ?? ""),
+          title: title || "Quiz / revision",
+          ...(role ? { role } : { role: "pageQuiz" }),
+          questions,
+          ...(first
+            ? {
+                prompt: String(first.prompt ?? ""),
+                questionType: first.questionType === "short" ? "short" : "mcq",
+                options: Array.isArray(first.options) ? (first.options as string[]) : [],
+                correctAnswer: String(first.correctAnswer ?? ""),
+                explanation: String(first.explanation ?? ""),
+              }
+            : {
+                prompt: "",
+                questionType: "mcq" as const,
+                options: ["", "", "", ""],
+                correctAnswer: "",
+                explanation: "",
+              }),
         },
         record
       );
@@ -711,7 +809,7 @@ export type CreateLessonPageShape = {
   pageType?: string;
   hero?: { type: "none"; src: string; caption?: string };
   blocks: Record<string, unknown>[];
-  checkpoint: typeof VALID_STARTER_PAGE_CHECKPOINT;
+  checkpoint?: typeof VALID_STARTER_PAGE_CHECKPOINT;
 };
 
 /** Convert validated v1 JSON into CreateLesson `pages` state rows. */
@@ -733,19 +831,29 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
       topic: doc.lesson?.topic,
       title: doc.lesson?.title,
     };
+    const pageTitle = String(pg.title || `Page ${idx + 1}`).trim() || `Page ${idx + 1}`;
+    const pageMeta = {
+      title: pageTitle,
+      pageType: String((pg as { pageType?: string }).pageType || ""),
+    };
     const blocksRaw = numberedRecords
       .map((record) => recordToLessonBlock(record, lessonMeta))
       .filter(Boolean) as Record<string, unknown>[];
-    const blocks = elevateExtraImportedCheckpointsToSelfCheck(blocksRaw, lessonMeta);
+    // Guard rail: Learn is teaching-only — drop checkpoint / selfCheck / pageQuiz if present.
+    const blocksForPage = isLearnTeachingPage(pageMeta)
+      ? stripLearnPageTestingBlocks(blocksRaw)
+      : elevateExtraImportedCheckpointsToSelfCheck(blocksRaw, lessonMeta);
     return {
       pageId: newPid(),
-      title: String(pg.title || `Page ${idx + 1}`).trim() || `Page ${idx + 1}`,
+      title: pageTitle,
       order: idx + 1,
-      pageType: "",
+      pageType: isLearnTeachingPage(pageMeta) ? "learn" : "",
       hero: { type: "none", src: "", caption: "" },
       blocks:
-        blocks.length > 0 ? blocks : [{ type: "text", content: "", role: "concept" }],
-      checkpoint: pageCheckpointFromFirstBlock(blocks),
+        blocksForPage.length > 0
+          ? blocksForPage
+          : [{ type: "text", content: "", role: "concept" }],
+      checkpoint: pageCheckpointFromFirstBlock(blocksForPage, pageMeta),
     };
   });
 }
@@ -764,11 +872,18 @@ export type LessonMetaApply = {
 };
 
 function inferSpecKeyFromExport(L: GeneratorExportV1Document["lesson"]): string | undefined {
+  const explicit = String((L as { specKey?: string })?.specKey || "").trim();
+  if (explicit) return explicit;
+
   const subject = String(L?.subject || "")
     .trim()
     .toLowerCase();
   const board = String(L?.examBoard || "AQA").trim();
   const ks = String(L?.keyStage || "").toUpperCase();
+  // Prefer explicit IGCSE before the broad GCSE fallback.
+  if (ks.includes("IGCSE") && board === "Edexcel" && subject === "biology") {
+    return "edexcel-igcse-biology";
+  }
   if (ks.includes("GCSE") || ks === "" || ks.includes("KEY STAGE 4")) {
     if (board === "AQA" || board === "") {
       if (subject === "biology") return "aqa-gcse-biology";
@@ -824,12 +939,21 @@ export function topicKeyFromGeneratorExport(doc: GeneratorExportV1Document): {
 
 export function lessonMetaFromExport(doc: GeneratorExportV1Document): LessonMetaApply {
   const L = doc.lesson ?? {};
-  const levelGcse =
-    String(L.keyStage || "")
-      .toUpperCase()
-      .includes("A-LEVEL") || String(L.keyStage || "").includes("A-Level")
-      ? "A-Level"
-      : "GCSE";
+  const ks = String(L.keyStage || "").trim();
+  const ksUpper = ks.toUpperCase();
+  let levelGcse = "GCSE";
+  if (ksUpper.includes("A-LEVEL") || ks.includes("A-Level")) {
+    levelGcse = "A-Level";
+  } else if (ksUpper.includes("IGCSE")) {
+    levelGcse = "IGCSE";
+  } else if (ksUpper === "KS3" || ksUpper.includes("KEY STAGE 3")) {
+    levelGcse = "KS3";
+  } else if (ksUpper.includes("GCSE") || ksUpper.includes("KS4")) {
+    levelGcse = "GCSE";
+  } else if (ks) {
+    // Preserve explicit Create-Lesson-compatible level values.
+    levelGcse = ks;
+  }
   let board =
     typeof L.examBoard === "string" && L.examBoard.trim()
       ? L.examBoard.trim()

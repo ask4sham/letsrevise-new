@@ -1,5 +1,6 @@
 import {
   allocateLessonFlowFooterOrdinals,
+  applySequentialStudentDisplayNumbers,
   fallbackActivityTitleFromBlockType,
   formatDisplaySectionHeading,
   formatStudentBlockHeading,
@@ -9,8 +10,10 @@ import {
   normalizeLegacyBlockLabel,
   normalizeLegacySs1Heading,
   normalizePersistedBlockTitle,
+  sequentialStudentBlockNumber,
   shouldSuppressInnerBlockTitle,
   stripLeadingDuplicateBlockHeading,
+  studentDisplayNumbersAreSequential,
 } from "./formatBlockHeading";
 
 describe("normalizeLegacyBlockLabel", () => {
@@ -89,6 +92,39 @@ describe("activity titles and display numbering", () => {
     );
   });
 
+  it("sequentialStudentBlockNumber follows visual ordinal (not authored SS1 slots)", () => {
+    expect(sequentialStudentBlockNumber(1)).toBe(1);
+    expect(sequentialStudentBlockNumber(14)).toBe(14);
+    expect(sequentialStudentBlockNumber(0)).toBe(1);
+  });
+
+  it("applySequentialStudentDisplayNumbers rewrites authored 16→13→12 slots to 1→2→3", () => {
+    const authored = [
+      { type: "diagram", number: 16, title: "16 — DIAGRAM / VISUAL SETUP" },
+      { type: "interactiveSequence", number: 13, title: "13 — STEP-BY-STEP PROCESS" },
+      { type: "text", number: 12, title: "12 — EXAM TECHNIQUE" },
+      { type: "text", number: 22, title: "22 — SYNTHESIS" },
+      { type: "keyWords", number: 28, title: "28 — KEY WORDS" },
+      { type: "selfCheck", number: 19, title: "19 — SELF-CHECK" },
+    ];
+    const out = applySequentialStudentDisplayNumbers(authored, 1);
+    expect(studentDisplayNumbersAreSequential(out, 1)).toBe(true);
+    expect(out.map((b) => formatStudentBlockHeading(b))).toEqual([
+      "1 — DIAGRAM / VISUAL SETUP",
+      "2 — STEP-BY-STEP PROCESS",
+      "3 — EXAM TECHNIQUE",
+      "4 — SYNTHESIS",
+      "5 — KEY WORDS",
+      "6 — SELF-CHECK",
+    ]);
+  });
+
+  it("does not resurrect authored SS1 numbers from title when display number is missing", () => {
+    expect(formatStudentBlockHeading({ title: "16 — DIAGRAM / VISUAL SETUP" })).toBe(
+      "DIAGRAM / VISUAL SETUP"
+    );
+  });
+
   it("does not double-number existing SS1 headings", () => {
     expect(formatDisplaySectionHeading(18, "18 — Quiz Page")).toBe("18 — Quiz Page");
     expect(formatDisplaySectionHeading(19, "Practice Questions")).toBe("19 — Practice Questions");
@@ -116,6 +152,13 @@ describe("activity titles and display numbering", () => {
     );
     expect(withCp.quizPage).toBe(24);
     expect(withCp.practiceQuestions).toBe(25);
+  });
+
+  it("skips Quiz Page ordinal when that footer section is hidden", () => {
+    const hidden = allocateLessonFlowFooterOrdinals(25, false, { showQuizPage: false });
+    expect(hidden.revisionPractice).toBe(26);
+    expect(hidden.quizPage).toBeNull();
+    expect(hidden.practiceQuestions).toBe(27);
   });
 });
 

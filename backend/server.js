@@ -1,12 +1,12 @@
 // backend/server.js
 const express = require("express");
-const dotenv = require("dotenv");
 const helmet = require("helmet"); // ✅ security headers
 const rateLimit = require("express-rate-limit"); // ✅ rate limiting
 const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 
-// ✅ Load .env first
-dotenv.config();
+// ✅ Load .env first (always from backend/.env, not process.cwd())
+const { loadBackendEnv } = require("./config/loadEnv");
+const envLoad = loadBackendEnv();
 
 // Sentry: optional — do not crash if config/sentry.js is missing (e.g. before first deploy)
 const path = require("path");
@@ -28,6 +28,10 @@ if (fs.existsSync(sentryPath)) {
 }
 
 console.log("\n>>> BACKEND STARTING", new Date().toISOString(), "<<<\n");
+if (envLoad.loadedFrom) {
+  console.log("  Env loaded from:", envLoad.loadedFrom);
+}
+console.log("  OPENAI/LLM API key:", envLoad.hasOpenAiKey ? "present" : "MISSING");
 
 // ✅ DEBUG: Check JWT_SECRET_KEY is loaded
 console.log("🔐 Environment check:");

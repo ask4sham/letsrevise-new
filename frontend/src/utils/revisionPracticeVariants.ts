@@ -337,6 +337,27 @@ export function buildQuizVariantsFromCheckpoints(
   return variants;
 }
 
+/** End-of-lesson variants use a different paraphrase seed than Quiz Page. */
+export function buildEndOfLessonVariantsFromCheckpoints(
+  sources: CheckpointMcqSource[],
+  max = 8
+): DerivedQuizQuestion[] {
+  const variants: DerivedQuizQuestion[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < sources.length && variants.length < max; i++) {
+    const v = createQuizVariantFromCheckpoint(sources[i], i + 11, sources);
+    if (!v) continue;
+    const key = `${normalizeQuestionStem(v.question)}|${normalizeQuestionStem(v.correctAnswer)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    variants.push({
+      ...v,
+      id: `derived-eol-${i + 1}`,
+    });
+  }
+  return variants;
+}
+
 export function filterAgainstStemList<T extends Record<string, unknown>>(
   questions: T[],
   excludeStems: string[],

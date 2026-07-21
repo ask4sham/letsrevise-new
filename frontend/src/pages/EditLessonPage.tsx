@@ -171,6 +171,11 @@ import {
   tryParseFlexibleCheckpointMcq,
   markSchemeFromFlexibleCheckpointParse,
 } from "../utils/parseFlexibleCheckpointPaste";
+import {
+  isLearnTeachingPage,
+  stripLearnPageTestingBlocks,
+  emptyPageQuizBankEditorWarning,
+} from "../utils/lessonPageGuards";
 import { withPreservedActivityQuestions } from "../utils/activityQuestionBankRoundTrip";
 import {
   resolveActivityPreviewQuestion,
@@ -846,7 +851,7 @@ const EditLessonPage: React.FC = () => {
   const [dragDropDiagramPlacingId, setDragDropDiagramPlacingId] = useState<Record<string, string | null>>({});
   /** Per block `pageId:idx`: AI drag-drop pair generation */
   const [dragDropPairAiUi, setDragDropPairAiUi] = useState<
-    Record<string, { loading: boolean; message: "error" | "empty" | null }>
+    Record<string, { loading: boolean; message: string | null }>
   >({});
   /** Optional topic/prompt — when long enough, AI uses topic mode (4–6 pairs); else excerpt from lesson fields. */
   const [dragDropAiTopicPrompt, setDragDropAiTopicPrompt] = useState<Record<string, string>>({});
@@ -3884,7 +3889,15 @@ const EditLessonPage: React.FC = () => {
           .map((out: Record<string, unknown>, idx: number) =>
             attachLearningMetaForPersist(out, (p.blocks || [])[idx])
           ),
-      }));
+      }))
+      .map((page: any) => {
+        if (!isLearnTeachingPage(page)) return page;
+        return {
+          ...page,
+          blocks: stripLearnPageTestingBlocks(page.blocks || []),
+          checkpoint: undefined,
+        };
+      });
 
       // Build quiz.questions from pageQuiz banks + legacy single fields + existing page-scoped items.
       const pageQuizQuestions: QuizQuestion[] = [];
@@ -3919,10 +3932,14 @@ const EditLessonPage: React.FC = () => {
                   raw.explanation != null ? String(raw.explanation).trim() : undefined,
                 purpose: raw.purpose != null ? String(raw.purpose).trim() : undefined,
                 tags: Array.isArray(raw.tags)
-                  ? raw.tags.map((t) => String(t ?? "").trim()).filter(Boolean)
-                  : undefined,
+                  ? [
+                      ...raw.tags.map((t) => String(t ?? "").trim()).filter(Boolean),
+                      "page-quiz",
+                    ]
+                  : ["page-quiz"],
                 marks: Number(raw.marks) > 0 ? Number(raw.marks) : 1,
                 pageId,
+                sourceType: "pageQuiz",
               } as QuizQuestion);
             });
             continue;
@@ -6308,6 +6325,27 @@ const EditLessonPage: React.FC = () => {
                           style={getBlockStyle(blockType)}
                           onFocusCapture={() => setPreviewFocusBlockIdx(idx)}
                         >
+                          {(() => {
+                            const pqWarn = emptyPageQuizBankEditorWarning(b);
+                            if (!pqWarn) return null;
+                            return (
+                              <div
+                                style={{
+                                  marginBottom: 10,
+                                  padding: "8px 12px",
+                                  borderRadius: 8,
+                                  background: "#fffbeb",
+                                  border: "1px solid #f59e0b",
+                                  fontSize: 13,
+                                  color: "#92400e",
+                                  lineHeight: 1.45,
+                                }}
+                                role="status"
+                              >
+                                {pqWarn}
+                              </div>
+                            );
+                          })()}
                           {blockReports.length > 0 && (
                             <div
                               style={{
@@ -9350,10 +9388,19 @@ const EditLessonPage: React.FC = () => {
                                               ...prev,
                                               [key]: { loading: false, message: null },
                                             }));
-                                          } catch {
+                                          } catch (err: unknown) {
+                                            const msg =
+                                              err && typeof err === "object" && "message" in err
+                                                ? String((err as { message?: string }).message || "")
+                                                : "";
                                             setDragDropPairAiUi((prev) => ({
                                               ...prev,
-                                              [key]: { loading: false, message: "error" },
+                                              [key]: {
+                                                loading: false,
+                                                message: msg && /OPENAI|LLM_API_KEY|not configured|disabled/i.test(msg)
+                                                  ? msg
+                                                  : "error",
+                                              },
                                             }));
                                           }
                                         }}
@@ -9376,6 +9423,10 @@ const EditLessonPage: React.FC = () => {
                                       ) : dndAi.message === "empty" ? (
                                         <span style={{ fontSize: 13, color: "#b45309", fontWeight: 600 }}>
                                           No suitable pairs generated.
+                                        </span>
+                                      ) : dndAi.message ? (
+                                        <span style={{ fontSize: 13, color: "#b91c1c", fontWeight: 600 }}>
+                                          {dndAi.message}
                                         </span>
                                       ) : null}
                                     </>
@@ -10359,6 +10410,25 @@ const EditLessonPage: React.FC = () => {
                       );
                     }
                     if (blockType === "pageQuiz") {
+                      const pqEmptyWarn = emptyPageQuizBankEditorWarning(b);
+                      if (pqEmptyWarn) {
+                        return (
+                          <div
+                            key={`${currentPage!.pageId}_prev_${idx}`}
+                            style={{
+                              marginBottom: 12,
+                              padding: "10px 12px",
+                              borderRadius: 10,
+                              background: "#fffbeb",
+                              border: "1px solid #f59e0b",
+                              fontSize: 13,
+                              color: "#92400e",
+                            }}
+                          >
+                            {pqEmptyWarn}
+                          </div>
+                        );
+                      }
                       const bankPreview = resolveActivityPreviewQuestion(b);
                       const pq = b as {
                         prompt?: string;

@@ -69,6 +69,14 @@ jest.mock("./studentLessonBlocks", () => ({
   StudentWorkedExampleBlock: () => <div data-testid="worked-example" />,
 }));
 
+jest.mock("../../revision/QuizView", () => ({
+  QuizView: (props) => (
+    <div data-testid="quiz-view" data-count={(props.questions || []).length}>
+      {(props.questions && props.questions[0] && props.questions[0].question) || ""}
+    </div>
+  ),
+}));
+
 const baseProps = {
   blockIndex: 0,
   markdownComponents: {},
@@ -250,5 +258,79 @@ describe("LessonStudentBlockRenderer", () => {
     );
     expect(screen.getByRole("heading", { level: 2, name: /12 — DRAG AND DROP MATCH/i })).toBeInTheDocument();
     expect(screen.getByTestId("drag-drop-match")).toHaveAttribute("data-hide-title", "1");
+  });
+
+  it("renders pageQuiz from questions[] via QuizView (not empty markdown)", () => {
+    render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        block={{
+          type: "pageQuiz",
+          number: 25,
+          title: "Quiz Page",
+          content: "",
+          questions: [
+            {
+              prompt: "Why is water needed for germination?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "A",
+            },
+            {
+              prompt: "Why is oxygen needed?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "B",
+            },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByRole("heading", { level: 2, name: /25 — QUIZ PAGE/i })).toBeInTheDocument();
+    expect(screen.getByTestId("quiz-view")).toHaveAttribute("data-count", "2");
+    expect(screen.getByTestId("quiz-view")).toHaveTextContent("Why is water needed for germination?");
+  });
+
+  it("renders pageQuiz from fallback bank when questions[] is empty", () => {
+    render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        pageQuizFallbackQuestions={[
+          {
+            id: "pq1",
+            type: "mcq",
+            question: "Fallback stem from lesson.quiz?",
+            options: ["A", "B", "C", "D"],
+            correctAnswer: "C",
+            tags: ["page-quiz"],
+          },
+        ]}
+        block={{
+          type: "pageQuiz",
+          number: 25,
+          title: "Quiz Page",
+          content: "",
+          questions: [],
+        }}
+      />
+    );
+    expect(screen.getByTestId("quiz-view")).toHaveAttribute("data-count", "1");
+    expect(screen.getByTestId("quiz-view")).toHaveTextContent("Fallback stem from lesson.quiz?");
+  });
+
+  it("hides empty pageQuiz shells with no bank", () => {
+    const { container } = render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        block={{
+          type: "pageQuiz",
+          number: 25,
+          title: "Quiz Page",
+          content: "",
+          questions: [],
+        }}
+      />
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });
