@@ -170,11 +170,16 @@ async function handleEnquiry(req, res) {
 
     // PR-007: Student-safe mode — force constraints
     // PR-021: Students never get external search
+    // Ask Sham: Explain answers first — do not force practice generation in explain mode.
     if (isStudentUser) {
       mode = "lesson";
       limit = Math.min(6, parseInt(limit, 10) || 6);
-      includePractice = true;
       allowExternal = false;
+      if (responseMode === "explain") {
+        includePractice = false;
+      } else {
+        includePractice = true;
+      }
     }
 
     const isTeacherOrAdmin = userRoleLower === "teacher" || userRoleLower === "admin";

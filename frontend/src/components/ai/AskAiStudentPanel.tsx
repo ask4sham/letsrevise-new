@@ -1,12 +1,12 @@
 /**
- * PR-007: Student "Ask for help" panel — simplified UX, practice-first.
+ * Ask Sham — student AI tutor panel.
+ * Explain mode: explanation first (no practice-first). Practice via Quick / Practice chip / Revision.
  * PR-019: Threaded tutoring (API); UI shows only the latest Q&A for focus.
  * PR-033: Tutor action chips (Explain again, Explain simpler, Another example, Practice question, Show diagram).
  */
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   postEnquiry,
-  postEnquiryAction,
   type PostEnquiryResponse,
 } from "../../api/enquiry";
 import { createConversation, getConversation } from "../../api/conversations";
@@ -15,18 +15,26 @@ import { CitationsList } from "./CitationsList";
 import { InlineDiagramBlock } from "./InlineDiagramBlock";
 import { SuggestedActionsBar } from "./SuggestedActionsBar";
 import {
+  ASK_SHAM_HEADING,
+  ASK_SHAM_SUBCOPY,
   buildLessonNativeStarterChips,
-  buildStudentTutorHeading,
   buildStudentTutorPlaceholder,
-  buildStudentTutorSubcopy,
 } from "../../utils/askAiStudentLessonNative";
 
 /** Learning reinforcement (not grading) — full string sent as the next enquiry in-thread. */
-const LEARNING_FOLLOW_UPS: { label: string; prompt: string }[] = [
-  { label: "Explain this in simpler terms", prompt: "Explain this in simpler terms" },
-  { label: "Give me another example", prompt: "Give me another example" },
-  { label: "What do I need to remember for the exam?", prompt: "What do I need to remember for the exam?" },
-  { label: "Test me on this topic", prompt: "Test me on this topic" },
+const LEARNING_FOLLOW_UPS: {
+  label: string;
+  prompt: string;
+  mode?: "quick" | "explain" | "revision";
+}[] = [
+  { label: "Explain this in simpler terms", prompt: "Explain this in simpler terms", mode: "explain" },
+  { label: "Give me another example", prompt: "Give me another example", mode: "explain" },
+  {
+    label: "What do I need to remember for the exam?",
+    prompt: "What do I need to remember for the exam?",
+    mode: "revision",
+  },
+  { label: "Test me on this topic", prompt: "Test me on this topic", mode: "quick" },
 ];
 
 type ChatMessage = {
@@ -58,9 +66,9 @@ const STUDENT_MODE_LABELS: Record<"quick" | "explain" | "revision", string> = {
   revision: "Revision",
 };
 const STUDENT_MODE_TOOLTIPS: Record<"quick" | "explain" | "revision", string> = {
-  quick: "Short explanation + quick practice",
-  explain: "Detailed explanation + examples",
-  revision: "Flashcards + memory cues",
+  quick: "Short direct answer; practice may follow",
+  explain: "Full explanation first — no practice-first cards",
+  revision: "Summary, key points, memory cues and retrieval practice",
 };
 
 function tutorChipStyle(disabled: boolean): React.CSSProperties {
@@ -102,8 +110,8 @@ export function AskAiStudentPanel({
   pageTitle,
   suppressAutoScroll = false,
 }: Props) {
-  const heading = buildStudentTutorHeading(pageTitle, lessonTitle);
-  const subcopy = buildStudentTutorSubcopy(pageTitle, lessonTitle);
+  const heading = ASK_SHAM_HEADING;
+  const subcopy = ASK_SHAM_SUBCOPY;
   const placeholder = buildStudentTutorPlaceholder(pageTitle, lessonTitle);
   const lessonNativeChips = buildLessonNativeStarterChips(pageTitle, lessonTitle);
 
@@ -114,7 +122,6 @@ export function AskAiStudentPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
-  const [showExplanation, setShowExplanation] = useState<Record<string, boolean>>({});
   const [practiceHighlightId, setPracticeHighlightId] = useState<string | null>(null);
   const [responseMode, setResponseMode] = useState<"quick" | "explain" | "revision">("explain");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -187,33 +194,36 @@ export function AskAiStudentPanel({
     }
   }, []);
 
-  /** PR-033: Shared send for typed input and tutor chips. Does not clear input when sending chip prompts. */
+  /** Shared send for typed input and tutor chips. Does not clear input when sending chip prompts. */
   const sendStudentMessage = useCallback(
     async ({ message, modeOverride }: { message: string; modeOverride?: "quick" | "explain" | "revision" }) => {
       const q = message.trim();
-    if (!q || loading) return;
+      if (!q || loading) return;
 
       const convId = conversationId;
       if (!convId && !conversationInitFailed) return;
 
-    setLoading(true);
-    setError(null);
-      // Only clear input when sending user's typed text (form submit), not tutor chip messages
+      const effectiveMode = modeOverride ?? responseMode;
+      // Explain: no practice. Quick / revision / practice chips keep practice.
+      const includePractice = effectiveMode !== "explain";
+
+      setLoading(true);
+      setError(null);
       if (q === question.trim()) setQuestion("");
 
       setMessages([{ role: "user", text: q }]);
 
-    try {
-      const res = await postEnquiry({
-        question: q,
-        specKey,
-        topicKey,
+      try {
+        const res = await postEnquiry({
+          question: q,
+          specKey,
+          topicKey,
           conversationId: convId || undefined,
-        mode: "lesson",
-        limit: 6,
-        includePractice: true,
-          responseMode: modeOverride ?? responseMode,
-        lessonId: lessonId || undefined,
+          mode: "lesson",
+          limit: 6,
+          includePractice,
+          responseMode: effectiveMode,
+          lessonId: lessonId || undefined,
         });
 
         setMessages([
@@ -223,31 +233,32 @@ export function AskAiStudentPanel({
             text: res.answer.explanation || "",
             enquiryLogId: res.enquiryLogId || null,
             fullResponse: res,
+            responseMode: effectiveMode,
           },
         ]);
-    } catch (err: unknown) {
-      const e = err as {
-        message?: string;
-        data?: { msg?: string; message?: string; error?: string; detail?: string };
-      };
-      const fromInterceptor = typeof e?.message === "string" ? e.message : "";
-      const apiMsg =
-        (typeof e?.data?.msg === "string" && e.data.msg) ||
-        (typeof e?.data?.message === "string" && e.data.message) ||
-        (typeof e?.data?.detail === "string" && e.data.detail) ||
-        "";
-      const genericErr =
-        typeof e?.data?.error === "string" &&
-        (e.data.error === "Unhandled server error" || e.data.error === "Request failed" || e.data.error === "Server error")
-          ? ""
-          : typeof e?.data?.error === "string"
-            ? e.data.error
-            : "";
-      setError(fromInterceptor || apiMsg || genericErr || "Failed to get answer");
+      } catch (err: unknown) {
+        const e = err as {
+          message?: string;
+          data?: { msg?: string; message?: string; error?: string; detail?: string };
+        };
+        const fromInterceptor = typeof e?.message === "string" ? e.message : "";
+        const apiMsg =
+          (typeof e?.data?.msg === "string" && e.data.msg) ||
+          (typeof e?.data?.message === "string" && e.data.message) ||
+          (typeof e?.data?.detail === "string" && e.data.detail) ||
+          "";
+        const genericErr =
+          typeof e?.data?.error === "string" &&
+          (e.data.error === "Unhandled server error" || e.data.error === "Request failed" || e.data.error === "Server error")
+            ? ""
+            : typeof e?.data?.error === "string"
+              ? e.data.error
+              : "";
+        setError(fromInterceptor || apiMsg || genericErr || "Failed to get answer");
         setMessages([]);
-    } finally {
-      setLoading(false);
-    }
+      } finally {
+        setLoading(false);
+      }
     },
     [conversationId, conversationInitFailed, loading, question, specKey, topicKey, responseMode, lessonId]
   );
@@ -265,10 +276,6 @@ export function AskAiStudentPanel({
   const togglePracticeAnswer = (enquiryLogId: string, idx: number) => {
     const key = `${enquiryLogId}-${idx}`;
     setShowAnswer((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const toggleExplanation = (enquiryLogId: string) => {
-    setShowExplanation((prev) => ({ ...prev, [enquiryLogId]: !prev[enquiryLogId] }));
   };
 
   const canSend = conversationId || conversationInitFailed;
@@ -369,15 +376,15 @@ export function AskAiStudentPanel({
                     response={latestAssistant.fullResponse}
                     lessonId={lessonId}
                     enquiryLogId={latestAssistant.enquiryLogId}
+                    responseMode={latestAssistant.responseMode || responseMode}
                     practiceHighlightId={practiceHighlightId}
                     showAnswer={showAnswer}
-                    showExplanation={showExplanation[latestAssistant.enquiryLogId || ""]}
                     onTogglePractice={togglePracticeAnswer}
-                    onToggleExplanation={() =>
-                      latestAssistant.enquiryLogId && toggleExplanation(latestAssistant.enquiryLogId)
-                    }
                     onIntent={(p) => handleIntent(p, latestAssistant.enquiryLogId)}
-                    onFollowUpPrompt={(prompt) => sendStudentMessage({ message: prompt })}
+                    onFollowUpPrompt={(prompt, mode) => {
+                      if (mode) sendTutorPrompt(prompt, mode);
+                      else sendStudentMessage({ message: prompt });
+                    }}
                     followUpsDisabled={loading}
                   />
                 ) : (
@@ -411,7 +418,6 @@ export function AskAiStudentPanel({
         </div>
       )}
 
-      {/* Slice 3: lesson/page-named starters (before generic tutor actions) */}
       {lessonNativeChips.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <div
@@ -442,7 +448,6 @@ export function AskAiStudentPanel({
         </div>
       )}
 
-      {/* PR-033: Tutor action chips — one-tap follow-ups */}
       <div style={{ marginBottom: 12 }}>
         <div
           style={{
@@ -547,10 +552,6 @@ export function AskAiStudentPanel({
           {loading ? "Searching…" : "Send"}
         </button>
       </form>
-
-      <p style={{ marginTop: 12, fontSize: 12, color: "#94a3b8" }}>
-        Answers are based on your LetsRevise lessons and course spec.
-      </p>
     </div>
   );
 }
@@ -559,26 +560,181 @@ type AssistantBubbleStudentProps = {
   response: PostEnquiryResponse;
   lessonId?: string;
   enquiryLogId?: string | null;
+  responseMode: "quick" | "explain" | "revision";
   practiceHighlightId: string | null;
   showAnswer: Record<string, boolean>;
-  showExplanation: boolean;
   onTogglePractice: (enquiryLogId: string, idx: number) => void;
-  onToggleExplanation: () => void;
   onIntent: (payload: unknown) => void;
-  /** Sends a new enquiry with the given prompt (same conversation). */
-  onFollowUpPrompt?: (prompt: string) => void;
+  onFollowUpPrompt?: (prompt: string, mode?: "quick" | "explain" | "revision") => void;
   followUpsDisabled?: boolean;
 };
+
+function PracticeBlockStudent({
+  practice,
+  enquiryLogId,
+  practiceHighlightId,
+  showAnswer,
+  onTogglePractice,
+  secondary,
+}: {
+  practice: NonNullable<PostEnquiryResponse["answer"]["practice"]>;
+  enquiryLogId: string;
+  practiceHighlightId: string | null;
+  showAnswer: Record<string, boolean>;
+  onTogglePractice: (enquiryLogId: string, idx: number) => void;
+  secondary?: boolean;
+}) {
+  return (
+    <div
+      id={`practice-${enquiryLogId}`}
+      style={{
+        marginBottom: 16,
+        marginTop: secondary ? 8 : 0,
+        transition: "box-shadow 0.3s ease",
+        boxShadow: practiceHighlightId === enquiryLogId ? "0 0 0 3px #86efac" : "none",
+        borderRadius: 8,
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#166534" }}>
+        {secondary ? "Optional practice" : "Try these practice questions"}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {practice.map((p, i) =>
+          p.type === "flashcard" ? (
+            <div
+              key={i}
+              style={{
+                padding: 12,
+                background: "#fff",
+                borderRadius: 8,
+                border: "1px solid #bbf7d0",
+              }}
+            >
+              <span
+                style={{
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  fontWeight: 600,
+                  fontSize: 11,
+                  marginRight: 8,
+                }}
+              >
+                FLASHCARD
+              </span>
+              <div style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>{p.front}</div>
+              <button
+                type="button"
+                onClick={() => onTogglePractice(enquiryLogId, i)}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  background: "#dcfce7",
+                  border: "1px solid #86efac",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  color: "#166534",
+                }}
+              >
+                {showAnswer[`${enquiryLogId}-${i}`] ? "Hide back" : "Show back"}
+              </button>
+              {showAnswer[`${enquiryLogId}-${i}`] && p.back && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: 8,
+                    background: "#f0fdf4",
+                    borderRadius: 6,
+                    border: "1px solid #bbf7d0",
+                    fontSize: 13,
+                  }}
+                >
+                  {p.back}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              key={i}
+              style={{
+                padding: 12,
+                background: "#fff",
+                borderRadius: 8,
+                border: "1px solid #bbf7d0",
+              }}
+            >
+              <span
+                style={{
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "#dcfce7",
+                  color: "#166534",
+                  fontWeight: 600,
+                  fontSize: 11,
+                  marginRight: 8,
+                }}
+              >
+                {p.type.toUpperCase()}
+              </span>
+              <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
+              {p.type === "mcq" && Array.isArray(p.options) && (
+                <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                  {p.options.map((opt, j) => (
+                    <li key={j}>{opt}</li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={() => onTogglePractice(enquiryLogId, i)}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  background: "#dcfce7",
+                  border: "1px solid #86efac",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  color: "#166534",
+                }}
+              >
+                {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Reveal answer"}
+              </button>
+              {showAnswer[`${enquiryLogId}-${i}`] && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: 8,
+                    background: "#f0fdf4",
+                    borderRadius: 6,
+                    border: "1px solid #bbf7d0",
+                    fontSize: 13,
+                  }}
+                >
+                  <strong>Answer:</strong> {p.answer}
+                  {p.markScheme && (
+                    <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
+                      <strong>Mark scheme:</strong> {p.markScheme}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
 
 function AssistantBubbleStudent({
   response,
   lessonId,
   enquiryLogId,
+  responseMode,
   practiceHighlightId,
   showAnswer,
-  showExplanation,
   onTogglePractice,
-  onToggleExplanation,
   onIntent,
   onFollowUpPrompt,
   followUpsDisabled = false,
@@ -590,6 +746,10 @@ function AssistantBubbleStudent({
   const insufficientSources = noteWarnings.some((w) =>
     /insufficient trusted sources/i.test(w)
   );
+  const practice = response.answer.practice || [];
+  const hasPractice = practice.length > 0 && !!enquiryLogId;
+  // Explain: never lead with practice. Quick/revision may show practice after the answer.
+  const showPractice = hasPractice && responseMode !== "explain";
 
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
@@ -643,187 +803,23 @@ function AssistantBubbleStudent({
         </div>
       )}
 
-          {/* PR-007: Practice first */}
-      {response.answer.practice && response.answer.practice.length > 0 && enquiryLogId && (
+      {/* Explanation first — always expanded (Ask Sham Explain contract) */}
+      {response.answer.explanation && (
         <div
-          id={`practice-${enquiryLogId}`}
           style={{
             marginBottom: 16,
-            transition: "box-shadow 0.3s ease",
-            boxShadow: practiceHighlightId === enquiryLogId ? "0 0 0 3px #86efac" : "none",
+            padding: 12,
+            background: "#fff",
             borderRadius: 8,
+            border: "1px solid #e2e8f0",
+            fontSize: 15,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
           }}
         >
-              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#166534" }}>
-                Try these practice questions
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {response.answer.practice.map((p, i) =>
-              p.type === "flashcard" ? (
-                <div
-                  key={i}
-                  style={{
-                    padding: 12,
-                    background: "#fff",
-                    borderRadius: 8,
-                    border: "1px solid #bbf7d0",
-                  }}
-                >
-                  <span
-                    style={{
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background: "#fef3c7",
-                      color: "#92400e",
-                      fontWeight: 600,
-                      fontSize: 11,
-                      marginRight: 8,
-                    }}
-                  >
-                    FLASHCARD
-                  </span>
-                  <div style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>
-                    {p.front}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onTogglePractice(enquiryLogId, i)}
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      background: "#dcfce7",
-                      border: "1px solid #86efac",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      color: "#166534",
-                    }}
-                  >
-                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide back" : "Show back"}
-                  </button>
-                  {showAnswer[`${enquiryLogId}-${i}`] && p.back && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        padding: 8,
-                        background: "#f0fdf4",
-                        borderRadius: 6,
-                        border: "1px solid #bbf7d0",
-                        fontSize: 13,
-                      }}
-                    >
-                      {p.back}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                  <div
-                    key={i}
-                    style={{
-                      padding: 12,
-                      background: "#fff",
-                      borderRadius: 8,
-                      border: "1px solid #bbf7d0",
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        background: "#dcfce7",
-                        color: "#166534",
-                        fontWeight: 600,
-                        fontSize: 11,
-                        marginRight: 8,
-                      }}
-                    >
-                      {p.type.toUpperCase()}
-                    </span>
-                    <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
-                    {p.type === "mcq" && Array.isArray(p.options) && (
-                      <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-                        {p.options.map((opt, j) => (
-                          <li key={j}>{opt}</li>
-                        ))}
-                      </ul>
-                    )}
-                    <button
-                      type="button"
-                    onClick={() => onTogglePractice(enquiryLogId, i)}
-                      style={{
-                        padding: "4px 10px",
-                        fontSize: 12,
-                        background: "#dcfce7",
-                        border: "1px solid #86efac",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        color: "#166534",
-                      }}
-                    >
-                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Reveal answer"}
-                    </button>
-                  {showAnswer[`${enquiryLogId}-${i}`] && (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          padding: 8,
-                          background: "#f0fdf4",
-                          borderRadius: 6,
-                          border: "1px solid #bbf7d0",
-                          fontSize: 13,
-                        }}
-                      >
-                        <strong>Answer:</strong> {p.answer}
-                        {p.markScheme && (
-                          <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
-                            <strong>Mark scheme:</strong> {p.markScheme}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-              )
-            )}
-              </div>
-            </div>
-          )}
-
-          {/* Explanation — collapsed by default */}
-          {response.answer.explanation && (
-            <div style={{ marginBottom: 16 }}>
-              <button
-                type="button"
-            onClick={onToggleExplanation}
-                style={{
-                  padding: "8px 12px",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  background: showExplanation ? "#e2e8f0" : "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  color: "#334155",
-                }}
-              >
-                {showExplanation ? "Hide explanation" : "Show explanation"}
-              </button>
-              {showExplanation && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: 12,
-                    background: "#fff",
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 15,
-                    lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {response.answer.explanation}
-                </div>
-              )}
-            </div>
-          )}
+          {response.answer.explanation}
+        </div>
+      )}
 
       {response.answer.memoryHook?.trim() && (
         <div
@@ -853,14 +849,23 @@ function AssistantBubbleStudent({
         </div>
       )}
 
-      {/* PR-034: Inline diagram rendering — after explanation, before citations */}
+      {showPractice && enquiryLogId && (
+        <PracticeBlockStudent
+          practice={practice}
+          enquiryLogId={enquiryLogId}
+          practiceHighlightId={practiceHighlightId}
+          showAnswer={showAnswer}
+          onTogglePractice={onTogglePractice}
+          secondary={responseMode === "quick"}
+        />
+      )}
+
       {response.answer.citations && (
         <InlineDiagramBlock citations={response.answer.citations} studentMode={true} />
       )}
 
-      {/* PR-037: Study Coach — coverage-aware learning suggestions */}
       {response.learningSuggestions && response.learningSuggestions.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14, color: "#166534" }}>
             Study coach
           </div>
@@ -877,14 +882,15 @@ function AssistantBubbleStudent({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontWeight: 600, fontSize: 14, color: "#334155" }}>
-                    {s.topicKey.split(":").pop()?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || s.topicKey}
+                    {s.topicKey.split(":").pop()?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) ||
+                      s.topicKey}
                   </span>
-                          <span
-                            style={{
-                              padding: "2px 6px",
-                              borderRadius: 4,
+                  <span
+                    style={{
+                      padding: "2px 6px",
+                      borderRadius: 4,
                       fontSize: 11,
-                              fontWeight: 600,
+                      fontWeight: 600,
                       background:
                         s.status === "THIN"
                           ? "#fef3c7"
@@ -906,36 +912,36 @@ function AssistantBubbleStudent({
                         : s.status === "STRONG" || s.status === "OK"
                           ? "Strong"
                           : s.status}
-                          </span>
-                        </div>
+                  </span>
+                </div>
                 <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
                   {s.reason}
                 </p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {s.actions.map((a) => (
-                          <Link
+                    <Link
                       key={a.id}
                       to={a.href}
-                            style={{
+                      style={{
                         padding: "6px 12px",
-                              fontSize: 12,
+                        fontSize: 12,
                         fontWeight: 600,
                         background: "#dcfce7",
                         color: "#166534",
                         border: "1px solid #86efac",
                         borderRadius: 6,
-                              textDecoration: "none",
-                            }}
-                          >
+                        textDecoration: "none",
+                      }}
+                    >
                       {a.label}
-                          </Link>
+                    </Link>
                   ))}
                 </div>
               </div>
             ))}
           </div>
-            </div>
-          )}
+        </div>
+      )}
 
       {response.answer.citations && response.answer.citations.length > 0 && (
         <CitationsList
@@ -965,24 +971,13 @@ function AssistantBubbleStudent({
               Keep learning
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {LEARNING_FOLLOW_UPS.map(({ label, prompt }) => (
+              {LEARNING_FOLLOW_UPS.map(({ label, prompt, mode }) => (
                 <button
-                  key={prompt}
+                  key={label}
                   type="button"
                   disabled={followUpsDisabled}
-                  onClick={() => onFollowUpPrompt(prompt)}
-                  style={{
-                    padding: "8px 12px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    background: followUpsDisabled ? "#e2e8f0" : "#fff",
-                    color: followUpsDisabled ? "#94a3b8" : "#166534",
-                    border: "1px solid #86efac",
-                    borderRadius: 8,
-                    cursor: followUpsDisabled ? "not-allowed" : "pointer",
-                    textAlign: "left",
-                    lineHeight: 1.3,
-                  }}
+                  onClick={() => onFollowUpPrompt(prompt, mode)}
+                  style={tutorChipStyle(!!followUpsDisabled)}
                 >
                   {label}
                 </button>
@@ -996,14 +991,8 @@ function AssistantBubbleStudent({
           actions={response.suggestedActions}
           mode="student"
           onIntent={onIntent}
-          onActionClick={
-            enquiryLogId
-              ? (actionId) => postEnquiryAction(enquiryLogId, actionId).catch(() => {})
-              : undefined
-          }
         />
       )}
-
-        </div>
+    </div>
   );
 }

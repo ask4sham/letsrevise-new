@@ -421,7 +421,7 @@ async function openaiGenerateGeneralKnowledge(question, constraints) {
     quick:
       "\n\nQUICK MODE: 3–5 bullet points, max ~600 characters. One practice item. No filler.",
     explain:
-      "\n\nEXPLAIN MODE: Clear GCSE-style explanation; concise. Two practice items (1 mcq + 1 short).",
+      "\n\nEXPLAIN MODE: Direct GCSE-style explanation first. Lead with a clear answer using precise syllabus terms; add concise key points or cause-and-effect where helpful. Do NOT generate practice questions, MCQs, or short-answer drills. Leave practice as an empty array [].",
     exam:
       "\n\nEXAM MODE: Structured points and command words; one exam question + mark scheme. No rambling.",
     revision:
@@ -438,7 +438,11 @@ STUDENT MODE:
 - Use simple language suitable for GCSE/A-Level students.
 - Keep explanation <= 1200 characters.
 - Prefer bullet points.
-- Do not mention internal implementation details.`
+- Do not mention internal implementation details.${
+          constraints?.includePractice !== false && responseMode !== "explain"
+            ? "\n- You may include practice items as requested by the mode."
+            : "\n- Do not include practice items; focus on the explanation."
+        }`
       : "";
 
   const simplifiedNote =
@@ -553,7 +557,7 @@ async function openaiGenerate(question, contextChunks, constraints) {
     quick:
       "\n\nQUICK MODE: 3–5 bullet points, max ~600 characters total. Exactly 1 practice item. No preamble or filler.",
     explain:
-      "\n\nEXPLAIN MODE: Clear, exam-style explanation—definitions first, then one short example only if the sources support it. Two practice items (1 mcq + 1 short).",
+      "\n\nEXPLAIN MODE: Direct exam-style explanation first—definitions and the answer to the question up front; one short example only if the sources support it. Use clear GCSE terminology and cause-and-effect where relevant. Concise key points are welcome. Do NOT generate practice questions, MCQs, or short-answer drills. Leave practice as an empty array [].",
     exam:
       "\n\nEXAM MODE: GCSE-style response—address command words, use precise terminology from sources where possible. One exam-style question + mark scheme. No padding.",
     revision:
@@ -585,8 +589,11 @@ STUDENT MODE:
 - Use simple language suitable for GCSE/A-Level students.
 - Keep explanation <= 1200 characters.
 - Prefer bullet points.
-- Encourage the student to attempt practice questions first.
-- Do not mention internal implementation details.`
+- Do not mention internal implementation details.${
+          constraints?.includePractice !== false && responseMode !== "explain"
+            ? "\n- Practice items may follow the explanation when the mode requests them."
+            : "\n- Do not include practice items; the explanation is the full response."
+        }`
       : "";
 
   const intentBlock = buildEnquiryQuestionIntentBlock(question);

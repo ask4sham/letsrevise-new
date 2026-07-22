@@ -1,4 +1,6 @@
 import {
+  ASK_SHAM_HEADING,
+  ASK_SHAM_SUBCOPY,
   buildLessonNativeStarterChips,
   buildStudentTutorHeading,
   buildStudentTutorPlaceholder,
@@ -6,35 +8,28 @@ import {
 } from "./askAiStudentLessonNative";
 
 describe("askAiStudentLessonNative", () => {
-  test("prefers page title in heading, then lesson, then generic", () => {
-    expect(buildStudentTutorHeading("Learn", "Gametes and Fertilisation")).toBe(
-      "Ask about Learn"
-    );
-    expect(buildStudentTutorHeading("", "Gametes and Fertilisation")).toBe(
-      "Ask about Gametes and Fertilisation"
-    );
-    expect(buildStudentTutorHeading()).toBe("Ask for help on this topic");
+  test("heading is always Ask Sham", () => {
+    expect(buildStudentTutorHeading("Learn", "Gametes and Fertilisation")).toBe(ASK_SHAM_HEADING);
+    expect(buildStudentTutorHeading("", "Gametes and Fertilisation")).toBe("Ask Sham");
+    expect(buildStudentTutorHeading()).toBe("Ask Sham");
   });
 
-  test("subcopy names lesson and page when both present", () => {
+  test("subcopy is fixed Ask Sham AI-tutor line (no lesson/page repetition)", () => {
     const copy = buildStudentTutorSubcopy("Practise", "Gametes and Fertilisation");
-    expect(copy).toContain("Gametes and Fertilisation");
-    expect(copy).toContain("Practise");
-    expect(copy).toMatch(/grounded/i);
+    expect(copy).toBe(ASK_SHAM_SUBCOPY);
+    expect(copy).not.toContain("Gametes and Fertilisation");
+    expect(copy).not.toContain("Practise");
+    expect(copy).not.toMatch(/thread|latest exchange/i);
+    expect(copy).toMatch(/AI tutor/i);
   });
 
   test("placeholder includes truncated title", () => {
-    expect(
-      buildStudentTutorPlaceholder("Learn", "Gametes and Fertilisation")
-    ).toContain("Learn");
+    expect(buildStudentTutorPlaceholder("Learn", "Gametes and Fertilisation")).toContain("Learn");
     expect(buildStudentTutorPlaceholder()).toMatch(/What do I need to know/);
   });
 
-  test("starter chips include page/lesson titles in prompts", () => {
-    const chips = buildLessonNativeStarterChips(
-      "Learn",
-      "Gametes and Fertilisation"
-    );
+  test("starter chips include page/lesson titles in prompts only", () => {
+    const chips = buildLessonNativeStarterChips("Learn", "Gametes and Fertilisation");
     expect(chips).toHaveLength(2);
     expect(chips[0].label).toBe("Explain this page");
     expect(chips[0].prompt).toContain('"Learn"');

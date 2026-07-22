@@ -12,33 +12,24 @@ function truncateTitle(value: string, max = 48): string {
   return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+/** Consistent student-facing tutor identity. */
+export const ASK_SHAM_HEADING = "Ask Sham";
+
+export const ASK_SHAM_SUBCOPY =
+  "Your AI tutor for this lesson. Answers use trusted LetsRevise sources.";
+
 export function buildStudentTutorHeading(
-  pageTitle?: string | null,
-  lessonTitle?: string | null
+  _pageTitle?: string | null,
+  _lessonTitle?: string | null
 ): string {
-  const page = trimTitle(pageTitle);
-  const lesson = trimTitle(lessonTitle);
-  if (page) return `Ask about ${page}`;
-  if (lesson) return `Ask about ${lesson}`;
-  return "Ask for help on this topic";
+  return ASK_SHAM_HEADING;
 }
 
 export function buildStudentTutorSubcopy(
-  pageTitle?: string | null,
-  lessonTitle?: string | null
+  _pageTitle?: string | null,
+  _lessonTitle?: string | null
 ): string {
-  const page = trimTitle(pageTitle);
-  const lesson = trimTitle(lessonTitle);
-  if (page && lesson && page.toLowerCase() !== lesson.toLowerCase()) {
-    return `Questions stay grounded to this lesson (${lesson} — ${page}). Tutor actions use the same thread; only your latest exchange is shown.`;
-  }
-  if (lesson) {
-    return `Questions stay grounded to this lesson (${lesson}). Tutor actions use the same thread; only your latest exchange is shown.`;
-  }
-  if (page) {
-    return `Questions stay grounded to this page (${page}). Tutor actions use the same thread; only your latest exchange is shown.`;
-  }
-  return "Ask a question about this lesson… Tutor actions and follow-ups still use the same thread; only your latest exchange is shown here.";
+  return ASK_SHAM_SUBCOPY;
 }
 
 export function buildStudentTutorPlaceholder(
