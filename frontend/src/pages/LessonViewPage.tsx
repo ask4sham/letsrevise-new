@@ -64,6 +64,11 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
 import {
+  markLocalPracticeAnswered,
+  getLocalAnsweredPracticeIds,
+  computeDedicatedPracticeState,
+} from "../utils/lessonPracticeProgress";
+import {
   makeAbsoluteAssetUrl,
   preprocessMarkdownAssetUrls,
   resolveUploadedDiagramImageSrc,
@@ -96,9 +101,9 @@ import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
 import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentModal";
-import { StudyPlanPanel } from "../components/ai/StudyPlanPanel";
 import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
+import { TryFreshPracticeCta } from "../components/lesson/TryFreshPracticeCta";
 import { ReportIssueModal } from "../components/lesson/ReportIssueModal";
 import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
 import {
@@ -936,6 +941,7 @@ function PracticeMCQQuestion({
                           isCorrect,
                           confidence: conf,
                         });
+                        markLocalPracticeAnswered(lessonId, q.id);
                       }
                       setRecorded(true);
                     }}
@@ -1027,6 +1033,7 @@ function PracticeShortQuestion({
       isCorrect: isFullyCorrect,
       confidence,
     });
+    markLocalPracticeAnswered(lessonId, q.id);
     setRecorded(true);
   }, [lessonId, q.id, checked, confidence, recorded, answer, shortGrade, isFullyCorrect]);
 
@@ -1160,6 +1167,8 @@ function PracticeSection({
   lessonId,
   practiceSource,
   topicKey,
+  specKey,
+  enableFreshPractice,
   onTryAnotherSet,
   onLoadBankOnly,
   hidePracticeStructuralLabels,
@@ -1172,6 +1181,9 @@ function PracticeSection({
   lessonId: string | undefined;
   practiceSource?: "attached" | "bank" | "embeddedAssessment" | null;
   topicKey?: string;
+  specKey?: string;
+  /** Student-only: mount fresh-practice CTA after dedicated pool completion. */
+  enableFreshPractice?: boolean;
   onTryAnotherSet?: () => void;
   onLoadBankOnly?: () => void;
   /** V12 student lesson: no visible "Explanation:" prefix on practice items */
@@ -1186,6 +1198,27 @@ function PracticeSection({
   const isEmptyBank = practiceSource === "bank" && practiceQuestions.length === 0;
   const isEmptyEmbedded = practiceSource === "embeddedAssessment" && practiceQuestions.length === 0;
   const browseUrl = topicKey ? `/browse-lessons?topicKey=${encodeURIComponent(topicKey)}` : "/browse-lessons";
+  const [answeredIds, setAnsweredIds] = useState<Set<string>>(() => getLocalAnsweredPracticeIds(lessonId));
+
+  useEffect(() => {
+    setAnsweredIds(getLocalAnsweredPracticeIds(lessonId));
+    const onAnswered = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail as { lessonId?: string; questionId?: string } | undefined;
+      if (detail?.lessonId && lessonId && detail.lessonId !== lessonId) return;
+      setAnsweredIds(getLocalAnsweredPracticeIds(lessonId));
+    };
+    window.addEventListener("lesson-practice-answered", onAnswered);
+    return () => window.removeEventListener("lesson-practice-answered", onAnswered);
+  }, [lessonId]);
+
+  const practicePoolIds = displayQuestions.map((q) => String(q.id || "")).filter(Boolean);
+  const practiceState = computeDedicatedPracticeState(practicePoolIds, answeredIds);
+  const showFreshPracticeCta =
+    enableFreshPractice === true &&
+    practiceAllowed === true &&
+    practiceState === "completed" &&
+    !!specKey &&
+    !!topicKey;
 
   const rightLabel =
     practiceSource === "attached"
@@ -1280,15 +1313,18 @@ function PracticeSection({
             </div>
           ) : (
             <>
-              {displayQuestions.map((q, idx) => (
+              {displayQuestions.map((q, idx) => {
+                const answered = answeredIds.has(String(q.id));
+                return (
                 <div
                   key={q.id}
                   className="lesson-practice-question-card"
+                  data-practice-question-id={String(q.id)}
                   style={{
                     padding: 16,
                     borderRadius: 12,
                     border: "1px solid #e5e7eb",
-                    background: "#fafafa",
+                    background: answered ? "#f0fdf4" : "#fafafa",
                     marginBottom: 16,
                   }}
                 >
@@ -1313,7 +1349,8 @@ function PracticeSection({
                     />
                   )}
                 </div>
-              ))}
+                );
+              })}
               {hasMore && (
                 <p style={{ color: "#6b7280", marginTop: 8 }}>
                   Showing first {PRACTICE_DISPLAY_LIMIT} of {practiceQuestions.length} questions.
@@ -1338,6 +1375,13 @@ function PracticeSection({
                   Try another set
                 </button>
               )}
+              {showFreshPracticeCta ? (
+                <TryFreshPracticeCta
+                  lessonId={lessonId}
+                  specKey={specKey!}
+                  topicKey={topicKey!}
+                />
+              ) : null}
             </>
           )}
         </>
@@ -1956,8 +2000,7 @@ const LessonViewPage: React.FC = () => {
 
   /**
    * Topic key for student AI tutor + topic summary: prefer bank resolution, then lesson.topicKey,
-   * then slug from lesson.topic / lesson.title so the tutor can show whenever specKey exists
-   * (parity with “Today’s study plan”, selling point on production).
+   * then slug from lesson.topic / lesson.title so the tutor can show whenever specKey exists.
    */
   const studentTutorTopicKey = useMemo(() => {
     if (topicKeyForBank) return topicKeyForBank;
@@ -5042,10 +5085,6 @@ const LessonViewPage: React.FC = () => {
                     suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
                   />
                 )}
-                {/* PR-038: Today's study plan — student only */}
-                {isStudent && specKey && (
-                  <StudyPlanPanel specKey={specKey} currentLessonId={id} />
-                )}
 
                 {/* Testing section: Quick Quiz, Practice papers, Practice questions, Flashcards — only after final page */}
                 {isLastPage && (
@@ -5192,6 +5231,8 @@ const LessonViewPage: React.FC = () => {
                   lessonId={id || undefined}
                   practiceSource={effectivePractice.source}
                   topicKey={topicKeyForBank || undefined}
+                  specKey={specKey || undefined}
+                  enableFreshPractice={isStudent}
                   onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
                   onLoadBankOnly={loadBankOnly}
                   hidePracticeStructuralLabels={v12StudentPresentation}
@@ -5456,6 +5497,7 @@ const LessonViewPage: React.FC = () => {
                     )}
                   </div>
                 </Section>
+
                 </>
                 )}
               </div>
@@ -6050,10 +6092,6 @@ const LessonViewPage: React.FC = () => {
             />
           </>
         )}
-        {/* PR-038: Today's study plan — student only */}
-        {isStudent && specKey && (
-          <StudyPlanPanel specKey={specKey} currentLessonId={id} />
-        )}
 
         {/* Page Quiz — gate on hasFullLessonAccess (legacy view, no pages) */}
         <Section title="Page Quiz" variant="card">
@@ -6147,6 +6185,8 @@ const LessonViewPage: React.FC = () => {
           lessonId={id || undefined}
           practiceSource={practiceSource}
           topicKey={topicKeyForBank || undefined}
+          specKey={specKey || undefined}
+          enableFreshPractice={isStudent}
           onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
           onLoadBankOnly={loadBankOnly}
           hidePracticeStructuralLabels={v12StudentPresentation}

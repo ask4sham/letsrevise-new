@@ -1,5 +1,6 @@
 /**
  * PR-PRACTICE-LOOP-1 Frontend: Practice set generation (student-safe).
+ * Fresh V1: excludeSeen, resume by practiceSetId, fresh-availability.
  */
 import api from "../services/api";
 
@@ -38,12 +39,32 @@ export type GeneratePracticeSetPayload = {
   difficulty?: number[];
   skill?: string[];
   mode?: PracticeMode;
+  /** Fresh V1: server excludes lesson-linked + recent set/attempt keys */
+  excludeSeen?: boolean;
+  lessonId?: string;
+  idempotencyKey?: string;
+  source?: string;
 };
 
 export type GeneratePracticeSetResponse = {
-  practiceSetId: string;
+  practiceSetId: string | null;
   items: PracticeSetItem[];
   mode?: PracticeMode;
+  requestedCount?: number;
+  availableFreshCount?: number;
+  selectedCount?: number;
+  allQuestionsFresh?: boolean;
+  reusedFromIdempotencyKey?: boolean;
+};
+
+export type FreshAvailabilityResponse = {
+  requestedCount: number;
+  availableFreshCount: number;
+  selectedCount: number;
+  allQuestionsFresh: boolean;
+  practiceSetId: null;
+  lessonPracticeAttemptCount?: number;
+  lessonPracticeAttemptedQuestionIds?: string[];
 };
 
 export async function generatePracticeSet(
@@ -58,10 +79,44 @@ export async function generatePracticeSet(
     difficulty: payload.difficulty,
     skill: payload.skill,
     mode: payload.mode ?? "standard",
+    excludeSeen: payload.excludeSeen === true,
+    lessonId: payload.lessonId,
+    idempotencyKey: payload.idempotencyKey,
+    source: payload.source,
   };
   const res = await api.post<GeneratePracticeSetResponse>(
     "/practice-sets/generate",
     body
+  );
+  return res.data;
+}
+
+export async function getPracticeSet(
+  practiceSetId: string
+): Promise<GeneratePracticeSetResponse> {
+  const res = await api.get<GeneratePracticeSetResponse>(
+    `/practice-sets/${encodeURIComponent(practiceSetId)}`
+  );
+  return res.data;
+}
+
+export async function fetchFreshAvailability(params: {
+  teacherId: string;
+  specKey: string;
+  topicKey: string;
+  lessonId?: string;
+  limit?: number;
+  include?: ContentType[];
+}): Promise<FreshAvailabilityResponse> {
+  const search = new URLSearchParams();
+  search.set("teacherId", params.teacherId);
+  search.set("specKey", params.specKey);
+  search.set("topicKey", params.topicKey);
+  if (params.lessonId) search.set("lessonId", params.lessonId);
+  search.set("limit", String(params.limit ?? 5));
+  if (params.include?.length) search.set("include", params.include.join(","));
+  const res = await api.get<FreshAvailabilityResponse>(
+    `/practice-sets/fresh-availability?${search.toString()}`
   );
   return res.data;
 }

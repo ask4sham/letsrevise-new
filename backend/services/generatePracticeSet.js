@@ -8,6 +8,12 @@ const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const PracticeSet = require("../models/PracticeSet");
 const { assertValidSpecKey, assertValidSpecTopic, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { buildTopicKey, parseTopicKey, queryCandidates } = require("../utils/topicKey");
+const {
+  collectLessonBankExclusions,
+  collectRecentStudentExclusions,
+  filterFreshCandidates,
+  shuffleInPlace,
+} = require("./freshPracticeExclusions");
 
 const OUTCOME_ENUM = ["correct", "partial", "wrong"];
 
@@ -259,6 +265,11 @@ function toStudentSafePastPaperQuestion(row, opts) {
  * @param {number[]} [opts.difficulty]
  * @param {string[]} [opts.skill] - AO1/AO2 or recall/application/etc.
  * @param {string} [opts.mode] - "standard" (default) or "challenge"
+ * @param {boolean} [opts.excludeSeen] - when true, exclude lesson-linked + recent set/attempt keys (fresh V1)
+ * @param {string|null} [opts.lessonId] - optional lesson for resolvable bank exclusions
+ * @param {boolean} [opts.dryRun] - compute fresh counts without creating a PracticeSet
+ * @param {string|null} [opts.idempotencyKey] - fresh-practice action key (unique per student)
+ * @param {string|null} [opts.source] - e.g. "fresh-practice"
  */
 async function generateAndPersistPracticeSet({
   studentId,
@@ -270,6 +281,11 @@ async function generateAndPersistPracticeSet({
   difficulty = null,
   skill = null,
   mode = "standard",
+  excludeSeen = false,
+  lessonId = null,
+  dryRun = false,
+  idempotencyKey = null,
+  source = null,
 }) {
   const cap = Math.min(50, Math.max(1, Number(limit) || 10));
   const types = Array.isArray(include) && include.length > 0 ? include : CONTENT_TYPES;
@@ -281,6 +297,24 @@ async function generateAndPersistPracticeSet({
   }
 
   const challengeMode = String(mode || "standard").toLowerCase() === "challenge";
+  const idemKey =
+    idempotencyKey != null && String(idempotencyKey).trim()
+      ? String(idempotencyKey).trim().slice(0, 200)
+      : null;
+
+  if (!dryRun && idemKey && studentId) {
+    const existing = await PracticeSet.findOne({ studentId, idempotencyKey: idemKey }).lean();
+    if (existing) {
+      const hydrated = await getPracticeSetForStudent(existing._id, studentId);
+      return {
+        ...hydrated,
+        requestedCount: limit != null ? Math.min(50, Math.max(1, Number(limit) || 10)) : hydrated.requestedCount,
+        availableFreshCount: hydrated.selectedCount,
+        allQuestionsFresh: !!excludeSeen,
+        reusedFromIdempotencyKey: true,
+      };
+    }
+  }
 
   assertValidSpecKey(specKey);
   const topicKeysTrimmed = (topicKeys || []).map((k) => String(k).trim()).filter(Boolean);
@@ -320,7 +354,7 @@ async function generateAndPersistPracticeSet({
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const mcqs = await TopicQuizQuestion.find(q)
-      .select("_id topicKey questionText choices difficulty skill estimatedTimeSec marks")
+      .select("_id topicKey questionText choices difficulty skill estimatedTimeSec marks fingerprint")
       .lean();
     mcqs.forEach((row) => pushUnique("quiz_mcq", row._id, row.topicKey, row, toStudentSafeQuizMcq));
   }
@@ -329,7 +363,7 @@ async function generateAndPersistPracticeSet({
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const shorts = await TopicQuizQuestion.find(q)
-      .select("_id topicKey questionText difficulty skill estimatedTimeSec marks")
+      .select("_id topicKey questionText difficulty skill estimatedTimeSec marks fingerprint")
       .lean();
     shorts.forEach((row) => pushUnique("quiz_short", row._id, row.topicKey, row, toStudentSafeQuizShort));
   }
@@ -338,7 +372,7 @@ async function generateAndPersistPracticeSet({
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const exams = await ExamQuestion.find(q)
-      .select("_id topicKey type question options difficulty skill estimatedTimeSec marks level")
+      .select("_id topicKey type question options difficulty skill estimatedTimeSec marks level fingerprint")
       .lean();
     exams.forEach((row) => pushUnique("exam_question", row._id, row.topicKey, row, toStudentSafeExamQuestion));
   }
@@ -347,33 +381,171 @@ async function generateAndPersistPracticeSet({
     if (difficultyFilter) q.difficulty = difficultyFilter;
     if (skillFilter) q.skill = skillFilter;
     const past = await PastPaperQuestion.find(q)
-      .select("_id topicKey question difficulty skill estimatedTimeSec marks")
+      .select("_id topicKey question difficulty skill estimatedTimeSec marks fingerprint")
       .lean();
     past.forEach((row) => pushUnique("past_paper_question", row._id, row.topicKey, row, toStudentSafePastPaperQuestion));
   }
 
-  const selected = challengeMode ? selectChallengePracticeItems(rawItems, cap) : rawItems.slice(0, cap);
+  const requestedCount = cap;
+  let pool = rawItems;
+  let availableFreshCount = rawItems.length;
+
+  if (excludeSeen) {
+    const excludeKeys = new Set();
+    const excludeFingerprints = new Set();
+
+    if (lessonId) {
+      const lessonEx = await collectLessonBankExclusions(lessonId);
+      lessonEx.keys.forEach((k) => excludeKeys.add(k));
+      lessonEx.fingerprints.forEach((f) => excludeFingerprints.add(f));
+    }
+
+    const recentKeys = await collectRecentStudentExclusions(studentId, topicKeysTrimmed, {
+      recentSetLimit: 5,
+    });
+    recentKeys.forEach((k) => excludeKeys.add(k));
+
+    pool = filterFreshCandidates(rawItems, { excludeKeys, excludeFingerprints });
+    availableFreshCount = pool.length;
+    shuffleInPlace(pool);
+  }
+
+  const selected = challengeMode
+    ? selectChallengePracticeItems(pool, cap)
+    : pool.slice(0, cap);
+
+  const selectedCount = selected.length;
+
+  const serializerOpts = { challengeMode };
+  const studentSafeItems = selected.map(({ row, serializer }) => serializer(row, serializerOpts));
+
+  if (dryRun || selectedCount === 0) {
+    return {
+      practiceSetId: null,
+      items: dryRun ? [] : studentSafeItems,
+      mode: challengeMode ? "challenge" : "standard",
+      requestedCount,
+      availableFreshCount: excludeSeen ? availableFreshCount : rawItems.length,
+      selectedCount: dryRun ? Math.min(cap, excludeSeen ? availableFreshCount : rawItems.length) : selectedCount,
+      allQuestionsFresh: !!excludeSeen,
+    };
+  }
 
   const setItems = selected.map(({ contentType, contentId, topicKey }) => ({ contentType, contentId, topicKey }));
-  const practiceSet = await PracticeSet.create({
+  const createPayload = {
     studentId,
     teacherId,
     specKey,
     topicKeys: topicKeysTrimmed,
     items: setItems,
-  });
+  };
+  if (idemKey) createPayload.idempotencyKey = idemKey;
+  if (source) createPayload.source = String(source).trim().slice(0, 80);
+  if (lessonId) createPayload.lessonId = lessonId;
 
-  const serializerOpts = { challengeMode };
-  const studentSafeItems = selected.map(({ row, serializer }) => serializer(row, serializerOpts));
-  return { practiceSetId: practiceSet._id, items: studentSafeItems, mode: challengeMode ? "challenge" : "standard" };
+  let practiceSet;
+  let reusedFromIdempotencyKey = false;
+  try {
+    practiceSet = await PracticeSet.create(createPayload);
+  } catch (e) {
+    if (e && e.code === 11000 && idemKey) {
+      const existing = await PracticeSet.findOne({ studentId, idempotencyKey: idemKey }).lean();
+      if (existing) {
+        const hydrated = await getPracticeSetForStudent(existing._id, studentId);
+        return {
+          ...hydrated,
+          requestedCount: cap,
+          availableFreshCount: excludeSeen ? availableFreshCount : rawItems.length,
+          allQuestionsFresh: !!excludeSeen,
+          reusedFromIdempotencyKey: true,
+        };
+      }
+    }
+    throw e;
+  }
+
+  return {
+    practiceSetId: practiceSet._id,
+    items: studentSafeItems,
+    mode: challengeMode ? "challenge" : "standard",
+    requestedCount: cap,
+    availableFreshCount: excludeSeen ? availableFreshCount : rawItems.length,
+    selectedCount,
+    allQuestionsFresh: !!excludeSeen,
+    reusedFromIdempotencyKey,
+  };
+}
+
+/**
+ * Load a student-owned PracticeSet and hydrate student-safe items (refresh-safe).
+ */
+async function getPracticeSetForStudent(practiceSetId, studentId) {
+  const set = await PracticeSet.findById(practiceSetId).lean();
+  if (!set) {
+    const err = new Error("Practice set not found");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+  if (String(set.studentId) !== String(studentId)) {
+    const err = new Error("Forbidden");
+    err.code = "FORBIDDEN";
+    throw err;
+  }
+
+  const items = [];
+  for (const ref of set.items || []) {
+    const { contentType, contentId, topicKey } = ref;
+    let row = null;
+    let serializer = null;
+    if (contentType === "quiz_mcq") {
+      row = await TopicQuizQuestion.findById(contentId)
+        .select("_id topicKey questionText choices difficulty skill estimatedTimeSec marks")
+        .lean();
+      serializer = toStudentSafeQuizMcq;
+    } else if (contentType === "quiz_short") {
+      row = await TopicQuizQuestion.findById(contentId)
+        .select("_id topicKey questionText difficulty skill estimatedTimeSec marks")
+        .lean();
+      serializer = toStudentSafeQuizShort;
+    } else if (contentType === "exam_question") {
+      row = await ExamQuestion.findById(contentId)
+        .select("_id topicKey type question options difficulty skill estimatedTimeSec marks level")
+        .lean();
+      serializer = toStudentSafeExamQuestion;
+    } else if (contentType === "past_paper_question") {
+      row = await PastPaperQuestion.findById(contentId)
+        .select("_id topicKey question difficulty skill estimatedTimeSec marks")
+        .lean();
+      serializer = toStudentSafePastPaperQuestion;
+    }
+    if (row && serializer) {
+      const safe = serializer(row, {});
+      if (topicKey) safe.topicKey = topicKey;
+      items.push(safe);
+    }
+  }
+
+  return {
+    practiceSetId: set._id,
+    items,
+    requestedCount: (set.items || []).length,
+    availableFreshCount: items.length,
+    selectedCount: items.length,
+    allQuestionsFresh: true,
+    mode: "standard",
+    specKey: set.specKey,
+    topicKeys: set.topicKeys,
+  };
 }
 
 module.exports = {
   generatePracticeSet,
   generateAndPersistPracticeSet,
+  getPracticeSetForStudent,
   OUTCOME_ENUM,
   CONTENT_TYPES,
   isStrongChallengeQuestion,
   challengeRankScore,
   selectChallengePracticeItems,
+  contentKey: require("./freshPracticeExclusions").contentKey,
 };
