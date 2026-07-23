@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { ExplainMyMistakeButton } from "../ai/ExplainMyMistakeButton";
 import { AnswerFeedbackPanel } from "../lesson/AnswerFeedbackPanel";
 import { buildMcqFeedback, gradeMcq, type McqGradeResult } from "../../utils/gradeMcq";
@@ -83,11 +83,20 @@ function getQuizMcqOptionStyle(
   return { background: "white", border: baseBorder, icon: null };
 }
 
+export type QuizCompletePayload = {
+  questionCount: number;
+  questionIds: string[];
+};
+
 export function QuizView({
   questions,
   title = "Quiz",
   onQuestionAnswered,
   onContinueLesson,
+  onQuizComplete,
+  onQuizReset,
+  initialComplete = false,
+  completeExtra,
 }: {
   questions: QuizQuestion[];
   title?: string;
@@ -95,12 +104,21 @@ export function QuizView({
   onQuestionAnswered?: (correct: boolean) => void;
   /** Optional: called when student clicks "Continue lesson" on the completion screen. */
   onContinueLesson?: () => void;
+  /** Fired once when Finish quiz shows the Quiz complete result. */
+  onQuizComplete?: (payload: QuizCompletePayload) => void;
+  /** Fired when Retry quiz clears completion. */
+  onQuizReset?: () => void;
+  /** Restore Quiz complete screen after reload for the same question set. */
+  initialComplete?: boolean;
+  /** Rendered beneath Quiz complete actions (e.g. fresh-practice CTA). */
+  completeExtra?: React.ReactNode;
 }) {
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastGrade, setLastGrade] = useState<GradeShortAnswerResult | null>(null);
-  const [isQuizComplete, setIsQuizComplete] = useState(false);
+  const [isQuizComplete, setIsQuizComplete] = useState(() => !!initialComplete);
+  const completeFiredRef = useRef(!!initialComplete);
   const [helpExpanded, setHelpExpanded] = useState<boolean>(() => {
     // Load user preference from localStorage; default collapsed so question is prominent
     try {
@@ -154,6 +172,13 @@ export function QuizView({
       // Silently fail if localStorage is not available
     }
   }, [helpExpanded]);
+
+  useEffect(() => {
+    if (initialComplete) {
+      setIsQuizComplete(true);
+      completeFiredRef.current = true;
+    }
+  }, [initialComplete]);
 
   const score = useMemo(() => {
     let s = 0;
@@ -222,12 +247,21 @@ export function QuizView({
     setLastGrade(null);
     setI(0);
     setIsQuizComplete(false);
+    completeFiredRef.current = false;
+    onQuizReset?.();
   };
 
   const finishQuiz = () => {
     setShowFeedback(false);
     setLastGrade(null);
     setIsQuizComplete(true);
+    if (!completeFiredRef.current) {
+      completeFiredRef.current = true;
+      onQuizComplete?.({
+        questionCount: questions.length,
+        questionIds: questions.map((qu) => String(qu.id)),
+      });
+    }
   };
 
   const toggleHelp = () => {
@@ -337,6 +371,7 @@ export function QuizView({
               </button>
             )}
           </div>
+          {completeExtra ? <div style={{ marginTop: 16 }}>{completeExtra}</div> : null}
         </div>
       </div>
     );

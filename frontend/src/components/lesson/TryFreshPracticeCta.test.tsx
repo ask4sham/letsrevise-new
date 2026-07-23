@@ -47,10 +47,27 @@ describe("TryFreshPracticeCta", () => {
       lessonPracticeAttemptedQuestionIds: [],
     } as any);
 
-    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    render(
+      <TryFreshPracticeCta
+        specKey="spec"
+        topicKey="topic"
+        lessonId="lesson1"
+        sessionExclusions={{
+          contentKeys: ["quiz_mcq:507f1f77bcf86cd799439011"],
+          stemTexts: ["How does sexual reproduction produce variation in offspring?"],
+        }}
+      />
+    );
 
     expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent(
       "Try 3 new questions"
+    );
+    expect(fetchAvail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionExclusions: expect.objectContaining({
+          contentKeys: ["quiz_mcq:507f1f77bcf86cd799439011"],
+        }),
+      })
     );
     expect(screen.queryByText("Continue learning")).toBeNull();
     expect(screen.queryByText("Review your practice")).toBeNull();

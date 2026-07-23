@@ -69,4 +69,27 @@ describe("freshPracticeExclusions", () => {
     const fresh = filterFreshCandidates(raw, { excludeKeys, excludeFingerprints });
     expect(fresh.map((x) => String(x.contentId))).toEqual([String(c)]);
   });
+
+  test("mergeClientSessionExclusions accepts ObjectId keys and stems; ignores display ids", () => {
+    const {
+      mergeClientSessionExclusions,
+    } = require("../services/freshPracticeExclusions");
+    const bankId = oid();
+    const keys = new Set();
+    const fps = new Set();
+    mergeClientSessionExclusions(keys, fps, {
+      contentKeys: [
+        `quiz_mcq:${bankId}`,
+        "quiz_mcq:rev-bank-0",
+        "derived-1",
+        "not-a-key",
+      ],
+      stemTexts: ["Sexual and asexual reproduction differences explained carefully"],
+    });
+    expect(keys.has(contentKey("quiz_mcq", bankId))).toBe(true);
+    expect([...keys].some((k) => String(k).includes("rev-bank"))).toBe(false);
+    expect(fps.has(stemFingerprint("Sexual and asexual reproduction differences explained carefully"))).toBe(
+      true
+    );
+  });
 });

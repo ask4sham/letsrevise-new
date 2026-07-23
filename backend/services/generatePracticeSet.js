@@ -13,6 +13,7 @@ const {
   collectRecentStudentExclusions,
   filterFreshCandidates,
   shuffleInPlace,
+  mergeClientSessionExclusions,
 } = require("./freshPracticeExclusions");
 
 const OUTCOME_ENUM = ["correct", "partial", "wrong"];
@@ -270,6 +271,7 @@ function toStudentSafePastPaperQuestion(row, opts) {
  * @param {boolean} [opts.dryRun] - compute fresh counts without creating a PracticeSet
  * @param {string|null} [opts.idempotencyKey] - fresh-practice action key (unique per student)
  * @param {string|null} [opts.source] - e.g. "fresh-practice"
+ * @param {object|null} [opts.sessionExclusions] - Revision quiz contentKeys + stemTexts
  */
 async function generateAndPersistPracticeSet({
   studentId,
@@ -286,6 +288,7 @@ async function generateAndPersistPracticeSet({
   dryRun = false,
   idempotencyKey = null,
   source = null,
+  sessionExclusions = null,
 }) {
   const cap = Math.min(50, Math.max(1, Number(limit) || 10));
   const types = Array.isArray(include) && include.length > 0 ? include : CONTENT_TYPES;
@@ -404,6 +407,8 @@ async function generateAndPersistPracticeSet({
       recentSetLimit: 5,
     });
     recentKeys.forEach((k) => excludeKeys.add(k));
+
+    mergeClientSessionExclusions(excludeKeys, excludeFingerprints, sessionExclusions);
 
     pool = filterFreshCandidates(rawItems, { excludeKeys, excludeFingerprints });
     availableFreshCount = pool.length;
