@@ -73,6 +73,16 @@ router.get("/fresh-availability", auth, async (req, res) => {
         .filter(Boolean)
     : ["quiz_mcq", "quiz_short"];
 
+  let sessionExclusions = null;
+  if (req.query.sessionExclusions) {
+    try {
+      const parsed = JSON.parse(String(req.query.sessionExclusions));
+      if (parsed && typeof parsed === "object") sessionExclusions = parsed;
+    } catch {
+      sessionExclusions = null;
+    }
+  }
+
   if (!specKey || !topicKey) {
     return res.status(400).json({ error: "specKey and topicKey are required" });
   }
@@ -91,6 +101,7 @@ router.get("/fresh-availability", auth, async (req, res) => {
       excludeSeen: true,
       lessonId: lessonId || null,
       dryRun: true,
+      sessionExclusions,
     });
 
     let lessonPracticeAttemptCount = 0;
@@ -172,6 +183,7 @@ router.post("/generate", auth, async (req, res) => {
     lessonId,
     idempotencyKey,
     source,
+    sessionExclusions,
   } = req.body || {};
 
   if (!specKey || typeof specKey !== "string") {
@@ -211,6 +223,8 @@ router.post("/generate", auth, async (req, res) => {
       dryRun: false,
       idempotencyKey: idempotencyKey ? String(idempotencyKey).trim() : null,
       source: source ? String(source).trim() : excludeSeen === true || excludeSeen === "true" ? "fresh-practice" : null,
+      sessionExclusions:
+        sessionExclusions && typeof sessionExclusions === "object" ? sessionExclusions : null,
     });
     return res.status(200).json(result);
   } catch (e) {

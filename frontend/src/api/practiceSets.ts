@@ -44,6 +44,12 @@ export type GeneratePracticeSetPayload = {
   lessonId?: string;
   idempotencyKey?: string;
   source?: string;
+  /** Revision quiz session exclusions (server-validated). */
+  sessionExclusions?: {
+    contentKeys?: string[];
+    stemTexts?: string[];
+    fingerprints?: string[];
+  };
 };
 
 export type GeneratePracticeSetResponse = {
@@ -83,6 +89,7 @@ export async function generatePracticeSet(
     lessonId: payload.lessonId,
     idempotencyKey: payload.idempotencyKey,
     source: payload.source,
+    sessionExclusions: payload.sessionExclusions,
   };
   const res = await api.post<GeneratePracticeSetResponse>(
     "/practice-sets/generate",
@@ -107,6 +114,11 @@ export async function fetchFreshAvailability(params: {
   lessonId?: string;
   limit?: number;
   include?: ContentType[];
+  sessionExclusions?: {
+    contentKeys?: string[];
+    stemTexts?: string[];
+    fingerprints?: string[];
+  };
 }): Promise<FreshAvailabilityResponse> {
   const search = new URLSearchParams();
   search.set("teacherId", params.teacherId);
@@ -115,6 +127,9 @@ export async function fetchFreshAvailability(params: {
   if (params.lessonId) search.set("lessonId", params.lessonId);
   search.set("limit", String(params.limit ?? 5));
   if (params.include?.length) search.set("include", params.include.join(","));
+  if (params.sessionExclusions) {
+    search.set("sessionExclusions", JSON.stringify(params.sessionExclusions));
+  }
   const res = await api.get<FreshAvailabilityResponse>(
     `/practice-sets/fresh-availability?${search.toString()}`
   );

@@ -221,6 +221,48 @@ function filterFreshCandidates(rawItems, { excludeKeys, excludeFingerprints }) {
   return out;
 }
 
+const ALLOWED_SESSION_CONTENT_TYPES = new Set([
+  "quiz_mcq",
+  "quiz_short",
+  "exam_question",
+  "past_paper_question",
+]);
+
+/**
+ * Merge client Revision-quiz session exclusions into server Sets.
+ * Only accepts typed contentType:ObjectId keys and stem texts (fingerprinted server-side).
+ * Ignores rev-bank-* / derived display IDs.
+ */
+function mergeClientSessionExclusions(excludeKeys, excludeFingerprints, session) {
+  if (!session || typeof session !== "object") return;
+
+  const contentKeys = Array.isArray(session.contentKeys) ? session.contentKeys : [];
+  for (const raw of contentKeys) {
+    const s = String(raw || "").trim();
+    const idx = s.indexOf(":");
+    if (idx < 1) continue;
+    const type = s.slice(0, idx);
+    const id = s.slice(idx + 1);
+    if (!ALLOWED_SESSION_CONTENT_TYPES.has(type)) continue;
+    if (!isObjectIdString(id)) continue;
+    excludeKeys.add(contentKey(type, id));
+  }
+
+  const stemTexts = Array.isArray(session.stemTexts) ? session.stemTexts : [];
+  for (const stem of stemTexts) {
+    const fp = stemFingerprint(stem);
+    if (fp) excludeFingerprints.add(fp);
+  }
+
+  const fingerprints = Array.isArray(session.fingerprints) ? session.fingerprints : [];
+  for (const fpRaw of fingerprints) {
+    const fp = String(fpRaw || "").trim();
+    if (fp.length >= 12 && fp.length <= 500 && !/^(rev-bank|derived|variant)/i.test(fp)) {
+      excludeFingerprints.add(fp);
+    }
+  }
+}
+
 function shuffleInPlace(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -242,4 +284,5 @@ module.exports = {
   shuffleInPlace,
   addQuizSourceKeys,
   addExamQuestionKey,
+  mergeClientSessionExclusions,
 };

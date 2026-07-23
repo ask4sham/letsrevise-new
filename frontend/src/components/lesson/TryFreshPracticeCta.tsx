@@ -1,7 +1,6 @@
 /**
- * Contextual fresh-practice action inside dedicated lesson PracticeSection.
- * Mount only when dedicated practice is completed; renders nothing when
- * availableFreshCount is zero.
+ * Contextual fresh-practice CTA after Revision practice quiz completion.
+ * Mount only when the quiz is complete; renders nothing when availableFreshCount is zero.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,14 +11,22 @@ import {
   createFreshPracticeIdempotencyKey,
   newClientRequestId,
 } from "../../utils/lessonPracticeProgress";
+import type { RevisionQuizSessionExclusions } from "../../utils/revisionQuizFreshExclusions";
 
 type Props = {
   lessonId?: string | null;
   specKey: string;
   topicKey: string;
+  /** Server-enforced exclusions for the just-finished Revision quiz. */
+  sessionExclusions?: RevisionQuizSessionExclusions | null;
 };
 
-export function TryFreshPracticeCta({ lessonId, specKey, topicKey }: Props) {
+export function TryFreshPracticeCta({
+  lessonId,
+  specKey,
+  topicKey,
+  sessionExclusions,
+}: Props) {
   const navigate = useNavigate();
   const [freshCount, setFreshCount] = useState(0);
   const [requestedCount, setRequestedCount] = useState(5);
@@ -27,6 +34,11 @@ export function TryFreshPracticeCta({ lessonId, specKey, topicKey }: Props) {
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
+
+  const exclusionKey = JSON.stringify({
+    contentKeys: sessionExclusions?.contentKeys || [],
+    stemTexts: sessionExclusions?.stemTexts || [],
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +61,7 @@ export function TryFreshPracticeCta({ lessonId, specKey, topicKey }: Props) {
           lessonId: lessonId || undefined,
           limit: 5,
           include: ["quiz_mcq", "quiz_short"],
+          sessionExclusions: sessionExclusions || undefined,
         });
         if (cancelled) return;
         setFreshCount(avail.availableFreshCount ?? 0);
@@ -62,7 +75,9 @@ export function TryFreshPracticeCta({ lessonId, specKey, topicKey }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [specKey, topicKey, lessonId]);
+    // exclusionKey captures sessionExclusions contents
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specKey, topicKey, lessonId, exclusionKey]);
 
   const nNew = Math.min(freshCount || 0, requestedCount || 5);
 
@@ -96,6 +111,7 @@ export function TryFreshPracticeCta({ lessonId, specKey, topicKey }: Props) {
           lessonId: lessonId || undefined,
           idempotencyKey,
           source: "fresh-practice",
+          sessionExclusions: sessionExclusions || undefined,
         })
       );
       const selected = res.selectedCount ?? (res.items || []).length;
@@ -132,7 +148,7 @@ export function TryFreshPracticeCta({ lessonId, specKey, topicKey }: Props) {
   }
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div style={{ marginTop: 4 }} data-testid="try-fresh-practice-wrap">
       <button
         type="button"
         onClick={handleTryNew}

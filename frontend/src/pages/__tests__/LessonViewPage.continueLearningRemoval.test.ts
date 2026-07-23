@@ -1,43 +1,60 @@
 /**
- * Regression: green Continue learning footer removed; fresh practice lives in PracticeSection.
+ * Regression: green Continue learning footer removed; fresh practice gated by Revision practice.
  * @jest-environment node
  */
 import * as fs from "fs";
 import * as path from "path";
 
 const lessonViewPath = path.join(__dirname, "..", "LessonViewPage.tsx");
-const continueExitPath = path.join(
+const practiceSectionSrc = fs.readFileSync(lessonViewPath, "utf8");
+const retrievalPath = path.join(
   __dirname,
   "..",
   "..",
   "components",
   "lesson",
-  "ContinueLearningExit.tsx"
+  "student",
+  "StudentRetrievalSection.tsx"
 );
 
-describe("Continue learning footer removal", () => {
-  const src = fs.readFileSync(lessonViewPath, "utf8");
+describe("Continue learning footer removal + revision gate", () => {
+  const src = practiceSectionSrc;
+  const retrieval = fs.readFileSync(retrievalPath, "utf8");
 
-  test("ContinueLearningExit component file is deleted", () => {
+  test("ContinueLearningExit remains deleted and footer absent", () => {
+    const continueExitPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "components",
+      "lesson",
+      "ContinueLearningExit.tsx"
+    );
     expect(fs.existsSync(continueExitPath)).toBe(false);
-  });
-
-  test("LessonViewPage does not render Continue learning footer card", () => {
     expect(src).not.toMatch(/ContinueLearningExit/);
     expect(src).not.toMatch(/Continue learning/);
     expect(src).not.toMatch(/Review your practice/);
-    // Footer card used a dedicated green exit panel; do not reintroduce it.
-    expect(src).not.toMatch(/Based on this lesson's dedicated practice/);
   });
 
   test("StudyPlanPanel remains absent from lesson page", () => {
     expect(src).not.toMatch(/StudyPlanPanel/);
   });
 
-  test("fresh-practice CTA is gated on dedicated practice completion", () => {
-    expect(src).toMatch(/TryFreshPracticeCta/);
-    expect(src).toMatch(/enableFreshPractice/);
-    expect(src).toMatch(/practiceState === "completed"/);
-    expect(src).toMatch(/showFreshPracticeCta/);
+  test("fresh-practice CTA is not gated on PracticeSection completion", () => {
+    // PracticeSection call sites should not pass enableFreshPractice
+    const practiceBlocks = src.split("<PracticeSection");
+    for (let i = 1; i < practiceBlocks.length; i++) {
+      const block = practiceBlocks[i].slice(0, 600);
+      expect(block).not.toMatch(/enableFreshPractice/);
+      expect(block).not.toMatch(/TryFreshPracticeCta/);
+    }
+  });
+
+  test("fresh-practice CTA is wired through Revision practice section", () => {
+    expect(src).toMatch(/StudentRetrievalSection/);
+    expect(src).toMatch(/enableFreshPractice=\{isStudent\}/);
+    expect(retrieval).toMatch(/TryFreshPracticeCta/);
+    expect(retrieval).toMatch(/onQuizComplete/);
+    expect(retrieval).toMatch(/quizComplete/);
   });
 });

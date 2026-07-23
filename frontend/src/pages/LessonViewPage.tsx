@@ -67,7 +67,6 @@ import { logAttempt } from "../utils/attempts";
 import {
   markLocalPracticeAnswered,
   getLocalAnsweredPracticeIds,
-  computeDedicatedPracticeState,
 } from "../utils/lessonPracticeProgress";
 import {
   makeAbsoluteAssetUrl,
@@ -104,7 +103,6 @@ import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
 import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentModal";
 import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
-import { TryFreshPracticeCta } from "../components/lesson/TryFreshPracticeCta";
 import { ReportIssueModal } from "../components/lesson/ReportIssueModal";
 import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
 import {
@@ -1170,8 +1168,6 @@ function PracticeSection({
   lessonId,
   practiceSource,
   topicKey,
-  specKey,
-  enableFreshPractice,
   onTryAnotherSet,
   onLoadBankOnly,
   hidePracticeStructuralLabels,
@@ -1184,9 +1180,6 @@ function PracticeSection({
   lessonId: string | undefined;
   practiceSource?: "attached" | "bank" | "embeddedAssessment" | null;
   topicKey?: string;
-  specKey?: string;
-  /** Student-only: mount fresh-practice CTA after dedicated pool completion. */
-  enableFreshPractice?: boolean;
   onTryAnotherSet?: () => void;
   onLoadBankOnly?: () => void;
   /** V12 student lesson: no visible "Explanation:" prefix on practice items */
@@ -1213,15 +1206,6 @@ function PracticeSection({
     window.addEventListener("lesson-practice-answered", onAnswered);
     return () => window.removeEventListener("lesson-practice-answered", onAnswered);
   }, [lessonId]);
-
-  const practicePoolIds = displayQuestions.map((q) => String(q.id || "")).filter(Boolean);
-  const practiceState = computeDedicatedPracticeState(practicePoolIds, answeredIds);
-  const showFreshPracticeCta =
-    enableFreshPractice === true &&
-    practiceAllowed === true &&
-    practiceState === "completed" &&
-    !!specKey &&
-    !!topicKey;
 
   const rightLabel =
     practiceSource === "attached"
@@ -1378,13 +1362,6 @@ function PracticeSection({
                   Try another set
                 </button>
               )}
-              {showFreshPracticeCta ? (
-                <TryFreshPracticeCta
-                  lessonId={lessonId}
-                  specKey={specKey!}
-                  topicKey={topicKey!}
-                />
-              ) : null}
             </>
           )}
         </>
@@ -5120,6 +5097,12 @@ const LessonViewPage: React.FC = () => {
                       ? (correct) => handleQuestionAnswered(correct)
                       : undefined
                   }
+                  enableFreshPractice={isStudent}
+                  lessonId={id || undefined}
+                  pageId={currentPage?.pageId ? String(currentPage.pageId) : "END"}
+                  studentId={user?._id ? String(user._id) : undefined}
+                  specKey={specKey || undefined}
+                  topicKey={topicKeyForBank || studentTutorTopicKey || undefined}
                 />
                 {/* Page Quiz — skipped when an inline pageQuiz block already renders QuizView */}
                 {showFooterQuizSection && flowFooterOrdinals.quizPage != null && (
@@ -5248,8 +5231,6 @@ const LessonViewPage: React.FC = () => {
                   lessonId={id || undefined}
                   practiceSource={effectivePractice.source}
                   topicKey={topicKeyForBank || undefined}
-                  specKey={specKey || undefined}
-                  enableFreshPractice={isStudent}
                   onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
                   onLoadBankOnly={loadBankOnly}
                   hidePracticeStructuralLabels={v12StudentPresentation}
@@ -6202,8 +6183,6 @@ const LessonViewPage: React.FC = () => {
           lessonId={id || undefined}
           practiceSource={practiceSource}
           topicKey={topicKeyForBank || undefined}
-          specKey={specKey || undefined}
-          enableFreshPractice={isStudent}
           onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
           onLoadBankOnly={loadBankOnly}
           hidePracticeStructuralLabels={v12StudentPresentation}

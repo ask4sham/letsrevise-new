@@ -1,9 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import FlashcardsView from "../../revision/FlashcardsView";
-import { QuizView } from "../../revision/QuizView";
+import { QuizView, type QuizCompletePayload } from "../../revision/QuizView";
 import { deriveLessonRetrieval } from "../../../utils/deriveLessonRetrieval";
 import { buildRevisionPracticePool, type LayerQuizQuestion } from "../../../utils/lessonQuestionPools";
 import { normalizeQuizQuestion } from "../../../utils/normalizeQuizQuestion";
+import { TryFreshPracticeCta } from "../TryFreshPracticeCta";
+import { collectRevisionQuizSessionExclusions } from "../../../utils/revisionQuizFreshExclusions";
+import {
+  getRevisionQuizCompleted,
+  setRevisionQuizCompleted,
+  revisionCompletionScopeFromQuestions,
+} from "../../../utils/revisionQuizCompletion";
 import "./studentRetrievalSection.css";
 
 type Props = {
@@ -16,6 +23,13 @@ type Props = {
   onQuestionAnswered?: (correct: boolean) => void;
   /** Display-only numbered heading (e.g. `17 — Revision practice`). */
   sectionTitle?: string;
+  /** Student-only Fresh Practice V1 after Revision quiz completion. */
+  enableFreshPractice?: boolean;
+  lessonId?: string | null;
+  pageId?: string | null;
+  studentId?: string | null;
+  specKey?: string | null;
+  topicKey?: string | null;
 };
 
 function mergeFlashcards(
@@ -58,6 +72,12 @@ export function StudentRetrievalSection({
   hasFullAccess,
   onQuestionAnswered,
   sectionTitle = "Revision practice",
+  enableFreshPractice = false,
+  lessonId,
+  pageId,
+  studentId,
+  specKey,
+  topicKey,
 }: Props): React.ReactElement | null {
   const derived = useMemo(() => deriveLessonRetrieval(pages), [pages]);
   const revisionPool = useMemo(
@@ -73,6 +93,50 @@ export function StudentRetrievalSection({
     [revisionPool]
   );
   const examQuestions = derived.examQuestions;
+
+  const completionScope = useMemo(
+    () =>
+      revisionCompletionScopeFromQuestions({
+        studentId,
+        lessonId,
+        pageId,
+        questions: revisionPool as unknown as Array<Record<string, unknown>>,
+      }),
+    [studentId, lessonId, pageId, revisionPool]
+  );
+
+  const [quizComplete, setQuizComplete] = useState(() =>
+    completionScope ? getRevisionQuizCompleted(completionScope) : false
+  );
+
+  useEffect(() => {
+    setQuizComplete(completionScope ? getRevisionQuizCompleted(completionScope) : false);
+  }, [completionScope]);
+
+  const sessionExclusions = useMemo(
+    () => collectRevisionQuizSessionExclusions(revisionPool as unknown as Array<Record<string, unknown>>),
+    [revisionPool]
+  );
+
+  const handleQuizComplete = useCallback(
+    (_payload: QuizCompletePayload) => {
+      setQuizComplete(true);
+      if (completionScope) setRevisionQuizCompleted(completionScope, true);
+    },
+    [completionScope]
+  );
+
+  const handleQuizReset = useCallback(() => {
+    setQuizComplete(false);
+    if (completionScope) setRevisionQuizCompleted(completionScope, false);
+  }, [completionScope]);
+
+  const showFreshCta =
+    enableFreshPractice === true &&
+    quizComplete &&
+    !!specKey &&
+    !!topicKey &&
+    hasFullAccess;
 
   const hasQuiz = quizQuestions.length > 0;
   const hasCards = flashcards.length > 0;
@@ -160,6 +224,19 @@ export function StudentRetrievalSection({
             questions={quizQuestions}
             onQuestionAnswered={onQuestionAnswered}
             onContinueLesson={() => window.scrollBy({ top: 200, behavior: "smooth" })}
+            onQuizComplete={handleQuizComplete}
+            onQuizReset={handleQuizReset}
+            initialComplete={quizComplete}
+            completeExtra={
+              showFreshCta ? (
+                <TryFreshPracticeCta
+                  lessonId={lessonId}
+                  specKey={specKey!}
+                  topicKey={topicKey!}
+                  sessionExclusions={sessionExclusions}
+                />
+              ) : null
+            }
           />
         ) : null}
         {activeTab === "cards" && hasCards ? (
