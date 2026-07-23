@@ -13,6 +13,16 @@ export type RevisionQuizCompletionScope = {
   setSignature: string;
 };
 
+/** Versioned completion payload. `score: null` means unknown (legacy `"1"`). */
+export type RevisionQuizCompletionPayload = {
+  version: 1;
+  completed: true;
+  score: number | null;
+  questionCount: number;
+  completedAt: string;
+  setSignature: string;
+};
+
 /**
  * Auth payloads use `id` (login); some profile paths also expose `_id`.
  * Prefer `_id` when both exist (same pattern as LessonViewPage elsewhere).
@@ -34,26 +44,116 @@ export function buildRevisionQuizCompletionKey(scope: RevisionQuizCompletionScop
   return `${STORAGE_PREFIX}${student}:${lesson}:${page}:${sig}`;
 }
 
-export function getRevisionQuizCompleted(scope: RevisionQuizCompletionScope): boolean {
-  if (typeof localStorage === "undefined") return false;
-  if (!scope.studentId || !scope.lessonId || !scope.setSignature) return false;
+function parseStoredPayload(
+  raw: string | null,
+  scope: RevisionQuizCompletionScope,
+  fallbackQuestionCount?: number
+): RevisionQuizCompletionPayload | null {
+  if (raw == null) return null;
+  if (raw === "1") {
+    return {
+      version: 1,
+      completed: true,
+      score: null,
+      questionCount:
+        typeof fallbackQuestionCount === "number" && fallbackQuestionCount > 0
+          ? fallbackQuestionCount
+          : 0,
+      completedAt: "",
+      setSignature: scope.setSignature,
+    };
+  }
   try {
-    return localStorage.getItem(buildRevisionQuizCompletionKey(scope)) === "1";
+    const parsed = JSON.parse(raw) as Partial<RevisionQuizCompletionPayload>;
+    if (!parsed || parsed.completed !== true) return null;
+    const score =
+      parsed.score == null
+        ? null
+        : Number.isFinite(Number(parsed.score))
+          ? Math.max(0, Math.floor(Number(parsed.score)))
+          : null;
+    const questionCount = Number.isFinite(Number(parsed.questionCount))
+      ? Math.max(0, Math.floor(Number(parsed.questionCount)))
+      : typeof fallbackQuestionCount === "number"
+        ? fallbackQuestionCount
+        : 0;
+    return {
+      version: 1,
+      completed: true,
+      score,
+      questionCount,
+      completedAt: typeof parsed.completedAt === "string" ? parsed.completedAt : "",
+      setSignature:
+        typeof parsed.setSignature === "string" && parsed.setSignature
+          ? parsed.setSignature
+          : scope.setSignature,
+    };
   } catch {
-    return false;
+    return null;
   }
 }
 
-export function setRevisionQuizCompleted(scope: RevisionQuizCompletionScope, completed: boolean): void {
+export function getRevisionQuizCompletion(
+  scope: RevisionQuizCompletionScope,
+  fallbackQuestionCount?: number
+): RevisionQuizCompletionPayload | null {
+  if (typeof localStorage === "undefined") return null;
+  if (!scope.studentId || !scope.lessonId || !scope.setSignature) return null;
+  try {
+    return parseStoredPayload(
+      localStorage.getItem(buildRevisionQuizCompletionKey(scope)),
+      scope,
+      fallbackQuestionCount
+    );
+  } catch {
+    return null;
+  }
+}
+
+export function getRevisionQuizCompleted(scope: RevisionQuizCompletionScope): boolean {
+  return getRevisionQuizCompletion(scope) != null;
+}
+
+export function setRevisionQuizCompleted(
+  scope: RevisionQuizCompletionScope,
+  value: false | RevisionQuizCompletionPayload
+): void {
   if (typeof localStorage === "undefined") return;
   if (!scope.studentId || !scope.lessonId || !scope.setSignature) return;
   try {
     const key = buildRevisionQuizCompletionKey(scope);
-    if (completed) localStorage.setItem(key, "1");
-    else localStorage.removeItem(key);
+    if (value === false) {
+      localStorage.removeItem(key);
+      return;
+    }
+    const payload: RevisionQuizCompletionPayload = {
+      version: 1,
+      completed: true,
+      score: value.score == null ? null : Math.max(0, Math.floor(Number(value.score))),
+      questionCount: Math.max(0, Math.floor(Number(value.questionCount) || 0)),
+      completedAt: value.completedAt || new Date().toISOString(),
+      setSignature: value.setSignature || scope.setSignature,
+    };
+    localStorage.setItem(key, JSON.stringify(payload));
   } catch {
     // ignore quota / private mode
   }
+}
+
+export function buildRevisionQuizCompletionPayload(params: {
+  score: number;
+  questionCount: number;
+  setSignature: string;
+  completedAt?: string;
+}): RevisionQuizCompletionPayload {
+  return {
+    version: 1,
+    completed: true,
+    score: Math.max(0, Math.floor(Number(params.score) || 0)),
+    questionCount: Math.max(0, Math.floor(Number(params.questionCount) || 0)),
+    completedAt: params.completedAt || new Date().toISOString(),
+    setSignature: params.setSignature,
+  };
 }
 
 export function revisionCompletionScopeFromQuestions(params: {

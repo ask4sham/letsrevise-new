@@ -7,7 +7,9 @@ import {
 } from "./revisionQuizFreshExclusions";
 import {
   buildRevisionQuizCompletionKey,
+  buildRevisionQuizCompletionPayload,
   getRevisionQuizCompleted,
+  getRevisionQuizCompletion,
   setRevisionQuizCompleted,
   revisionCompletionScopeFromQuestions,
   resolveAuthUserId,
@@ -80,7 +82,7 @@ describe("revisionQuizCompletion", () => {
     localStorage.clear();
   });
 
-  test("persists and clears completion for scoped key", () => {
+  test("persists scored JSON and clears completion for scoped key", () => {
     const scope = revisionCompletionScopeFromQuestions({
       studentId: "stu1",
       lessonId: "les1",
@@ -89,9 +91,20 @@ describe("revisionQuizCompletion", () => {
     });
     expect(scope).not.toBeNull();
     expect(getRevisionQuizCompleted(scope!)).toBe(false);
-    setRevisionQuizCompleted(scope!, true);
+    const payload = buildRevisionQuizCompletionPayload({
+      score: 4,
+      questionCount: 4,
+      setSignature: scope!.setSignature,
+    });
+    setRevisionQuizCompleted(scope!, payload);
     expect(getRevisionQuizCompleted(scope!)).toBe(true);
-    expect(buildRevisionQuizCompletionKey(scope!)).toContain("revision-quiz-complete:");
+    const stored = getRevisionQuizCompletion(scope!);
+    expect(stored?.score).toBe(4);
+    expect(stored?.questionCount).toBe(4);
+    expect(stored?.version).toBe(1);
+    const raw = localStorage.getItem(buildRevisionQuizCompletionKey(scope!));
+    expect(raw).toContain('"score":4');
+    expect(raw).not.toBe("1");
     setRevisionQuizCompleted(scope!, false);
     expect(getRevisionQuizCompleted(scope!)).toBe(false);
   });
@@ -105,11 +118,17 @@ describe("revisionQuizCompletion", () => {
       questions,
     });
     expect(scope?.studentId).toBe("login-user-1");
-    setRevisionQuizCompleted(scope!, true);
+    setRevisionQuizCompleted(
+      scope!,
+      buildRevisionQuizCompletionPayload({
+        score: 2,
+        questionCount: 4,
+        setSignature: scope!.setSignature,
+      })
+    );
     const key = buildRevisionQuizCompletionKey(scope!);
     expect(key).toContain(encodeURIComponent("login-user-1"));
-    expect(localStorage.getItem(key)).toBe("1");
-    expect(getRevisionQuizCompleted(scope!)).toBe(true);
+    expect(getRevisionQuizCompletion(scope!)?.score).toBe(2);
   });
 
   test("_id-only student still works", () => {
@@ -121,8 +140,29 @@ describe("revisionQuizCompletion", () => {
       questions,
     });
     expect(scope?.studentId).toBe("mongo-user-1");
-    setRevisionQuizCompleted(scope!, true);
-    expect(getRevisionQuizCompleted(scope!)).toBe(true);
+    setRevisionQuizCompleted(
+      scope!,
+      buildRevisionQuizCompletionPayload({
+        score: 3,
+        questionCount: 4,
+        setSignature: scope!.setSignature,
+      })
+    );
+    expect(getRevisionQuizCompletion(scope!)?.score).toBe(3);
+  });
+
+  test("legacy \"1\" restores completed with unknown score", () => {
+    const scope = revisionCompletionScopeFromQuestions({
+      studentId: "stu1",
+      lessonId: "les1",
+      pageId: "END",
+      questions,
+    })!;
+    localStorage.setItem(buildRevisionQuizCompletionKey(scope), "1");
+    const stored = getRevisionQuizCompletion(scope, 4);
+    expect(stored?.completed).toBe(true);
+    expect(stored?.score).toBeNull();
+    expect(stored?.questionCount).toBe(4);
   });
 
   test("missing student id yields null scope and no write", () => {
@@ -141,7 +181,11 @@ describe("revisionQuizCompletion", () => {
           pageId: "END",
           setSignature: "rq_x_1",
         },
-        true
+        buildRevisionQuizCompletionPayload({
+          score: 1,
+          questionCount: 1,
+          setSignature: "rq_x_1",
+        })
       )
     ).not.toThrow();
     expect(Object.keys(localStorage).filter((k) => k.includes("revision-quiz-complete"))).toEqual([]);
@@ -160,10 +204,16 @@ describe("revisionQuizCompletion", () => {
       pageId: "END",
       questions,
     })!;
-    setRevisionQuizCompleted(a, true);
-    setRevisionQuizCompleted(b, true);
+    setRevisionQuizCompleted(
+      a,
+      buildRevisionQuizCompletionPayload({ score: 4, questionCount: 4, setSignature: a.setSignature })
+    );
+    setRevisionQuizCompleted(
+      b,
+      buildRevisionQuizCompletionPayload({ score: 2, questionCount: 4, setSignature: b.setSignature })
+    );
     setRevisionQuizCompleted(a, false);
     expect(getRevisionQuizCompleted(a)).toBe(false);
-    expect(getRevisionQuizCompleted(b)).toBe(true);
+    expect(getRevisionQuizCompletion(b)?.score).toBe(2);
   });
 });

@@ -6,6 +6,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { StudentRetrievalSection } from "./StudentRetrievalSection";
 import {
   buildRevisionQuizCompletionKey,
+  getRevisionQuizCompletion,
   revisionCompletionScopeFromQuestions,
   resolveAuthUserId,
 } from "../../../utils/revisionQuizCompletion";
@@ -60,7 +61,7 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
   });
 
-  test("Finish quiz mounts TryFreshPracticeCta and writes completion for id-resolved student", async () => {
+  test("Finish quiz mounts TryFreshPracticeCta and writes scored completion for id-resolved student", async () => {
     const studentId = resolveAuthUserId({ id: "login-only-id" });
     render(
       <StudentRetrievalSection
@@ -78,6 +79,7 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     );
     finishQuiz();
     expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
+    expect(screen.getByText(/Score:\s*1\s*\/\s*1/i)).toBeInTheDocument();
     const scope = revisionCompletionScopeFromQuestions({
       studentId,
       lessonId: "les1",
@@ -85,7 +87,11 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
       questions: pool as any,
     });
     expect(scope).not.toBeNull();
-    expect(localStorage.getItem(buildRevisionQuizCompletionKey(scope!))).toBe("1");
+    const stored = getRevisionQuizCompletion(scope!);
+    expect(stored?.completed).toBe(true);
+    expect(stored?.score).toBe(1);
+    expect(stored?.questionCount).toBe(1);
+    expect(localStorage.getItem(buildRevisionQuizCompletionKey(scope!))).not.toBe("1");
   });
 
   test("Finish quiz with _id-only student persists under that id", async () => {
@@ -112,7 +118,7 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
       pageId: "END",
       questions: pool as any,
     });
-    expect(localStorage.getItem(buildRevisionQuizCompletionKey(scope!))).toBe("1");
+    expect(getRevisionQuizCompletion(scope!)?.score).toBe(1);
   });
 
   test("missing student id: Finish still shows CTA in-session but writes no completion key", async () => {
@@ -135,8 +141,48 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     expect(Object.keys(localStorage).filter((k) => k.includes("revision-quiz-complete"))).toEqual([]);
   });
 
-  test("reload restores Quiz complete CTA for same student/lesson/page/set", async () => {
+  test("reload restores scored Quiz complete CTA for same student/lesson/page/set", async () => {
     const studentId = resolveAuthUserId({ id: "reload-user" });
+    const scope = revisionCompletionScopeFromQuestions({
+      studentId,
+      lessonId: "les1",
+      pageId: "END",
+      questions: pool as any,
+    })!;
+    localStorage.setItem(
+      buildRevisionQuizCompletionKey(scope),
+      JSON.stringify({
+        version: 1,
+        completed: true,
+        score: 1,
+        questionCount: 1,
+        completedAt: new Date().toISOString(),
+        setSignature: scope.setSignature,
+      })
+    );
+
+    render(
+      <StudentRetrievalSection
+        pages={[]}
+        storedFlashcards={[]}
+        revisionQuizPool={pool as any}
+        hasFullAccess
+        enableFreshPractice
+        lessonId="les1"
+        pageId="END"
+        studentId={studentId}
+        specKey="spec"
+        topicKey="topic"
+      />
+    );
+    expect(await screen.findByText(/Quiz complete/i)).toBeInTheDocument();
+    expect(screen.getByText(/Score:\s*1\s*\/\s*1/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Score:\s*0\s*\/\s*1/i)).toBeNull();
+    expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
+  });
+
+  test("legacy \"1\" restores completion without inventing 0/N score", async () => {
+    const studentId = resolveAuthUserId({ id: "legacy-user" });
     const scope = revisionCompletionScopeFromQuestions({
       studentId,
       lessonId: "les1",
@@ -160,6 +206,7 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
       />
     );
     expect(await screen.findByText(/Quiz complete/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Score:/i)).toBeNull();
     expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
   });
 
@@ -187,7 +234,7 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
       pageId: "END",
       questions: pool as any,
     })!;
-    expect(localStorage.getItem(buildRevisionQuizCompletionKey(scope))).toBe("1");
+    expect(getRevisionQuizCompletion(scope)?.completed).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: /retry quiz/i }));
     expect(screen.queryByTestId("try-fresh-practice")).toBeNull();

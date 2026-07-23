@@ -86,7 +86,37 @@ function getQuizMcqOptionStyle(
 export type QuizCompletePayload = {
   questionCount: number;
   questionIds: string[];
+  /** Auto-gradable correct count shown on the live complete screen. */
+  score: number;
+  gradableCount: number;
 };
+
+/** Restored completion display. `score: null` = legacy unknown (do not show 0/N). */
+export type QuizRestoredResult = {
+  score: number | null;
+  questionCount: number;
+};
+
+function computeAutoGradableScore(
+  questions: QuizQuestion[],
+  answers: Record<string, string>
+): { score: number; gradableCount: number } {
+  let score = 0;
+  let gradableCount = 0;
+  for (const qu of questions) {
+    if (qu.type === "mcq") {
+      gradableCount += 1;
+      const a = answers[qu.id];
+      if (a && a.trim() === qu.correctAnswer.trim()) score += 1;
+    } else if (qu.type === "short") {
+      gradableCount += 1;
+      const a = (answers[qu.id] ?? "").toLowerCase();
+      const c = qu.correctAnswer.toLowerCase();
+      if (a && (a === c || a.includes(c) || c.includes(a))) score += 1;
+    }
+  }
+  return { score, gradableCount };
+}
 
 export function QuizView({
   questions,
@@ -96,6 +126,7 @@ export function QuizView({
   onQuizComplete,
   onQuizReset,
   initialComplete = false,
+  restoredResult = null,
   completeExtra,
 }: {
   questions: QuizQuestion[];
@@ -110,6 +141,8 @@ export function QuizView({
   onQuizReset?: () => void;
   /** Restore Quiz complete screen after reload for the same question set. */
   initialComplete?: boolean;
+  /** Saved score/count for honest restore (null score = omit numeric result). */
+  restoredResult?: QuizRestoredResult | null;
   /** Rendered beneath Quiz complete actions (e.g. fresh-practice CTA). */
   completeExtra?: React.ReactNode;
 }) {
@@ -180,23 +213,11 @@ export function QuizView({
     }
   }, [initialComplete]);
 
-  const score = useMemo(() => {
-    let s = 0;
-    for (const qu of questions) {
-      if (qu.type === "mcq") {
-        const a = answers[qu.id];
-        if (a && a.trim() === qu.correctAnswer.trim()) s += 1;
-      } else if (qu.type === "short") {
-        // simple exact/contains check; you can upgrade later
-        const a = (answers[qu.id] ?? "").toLowerCase();
-        const c = qu.correctAnswer.toLowerCase();
-        if (a && (a === c || a.includes(c) || c.includes(a))) s += 1;
-      } else {
-        // exam questions are teacher/self-mark unless you add rubric scoring
-      }
-    }
-    return s;
-  }, [answers, questions]);
+  const liveGraded = useMemo(
+    () => computeAutoGradableScore(questions, answers),
+    [answers, questions]
+  );
+  const score = liveGraded.score;
 
   const handleCheck = () => {
     if (q.type === "short") {
@@ -257,9 +278,12 @@ export function QuizView({
     setIsQuizComplete(true);
     if (!completeFiredRef.current) {
       completeFiredRef.current = true;
+      const graded = computeAutoGradableScore(questions, answers);
       onQuizComplete?.({
         questionCount: questions.length,
         questionIds: questions.map((qu) => String(qu.id)),
+        score: graded.score,
+        gradableCount: graded.gradableCount,
       });
     }
   };
@@ -294,21 +318,41 @@ export function QuizView({
 
   // End-of-quiz results screen
   if (isQuizComplete) {
-    const totalCorrect = score;
-    const totalGradable = questions.filter((qu) => qu.type === "mcq" || qu.type === "short").length;
+    const answeredAny = Object.keys(answers).some((k) => String(answers[k] || "").trim());
+    const totalGradableLive = liveGraded.gradableCount;
     const totalQuestions = questions.length;
+    // Prefer live answers when present; otherwise restored payload (null score = legacy unknown).
+    const scoreKnown = answeredAny
+      ? true
+      : restoredResult
+        ? restoredResult.score != null
+        : true;
+    const totalCorrect = answeredAny
+      ? liveGraded.score
+      : restoredResult?.score != null
+        ? restoredResult.score
+        : liveGraded.score;
+    const totalGradable = answeredAny
+      ? totalGradableLive > 0
+        ? totalGradableLive
+        : totalQuestions
+      : restoredResult?.questionCount && restoredResult.questionCount > 0
+        ? restoredResult.questionCount
+        : totalGradableLive > 0
+          ? totalGradableLive
+          : totalQuestions;
     const percentage =
-      totalGradable > 0
+      scoreKnown && totalGradable > 0
         ? Math.round((totalCorrect / totalGradable) * 100)
-        : totalQuestions > 0
-          ? Math.round((totalCorrect / totalQuestions) * 100)
-          : 0;
+        : 0;
     const message =
-      percentage >= 80
-        ? "Great work!"
-        : percentage >= 50
-          ? "Good effort."
-          : "Review this topic again.";
+      !scoreKnown
+        ? null
+        : percentage >= 80
+          ? "Great work!"
+          : percentage >= 50
+            ? "Good effort."
+            : "Review this topic again.";
 
     return (
       <div className="rounded-2xl border p-4">
@@ -323,18 +367,31 @@ export function QuizView({
             boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", marginBottom: 16 }}>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: "#111827",
+              marginBottom: scoreKnown ? 16 : 24,
+            }}
+          >
             Quiz complete
           </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: "#2563eb", marginBottom: 4 }}>
-            Score: {totalCorrect} / {totalGradable > 0 ? totalGradable : totalQuestions}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#64748b", marginBottom: 16 }}>
-            {percentage}%
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#334155", marginBottom: 24 }}>
-            {message}
-          </div>
+          {scoreKnown ? (
+            <>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#2563eb", marginBottom: 4 }}>
+                Score: {totalCorrect} / {totalGradable}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#64748b", marginBottom: 16 }}>
+                {percentage}%
+              </div>
+              {message ? (
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#334155", marginBottom: 24 }}>
+                  {message}
+                </div>
+              ) : null}
+            </>
+          ) : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
             <button
               type="button"

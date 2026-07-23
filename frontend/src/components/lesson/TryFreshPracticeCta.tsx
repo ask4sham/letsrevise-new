@@ -1,11 +1,11 @@
 /**
  * Contextual fresh-practice CTA after Revision practice quiz completion.
+ * Lesson-scoped: server resolves lesson owner after verifying lesson access.
  * Mount only when the quiz is complete; renders nothing when availableFreshCount is zero.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchFreshAvailability, generatePracticeSet } from "../../api/practiceSets";
-import { getStudentDashboard } from "../../api/studentDashboard";
 import { runSingleFlight } from "../../utils/freshPracticeSingleFlight";
 import {
   createFreshPracticeIdempotencyKey,
@@ -44,21 +44,19 @@ export function TryFreshPracticeCta({
     let cancelled = false;
     (async () => {
       setReady(false);
-      try {
-        const dash = await getStudentDashboard({ specKey });
-        const teacherId = dash?.linkedTeachers?.[0]?.teacherId;
-        if (!teacherId) {
-          if (!cancelled) {
-            setFreshCount(0);
-            setReady(true);
-          }
-          return;
+      const lid = String(lessonId || "").trim();
+      if (!lid || !specKey || !topicKey) {
+        if (!cancelled) {
+          setFreshCount(0);
+          setReady(true);
         }
+        return;
+      }
+      try {
         const avail = await fetchFreshAvailability({
-          teacherId,
           specKey,
           topicKey,
-          lessonId: lessonId || undefined,
+          lessonId: lid,
           limit: 5,
           include: ["quiz_mcq", "quiz_short"],
           sessionExclusions: sessionExclusions || undefined,
@@ -82,7 +80,8 @@ export function TryFreshPracticeCta({
   const nNew = Math.min(freshCount || 0, requestedCount || 5);
 
   const handleTryNew = async () => {
-    if (!specKey || !topicKey || preparing || inFlightRef.current) return;
+    const lid = String(lessonId || "").trim();
+    if (!lid || !specKey || !topicKey || preparing || inFlightRef.current) return;
     if (nNew <= 0) return;
     setPreparing(true);
     setError(null);
@@ -90,25 +89,18 @@ export function TryFreshPracticeCta({
     const clientRequestId = newClientRequestId();
     const idempotencyKey = createFreshPracticeIdempotencyKey({
       topicKey,
-      lessonId,
+      lessonId: lid,
       clientRequestId,
     });
     try {
-      const dash = await getStudentDashboard({ specKey });
-      const teacherId = dash?.linkedTeachers?.[0]?.teacherId;
-      if (!teacherId) {
-        setError("Link to a teacher to start fresh practice.");
-        return;
-      }
       const res = await runSingleFlight(idempotencyKey, () =>
         generatePracticeSet({
-          teacherId,
           specKey,
           topicKeys: [topicKey.includes(":") ? topicKey : `${specKey}:${topicKey}`],
           limit: requestedCount,
           include: ["quiz_mcq", "quiz_short"],
           excludeSeen: true,
-          lessonId: lessonId || undefined,
+          lessonId: lid,
           idempotencyKey,
           source: "fresh-practice",
           sessionExclusions: sessionExclusions || undefined,
@@ -125,7 +117,7 @@ export function TryFreshPracticeCta({
       params.set("fresh", "1");
       params.set("limit", String(selected));
       params.set("idempotencyKey", idempotencyKey);
-      if (lessonId) params.set("lessonId", lessonId);
+      params.set("lessonId", lid);
       navigate(`/practice/quiz/${encodeURIComponent(topicKey)}?${params.toString()}`);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
