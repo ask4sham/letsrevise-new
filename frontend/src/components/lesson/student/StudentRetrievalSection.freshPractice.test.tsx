@@ -86,7 +86,8 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     finishQuiz();
     expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
     expect(screen.getByText(/Score:\s*1\s*\/\s*1/i)).toBeInTheDocument();
-    expect(screen.queryByTestId("revision-try-again")).toBeNull();
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("1/1");
     const scope = revisionCompletionScopeFromQuestions({
       studentId,
       lessonId: "les1",
@@ -101,7 +102,7 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     expect(localStorage.getItem(buildRevisionQuizCompletionKey(scope!))).not.toBe("1");
   });
 
-  test("imperfect Finish shows Try again and does not mount fresh CTA", async () => {
+  test("imperfect Finish shows Retry same quiz and does not mount fresh CTA", async () => {
     render(
       <StudentRetrievalSection
         pages={[]}
@@ -118,7 +119,8 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     );
     finishQuizIncorrect();
     expect(await screen.findByText(/Score:\s*0\s*\/\s*1/i)).toBeInTheDocument();
-    expect(screen.getByTestId("revision-try-again")).toBeInTheDocument();
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("0/1");
     expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
   });
 
@@ -235,12 +237,13 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     );
     expect(await screen.findByText(/Quiz complete/i)).toBeInTheDocument();
     expect(screen.queryByText(/Score:/i)).toBeNull();
-    // Unknown score: not treated as perfect → no fresh CTA; Try again available.
+    // Unknown score: not treated as perfect → no fresh CTA; Retry same quiz available.
     expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
-    expect(screen.getByTestId("revision-try-again")).toBeInTheDocument();
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.queryByTestId("revision-quiz-result-card")).toBeNull();
   });
 
-  test("Try again clears matching persisted completion", async () => {
+  test("Retry same quiz clears matching persisted completion", async () => {
     const studentId = resolveAuthUserId({ id: "retry-user" });
     render(
       <StudentRetrievalSection
