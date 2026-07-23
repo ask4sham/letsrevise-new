@@ -105,13 +105,12 @@ import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentMo
 import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import { ReportIssueModal } from "../components/lesson/ReportIssueModal";
-import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
 import {
   getSpecKeyFromLesson,
   resolveLessonTopicKeyForBank,
   resolveLessonTopicKeyForBankFromLesson,
 } from "../utils/resolveLessonTopicKey";
-import { recordMastery, getMastery } from "../api/mastery";
+import { recordMastery } from "../api/mastery";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { updateUser } from "../utils/authStorage";
@@ -1742,10 +1741,6 @@ const LessonViewPage: React.FC = () => {
     }
   }, [showReviews]);
 
-  // PR — Adaptive Testing Loop: topic mastery for adaptive feedback
-  const [masteryData, setMasteryData] = useState<{ attempts: number; correct: number; masteryScore: number } | null>(null);
-
-
   // ✅ Only enable legacy reviews when lessonId is a Mongo ObjectId.
   const reviewsEnabled = isMongoObjectId(id);
   // Single source of truth for green CTA: "Rajiv – review the lesson" (never #NAME or placeholders)
@@ -2004,14 +1999,13 @@ const LessonViewPage: React.FC = () => {
     return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: candidate });
   }, [topicKeyForBank, lesson, specKey]);
 
-  // PR — Adaptive Testing Loop: handleQuestionAnswered and fetch mastery (must be after topicKeyForBank, hasStructuredPages, currentPage, etc.)
+  // Record topic mastery quietly after quiz answers (no duplicate green mastery card on the lesson page).
   const handleQuestionAnswered = useCallback(
     async (correct: boolean) => {
       const tk = topicKeyForBank;
       if (!tk || user?.userType !== "student") return;
       try {
-        const res = await recordMastery(tk, correct);
-        setMasteryData({ attempts: res.attempts, correct: res.correct, masteryScore: res.masteryScore });
+        await recordMastery(tk, correct);
       } catch (e) {
         if (process.env.NODE_ENV !== "production") {
           console.warn("[LessonViewPage] recordMastery failed:", e);
@@ -2020,21 +2014,6 @@ const LessonViewPage: React.FC = () => {
     },
     [topicKeyForBank, user?.userType]
   );
-
-  // Fetch initial mastery when student reaches last page (structured) or on legacy single-page view
-  useEffect(() => {
-    if (user?.userType !== "student" || !topicKeyForBank) return;
-    const isStructuredLastPage =
-      hasStructuredPages &&
-      currentPage &&
-      orderedPages.length > 0 &&
-      (orderedPages.length <= 1 || currentPageIndex === orderedPages.length - 1);
-    const isLegacySinglePage = !hasStructuredPages;
-    if (!isStructuredLastPage && !isLegacySinglePage) return;
-    getMastery(topicKeyForBank)
-      .then((res) => setMasteryData({ attempts: res.attempts, correct: res.correct, masteryScore: res.masteryScore }))
-      .catch(() => {});
-  }, [user?.userType, topicKeyForBank, hasStructuredPages, currentPage, orderedPages.length, currentPageIndex]);
 
   useEffect(() => {
     fetchLessonSmart();
@@ -5171,24 +5150,6 @@ const LessonViewPage: React.FC = () => {
                 </Section>
                 )}
 
-                {/* PR — Adaptive Testing Loop: adaptive feedback based on quiz mastery */}
-                {isStudent && topicKeyForBank && masteryData && (
-                  <AdaptiveFeedbackCard
-                    masteryScore={masteryData.masteryScore}
-                    topicKey={topicKeyForBank}
-                    hasAttempts={masteryData.attempts > 0}
-                    onReviewFlashcards={() => {
-                      setShowFlashcards(true);
-                      setTimeout(() => flashcardsViewerRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-                    }}
-                    onTryMorePractice={() => setPracticeSeedCounter((c) => c + 1)}
-                    onReviewContent={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                    onShowDiagram={() => {
-                      document.getElementById("lesson-visual")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                  />
-                )}
-
                 {/* Lane B: Practice papers (full papers attached to lesson) */}
                 {attachedPapersSummaries.length > 0 && (
                   <Section title="Practice papers" variant="plain">
@@ -6122,24 +6083,6 @@ const LessonViewPage: React.FC = () => {
             </>
           )}
         </Section>
-
-        {/* PR — Adaptive Testing Loop: adaptive feedback (legacy view) */}
-        {isStudent && topicKeyForBank && masteryData && (
-          <AdaptiveFeedbackCard
-            masteryScore={masteryData.masteryScore}
-            topicKey={topicKeyForBank}
-            hasAttempts={masteryData.attempts > 0}
-            onReviewFlashcards={() => {
-              setShowFlashcards(true);
-              setTimeout(() => flashcardsViewerRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-            }}
-            onTryMorePractice={() => setPracticeSeedCounter((c) => c + 1)}
-            onReviewContent={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            onShowDiagram={() => {
-              document.getElementById("lesson-visual")?.scrollIntoView({ behavior: "smooth" });
-            }}
-          />
-        )}
 
         {/* Lane B: Practice papers (full papers attached to lesson) */}
         {attachedPapersSummaries.length > 0 && (

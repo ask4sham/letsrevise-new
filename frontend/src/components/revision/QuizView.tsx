@@ -353,6 +353,10 @@ export function QuizView({
           : percentage >= 50
             ? "Good effort."
             : "Review this topic again.";
+    // Perfect known score → fresh "Try another" path (via completeExtra). Imperfect / unknown → Try again.
+    const isPerfectScore =
+      scoreKnown && totalGradable > 0 && totalCorrect >= totalGradable;
+    const showTryAgain = !isPerfectScore;
 
     return (
       <div className="rounded-2xl border p-4">
@@ -393,22 +397,25 @@ export function QuizView({
             </>
           ) : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            <button
-              type="button"
-              onClick={handleReset}
-              style={{
-                padding: "10px 18px",
-                fontSize: 15,
-                fontWeight: 700,
-                background: "#2563eb",
-                color: "#ffffff",
-                borderRadius: 10,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Retry quiz
-            </button>
+            {showTryAgain ? (
+              <button
+                type="button"
+                onClick={handleReset}
+                data-testid="revision-try-again"
+                style={{
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Try again
+              </button>
+            ) : null}
             {onContinueLesson && (
               <button
                 type="button"

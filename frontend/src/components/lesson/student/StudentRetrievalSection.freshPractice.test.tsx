@@ -16,7 +16,7 @@ jest.mock("../../ai/ExplainMyMistakeButton", () => ({
 }));
 
 jest.mock("../TryFreshPracticeCta", () => ({
-  TryFreshPracticeCta: () => <div data-testid="try-fresh-practice">Try N new questions</div>,
+  TryFreshPracticeCta: () => <div data-testid="try-fresh-practice">Try another set</div>,
 }));
 
 describe("StudentRetrievalSection fresh CTA gate", () => {
@@ -39,6 +39,12 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
 
   function finishQuiz() {
     fireEvent.click(screen.getByLabelText("Mixing alleles"));
+    fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /finish quiz/i }));
+  }
+
+  function finishQuizIncorrect() {
+    fireEvent.click(screen.getByLabelText("Cloning"));
     fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
     fireEvent.click(screen.getByRole("button", { name: /finish quiz/i }));
   }
@@ -80,6 +86,7 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     finishQuiz();
     expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
     expect(screen.getByText(/Score:\s*1\s*\/\s*1/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("revision-try-again")).toBeNull();
     const scope = revisionCompletionScopeFromQuestions({
       studentId,
       lessonId: "les1",
@@ -92,6 +99,27 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     expect(stored?.score).toBe(1);
     expect(stored?.questionCount).toBe(1);
     expect(localStorage.getItem(buildRevisionQuizCompletionKey(scope!))).not.toBe("1");
+  });
+
+  test("imperfect Finish shows Try again and does not mount fresh CTA", async () => {
+    render(
+      <StudentRetrievalSection
+        pages={[]}
+        storedFlashcards={[]}
+        revisionQuizPool={pool as any}
+        hasFullAccess
+        enableFreshPractice
+        lessonId="les1"
+        pageId="END"
+        studentId="stu-imperfect"
+        specKey="spec"
+        topicKey="topic"
+      />
+    );
+    finishQuizIncorrect();
+    expect(await screen.findByText(/Score:\s*0\s*\/\s*1/i)).toBeInTheDocument();
+    expect(screen.getByTestId("revision-try-again")).toBeInTheDocument();
+    expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
   });
 
   test("Finish quiz with _id-only student persists under that id", async () => {
@@ -207,10 +235,12 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     );
     expect(await screen.findByText(/Quiz complete/i)).toBeInTheDocument();
     expect(screen.queryByText(/Score:/i)).toBeNull();
-    expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
+    // Unknown score: not treated as perfect → no fresh CTA; Try again available.
+    expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
+    expect(screen.getByTestId("revision-try-again")).toBeInTheDocument();
   });
 
-  test("Retry quiz clears matching persisted completion", async () => {
+  test("Try again clears matching persisted completion", async () => {
     const studentId = resolveAuthUserId({ id: "retry-user" });
     render(
       <StudentRetrievalSection
@@ -226,8 +256,8 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
         topicKey="topic"
       />
     );
-    finishQuiz();
-    expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
+    finishQuizIncorrect();
+    expect(await screen.findByTestId("revision-try-again")).toBeInTheDocument();
     const scope = revisionCompletionScopeFromQuestions({
       studentId,
       lessonId: "les1",
@@ -236,8 +266,8 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     })!;
     expect(getRevisionQuizCompletion(scope)?.completed).toBe(true);
 
-    fireEvent.click(screen.getByRole("button", { name: /retry quiz/i }));
-    expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
+    fireEvent.click(screen.getByTestId("revision-try-again"));
+    expect(screen.queryByTestId("revision-try-again")).toBeNull();
     expect(localStorage.getItem(buildRevisionQuizCompletionKey(scope))).toBeNull();
   });
 

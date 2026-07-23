@@ -1,7 +1,7 @@
 /**
  * Contextual fresh-practice CTA after Revision practice quiz completion.
  * Lesson-scoped: server resolves lesson owner after verifying lesson access.
- * Mount only when the quiz is complete; renders nothing when availableFreshCount is zero.
+ * Mount after a perfect Revision finish; renders nothing when availableFreshCount is zero.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -159,7 +159,7 @@ export function TryFreshPracticeCta({
       >
         {preparing
           ? "Preparing questions…"
-          : `Try ${nNew} new question${nNew === 1 ? "" : "s"}`}
+          : "Try another set"}
       </button>
       {error ? (
         <p style={{ margin: "8px 0 0", fontSize: 13, color: "#b91c1c" }} role="alert">
