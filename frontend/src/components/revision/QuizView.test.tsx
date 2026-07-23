@@ -125,8 +125,9 @@ describe("QuizView revision completion signal", () => {
     expect(onQuizComplete.mock.calls[0][0].questionCount).toBe(2);
     expect(onQuizComplete.mock.calls[0][0].score).toBe(2);
     expect(onQuizComplete.mock.calls[0][0].gradableCount).toBe(2);
-    // Perfect score: Try again hidden; fresh path uses completeExtra.
-    expect(screen.queryByTestId("revision-try-again")).toBeNull();
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("2/2");
+    expect(screen.queryByText(/1 \/ 1\.0/)).toBeNull();
   });
 
   test("restoredResult shows saved score without answers", () => {
@@ -140,10 +141,11 @@ describe("QuizView revision completion signal", () => {
     expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
     expect(screen.getByText(/Score:\s*2\s*\/\s*2/i)).toBeInTheDocument();
     expect(screen.queryByText(/Score:\s*0\s*\/\s*2/i)).toBeNull();
-    expect(screen.queryByTestId("revision-try-again")).toBeNull();
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("2/2");
   });
 
-  test("legacy unknown restored score omits Score 0/N and offers Try again", () => {
+  test("legacy unknown restored score omits Score 0/N and green card", () => {
     render(
       <QuizView
         questions={MCQ_QUESTIONS}
@@ -153,10 +155,11 @@ describe("QuizView revision completion signal", () => {
     );
     expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
     expect(screen.queryByText(/Score:/i)).toBeNull();
-    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Try again/i);
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.queryByTestId("revision-quiz-result-card")).toBeNull();
   });
 
-  test("imperfect finish shows Try again and clears via onQuizReset", () => {
+  test("imperfect finish shows Retry same quiz and clears via onQuizReset", () => {
     const onQuizReset = jest.fn();
     render(<QuizView questions={MCQ_QUESTIONS} onQuizReset={onQuizReset} />);
     fireEvent.click(screen.getByLabelText("Nucleus"));
@@ -166,26 +169,13 @@ describe("QuizView revision completion signal", () => {
     fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
     fireEvent.click(screen.getByRole("button", { name: /finish quiz/i }));
     expect(screen.getByText(/Score:\s*1\s*\/\s*2/i)).toBeInTheDocument();
+    expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("1/2");
     fireEvent.click(screen.getByTestId("revision-try-again"));
     expect(onQuizReset).toHaveBeenCalled();
     expect(screen.queryByText(/Quiz complete/i)).toBeNull();
   });
 
-  test("imperfect restored score shows Try again and completeExtra", () => {
-    render(
-      <QuizView
-        questions={MCQ_QUESTIONS}
-        initialComplete
-        restoredResult={{ score: 1, questionCount: 2 }}
-        completeExtra={<div data-testid="try-fresh-practice">Try another set</div>}
-      />
-    );
-    expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
-    expect(screen.getByTestId("revision-try-again")).toBeInTheDocument();
-    expect(screen.getByTestId("try-fresh-practice")).toBeInTheDocument();
-  });
-
-  test("perfect restored score hides Try again and keeps completeExtra", () => {
+  test("perfect restored score keeps Retry same quiz and completeExtra", () => {
     render(
       <QuizView
         questions={MCQ_QUESTIONS}
@@ -194,7 +184,8 @@ describe("QuizView revision completion signal", () => {
         completeExtra={<div data-testid="try-fresh-practice">Try another set</div>}
       />
     );
-    expect(screen.queryByTestId("revision-try-again")).toBeNull();
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
     expect(screen.getByTestId("try-fresh-practice")).toBeInTheDocument();
+    expect(screen.getByTestId("revision-quiz-result-card")).toHaveTextContent(/Great job/i);
   });
 });

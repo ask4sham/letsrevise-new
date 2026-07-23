@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { ExplainMyMistakeButton } from "../ai/ExplainMyMistakeButton";
 import { AnswerFeedbackPanel } from "../lesson/AnswerFeedbackPanel";
+import { RevisionQuizResultCard } from "../lesson/RevisionQuizResultCard";
 import { buildMcqFeedback, gradeMcq, type McqGradeResult } from "../../utils/gradeMcq";
 import {
   gradeShortAnswer,
@@ -353,11 +354,6 @@ export function QuizView({
           : percentage >= 50
             ? "Good effort."
             : "Review this topic again.";
-    // Perfect known score → fresh "Try another" path (via completeExtra). Imperfect / unknown → Try again.
-    const isPerfectScore =
-      scoreKnown && totalGradable > 0 && totalCorrect >= totalGradable;
-    const showTryAgain = !isPerfectScore;
-
     return (
       <div className="rounded-2xl border p-4">
         <h1 style={{ fontSize: 28, fontWeight: 900, margin: "6px 0 12px" }}>{title || "Quiz"}</h1>
@@ -396,26 +392,25 @@ export function QuizView({
               ) : null}
             </>
           ) : null}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            {showTryAgain ? (
-              <button
-                type="button"
-                onClick={handleReset}
-                data-testid="revision-try-again"
-                style={{
-                  padding: "10px 18px",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  borderRadius: 10,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Try again
-              </button>
-            ) : null}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={handleReset}
+              data-testid="revision-try-again"
+              style={{
+                padding: "10px 18px",
+                fontSize: 15,
+                fontWeight: 700,
+                background: "#2563eb",
+                color: "#ffffff",
+                borderRadius: 10,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Retry same quiz
+            </button>
+            {completeExtra ? <div data-testid="revision-fresh-cta-slot">{completeExtra}</div> : null}
             {onContinueLesson && (
               <button
                 type="button"
@@ -435,7 +430,9 @@ export function QuizView({
               </button>
             )}
           </div>
-          {completeExtra ? <div style={{ marginTop: 16 }}>{completeExtra}</div> : null}
+          {scoreKnown ? (
+            <RevisionQuizResultCard score={totalCorrect} questionCount={totalGradable} />
+          ) : null}
         </div>
       </div>
     );
