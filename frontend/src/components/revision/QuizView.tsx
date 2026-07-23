@@ -98,6 +98,19 @@ export type QuizRestoredResult = {
   questionCount: number;
 };
 
+function isAutoGradableCorrect(qu: QuizQuestion, answer: string | undefined): boolean {
+  if (qu.type === "mcq") {
+    const a = answer;
+    return !!(a && a.trim() === qu.correctAnswer.trim());
+  }
+  if (qu.type === "short") {
+    const a = (answer ?? "").toLowerCase();
+    const c = qu.correctAnswer.toLowerCase();
+    return !!(a && (a === c || a.includes(c) || c.includes(a)));
+  }
+  return false;
+}
+
 function computeAutoGradableScore(
   questions: QuizQuestion[],
   answers: Record<string, string>
@@ -105,18 +118,25 @@ function computeAutoGradableScore(
   let score = 0;
   let gradableCount = 0;
   for (const qu of questions) {
-    if (qu.type === "mcq") {
+    if (qu.type === "mcq" || qu.type === "short") {
       gradableCount += 1;
-      const a = answers[qu.id];
-      if (a && a.trim() === qu.correctAnswer.trim()) score += 1;
-    } else if (qu.type === "short") {
-      gradableCount += 1;
-      const a = (answers[qu.id] ?? "").toLowerCase();
-      const c = qu.correctAnswer.toLowerCase();
-      if (a && (a === c || a.includes(c) || c.includes(a))) score += 1;
+      if (isAutoGradableCorrect(qu, answers[qu.id])) score += 1;
     }
   }
   return { score, gradableCount };
+}
+
+/** First incorrect auto-gradable index, or 0 when none found. */
+function firstIncorrectQuestionIndex(
+  questions: QuizQuestion[],
+  answers: Record<string, string>
+): number {
+  for (let idx = 0; idx < questions.length; idx++) {
+    const qu = questions[idx];
+    if (qu.type !== "mcq" && qu.type !== "short") continue;
+    if (!isAutoGradableCorrect(qu, answers[qu.id])) return idx;
+  }
+  return 0;
 }
 
 export function QuizView({
@@ -273,6 +293,15 @@ export function QuizView({
     onQuizReset?.();
   };
 
+  /** Re-open the quiz on the first missed question without clearing answers or completion. */
+  const handleReviewMistakes = () => {
+    const idx = firstIncorrectQuestionIndex(questions, answers);
+    setI(idx);
+    setLastGrade(null);
+    setShowFeedback(true);
+    setIsQuizComplete(false);
+  };
+
   const finishQuiz = () => {
     setShowFeedback(false);
     setLastGrade(null);
@@ -346,10 +375,15 @@ export function QuizView({
       scoreKnown && totalGradable > 0
         ? Math.round((totalCorrect / totalGradable) * 100)
         : 0;
+    const isPerfectScore =
+      scoreKnown && totalGradable > 0 && totalCorrect >= totalGradable;
+    // Perfect → forward (fresh set / continue). Partial → review + retry. Legacy unknown → continue only.
+    const showRetrySameQuiz = scoreKnown && !isPerfectScore;
+    const showReviewMistakes = showRetrySameQuiz && answeredAny;
     const message =
       !scoreKnown
         ? null
-        : percentage >= 80
+        : isPerfectScore
           ? "Great work!"
           : percentage >= 50
             ? "Good effort."
@@ -393,28 +427,52 @@ export function QuizView({
             </>
           ) : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={handleReset}
-              data-testid="revision-try-again"
-              style={{
-                padding: "10px 18px",
-                fontSize: 15,
-                fontWeight: 700,
-                background: "#2563eb",
-                color: "#ffffff",
-                borderRadius: 10,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Retry same quiz
-            </button>
-            {completeExtra ? <div data-testid="revision-fresh-cta-slot">{completeExtra}</div> : null}
+            {showReviewMistakes ? (
+              <button
+                type="button"
+                onClick={handleReviewMistakes}
+                data-testid="revision-review-mistakes"
+                style={{
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  background: "#f1f5f9",
+                  color: "#334155",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  cursor: "pointer",
+                }}
+              >
+                Review mistakes
+              </button>
+            ) : null}
+            {showRetrySameQuiz ? (
+              <button
+                type="button"
+                onClick={handleReset}
+                data-testid="revision-try-again"
+                style={{
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Retry same quiz
+              </button>
+            ) : null}
+            {isPerfectScore && completeExtra ? (
+              <div data-testid="revision-fresh-cta-slot">{completeExtra}</div>
+            ) : null}
             {onContinueLesson && (
               <button
                 type="button"
                 onClick={onContinueLesson}
+                data-testid="revision-continue-lesson"
                 style={{
                   padding: "10px 18px",
                   fontSize: 15,

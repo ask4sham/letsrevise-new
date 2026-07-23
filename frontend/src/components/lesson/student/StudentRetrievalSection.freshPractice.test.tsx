@@ -86,7 +86,8 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     finishQuiz();
     expect(await screen.findByTestId("try-fresh-practice")).toBeInTheDocument();
     expect(screen.getByText(/Score:\s*1\s*\/\s*1/i)).toBeInTheDocument();
-    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.queryByTestId("revision-try-again")).toBeNull();
+    expect(screen.queryByTestId("revision-review-mistakes")).toBeNull();
     expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("1/1");
     const scope = revisionCompletionScopeFromQuestions({
       studentId,
@@ -120,7 +121,9 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     finishQuizIncorrect();
     expect(await screen.findByText(/Score:\s*0\s*\/\s*1/i)).toBeInTheDocument();
     expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.getByTestId("revision-review-mistakes")).toBeInTheDocument();
     expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("0/1");
+    expect(screen.queryByText(/Great job — you understand this topic well/i)).toBeNull();
     expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
   });
 
@@ -237,10 +240,12 @@ describe("StudentRetrievalSection fresh CTA gate", () => {
     );
     expect(await screen.findByText(/Quiz complete/i)).toBeInTheDocument();
     expect(screen.queryByText(/Score:/i)).toBeNull();
-    // Unknown score: not treated as perfect → no fresh CTA; Retry same quiz available.
+    // Unknown score: safe continue only — no fresh CTA, retry, review, or invented 0/N.
     expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
-    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Retry same quiz/i);
+    expect(screen.queryByTestId("revision-try-again")).toBeNull();
+    expect(screen.queryByTestId("revision-review-mistakes")).toBeNull();
     expect(screen.queryByTestId("revision-quiz-result-card")).toBeNull();
+    expect(screen.getByTestId("revision-continue-lesson")).toBeInTheDocument();
   });
 
   test("Retry same quiz clears matching persisted completion", async () => {
