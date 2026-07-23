@@ -13,6 +13,19 @@ export type RevisionQuizCompletionScope = {
   setSignature: string;
 };
 
+/**
+ * Auth payloads use `id` (login); some profile paths also expose `_id`.
+ * Prefer `_id` when both exist (same pattern as LessonViewPage elsewhere).
+ */
+export function resolveAuthUserId(
+  user: { _id?: unknown; id?: unknown } | null | undefined
+): string | undefined {
+  const raw = user?._id ?? user?.id;
+  if (raw == null) return undefined;
+  const s = String(raw).trim();
+  return s || undefined;
+}
+
 export function buildRevisionQuizCompletionKey(scope: RevisionQuizCompletionScope): string {
   const student = encodeURIComponent(String(scope.studentId || "").trim() || "anon");
   const lesson = encodeURIComponent(String(scope.lessonId || "").trim() || "none");
