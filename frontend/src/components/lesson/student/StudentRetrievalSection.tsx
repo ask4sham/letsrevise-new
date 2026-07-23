@@ -7,9 +7,11 @@ import { normalizeQuizQuestion } from "../../../utils/normalizeQuizQuestion";
 import { TryFreshPracticeCta } from "../TryFreshPracticeCta";
 import { collectRevisionQuizSessionExclusions } from "../../../utils/revisionQuizFreshExclusions";
 import {
-  getRevisionQuizCompleted,
+  getRevisionQuizCompletion,
   setRevisionQuizCompleted,
   revisionCompletionScopeFromQuestions,
+  buildRevisionQuizCompletionPayload,
+  type RevisionQuizCompletionPayload,
 } from "../../../utils/revisionQuizCompletion";
 import "./studentRetrievalSection.css";
 
@@ -105,36 +107,47 @@ export function StudentRetrievalSection({
     [studentId, lessonId, pageId, revisionPool]
   );
 
-  const [quizComplete, setQuizComplete] = useState(() =>
-    completionScope ? getRevisionQuizCompleted(completionScope) : false
+  const [quizResult, setQuizResult] = useState<RevisionQuizCompletionPayload | null>(() =>
+    completionScope
+      ? getRevisionQuizCompletion(completionScope, revisionPool.length)
+      : null
   );
+  const quizComplete = quizResult?.completed === true;
 
   // Restore from storage when scope is valid. Never force false when scope is null
   // (that would wipe in-session Finish quiz before studentId resolves).
   useEffect(() => {
     if (!completionScope) return;
-    if (getRevisionQuizCompleted(completionScope)) {
-      setQuizComplete(true);
-    }
-  }, [completionScope]);
+    const stored = getRevisionQuizCompletion(completionScope, revisionPool.length);
+    if (stored) setQuizResult(stored);
+  }, [completionScope, revisionPool.length]);
 
-  // Persist whenever we are complete and have a valid scoped key.
+  // Persist whenever we have a completed result and a valid scoped key.
   useEffect(() => {
-    if (!completionScope || !quizComplete) return;
-    setRevisionQuizCompleted(completionScope, true);
-  }, [completionScope, quizComplete]);
+    if (!completionScope || !quizResult?.completed) return;
+    setRevisionQuizCompleted(completionScope, quizResult);
+  }, [completionScope, quizResult]);
 
   const sessionExclusions = useMemo(
     () => collectRevisionQuizSessionExclusions(revisionPool as unknown as Array<Record<string, unknown>>),
     [revisionPool]
   );
 
-  const handleQuizComplete = useCallback((_payload: QuizCompletePayload) => {
-    setQuizComplete(true);
-  }, []);
+  const handleQuizComplete = useCallback(
+    (payload: QuizCompletePayload) => {
+      const next = buildRevisionQuizCompletionPayload({
+        score: payload.score,
+        questionCount: payload.gradableCount > 0 ? payload.gradableCount : payload.questionCount,
+        setSignature: completionScope?.setSignature || "",
+      });
+      setQuizResult(next);
+      if (completionScope) setRevisionQuizCompleted(completionScope, next);
+    },
+    [completionScope]
+  );
 
   const handleQuizReset = useCallback(() => {
-    setQuizComplete(false);
+    setQuizResult(null);
     if (completionScope) setRevisionQuizCompleted(completionScope, false);
   }, [completionScope]);
 
@@ -234,6 +247,11 @@ export function StudentRetrievalSection({
             onQuizComplete={handleQuizComplete}
             onQuizReset={handleQuizReset}
             initialComplete={quizComplete}
+            restoredResult={
+              quizResult
+                ? { score: quizResult.score, questionCount: quizResult.questionCount }
+                : null
+            }
             completeExtra={
               showFreshCta ? (
                 <TryFreshPracticeCta

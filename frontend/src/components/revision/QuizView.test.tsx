@@ -120,8 +120,36 @@ describe("QuizView revision completion signal", () => {
     render(<QuizView questions={MCQ_QUESTIONS} onQuizComplete={onQuizComplete} />);
     answerAllAndFinish();
     expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
+    expect(screen.getByText(/Score:\s*2\s*\/\s*2/i)).toBeInTheDocument();
     expect(onQuizComplete).toHaveBeenCalledTimes(1);
     expect(onQuizComplete.mock.calls[0][0].questionCount).toBe(2);
+    expect(onQuizComplete.mock.calls[0][0].score).toBe(2);
+    expect(onQuizComplete.mock.calls[0][0].gradableCount).toBe(2);
+  });
+
+  test("restoredResult shows saved score without answers", () => {
+    render(
+      <QuizView
+        questions={MCQ_QUESTIONS}
+        initialComplete
+        restoredResult={{ score: 2, questionCount: 2 }}
+      />
+    );
+    expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
+    expect(screen.getByText(/Score:\s*2\s*\/\s*2/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Score:\s*0\s*\/\s*2/i)).toBeNull();
+  });
+
+  test("legacy unknown restored score omits Score 0/N", () => {
+    render(
+      <QuizView
+        questions={MCQ_QUESTIONS}
+        initialComplete
+        restoredResult={{ score: null, questionCount: 2 }}
+      />
+    );
+    expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Score:/i)).toBeNull();
   });
 
   test("Retry quiz clears completion via onQuizReset", () => {
@@ -138,6 +166,7 @@ describe("QuizView revision completion signal", () => {
       <QuizView
         questions={MCQ_QUESTIONS}
         initialComplete
+        restoredResult={{ score: 1, questionCount: 2 }}
         completeExtra={<div data-testid="try-fresh-practice">Try 3 new questions</div>}
       />
     );

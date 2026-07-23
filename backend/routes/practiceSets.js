@@ -1,13 +1,19 @@
 /**
  * PR-PRACTICE-LOOP-1 Slice 2: Generate practice set — student-only POST /generate.
  * Fresh V1: excludeSeen + lessonId, GET /:id resume, GET /fresh-availability.
+ *
+ * Lesson-scoped fresh practice: require lessonId, verify canAccessContent, resolve
+ * Lesson.teacherId server-side (ignore client teacherId). Dashboard / linked-teacher
+ * flows keep resolveTeacherLink.
  */
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const User = require("../models/User");
+const Lesson = require("../models/Lesson");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
+const { canAccessContent } = require("../utils/canAccessContent");
 const {
   generateAndPersistPracticeSet,
   getPracticeSetForStudent,
@@ -52,6 +58,52 @@ async function resolveTeacherLink(studentId, teacherId) {
   return { teacherIdObj };
 }
 
+/**
+ * Resolve content-owner for practice generation.
+ * - With lessonId: verify lesson access via canAccessContent; use Lesson.teacherId.
+ *   Client-supplied teacherId is ignored (cannot override owner).
+ * - Without lessonId: existing StudentTeacherLink + teacherId path.
+ */
+async function resolvePracticeOwner({ studentId, teacherId, lessonId }) {
+  const lid = lessonId != null ? String(lessonId).trim() : "";
+  if (lid) {
+    if (!mongoose.Types.ObjectId.isValid(lid)) {
+      return { error: { status: 400, body: { error: "Invalid lessonId" } } };
+    }
+    const lesson = await Lesson.findById(lid)
+      .select("teacherId status isPublished isFreePreview")
+      .lean();
+    if (!lesson) {
+      return { error: { status: 404, body: { error: "Lesson not found" } } };
+    }
+    const user = await User.findById(studentId);
+    if (!user) {
+      return { error: { status: 401, body: { error: "Unauthorized" } } };
+    }
+    const access = await canAccessContent(user, lesson);
+    if (access.allowed !== true) {
+      return {
+        error: {
+          status: 403,
+          body: { error: "Lesson access required", reason: access.reason || "NOT_ENTITLED" },
+        },
+      };
+    }
+    if (!lesson.teacherId) {
+      return { error: { status: 400, body: { error: "Lesson has no owner" } } };
+    }
+    return {
+      teacherIdObj: lesson.teacherId,
+      lessonId: lid,
+      resolution: "lesson-owner",
+    };
+  }
+
+  const linked = await resolveTeacherLink(studentId, teacherId);
+  if (linked.error) return linked;
+  return { ...linked, resolution: "teacher-link" };
+}
+
 // GET /api/practice-sets/fresh-availability — honest fresh count (no PracticeSet created)
 router.get("/fresh-availability", auth, async (req, res) => {
   if (!isStudent(req)) {
@@ -87,7 +139,7 @@ router.get("/fresh-availability", auth, async (req, res) => {
     return res.status(400).json({ error: "specKey and topicKey are required" });
   }
 
-  const resolved = await resolveTeacherLink(studentId, teacherId);
+  const resolved = await resolvePracticeOwner({ studentId, teacherId, lessonId });
   if (resolved.error) return res.status(resolved.error.status).json(resolved.error.body);
 
   try {
@@ -99,18 +151,19 @@ router.get("/fresh-availability", auth, async (req, res) => {
       limit,
       include: includeTypes,
       excludeSeen: true,
-      lessonId: lessonId || null,
+      lessonId: resolved.lessonId || lessonId || null,
       dryRun: true,
       sessionExclusions,
     });
 
     let lessonPracticeAttemptCount = 0;
     let lessonPracticeAttemptedQuestionIds = [];
-    if (lessonId) {
-      lessonPracticeAttemptCount = await countLessonPracticeAttempts(studentId, lessonId);
+    const effectiveLessonId = resolved.lessonId || lessonId || null;
+    if (effectiveLessonId) {
+      lessonPracticeAttemptCount = await countLessonPracticeAttempts(studentId, effectiveLessonId);
       lessonPracticeAttemptedQuestionIds = await listLessonPracticeAttemptedQuestionIds(
         studentId,
-        lessonId
+        effectiveLessonId
       );
     }
 
@@ -198,7 +251,11 @@ router.post("/generate", auth, async (req, res) => {
     return res.status(400).json({ error: 'mode must be "standard" or "challenge"' });
   }
 
-  const resolved = await resolveTeacherLink(studentId, teacherId);
+  const resolved = await resolvePracticeOwner({
+    studentId,
+    teacherId,
+    lessonId: lessonId ? String(lessonId).trim() : null,
+  });
   if (resolved.error) return res.status(resolved.error.status).json(resolved.error.body);
 
   const includeTypes = include != null ? (Array.isArray(include) ? include : [include]) : CONTENT_TYPES;
@@ -219,7 +276,7 @@ router.post("/generate", auth, async (req, res) => {
       skill: Array.isArray(skill) ? skill : null,
       mode: modeNorm,
       excludeSeen: excludeSeen === true || excludeSeen === "true",
-      lessonId: lessonId ? String(lessonId).trim() : null,
+      lessonId: resolved.lessonId || (lessonId ? String(lessonId).trim() : null),
       dryRun: false,
       idempotencyKey: idempotencyKey ? String(idempotencyKey).trim() : null,
       source: source ? String(source).trim() : excludeSeen === true || excludeSeen === "true" ? "fresh-practice" : null,

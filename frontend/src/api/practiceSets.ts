@@ -31,7 +31,8 @@ export type PracticeSetItem = {
 };
 
 export type GeneratePracticeSetPayload = {
-  teacherId: string;
+  /** Required for dashboard / linked-teacher practice. Ignored for lesson-scoped fresh practice. */
+  teacherId?: string;
   specKey: string;
   topicKeys: string[];
   limit?: number;
@@ -41,6 +42,7 @@ export type GeneratePracticeSetPayload = {
   mode?: PracticeMode;
   /** Fresh V1: server excludes lesson-linked + recent set/attempt keys */
   excludeSeen?: boolean;
+  /** Lesson-scoped fresh practice: server verifies access and resolves lesson owner. */
   lessonId?: string;
   idempotencyKey?: string;
   source?: string;
@@ -76,8 +78,7 @@ export type FreshAvailabilityResponse = {
 export async function generatePracticeSet(
   payload: GeneratePracticeSetPayload
 ): Promise<GeneratePracticeSetResponse> {
-  const body = {
-    teacherId: payload.teacherId,
+  const body: Record<string, unknown> = {
     specKey: payload.specKey,
     topicKeys: payload.topicKeys,
     limit: payload.limit ?? 10,
@@ -91,6 +92,7 @@ export async function generatePracticeSet(
     source: payload.source,
     sessionExclusions: payload.sessionExclusions,
   };
+  if (payload.teacherId) body.teacherId = payload.teacherId;
   const res = await api.post<GeneratePracticeSetResponse>(
     "/practice-sets/generate",
     body
@@ -108,7 +110,8 @@ export async function getPracticeSet(
 }
 
 export async function fetchFreshAvailability(params: {
-  teacherId: string;
+  /** Required for non-lesson (dashboard) calls. Ignored when lessonId is set (server resolves owner). */
+  teacherId?: string;
   specKey: string;
   topicKey: string;
   lessonId?: string;
@@ -121,10 +124,10 @@ export async function fetchFreshAvailability(params: {
   };
 }): Promise<FreshAvailabilityResponse> {
   const search = new URLSearchParams();
-  search.set("teacherId", params.teacherId);
   search.set("specKey", params.specKey);
   search.set("topicKey", params.topicKey);
   if (params.lessonId) search.set("lessonId", params.lessonId);
+  if (params.teacherId && !params.lessonId) search.set("teacherId", params.teacherId);
   search.set("limit", String(params.limit ?? 5));
   if (params.include?.length) search.set("include", params.include.join(","));
   if (params.sessionExclusions) {
