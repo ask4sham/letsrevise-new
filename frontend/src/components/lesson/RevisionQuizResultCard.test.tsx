@@ -19,6 +19,7 @@ describe("RevisionQuizResultCard", () => {
   test("partial score shows honest fraction", () => {
     render(<RevisionQuizResultCard score={3} questionCount={4} />);
     expect(screen.getByTestId("revision-quiz-result-score")).toHaveTextContent("3/4");
+    expect(screen.queryByText(/Great job — you understand this topic well/i)).toBeNull();
     expect(screen.queryByText(/1 \/ 1\.0/)).toBeNull();
   });
 
