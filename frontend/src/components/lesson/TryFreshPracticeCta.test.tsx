@@ -35,7 +35,7 @@ describe("TryFreshPracticeCta", () => {
     clearSingleFlightForTests();
   });
 
-  test("shows Try N new questions when fresh items exist (lesson-scoped, no teacherId)", async () => {
+  test("shows Try another set when fresh items exist (lesson-scoped, no teacherId)", async () => {
     fetchAvail.mockResolvedValue({
       availableFreshCount: 3,
       requestedCount: 5,
@@ -54,9 +54,7 @@ describe("TryFreshPracticeCta", () => {
       />
     );
 
-    expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent(
-      "Try 3 new questions"
-    );
+    expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent("Try another set");
     expect(fetchAvail).toHaveBeenCalledWith(
       expect.objectContaining({
         lessonId: "lesson1",

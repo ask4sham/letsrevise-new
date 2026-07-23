@@ -125,6 +125,8 @@ describe("QuizView revision completion signal", () => {
     expect(onQuizComplete.mock.calls[0][0].questionCount).toBe(2);
     expect(onQuizComplete.mock.calls[0][0].score).toBe(2);
     expect(onQuizComplete.mock.calls[0][0].gradableCount).toBe(2);
+    // Perfect score: Try again hidden; fresh path uses completeExtra.
+    expect(screen.queryByTestId("revision-try-again")).toBeNull();
   });
 
   test("restoredResult shows saved score without answers", () => {
@@ -138,9 +140,10 @@ describe("QuizView revision completion signal", () => {
     expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
     expect(screen.getByText(/Score:\s*2\s*\/\s*2/i)).toBeInTheDocument();
     expect(screen.queryByText(/Score:\s*0\s*\/\s*2/i)).toBeNull();
+    expect(screen.queryByTestId("revision-try-again")).toBeNull();
   });
 
-  test("legacy unknown restored score omits Score 0/N", () => {
+  test("legacy unknown restored score omits Score 0/N and offers Try again", () => {
     render(
       <QuizView
         questions={MCQ_QUESTIONS}
@@ -150,27 +153,48 @@ describe("QuizView revision completion signal", () => {
     );
     expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
     expect(screen.queryByText(/Score:/i)).toBeNull();
+    expect(screen.getByTestId("revision-try-again")).toHaveTextContent(/Try again/i);
   });
 
-  test("Retry quiz clears completion via onQuizReset", () => {
+  test("imperfect finish shows Try again and clears via onQuizReset", () => {
     const onQuizReset = jest.fn();
     render(<QuizView questions={MCQ_QUESTIONS} onQuizReset={onQuizReset} />);
-    answerAllAndFinish();
-    fireEvent.click(screen.getByRole("button", { name: /retry quiz/i }));
+    fireEvent.click(screen.getByLabelText("Nucleus"));
+    fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText("Sperm cell"));
+    fireEvent.click(screen.getByRole("button", { name: /check answer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /finish quiz/i }));
+    expect(screen.getByText(/Score:\s*1\s*\/\s*2/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("revision-try-again"));
     expect(onQuizReset).toHaveBeenCalled();
     expect(screen.queryByText(/Quiz complete/i)).toBeNull();
   });
 
-  test("completeExtra renders beneath Quiz complete", () => {
+  test("imperfect restored score shows Try again and completeExtra", () => {
     render(
       <QuizView
         questions={MCQ_QUESTIONS}
         initialComplete
         restoredResult={{ score: 1, questionCount: 2 }}
-        completeExtra={<div data-testid="try-fresh-practice">Try 3 new questions</div>}
+        completeExtra={<div data-testid="try-fresh-practice">Try another set</div>}
       />
     );
     expect(screen.getByText(/Quiz complete/i)).toBeInTheDocument();
+    expect(screen.getByTestId("revision-try-again")).toBeInTheDocument();
+    expect(screen.getByTestId("try-fresh-practice")).toBeInTheDocument();
+  });
+
+  test("perfect restored score hides Try again and keeps completeExtra", () => {
+    render(
+      <QuizView
+        questions={MCQ_QUESTIONS}
+        initialComplete
+        restoredResult={{ score: 2, questionCount: 2 }}
+        completeExtra={<div data-testid="try-fresh-practice">Try another set</div>}
+      />
+    );
+    expect(screen.queryByTestId("revision-try-again")).toBeNull();
     expect(screen.getByTestId("try-fresh-practice")).toBeInTheDocument();
   });
 });

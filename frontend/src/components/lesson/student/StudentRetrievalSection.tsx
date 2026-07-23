@@ -151,9 +151,17 @@ export function StudentRetrievalSection({
     if (completionScope) setRevisionQuizCompleted(completionScope, false);
   }, [completionScope]);
 
+  const isPerfectScore =
+    quizResult?.score != null &&
+    quizResult.questionCount > 0 &&
+    quizResult.score >= quizResult.questionCount;
+
+  // Fresh practice only after a perfect Revision finish (genuinely new questions).
+  // Imperfect finishes use "Try again" (same quiz) inside QuizView.
   const showFreshCta =
     enableFreshPractice === true &&
     quizComplete &&
+    isPerfectScore &&
     !!specKey &&
     !!topicKey &&
     hasFullAccess;
