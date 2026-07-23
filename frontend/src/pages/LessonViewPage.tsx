@@ -67,6 +67,7 @@ import {
   markLocalPracticeAnswered,
   getLocalAnsweredPracticeIds,
 } from "../utils/lessonPracticeProgress";
+import { resolveAuthUserId } from "../utils/revisionQuizCompletion";
 import {
   makeAbsoluteAssetUrl,
   preprocessMarkdownAssetUrls,
@@ -5083,7 +5084,7 @@ const LessonViewPage: React.FC = () => {
                   enableFreshPractice={isStudent}
                   lessonId={id || undefined}
                   pageId={currentPage?.pageId ? String(currentPage.pageId) : "END"}
-                  studentId={user?._id ? String(user._id) : undefined}
+                  studentId={resolveAuthUserId(user)}
                   specKey={specKey || undefined}
                   topicKey={topicKeyForBank || studentTutorTopicKey || undefined}
                 />

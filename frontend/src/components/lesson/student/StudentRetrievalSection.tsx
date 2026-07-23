@@ -109,22 +109,29 @@ export function StudentRetrievalSection({
     completionScope ? getRevisionQuizCompleted(completionScope) : false
   );
 
+  // Restore from storage when scope is valid. Never force false when scope is null
+  // (that would wipe in-session Finish quiz before studentId resolves).
   useEffect(() => {
-    setQuizComplete(completionScope ? getRevisionQuizCompleted(completionScope) : false);
+    if (!completionScope) return;
+    if (getRevisionQuizCompleted(completionScope)) {
+      setQuizComplete(true);
+    }
   }, [completionScope]);
+
+  // Persist whenever we are complete and have a valid scoped key.
+  useEffect(() => {
+    if (!completionScope || !quizComplete) return;
+    setRevisionQuizCompleted(completionScope, true);
+  }, [completionScope, quizComplete]);
 
   const sessionExclusions = useMemo(
     () => collectRevisionQuizSessionExclusions(revisionPool as unknown as Array<Record<string, unknown>>),
     [revisionPool]
   );
 
-  const handleQuizComplete = useCallback(
-    (_payload: QuizCompletePayload) => {
-      setQuizComplete(true);
-      if (completionScope) setRevisionQuizCompleted(completionScope, true);
-    },
-    [completionScope]
-  );
+  const handleQuizComplete = useCallback((_payload: QuizCompletePayload) => {
+    setQuizComplete(true);
+  }, []);
 
   const handleQuizReset = useCallback(() => {
     setQuizComplete(false);

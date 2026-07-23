@@ -57,4 +57,9 @@ describe("Continue learning footer removal + revision gate", () => {
     expect(retrieval).toMatch(/onQuizComplete/);
     expect(retrieval).toMatch(/quizComplete/);
   });
+
+  test("student id for revision completion uses _id ?? id", () => {
+    expect(src).toMatch(/resolveAuthUserId\(user\)/);
+    expect(src).not.toMatch(/studentId=\{user\?\._id \? String\(user\._id\) : undefined\}/);
+  });
 });
