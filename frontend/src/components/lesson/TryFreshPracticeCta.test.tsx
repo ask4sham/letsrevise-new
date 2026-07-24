@@ -5,6 +5,7 @@ import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { fetchFreshAvailability, generatePracticeSet } from "../../api/practiceSets";
 import { clearSingleFlightForTests } from "../../utils/freshPracticeSingleFlight";
+import * as lessonPracticeProgress from "../../utils/lessonPracticeProgress";
 import { TryFreshPracticeCta } from "./TryFreshPracticeCta";
 
 const mockNavigate = jest.fn();
@@ -29,6 +30,7 @@ describe("TryFreshPracticeCta", () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     clearSingleFlightForTests();
+    jest.restoreAllMocks();
   });
 
   afterEach(() => {
@@ -39,8 +41,12 @@ describe("TryFreshPracticeCta", () => {
     fetchAvail.mockResolvedValue({
       availableFreshCount: 3,
       requestedCount: 5,
+      selectedCount: 3,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
       lessonPracticeAttemptedQuestionIds: [],
-    } as any);
+    });
 
     render(
       <TryFreshPracticeCta
@@ -73,8 +79,12 @@ describe("TryFreshPracticeCta", () => {
     fetchAvail.mockResolvedValue({
       availableFreshCount: 0,
       requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
       lessonPracticeAttemptedQuestionIds: [],
-    } as any);
+    });
 
     const { container } = render(
       <TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />
@@ -97,8 +107,12 @@ describe("TryFreshPracticeCta", () => {
     fetchAvail.mockResolvedValue({
       availableFreshCount: 5,
       requestedCount: 5,
+      selectedCount: 5,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
       lessonPracticeAttemptedQuestionIds: [],
-    } as any);
+    });
 
     let resolveGen: (v: unknown) => void = () => {};
     generate.mockImplementation(
@@ -124,5 +138,52 @@ describe("TryFreshPracticeCta", () => {
         items: [{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }, { id: "5" }],
       });
     });
+  });
+
+  test("resumeAvailable renders Resume practice and navigates without generate or idempotency key", async () => {
+    const idemSpy = jest.spyOn(lessonPracticeProgress, "createFreshPracticeIdempotencyKey");
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 0,
+      requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: true,
+      resumePracticeSetId: "6a6313f4949a9f56bf3f55ff",
+      resumeItemCount: 5,
+      resumeRemainingCount: 5,
+      lessonId: "lesson1",
+      lessonPracticeAttemptedQuestionIds: [],
+    });
+
+    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    const btn = await screen.findByTestId("try-fresh-practice");
+    expect(btn).toHaveTextContent("Resume practice");
+
+    fireEvent.click(btn);
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(idemSpy).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/practice/quiz/topic?practiceSetId=6a6313f4949a9f56bf3f55ff&fresh=1&limit=5&lessonId=lesson1"
+    );
+  });
+
+  test("resumeAvailable is prioritised over positive availableFreshCount", async () => {
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 5,
+      requestedCount: 5,
+      selectedCount: 5,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: true,
+      resumePracticeSetId: "set-resume",
+      resumeItemCount: 5,
+      resumeRemainingCount: 5,
+      lessonId: "lesson1",
+    });
+
+    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent("Resume practice");
   });
 });

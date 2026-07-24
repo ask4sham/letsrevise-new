@@ -221,6 +221,61 @@ function filterFreshCandidates(rawItems, { excludeKeys, excludeFingerprints }) {
   return out;
 }
 
+/**
+ * Newest fully-unattempted lesson-scoped fresh PracticeSet for resume.
+ * Attempt identity is contentType + contentId (not PracticeAttempt.practiceSetId).
+ * Read-only — does not create/update/delete sets.
+ *
+ * @returns {Promise<null|{ practiceSetId: string, lessonId: string, itemCount: number, remainingCount: number }>}
+ */
+async function findResumableLessonFreshPracticeSet({ studentId, lessonId, topicKey }) {
+  if (!studentId || !isObjectIdString(lessonId) || !topicKey) return null;
+
+  const topic = String(topicKey).trim();
+  if (!topic) return null;
+
+  const candidates = await PracticeSet.find({
+    studentId,
+    lessonId,
+    topicKeys: topic,
+    source: "fresh-practice",
+    "items.0": { $exists: true },
+  })
+    .sort({ createdAt: -1 })
+    .limit(25)
+    .select("_id lessonId items createdAt")
+    .lean();
+
+  for (const set of candidates) {
+    const items = (set.items || []).filter((it) => it?.contentType && it?.contentId);
+    if (items.length === 0) continue;
+
+    const orClauses = items.map((it) => ({
+      contentType: it.contentType,
+      contentId: it.contentId,
+    }));
+
+    const attemptedCount = await PracticeAttempt.countDocuments({
+      $and: [
+        { $or: [{ studentId }, { userId: studentId }] },
+        { $or: orClauses },
+      ],
+    });
+
+    // V1 stranded resume: only fully unattempted sets (zero matching item attempts).
+    if (attemptedCount === 0) {
+      return {
+        practiceSetId: String(set._id),
+        lessonId: String(set.lessonId || lessonId),
+        itemCount: items.length,
+        remainingCount: items.length,
+      };
+    }
+  }
+
+  return null;
+}
+
 const ALLOWED_SESSION_CONTENT_TYPES = new Set([
   "quiz_mcq",
   "quiz_short",
@@ -280,6 +335,7 @@ module.exports = {
   collectRecentStudentExclusions,
   countLessonPracticeAttempts,
   listLessonPracticeAttemptedQuestionIds,
+  findResumableLessonFreshPracticeSet,
   filterFreshCandidates,
   shuffleInPlace,
   addQuizSourceKeys,

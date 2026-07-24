@@ -76,6 +76,12 @@ export type FreshAvailabilityResponse = {
   practiceSetId: null;
   lessonPracticeAttemptCount?: number;
   lessonPracticeAttemptedQuestionIds?: string[];
+  /** Stranded fully-unattempted lesson-scoped PracticeSet (prefer over generate). */
+  resumeAvailable?: boolean;
+  resumePracticeSetId?: string | null;
+  resumeItemCount?: number;
+  resumeRemainingCount?: number;
+  lessonId?: string | null;
 };
 
 export async function generatePracticeSet(
