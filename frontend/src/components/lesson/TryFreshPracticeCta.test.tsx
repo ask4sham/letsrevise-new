@@ -151,7 +151,9 @@ describe("TryFreshPracticeCta", () => {
       resumeAvailable: true,
       resumePracticeSetId: "6a6313f4949a9f56bf3f55ff",
       resumeItemCount: 5,
+      resumeAttemptedCount: 0,
       resumeRemainingCount: 5,
+      resumeStartIndex: 0,
       lessonId: "lesson1",
       lessonPracticeAttemptedQuestionIds: [],
     });
@@ -165,8 +167,57 @@ describe("TryFreshPracticeCta", () => {
     expect(generate).not.toHaveBeenCalled();
     expect(idemSpy).not.toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith(
-      "/practice/quiz/topic?practiceSetId=6a6313f4949a9f56bf3f55ff&fresh=1&limit=5&lessonId=lesson1"
+      "/practice/quiz/topic?practiceSetId=6a6313f4949a9f56bf3f55ff&fresh=1&limit=5&lessonId=lesson1&startIndex=0"
     );
+  });
+
+  test("partial resume includes resumeStartIndex and keeps Resume practice label", async () => {
+    const idemSpy = jest.spyOn(lessonPracticeProgress, "createFreshPracticeIdempotencyKey");
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 0,
+      requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: true,
+      resumePracticeSetId: "6a6313f4949a9f56bf3f55ff",
+      resumeItemCount: 5,
+      resumeAttemptedCount: 1,
+      resumeRemainingCount: 4,
+      resumeStartIndex: 1,
+      lessonId: "lesson1",
+    });
+
+    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent("Resume practice");
+    fireEvent.click(screen.getByTestId("try-fresh-practice"));
+    expect(generate).not.toHaveBeenCalled();
+    expect(idemSpy).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/practice/quiz/topic?practiceSetId=6a6313f4949a9f56bf3f55ff&fresh=1&limit=5&lessonId=lesson1&startIndex=1"
+    );
+  });
+
+  test("completed set with no resumeAvailable hides CTA", async () => {
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 0,
+      requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
+      resumePracticeSetId: null,
+      resumeItemCount: 0,
+      resumeRemainingCount: 0,
+      resumeStartIndex: 0,
+      lessonId: "lesson1",
+    });
+
+    const { container } = render(
+      <TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />
+    );
+    await waitFor(() => expect(fetchAvail).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
   });
 
   test("resumeAvailable is prioritised over positive availableFreshCount", async () => {
@@ -180,6 +231,7 @@ describe("TryFreshPracticeCta", () => {
       resumePracticeSetId: "set-resume",
       resumeItemCount: 5,
       resumeRemainingCount: 5,
+      resumeStartIndex: 0,
       lessonId: "lesson1",
     });
 

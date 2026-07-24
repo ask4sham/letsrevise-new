@@ -11,23 +11,41 @@ export type PracticeRunnerProps = {
   teacherId: string;
   /** Frozen set id — included on submit for no-link item-level authorisation. */
   practiceSetId?: string | null;
+  /** First unanswered index when resuming a partial set (frozen order). */
+  initialIndex?: number;
   onComplete?: () => void;
   onLinkError?: (message: string) => void;
 };
+
+function clampStartIndex(raw: number | undefined, length: number): number {
+  if (!length) return 0;
+  const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 0;
+  if (n < 0) return 0;
+  if (n >= length) return Math.max(0, length - 1);
+  return n;
+}
 
 export function PracticeRunner({
   items,
   teacherId,
   practiceSetId,
+  initialIndex = 0,
   onComplete,
   onLinkError,
 }: PracticeRunnerProps) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => clampStartIndex(initialIndex, items.length));
   const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mcqSelection, setMcqSelection] = useState<number | null>(null);
   const startTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    setIndex(clampStartIndex(initialIndex, items.length));
+    setSaved(false);
+    setError(null);
+    setMcqSelection(null);
+  }, [initialIndex, items]);
 
   const currentItem = index >= 0 && index < items.length ? items[index] : null;
   const isComplete = items.length > 0 && index >= items.length;

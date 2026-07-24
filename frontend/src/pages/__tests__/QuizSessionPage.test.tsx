@@ -25,24 +25,31 @@ jest.mock("../../components/practice/PracticeRunner", () => ({
     items,
     practiceSetId,
     teacherId,
+    initialIndex,
   }: {
     items: { contentId: string }[];
     practiceSetId?: string | null;
     teacherId?: string;
-  }) => (
-    <div
-      data-testid="practice-runner"
-      data-practice-set-id={practiceSetId || ""}
-      data-teacher-id={teacherId || ""}
-    >
-      Question 1 of {items.length}
-      <ul>
-        {items.map((it) => (
-          <li key={it.contentId}>{it.contentId}</li>
-        ))}
-      </ul>
-    </div>
-  ),
+    initialIndex?: number;
+  }) => {
+    const start = Math.max(0, Number(initialIndex) || 0);
+    const shown = start + 1;
+    return (
+      <div
+        data-testid="practice-runner"
+        data-practice-set-id={practiceSetId || ""}
+        data-teacher-id={teacherId || ""}
+        data-initial-index={String(start)}
+      >
+        Question {shown} of {items.length}
+        <ul>
+          {items.map((it) => (
+            <li key={it.contentId}>{it.contentId}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  },
 }));
 
 const getSet = getPracticeSet as jest.MockedFunction<typeof getPracticeSet>;
@@ -108,6 +115,27 @@ describe("QuizSessionPage practiceSetId resume", () => {
     const runner = screen.getByTestId("practice-runner");
     expect(runner).toHaveAttribute("data-practice-set-id", SET_ID);
     expect(runner).toHaveAttribute("data-teacher-id", TEACHER_ID);
+  });
+
+  test("startIndex query begins runner at first unanswered question", async () => {
+    getSet.mockResolvedValue({
+      practiceSetId: SET_ID,
+      items: fiveItems,
+      selectedCount: 5,
+      requestedCount: 5,
+      availableFreshCount: 5,
+      allQuestionsFresh: true,
+      teacherId: TEACHER_ID,
+      lessonId: LESSON_ID,
+    });
+
+    renderQuiz(
+      `?practiceSetId=${SET_ID}&fresh=1&limit=5&lessonId=${LESSON_ID}&startIndex=1`
+    );
+
+    expect(await screen.findByText("Question 2 of 5")).toBeInTheDocument();
+    expect(screen.getByTestId("practice-runner")).toHaveAttribute("data-initial-index", "1");
+    expect(generate).not.toHaveBeenCalled();
   });
 
   test("uses server lessonId for Back to lesson when URL omits lessonId", async () => {
