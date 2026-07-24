@@ -222,11 +222,19 @@ function filterFreshCandidates(rawItems, { excludeKeys, excludeFingerprints }) {
 }
 
 /**
- * Newest fully-unattempted lesson-scoped fresh PracticeSet for resume.
+ * Newest incomplete lesson-scoped fresh PracticeSet for resume.
+ * Incomplete = at least one unique item has no matching attempt.
  * Attempt identity is contentType + contentId (not PracticeAttempt.practiceSetId).
  * Read-only — does not create/update/delete sets.
  *
- * @returns {Promise<null|{ practiceSetId: string, lessonId: string, itemCount: number, remainingCount: number }>}
+ * @returns {Promise<null|{
+ *   practiceSetId: string,
+ *   lessonId: string,
+ *   itemCount: number,
+ *   attemptedCount: number,
+ *   remainingCount: number,
+ *   startIndex: number,
+ * }>}
  */
 async function findResumableLessonFreshPracticeSet({ studentId, lessonId, topicKey }) {
   if (!studentId || !isObjectIdString(lessonId) || !topicKey) return null;
@@ -250,27 +258,62 @@ async function findResumableLessonFreshPracticeSet({ studentId, lessonId, topicK
     const items = (set.items || []).filter((it) => it?.contentType && it?.contentId);
     if (items.length === 0) continue;
 
-    const orClauses = items.map((it) => ({
+    // Unique identities in frozen order (first occurrence wins for startIndex scan).
+    const uniqueItems = [];
+    const seenKeys = new Set();
+    for (const it of items) {
+      const key = contentKey(it.contentType, it.contentId);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      uniqueItems.push(it);
+    }
+    if (uniqueItems.length === 0) continue;
+
+    const orClauses = uniqueItems.map((it) => ({
       contentType: it.contentType,
       contentId: it.contentId,
     }));
 
-    const attemptedCount = await PracticeAttempt.countDocuments({
+    const attemptRows = await PracticeAttempt.find({
       $and: [
         { $or: [{ studentId }, { userId: studentId }] },
         { $or: orClauses },
       ],
-    });
+    })
+      .select("contentType contentId")
+      .lean();
 
-    // V1 stranded resume: only fully unattempted sets (zero matching item attempts).
-    if (attemptedCount === 0) {
-      return {
-        practiceSetId: String(set._id),
-        lessonId: String(set.lessonId || lessonId),
-        itemCount: items.length,
-        remainingCount: items.length,
-      };
+    const attemptedKeys = new Set();
+    for (const row of attemptRows) {
+      if (!row?.contentType || !row?.contentId) continue;
+      const key = contentKey(row.contentType, row.contentId);
+      if (seenKeys.has(key)) attemptedKeys.add(key);
     }
+
+    const itemCount = uniqueItems.length;
+    const attemptedCount = uniqueItems.filter((it) =>
+      attemptedKeys.has(contentKey(it.contentType, it.contentId))
+    ).length;
+    const remainingCount = itemCount - attemptedCount;
+    if (remainingCount <= 0) continue;
+
+    let startIndex = 0;
+    for (let i = 0; i < items.length; i++) {
+      const key = contentKey(items[i].contentType, items[i].contentId);
+      if (!attemptedKeys.has(key)) {
+        startIndex = i;
+        break;
+      }
+    }
+
+    return {
+      practiceSetId: String(set._id),
+      lessonId: String(set.lessonId || lessonId),
+      itemCount,
+      attemptedCount,
+      remainingCount,
+      startIndex,
+    };
   }
 
   return null;

@@ -75,6 +75,7 @@ export default function QuizSessionPage() {
   const backLessonId = lessonIdFromSet || lessonIdParam || "";
   const limitParam = Math.min(30, Math.max(1, parseInt(searchParams.get("limit") || "5", 10) || 5));
   const idempotencyKeyParam = searchParams.get("idempotencyKey") || "";
+  const startIndexParam = Math.max(0, parseInt(searchParams.get("startIndex") || "0", 10) || 0);
   const activePracticeSetId = loadedPracticeSetId || practiceSetIdParam || null;
 
   const load = useCallback(async () => {
@@ -389,6 +390,7 @@ export default function QuizSessionPage() {
         items={items}
         teacherId={teacherId!}
         practiceSetId={activePracticeSetId}
+        initialIndex={practiceSetIdParam ? startIndexParam : 0}
         onComplete={handleComplete}
       />
       {freshMode ? (

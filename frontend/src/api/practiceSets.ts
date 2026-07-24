@@ -76,11 +76,14 @@ export type FreshAvailabilityResponse = {
   practiceSetId: null;
   lessonPracticeAttemptCount?: number;
   lessonPracticeAttemptedQuestionIds?: string[];
-  /** Stranded fully-unattempted lesson-scoped PracticeSet (prefer over generate). */
+  /** Incomplete lesson-scoped PracticeSet (prefer over generate). */
   resumeAvailable?: boolean;
   resumePracticeSetId?: string | null;
   resumeItemCount?: number;
+  resumeAttemptedCount?: number;
   resumeRemainingCount?: number;
+  /** Index of first unanswered item in frozen set order. */
+  resumeStartIndex?: number;
   lessonId?: string | null;
 };
 

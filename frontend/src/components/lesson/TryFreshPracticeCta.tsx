@@ -26,6 +26,7 @@ type ResumeInfo = {
   practiceSetId: string;
   itemCount: number;
   lessonId: string;
+  startIndex: number;
 };
 
 export function TryFreshPracticeCta({
@@ -76,6 +77,7 @@ export function TryFreshPracticeCta({
             practiceSetId: String(avail.resumePracticeSetId),
             itemCount: avail.resumeItemCount || avail.resumeRemainingCount || 5,
             lessonId: String(avail.lessonId || lid),
+            startIndex: Math.max(0, Number(avail.resumeStartIndex) || 0),
           });
         } else {
           setResume(null);
@@ -111,6 +113,7 @@ export function TryFreshPracticeCta({
     params.set("fresh", "1");
     params.set("limit", String(resume.itemCount || 5));
     params.set("lessonId", lid);
+    params.set("startIndex", String(Math.max(0, resume.startIndex || 0)));
     navigate(`/practice/quiz/${encodeURIComponent(topicKey)}?${params.toString()}`);
   };
 

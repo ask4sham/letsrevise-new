@@ -354,7 +354,9 @@ describe("practice-sets lesson-scoped fresh practice", () => {
     expect(avail.body.resumeAvailable).toBe(true);
     expect(avail.body.resumePracticeSetId).toBe(String(stranded._id));
     expect(avail.body.resumeItemCount).toBe(2);
+    expect(avail.body.resumeAttemptedCount).toBe(0);
     expect(avail.body.resumeRemainingCount).toBe(2);
+    expect(avail.body.resumeStartIndex).toBe(0);
     expect(avail.body.lessonId).toBe(String(lessonId));
     expect(avail.body.resumePracticeSetId).not.toBe(String(completed._id));
 
@@ -581,6 +583,240 @@ describe("practice-sets lesson-scoped fresh practice", () => {
     await PracticeAttempt.deleteMany({ contentId: q._id });
     await PracticeSet.deleteOne({ _id: set._id });
     await TopicQuizQuestion.deleteOne({ _id: q._id });
+  });
+
+  test("partially completed set remains resumable with startIndex at first unanswered", async () => {
+    const qIds = [];
+    for (let i = 0; i < 5; i++) {
+      const q = await TopicQuizQuestion.create({
+        ownerId: ownerTeacherId,
+        topicKey: TOPIC,
+        type: "mcq",
+        questionText: `Partial resume stem ${i} unique fingerprint text here xx`,
+        choices: ["A", "B", "C"],
+        correctIndex: 0,
+        status: "published",
+        kind: "quiz",
+        fingerprint: `partial-resume-${i}-${Date.now()}`,
+      });
+      qIds.push(q._id);
+    }
+
+    const set = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: qIds.map((id) => ({ contentType: "quiz_mcq", contentId: id, topicKey: TOPIC })),
+    });
+
+    // 0/5
+    let avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(avail.status).toBe(200);
+    expect(avail.body.resumeAvailable).toBe(true);
+    expect(avail.body.resumePracticeSetId).toBe(String(set._id));
+    expect(avail.body.resumeItemCount).toBe(5);
+    expect(avail.body.resumeAttemptedCount).toBe(0);
+    expect(avail.body.resumeRemainingCount).toBe(5);
+    expect(avail.body.resumeStartIndex).toBe(0);
+
+    // 1/5 — first item answered
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: qIds[0],
+      isCorrect: true,
+    });
+    // Duplicate attempt for same item must not inflate attemptedCount
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: qIds[0],
+      isCorrect: false,
+    });
+    // Wrong contentType for same ObjectId must not count
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_short",
+      contentId: qIds[1],
+      isCorrect: true,
+    });
+    // Outside-set item must not count
+    const outside = await TopicQuizQuestion.create({
+      ownerId: ownerTeacherId,
+      topicKey: TOPIC,
+      type: "mcq",
+      questionText: "Outside set attempt unique fingerprint stem text here",
+      choices: ["A", "B", "C"],
+      correctIndex: 0,
+      status: "published",
+      kind: "quiz",
+      fingerprint: `outside-set-${Date.now()}`,
+    });
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: outside._id,
+      isCorrect: true,
+    });
+
+    const beforeSets = await PracticeSet.countDocuments({ studentId: unlockStudentId });
+    avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(avail.status).toBe(200);
+    expect(avail.body.resumeAvailable).toBe(true);
+    expect(avail.body.resumePracticeSetId).toBe(String(set._id));
+    expect(avail.body.resumeItemCount).toBe(5);
+    expect(avail.body.resumeAttemptedCount).toBe(1);
+    expect(avail.body.resumeRemainingCount).toBe(4);
+    expect(avail.body.resumeStartIndex).toBe(1);
+    expect(await PracticeSet.countDocuments({ studentId: unlockStudentId })).toBe(beforeSets);
+
+    // 4/5
+    for (let i = 1; i <= 3; i++) {
+      await PracticeAttempt.create({
+        studentId: unlockStudentId,
+        teacherId: ownerTeacherId,
+        specKey: SPEC,
+        topicKey: TOPIC,
+        contentType: "quiz_mcq",
+        contentId: qIds[i],
+        isCorrect: true,
+      });
+    }
+    avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(avail.body.resumeAvailable).toBe(true);
+    expect(avail.body.resumeAttemptedCount).toBe(4);
+    expect(avail.body.resumeRemainingCount).toBe(1);
+    expect(avail.body.resumeStartIndex).toBe(4);
+
+    // 5/5 complete
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: qIds[4],
+      isCorrect: true,
+    });
+    avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(avail.body.resumeAvailable).toBe(false);
+    expect(avail.body.resumePracticeSetId).toBeNull();
+
+    await PracticeAttempt.deleteMany({
+      contentId: { $in: [...qIds, outside._id] },
+    });
+    await PracticeSet.deleteOne({ _id: set._id });
+    await TopicQuizQuestion.deleteMany({ _id: { $in: [...qIds, outside._id] } });
+  });
+
+  test("another student's attempt does not mark own set items attempted", async () => {
+    const q = await TopicQuizQuestion.create({
+      ownerId: ownerTeacherId,
+      topicKey: TOPIC,
+      type: "mcq",
+      questionText: "Other student attempt ignore unique fingerprint stem xx",
+      choices: ["A", "B", "C"],
+      correctIndex: 0,
+      status: "published",
+      kind: "quiz",
+      fingerprint: `other-student-attempt-${Date.now()}`,
+    });
+    const q2 = await TopicQuizQuestion.create({
+      ownerId: ownerTeacherId,
+      topicKey: TOPIC,
+      type: "mcq",
+      questionText: "Other student attempt ignore second unique fingerprint",
+      choices: ["A", "B", "C"],
+      correctIndex: 0,
+      status: "published",
+      kind: "quiz",
+      fingerprint: `other-student-attempt-2-${Date.now()}`,
+    });
+    const set = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [
+        { contentType: "quiz_mcq", contentId: q._id, topicKey: TOPIC },
+        { contentType: "quiz_mcq", contentId: q2._id, topicKey: TOPIC },
+      ],
+    });
+    const otherStudent = await User.create({
+      email: `lesson-fresh-attempt-other-${Date.now()}@test.com`,
+      password: await bcrypt.hash("Pass123!", 10),
+      firstName: "O",
+      lastName: "T",
+      userType: "student",
+    });
+    await PracticeAttempt.create({
+      studentId: otherStudent._id,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: q._id,
+      isCorrect: true,
+    });
+
+    const avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(avail.status).toBe(200);
+    expect(avail.body.resumeAvailable).toBe(true);
+    expect(avail.body.resumeAttemptedCount).toBe(0);
+    expect(avail.body.resumeRemainingCount).toBe(2);
+    expect(avail.body.resumeStartIndex).toBe(0);
+
+    await PracticeAttempt.deleteMany({ contentId: { $in: [q._id, q2._id] } });
+    await PracticeSet.deleteOne({ _id: set._id });
+    await TopicQuizQuestion.deleteMany({ _id: { $in: [q._id, q2._id] } });
+    await User.deleteOne({ _id: otherStudent._id });
   });
   }); // stranded fresh-practice resume availability
 });

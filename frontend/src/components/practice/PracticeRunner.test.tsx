@@ -64,4 +64,29 @@ describe("PracticeRunner attempt payload", () => {
     expect(payload.practiceSetId).toBeUndefined();
     expect(payload.teacherId).toBe("teacher-1");
   });
+
+  test("initialIndex starts on first unanswered item", () => {
+    const items = [
+      { ...item, contentId: "a", prompt: "Q1" },
+      { ...item, contentId: "b", prompt: "Q2" },
+      { ...item, contentId: "c", prompt: "Q3" },
+    ];
+    render(
+      <PracticeRunner items={items} teacherId="teacher-1" practiceSetId="set-1" initialIndex={1} />
+    );
+    expect(screen.getByText(/Question 2 of 3/i)).toBeInTheDocument();
+    expect(screen.getByText("Q2")).toBeInTheDocument();
+  });
+
+  test("initialIndex 0 starts at Question 1", () => {
+    const items = [
+      { ...item, contentId: "a", prompt: "Q1" },
+      { ...item, contentId: "b", prompt: "Q2" },
+    ];
+    render(
+      <PracticeRunner items={items} teacherId="teacher-1" practiceSetId="set-1" initialIndex={0} />
+    );
+    expect(screen.getByText(/Question 1 of 2/i)).toBeInTheDocument();
+    expect(screen.getByText("Q1")).toBeInTheDocument();
+  });
 });

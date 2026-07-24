@@ -194,7 +194,9 @@ router.get("/fresh-availability", auth, async (req, res) => {
       resumeAvailable: false,
       resumePracticeSetId: null,
       resumeItemCount: 0,
+      resumeAttemptedCount: 0,
       resumeRemainingCount: 0,
+      resumeStartIndex: 0,
       lessonId: effectiveLessonId ? String(effectiveLessonId) : null,
     };
 
@@ -202,7 +204,9 @@ router.get("/fresh-availability", auth, async (req, res) => {
       body.resumeAvailable = true;
       body.resumePracticeSetId = resume.practiceSetId;
       body.resumeItemCount = resume.itemCount;
+      body.resumeAttemptedCount = resume.attemptedCount;
       body.resumeRemainingCount = resume.remainingCount;
+      body.resumeStartIndex = resume.startIndex;
       body.lessonId = resume.lessonId;
     }
 
