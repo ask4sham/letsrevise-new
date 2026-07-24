@@ -21,6 +21,7 @@ import {
   newClientRequestId,
 } from "../utils/lessonPracticeProgress";
 import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
+import "../components/practice/focusedPractice.css";
 
 const DEFAULT_SPEC = "aqa-gcse-biology";
 
@@ -61,18 +62,15 @@ function FocusedPracticeShell({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className="min-h-[70vh] bg-slate-50"
-      data-testid="focused-practice-shell"
-    >
-      <div className="mx-auto w-full max-w-[960px] px-4 py-6 sm:px-6 sm:py-10">
+    <div className="fp-shell" data-testid="focused-practice-shell">
+      <div className="fp-shell__inner">
         <Link
           to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
-          className="inline-flex items-center text-sm font-semibold text-indigo-700 hover:text-indigo-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded"
+          className="fp-back"
         >
           {backLessonId ? "← Back to lesson" : "← Back to Progress"}
         </Link>
-        <div className="mt-5">{children}</div>
+        {children}
       </div>
     </div>
   );
@@ -233,7 +231,7 @@ export default function QuizSessionPage() {
   if (!topicKey) {
     return (
       <FocusedPracticeShell backLessonId="">
-        <p className="mt-4 text-rose-700">Invalid topic. Topic key is required.</p>
+        <p className="fp-error">Invalid topic. Topic key is required.</p>
       </FocusedPracticeShell>
     );
   }
@@ -241,7 +239,7 @@ export default function QuizSessionPage() {
   if (loading) {
     return (
       <FocusedPracticeShell backLessonId={backLessonId}>
-        <p className="mt-2 text-slate-600">
+        <p className="fp-copy" style={{ marginTop: 16 }}>
           {freshMode ? "Preparing questions…" : "Loading quiz…"}
         </p>
       </FocusedPracticeShell>
@@ -251,11 +249,12 @@ export default function QuizSessionPage() {
   if (error) {
     return (
       <FocusedPracticeShell backLessonId={backLessonId}>
-        <div className="mt-2 p-5 border border-amber-200 bg-amber-50 rounded-2xl">
-          <p className="text-amber-900">{error}</p>
+        <div className="fp-alert">
+          <p>{error}</p>
           <button
             type="button"
-            className="mt-3 text-sm font-semibold text-indigo-700 hover:underline"
+            className="fp-btn fp-btn--secondary"
+            style={{ marginTop: 12 }}
             onClick={() => {
               setError(null);
               load();
@@ -271,17 +270,14 @@ export default function QuizSessionPage() {
   if (items.length === 0) {
     return (
       <FocusedPracticeShell backLessonId={backLessonId}>
-        <div className="mt-2 p-5 border border-slate-200 bg-white rounded-2xl shadow-sm">
-          <p className="text-slate-700">
+        <div className="fp-empty">
+          <p>
             {freshMode
               ? "No new questions available. Review your practice on the lesson."
               : "No quiz questions available for this topic yet."}
           </p>
           {backLessonId ? (
-            <Link
-              to={`/lesson/${backLessonId}`}
-              className="inline-block mt-3 text-indigo-700 hover:underline text-sm font-semibold"
-            >
+            <Link to={`/lesson/${backLessonId}`} className="fp-back" style={{ marginTop: 12 }}>
               Review your practice
             </Link>
           ) : null}
@@ -300,41 +296,27 @@ export default function QuizSessionPage() {
 
   return (
     <FocusedPracticeShell backLessonId={backLessonId}>
-      <header
-        className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 shadow-sm mb-5"
-        data-testid="focused-practice-header"
-      >
-        <p className="text-xs font-bold tracking-[0.08em] text-indigo-700 uppercase mb-2">
-          Focused practice
-        </p>
-        <h1
-          className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 leading-tight"
-          data-testid="focused-practice-title"
-        >
+      <header className="fp-header" data-testid="focused-practice-header">
+        <p className="fp-eyebrow">Focused practice</p>
+        <h1 className="fp-title" data-testid="focused-practice-title">
           {topicTitle}
         </h1>
-        <p
-          className="mt-2 text-sm text-slate-600"
-          data-testid="focused-practice-copy"
-        >
+        <p className="fp-copy" data-testid="focused-practice-copy">
           {isResumeSession
             ? "Continue where you left off."
             : "Practise this topic with a fresh set of questions."}
         </p>
 
-        <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2">
-          <p
-            className="text-sm font-semibold text-slate-800"
-            data-testid="focused-practice-progress-label"
-          >
+        <div className="fp-progress-row">
+          <p className="fp-progress-label" data-testid="focused-practice-progress-label">
             Question {questionNumber} of {total}
           </p>
-          <p className="text-sm text-slate-500" data-testid="focused-practice-remaining">
+          <p className="fp-remaining" data-testid="focused-practice-remaining">
             {remaining} question{remaining === 1 ? "" : "s"} remaining
           </p>
         </div>
         <div
-          className="mt-2 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden"
+          className="fp-progress-track"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={total}
@@ -342,10 +324,7 @@ export default function QuizSessionPage() {
           aria-label={`Question ${questionNumber} of ${total}`}
           data-testid="focused-practice-progress-bar"
         >
-          <div
-            className="h-full rounded-full bg-indigo-600 transition-[width] duration-300"
-            style={{ width: `${progressPct}%` }}
-          />
+          <div className="fp-progress-fill" style={{ width: `${progressPct}%` }} />
         </div>
       </header>
 

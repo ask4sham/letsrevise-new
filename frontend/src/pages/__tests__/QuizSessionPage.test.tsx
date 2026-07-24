@@ -263,7 +263,7 @@ describe("QuizSessionPage practiceSetId resume", () => {
     renderQuiz(`?practiceSetId=${SET_ID}&fresh=1&lessonId=${LESSON_ID}`);
     const shell = await screen.findByTestId("focused-practice-shell");
     expect(shell).toBeInTheDocument();
-    expect(shell.innerHTML).toMatch(/max-w-\[960px\]/);
+    expect(shell.innerHTML).toMatch(/fp-shell__inner/);
   });
 });
 

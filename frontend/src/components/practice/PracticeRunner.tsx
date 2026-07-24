@@ -1,10 +1,12 @@
 /**
  * PR-PRACTICE-LOOP-1: Runner — show items one by one, submit attempt, Saved ✓, Next, completion.
+ * Layout uses focusedPractice.css (Tailwind utilities are not compiled in this app).
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PracticeItemCard } from "./PracticeItemCard";
 import type { PracticeSetItem } from "../../api/practiceSets";
 import { submitPracticeAttempt } from "../../api/practiceAttempts";
+import "./focusedPractice.css";
 
 export type PracticeRunnerProps = {
   items: PracticeSetItem[];
@@ -147,12 +149,9 @@ export function PracticeRunner({
 
   if (isComplete) {
     return (
-      <div
-        className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8"
-        data-testid="practice-complete-card"
-      >
-        <h2 className="text-xl font-bold text-emerald-900 mb-2">Practice complete</h2>
-        <p className="text-emerald-800">
+      <div className="fp-complete" data-testid="practice-complete-card">
+        <h2>Practice complete</h2>
+        <p>
           You completed {items.length} question{items.length === 1 ? "" : "s"}.
         </p>
       </div>
@@ -165,9 +164,8 @@ export function PracticeRunner({
     currentItem.choices.length > 0;
 
   return (
-    <div className="space-y-4" data-testid="practice-runner">
-      {/* Screen-reader + test-friendly progress echo (visual progress lives in page header). */}
-      <p className="sr-only" data-testid="practice-runner-progress">
+    <div data-testid="practice-runner">
+      <p className="fp-visually-hidden" data-testid="practice-runner-progress">
         Question {index + 1} of {items.length}
       </p>
 
@@ -181,13 +179,13 @@ export function PracticeRunner({
       />
 
       {isMcq && !saved ? (
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="fp-actions">
           <button
             type="button"
             onClick={() => mcqSelection !== null && handleSubmitMcq(mcqSelection)}
             disabled={submitting || mcqSelection === null}
             data-testid="practice-check-answer"
-            className="inline-flex justify-center items-center px-5 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:opacity-45 disabled:cursor-not-allowed"
+            className="fp-btn fp-btn--primary"
           >
             {submitting ? "Saving…" : "Check answer"}
           </button>
@@ -196,7 +194,7 @@ export function PracticeRunner({
             onClick={resetAnswer}
             disabled={submitting || mcqSelection === null}
             data-testid="practice-reset-answer"
-            className="inline-flex justify-center items-center px-5 py-3 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:opacity-45 disabled:cursor-not-allowed"
+            className="fp-btn fp-btn--secondary"
           >
             Reset answer
           </button>
@@ -204,25 +202,22 @@ export function PracticeRunner({
       ) : null}
 
       {error ? (
-        <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3" role="alert">
+        <p className="fp-error" role="alert">
           {error}
         </p>
       ) : null}
 
       {saved ? (
-        <div
-          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 sm:px-5"
-          data-testid="practice-saved-panel"
-        >
-          <p className="text-emerald-900 font-semibold mb-3">Answer saved</p>
-          <p className="text-sm text-emerald-800 mb-4">
+        <div className="fp-saved" data-testid="practice-saved-panel">
+          <p className="fp-saved__title">Answer saved</p>
+          <p className="fp-saved__body">
             Your attempt has been recorded. Continue when you are ready.
           </p>
           <button
             type="button"
             onClick={goNext}
             data-testid="practice-next"
-            className="inline-flex justify-center items-center px-5 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+            className="fp-btn fp-btn--primary"
           >
             {isLast ? "Finish practice" : "Next question"}
           </button>
