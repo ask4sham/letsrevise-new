@@ -33,13 +33,31 @@ jest.mock("../../components/practice/PracticeRunner", () => ({
     practiceSetId,
     teacherId,
     initialIndex,
+    priorOutcomes,
   }: {
-    items: { contentId: string }[];
+    items: { contentId: string; contentType?: string }[];
     practiceSetId?: string | null;
     teacherId?: string;
     initialIndex?: number;
+    priorOutcomes?: { contentId: string; attempted?: boolean; isCorrect?: boolean }[];
   }) => {
     const start = Math.max(0, Number(initialIndex) || 0);
+    const allDone =
+      items.length > 0 &&
+      items.every((it) =>
+        (priorOutcomes || []).some(
+          (p) =>
+            String(p.contentId) === String(it.contentId) &&
+            (p.attempted === true || typeof p.isCorrect === "boolean")
+        )
+      );
+    if (allDone) {
+      return (
+        <div data-testid="practice-complete-card" data-practice-set-id={practiceSetId || ""}>
+          Practice complete
+        </div>
+      );
+    }
     return (
       <div
         data-testid="practice-runner"
@@ -271,6 +289,34 @@ describe("QuizSessionPage practiceSetId resume", () => {
     const shell = await screen.findByTestId("focused-practice-shell");
     expect(shell).toBeInTheDocument();
     expect(shell.innerHTML).toMatch(/fp-shell__inner/);
+  });
+
+  test("fully attempted set opens Practice complete immediately (not Question 1)", async () => {
+    getSet.mockResolvedValue({
+      practiceSetId: "6a6313f4949a9f56bf3f55ff",
+      items: fiveItems,
+      selectedCount: 5,
+      teacherId: TEACHER_ID,
+      lessonId: LESSON_ID,
+      allItemsAttempted: true,
+      resumeStartIndex: 5,
+      attemptedCount: 5,
+      priorOutcomes: fiveItems.map((it) => ({
+        contentType: "quiz_mcq",
+        contentId: it.contentId,
+        attempted: true,
+        isCorrect: true,
+      })),
+    });
+
+    renderQuiz(
+      `?practiceSetId=6a6313f4949a9f56bf3f55ff&fresh=1&limit=5&lessonId=${LESSON_ID}`
+    );
+
+    expect(await screen.findByTestId("practice-complete-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("focused-practice-progress-label")).toBeNull();
+    expect(screen.queryByText(/Question 1 of 5/i)).toBeNull();
+    expect(screen.queryByTestId("practice-runner")).toBeNull();
   });
 });
 

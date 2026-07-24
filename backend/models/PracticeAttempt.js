@@ -54,6 +54,17 @@ const PracticeAttemptSchema = new mongoose.Schema(
       required: false,
       index: true,
     },
+    /**
+     * Optional frozen PracticeSet reference (validated server-side on submit).
+     * Legacy rows may be null — GET hydration matches by contentType + contentId instead.
+     */
+    practiceSetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PracticeSet",
+      required: false,
+      index: true,
+      default: undefined,
+    },
     isCorrect: { type: Boolean, required: false },
     timeSpentSec: { type: Number, required: false, min: 0 },
     /** Slice 3: MCQ selected choice (0-based); stored for audit; server computes isCorrect from TopicQuizQuestion.correctIndex */

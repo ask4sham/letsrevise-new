@@ -23,6 +23,10 @@ import {
   newClientRequestId,
 } from "../utils/lessonPracticeProgress";
 import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
+import {
+  allItemsAttempted,
+  firstUnansweredIndex,
+} from "../utils/practicePriorOutcomes";
 import "../components/practice/focusedPractice.css";
 
 const DEFAULT_SPEC = "aqa-gcse-biology";
@@ -132,9 +136,25 @@ export default function QuizSessionPage() {
         setTeacherId(tid);
         setLoadedPracticeSetId(String(res.practiceSetId || practiceSetIdParam));
         if (res.lessonId) setLessonIdFromSet(String(res.lessonId));
-        setItems(res.items || []);
-        setPriorOutcomes(Array.isArray(res.priorOutcomes) ? res.priorOutcomes : []);
-        setActiveIndex(startIndexParam);
+        const loadedItems = res.items || [];
+        const priors = Array.isArray(res.priorOutcomes) ? res.priorOutcomes : [];
+        setItems(loadedItems);
+        setPriorOutcomes(priors);
+        const complete =
+          res.allItemsAttempted === true || allItemsAttempted(loadedItems, priors);
+        let startIdx = startIndexParam;
+        if (complete) {
+          startIdx = 0;
+        } else if (priors.length > 0 || typeof res.resumeStartIndex === "number") {
+          startIdx =
+            typeof res.resumeStartIndex === "number" && Number.isFinite(res.resumeStartIndex)
+              ? Math.max(0, Math.floor(res.resumeStartIndex))
+              : firstUnansweredIndex(loadedItems, priors);
+        }
+        setSessionComplete(complete);
+        setActiveIndex(
+          complete ? 0 : Math.min(startIdx, Math.max(0, loadedItems.length - 1))
+        );
         return;
       }
 
@@ -404,7 +424,15 @@ export default function QuizSessionPage() {
         items={items}
         teacherId={teacherId!}
         practiceSetId={activePracticeSetId}
-        initialIndex={practiceSetIdParam ? startIndexParam : 0}
+        initialIndex={
+          practiceSetIdParam
+            ? priorOutcomes.length > 0
+              ? firstUnansweredIndex(items, priorOutcomes) >= items.length
+                ? 0
+                : firstUnansweredIndex(items, priorOutcomes)
+              : startIndexParam
+            : 0
+        }
         priorOutcomes={priorOutcomes}
         onIndexChange={handleIndexChange}
         onResultsReady={handleResultsReady}

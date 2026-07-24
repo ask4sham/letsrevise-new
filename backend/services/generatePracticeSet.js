@@ -2,6 +2,7 @@
  * PR-PRACTICE-LOOP-1: Generate practice set from ExamQuestion + PastPaperQuestion (teacher-authored only).
  * Slice 2: generateAndPersistPracticeSet — Quiz MCQ/Short + Exam + PastPaper, student-safe, persist PracticeSet.
  */
+const mongoose = require("mongoose");
 const ExamQuestion = require("../models/ExamQuestion");
 const PastPaperQuestion = require("../models/PastPaperQuestion");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
@@ -532,37 +533,28 @@ async function getPracticeSetForStudent(practiceSetId, studentId) {
     }
   }
 
-  // Prior outcomes for resume scoring — isCorrect only (no correct answers / explanations).
-  const priorOutcomes = [];
-  if (items.length > 0) {
-    const orClauses = items.map((it) => ({
-      contentType: it.contentType,
-      contentId: it.contentId,
-    }));
-    const attemptRows = await PracticeAttempt.find({
-      $and: [
-        { $or: [{ studentId }, { userId: studentId }] },
-        { $or: orClauses },
-      ],
-    })
-      .select("contentType contentId isCorrect createdAt")
-      .sort({ createdAt: 1 })
-      .lean();
+  // Hydrate attempted state from student attempts by exact frozen item identity.
+  // Legacy rows often have practiceSetId: null — never require it for matching.
+  const priorOutcomes = await hydratePriorOutcomesForSet({
+    studentId,
+    frozenItems: set.items || [],
+    hydratedItems: items,
+  });
 
-    const byKey = new Map();
-    for (const row of attemptRows) {
-      if (!row?.contentType || !row?.contentId || typeof row.isCorrect !== "boolean") continue;
-      byKey.set(contentKey(row.contentType, row.contentId), {
-        contentType: row.contentType,
-        contentId: String(row.contentId),
-        isCorrect: row.isCorrect,
-      });
+  let resumeStartIndex = 0;
+  for (let i = 0; i < items.length; i++) {
+    const key = contentKey(items[i].contentType, items[i].contentId);
+    const prior = priorOutcomes.find(
+      (p) => contentKey(p.contentType, p.contentId) === key
+    );
+    if (!prior?.attempted) {
+      resumeStartIndex = i;
+      break;
     }
-    for (const it of items) {
-      const prior = byKey.get(contentKey(it.contentType, it.contentId));
-      if (prior) priorOutcomes.push(prior);
-    }
+    if (i === items.length - 1) resumeStartIndex = items.length;
   }
+  const attemptedCount = priorOutcomes.filter((p) => p.attempted).length;
+  const allItemsAttempted = items.length > 0 && attemptedCount >= items.length;
 
   return {
     practiceSetId: set._id,
@@ -578,13 +570,92 @@ async function getPracticeSetForStudent(practiceSetId, studentId) {
     teacherId: set.teacherId ? String(set.teacherId) : null,
     lessonId: set.lessonId ? String(set.lessonId) : null,
     priorOutcomes,
+    attemptedCount,
+    resumeStartIndex,
+    allItemsAttempted,
   };
+}
+
+/**
+ * Resolve student-safe prior state for frozen set items.
+ * Match: authenticated student (studentId|userId) + exact contentType + contentId.
+ * practiceSetId is never required (legacy null rows must hydrate).
+ *
+ * @returns {Promise<Array<{ contentType: string, contentId: string, attempted: boolean, isCorrect?: boolean }>>}
+ */
+async function hydratePriorOutcomesForSet({ studentId, frozenItems, hydratedItems }) {
+  const itemRefs = (hydratedItems || []).length
+    ? hydratedItems
+    : frozenItems || [];
+  if (!itemRefs.length) return [];
+
+  const seenKeys = new Set();
+  const orClauses = [];
+  for (const it of itemRefs) {
+    if (!it?.contentType || it.contentId == null) continue;
+    const key = contentKey(it.contentType, it.contentId);
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    let contentIdObj = it.contentId;
+    try {
+      if (!(contentIdObj instanceof mongoose.Types.ObjectId)) {
+        contentIdObj = new mongoose.Types.ObjectId(String(it.contentId));
+      }
+    } catch {
+      continue;
+    }
+    orClauses.push({ contentType: it.contentType, contentId: contentIdObj });
+  }
+  if (orClauses.length === 0) return [];
+
+  const attemptRows = await PracticeAttempt.find({
+    $and: [
+      { $or: [{ studentId }, { userId: studentId }] },
+      { $or: orClauses },
+    ],
+  })
+    .select("contentType contentId isCorrect outcome practiceSetId createdAt")
+    .sort({ createdAt: 1 })
+    .lean();
+
+  /** @type {Map<string, { contentType: string, contentId: string, attempted: boolean, isCorrect?: boolean }>} */
+  const byKey = new Map();
+  for (const row of attemptRows) {
+    if (!row?.contentType || row.contentId == null) continue;
+    const key = contentKey(row.contentType, row.contentId);
+    if (!seenKeys.has(key)) continue; // wrong contentType for id, or outside set
+
+    const entry = {
+      contentType: row.contentType,
+      contentId: String(row.contentId),
+      attempted: true,
+    };
+    if (typeof row.isCorrect === "boolean") {
+      entry.isCorrect = row.isCorrect;
+    } else if (row.outcome === "correct") {
+      entry.isCorrect = true;
+    } else if (row.outcome === "wrong") {
+      entry.isCorrect = false;
+    }
+    // partial / missing => attempted with unknown score (no fabricated boolean)
+    // Newest attempt wins (sorted ascending, overwrite).
+    byKey.set(key, entry);
+  }
+
+  const priorOutcomes = [];
+  for (const it of itemRefs) {
+    if (!it?.contentType || it.contentId == null) continue;
+    const prior = byKey.get(contentKey(it.contentType, it.contentId));
+    if (prior) priorOutcomes.push(prior);
+  }
+  return priorOutcomes;
 }
 
 module.exports = {
   generatePracticeSet,
   generateAndPersistPracticeSet,
   getPracticeSetForStudent,
+  hydratePriorOutcomesForSet,
   OUTCOME_ENUM,
   CONTENT_TYPES,
   isStrongChallengeQuestion,

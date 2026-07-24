@@ -106,6 +106,8 @@ router.post("/", auth, async (req, res) => {
    * B) No-link path: require practiceSetId; ownership + exact item membership; teacher from set.
    */
   let teacherIdObj = null;
+  /** Validated PracticeSet._id only — never persist an untrusted client set id. */
+  let validatedPracticeSetId = null;
 
   if (teacherId) {
     try {
@@ -148,6 +150,21 @@ router.post("/", auth, async (req, res) => {
 
     // Authoritative teacher for the attempt record — never trust client teacherId here.
     teacherIdObj = set.teacherId;
+    validatedPracticeSetId = set._id;
+  } else if (practiceSetId && mongoose.Types.ObjectId.isValid(String(practiceSetId))) {
+    // Optional: when linked students also send a set id, persist only after ownership + membership checks.
+    const set = await PracticeSet.findById(practiceSetId).lean();
+    if (
+      set &&
+      String(set.studentId) === String(studentId) &&
+      (set.items || []).some(
+        (it) =>
+          String(it.contentId) === String(contentIdObj) &&
+          it.contentType === contentType
+      )
+    ) {
+      validatedPracticeSetId = set._id;
+    }
   }
 
   const confidenceNum =
@@ -190,7 +207,7 @@ router.post("/", auth, async (req, res) => {
   }
 
   try {
-    const created = await PracticeAttempt.create({
+    const attemptDoc = {
       studentId,
       teacherId: teacherIdObj,
       specKey: specKey.trim(),
@@ -201,7 +218,11 @@ router.post("/", auth, async (req, res) => {
       selectedChoiceIndex: selectedChoiceIndexStored,
       confidence: confidenceNum,
       timeSpentSec: timeSpent,
-    });
+    };
+    if (validatedPracticeSetId) {
+      attemptDoc.practiceSetId = validatedPracticeSetId;
+    }
+    const created = await PracticeAttempt.create(attemptDoc);
 
     // Learning evidence: fire-and-forget for dashboard mastery
     const topicOnly = (topicKey || "").includes(":") ? String(topicKey).split(":").pop() : String(topicKey).trim();

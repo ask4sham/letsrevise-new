@@ -195,7 +195,12 @@ describe("PracticeRunner attempt payload", () => {
     expect(screen.getByTestId("practice-complete-score")).toHaveTextContent("1 / 1");
     expect(screen.getByTestId("practice-complete-copy")).toHaveTextContent(/Excellent/);
     expect(onReturn).not.toHaveBeenCalled();
-    expect(onResultsReady).toHaveBeenCalledWith({ correctCount: 1, total: 1 });
+    expect(onResultsReady).toHaveBeenCalledWith({
+      correctCount: 1,
+      total: 1,
+      scoreAvailable: true,
+      attemptedCount: 1,
+    });
   });
 
   test("prior outcomes contribute to completion score without double-count", async () => {
@@ -219,18 +224,71 @@ describe("PracticeRunner attempt payload", () => {
         practiceSetId="set-1"
         initialIndex={4}
         priorOutcomes={[
-          { contentType: "quiz_mcq", contentId: "a", isCorrect: true },
-          { contentType: "quiz_mcq", contentId: "b", isCorrect: true },
-          { contentType: "quiz_mcq", contentId: "c", isCorrect: false },
-          { contentType: "quiz_mcq", contentId: "d", isCorrect: true },
+          { contentType: "quiz_mcq", contentId: "a", attempted: true, isCorrect: true },
+          { contentType: "quiz_mcq", contentId: "b", attempted: true, isCorrect: true },
+          { contentType: "quiz_mcq", contentId: "c", attempted: true, isCorrect: false },
+          { contentType: "quiz_mcq", contentId: "d", attempted: true, isCorrect: true },
         ]}
       />
     );
+    expect(screen.getByText("Q5")).toBeInTheDocument();
     await answerCurrent("A");
-    // Re-submit same item should not double-count
     fireEvent.click(screen.getByTestId("practice-next"));
     expect(await screen.findByTestId("practice-complete-score")).toHaveTextContent("4 / 5");
     expect(screen.getByTestId("practice-complete-copy")).toHaveTextContent(/Good work/);
+  });
+
+  test("fully attempted 5/5 opens Practice complete immediately without Question 1", () => {
+    const items = [1, 2, 3, 4, 5].map((n) => ({
+      ...item,
+      contentId: `q${n}`,
+      prompt: `Q${n}`,
+    }));
+    render(
+      <PracticeRunner
+        items={items}
+        teacherId="teacher-1"
+        practiceSetId="6a6313f4949a9f56bf3f55ff"
+        initialIndex={0}
+        priorOutcomes={items.map((it) => ({
+          contentType: "quiz_mcq",
+          contentId: it.contentId,
+          attempted: true,
+          isCorrect: true,
+        }))}
+      />
+    );
+    expect(screen.getByTestId("practice-complete-card")).toBeInTheDocument();
+    expect(screen.getByTestId("practice-complete-score")).toHaveTextContent("5 / 5");
+    expect(screen.queryByText("Q1")).toBeNull();
+    expect(screen.queryByTestId("practice-check-answer")).toBeNull();
+    expect(screen.queryByTestId("practice-runner-progress")).toBeNull();
+  });
+
+  test("attempted with unknown outcome is not re-asked and shows honest score copy", () => {
+    const items = [1, 2, 3, 4, 5].map((n) => ({
+      ...item,
+      contentId: `q${n}`,
+      prompt: `Q${n}`,
+    }));
+    render(
+      <PracticeRunner
+        items={items}
+        teacherId="teacher-1"
+        practiceSetId="set-legacy"
+        priorOutcomes={items.map((it) => ({
+          contentType: "quiz_mcq",
+          contentId: it.contentId,
+          attempted: true,
+        }))}
+      />
+    );
+    expect(screen.getByTestId("practice-complete-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("practice-complete-score")).toBeNull();
+    expect(screen.getByTestId("practice-complete-copy")).toHaveTextContent(
+      /score is unavailable for some earlier answers/i
+    );
+    expect(screen.queryByText("Q1")).toBeNull();
   });
 
   test("low score copy for 0–2 correct", async () => {
@@ -304,6 +362,10 @@ describe("PracticeRunner attempt payload", () => {
     render(<PracticeRunner items={[item]} teacherId="teacher-1" practiceSetId="set-1" />);
     await answerCurrent("A");
     fireEvent.click(screen.getByTestId("practice-next"));
-    expect(await screen.findByTestId("practice-complete-score")).toHaveTextContent("0 / 1");
+    expect(await screen.findByTestId("practice-complete-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("practice-complete-score")).toBeNull();
+    expect(screen.getByTestId("practice-complete-copy")).toHaveTextContent(
+      /score is unavailable for some earlier answers/i
+    );
   });
 });

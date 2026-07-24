@@ -268,6 +268,7 @@ describe("POST /api/practice-attempts", () => {
       expect(res.body.attemptId).toBeTruthy();
       const doc = await PracticeAttempt.findOne({ studentId, contentId: setItemId }).sort({ createdAt: -1 });
       expect(String(doc.teacherId)).toBe(String(lessonTeacher._id));
+      expect(String(doc.practiceSetId)).toBe(String(practiceSetId));
     });
 
     test("contentId outside the owned set → 403", async () => {

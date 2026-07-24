@@ -54,11 +54,15 @@ export type GeneratePracticeSetPayload = {
   };
 };
 
-/** Prior attempt outcomes for resume scoring (no correct answers / explanations). */
+/**
+ * Prior attempt state for resume / completion (no correct answers / explanations).
+ * attempted=true with omitted isCorrect means answered but score unknown (legacy).
+ */
 export type PracticePriorOutcome = {
   contentType: string;
   contentId: string;
-  isCorrect: boolean;
+  attempted?: boolean;
+  isCorrect?: boolean;
 };
 
 export type GeneratePracticeSetResponse = {
@@ -73,8 +77,11 @@ export type GeneratePracticeSetResponse = {
   /** Present on GET /practice-sets/:id (resume). Content-owner teacher for attempt submit. */
   teacherId?: string | null;
   lessonId?: string | null;
-  /** Owner resume: one isCorrect per previously attempted set item. */
+  /** Owner resume: attempted (+ optional isCorrect) per previously attempted set item. */
   priorOutcomes?: PracticePriorOutcome[];
+  attemptedCount?: number;
+  resumeStartIndex?: number;
+  allItemsAttempted?: boolean;
 };
 
 export type FreshAvailabilityResponse = {
