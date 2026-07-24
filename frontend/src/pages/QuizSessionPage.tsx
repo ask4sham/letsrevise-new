@@ -2,6 +2,9 @@
  * Actionable Revision Flow: Quiz session by topic.
  * Route: /practice/quiz/:topicKey
  * Fresh V1: ?practiceSetId= resumes; ?fresh=1&idempotencyKey= creates once (Strict Mode safe).
+ *
+ * When practiceSetId is present: load GET /practice-sets/:id only (no dashboard / teacher-link gate).
+ * When absent: ordinary dashboard practice still requires a linked teacher.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
@@ -17,6 +20,7 @@ import {
   createFreshPracticeIdempotencyKey,
   newClientRequestId,
 } from "../utils/lessonPracticeProgress";
+import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
 
 const DEFAULT_SPEC = "aqa-gcse-biology";
 
@@ -28,8 +32,20 @@ function normalizeTopicKey(topicKey: string, specKey: string): string {
 }
 
 function topicKeyToTitle(topicKey: string): string {
-  const last = (topicKey || "").split(":").pop();
-  return last ? last.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : topicKey || "";
+  const last = (topicKey || "").split(":");
+  const leaf = last[last.length - 1];
+  return leaf ? leaf.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : topicKey || "";
+}
+
+function practiceSetLoadErrorMessage(e: unknown): string {
+  const status = getHttpStatus(e);
+  if (status === 403) {
+    return "You do not have access to this practice set.";
+  }
+  if (status === 404 || status === 400) {
+    return "This practice set is no longer available.";
+  }
+  return getApiClientErrorMessage(e, "Failed to load practice set");
 }
 
 export default function QuizSessionPage() {
@@ -38,6 +54,10 @@ export default function QuizSessionPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<PracticeSetItem[]>([]);
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  /** Frozen set currently loaded — sent on attempt submit for item-level auth. */
+  const [loadedPracticeSetId, setLoadedPracticeSetId] = useState<string | null>(null);
+  /** Prefer server-returned lessonId over URL when available. */
+  const [lessonIdFromSet, setLessonIdFromSet] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [freshMeta, setFreshMeta] = useState<{
@@ -52,8 +72,10 @@ export default function QuizSessionPage() {
   const practiceSetIdParam = searchParams.get("practiceSetId") || "";
   const freshMode = searchParams.get("fresh") === "1";
   const lessonIdParam = searchParams.get("lessonId") || "";
+  const backLessonId = lessonIdFromSet || lessonIdParam || "";
   const limitParam = Math.min(30, Math.max(1, parseInt(searchParams.get("limit") || "5", 10) || 5));
   const idempotencyKeyParam = searchParams.get("idempotencyKey") || "";
+  const activePracticeSetId = loadedPracticeSetId || practiceSetIdParam || null;
 
   const load = useCallback(async () => {
     if (!topicKey) return;
@@ -61,6 +83,32 @@ export default function QuizSessionPage() {
     setLoading(true);
     setError(null);
     try {
+      // Resume existing frozen set: owner-only GET, no dashboard / StudentTeacherLink gate.
+      if (practiceSetIdParam) {
+        const res = await getPracticeSet(practiceSetIdParam);
+        if (gen !== loadGenRef.current) return;
+        const tid = res.teacherId ? String(res.teacherId) : "";
+        if (!tid) {
+          setError("This practice set could not be opened.");
+          setItems([]);
+          setTeacherId(null);
+          setLoadedPracticeSetId(null);
+          return;
+        }
+        setTeacherId(tid);
+        setLoadedPracticeSetId(String(res.practiceSetId || practiceSetIdParam));
+        if (res.lessonId) setLessonIdFromSet(String(res.lessonId));
+        setItems(res.items || []);
+        const selected = res.selectedCount ?? (res.items || []).length;
+        setFreshMeta({
+          requestedCount: res.requestedCount ?? selected,
+          availableFreshCount: res.availableFreshCount ?? selected,
+          selectedCount: selected,
+          allQuestionsFresh: res.allQuestionsFresh !== false,
+        });
+        return;
+      }
+
       const dash = await getStudentDashboard({ specKey: DEFAULT_SPEC });
       if (gen !== loadGenRef.current) return;
       const sk = dash?.studyPlan?.specKey || DEFAULT_SPEC;
@@ -73,20 +121,6 @@ export default function QuizSessionPage() {
       }
       setTeacherId(firstTeacher.teacherId);
       const nk = normalizeTopicKey(topicKey, sk);
-
-      if (practiceSetIdParam) {
-        const res = await getPracticeSet(practiceSetIdParam);
-        if (gen !== loadGenRef.current) return;
-        setItems(res.items || []);
-        const selected = res.selectedCount ?? (res.items || []).length;
-        setFreshMeta({
-          requestedCount: res.requestedCount ?? selected,
-          availableFreshCount: res.availableFreshCount ?? selected,
-          selectedCount: selected,
-          allQuestionsFresh: res.allQuestionsFresh !== false,
-        });
-        return;
-      }
 
       if (freshMode && !idempotencyKeyParam) {
         const generatedKey = createFreshPracticeIdempotencyKey({
@@ -125,6 +159,7 @@ export default function QuizSessionPage() {
 
       const selected = res.selectedCount ?? (res.items || []).length;
       setItems(res.items || []);
+      if (res.practiceSetId) setLoadedPracticeSetId(String(res.practiceSetId));
       setFreshMeta({
         requestedCount: res.requestedCount ?? (freshMode ? limitParam : 10),
         availableFreshCount: res.availableFreshCount ?? selected,
@@ -143,8 +178,11 @@ export default function QuizSessionPage() {
       }
     } catch (e: unknown) {
       if (gen !== loadGenRef.current) return;
-      const err = e as { response?: { data?: { error?: string } }; message?: string };
-      setError(err?.response?.data?.error || err?.message || "Failed to load quiz");
+      if (practiceSetIdParam) {
+        setError(practiceSetLoadErrorMessage(e));
+      } else {
+        setError(getApiClientErrorMessage(e, "Failed to load quiz"));
+      }
       setItems([]);
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
@@ -166,28 +204,32 @@ export default function QuizSessionPage() {
   }, [topicKey, practiceSetIdParam, freshMode, lessonIdParam, limitParam, idempotencyKeyParam]);
 
   const handleAnotherSet = useCallback(async () => {
-    if (!teacherId || !topicKey || loading) return;
+    if (!topicKey || loading) return;
+    const lessonForGenerate = backLessonId;
+    // Lesson-scoped another set: lessonId is enough (server resolves owner). Dashboard needs teacherId.
+    if (!lessonForGenerate && !teacherId) return;
     setLoading(true);
     setError(null);
     const clientRequestId = newClientRequestId();
     const idempotencyKey = createFreshPracticeIdempotencyKey({
       topicKey,
-      lessonId: lessonIdParam,
+      lessonId: lessonForGenerate,
       clientRequestId,
     });
     try {
-      const dash = await getStudentDashboard({ specKey: DEFAULT_SPEC });
-      const sk = dash?.studyPlan?.specKey || DEFAULT_SPEC;
+      const sk =
+        (topicKey.includes(":") ? topicKey.split(":")[0] : null) ||
+        DEFAULT_SPEC;
       const nk = normalizeTopicKey(topicKey, sk);
       const res = await runSingleFlight(idempotencyKey, () =>
         generatePracticeSet({
-          teacherId,
+          teacherId: lessonForGenerate ? undefined : teacherId!,
           specKey: sk,
           topicKeys: [nk || topicKey],
           limit: limitParam,
           include: ["quiz_mcq", "quiz_short"],
           excludeSeen: true,
-          lessonId: lessonIdParam || undefined,
+          lessonId: lessonForGenerate || undefined,
           idempotencyKey,
           source: "fresh-practice",
         })
@@ -195,6 +237,7 @@ export default function QuizSessionPage() {
       const selected = res.selectedCount ?? (res.items || []).length;
       if (!res.practiceSetId || selected <= 0) {
         setItems([]);
+        setLoadedPracticeSetId(null);
         setFreshMeta({
           requestedCount: res.requestedCount ?? limitParam,
           availableFreshCount: 0,
@@ -203,6 +246,9 @@ export default function QuizSessionPage() {
         });
         return;
       }
+      if (res.teacherId) setTeacherId(String(res.teacherId));
+      if (res.lessonId) setLessonIdFromSet(String(res.lessonId));
+      setLoadedPracticeSetId(String(res.practiceSetId));
       setItems(res.items || []);
       setFreshMeta({
         requestedCount: res.requestedCount ?? limitParam,
@@ -217,23 +263,22 @@ export default function QuizSessionPage() {
           next.set("fresh", "1");
           next.set("limit", String(selected));
           next.set("idempotencyKey", idempotencyKey);
-          if (lessonIdParam) next.set("lessonId", lessonIdParam);
+          if (lessonForGenerate) next.set("lessonId", lessonForGenerate);
           return next;
         },
         { replace: true }
       );
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string } }; message?: string };
-      setError(err?.response?.data?.error || err?.message || "Failed to load another set");
+      setError(getApiClientErrorMessage(e, "Failed to load another set"));
     } finally {
       setLoading(false);
     }
-  }, [teacherId, topicKey, limitParam, lessonIdParam, loading, setSearchParams]);
+  }, [teacherId, topicKey, limitParam, backLessonId, loading, setSearchParams]);
 
   const handleComplete = useCallback(() => {
     getStudentDashboard({ specKey: DEFAULT_SPEC }).catch(() => {});
-    navigate(lessonIdParam ? `/lesson/${lessonIdParam}` : "/student/my-progress", { replace: true });
-  }, [navigate, lessonIdParam]);
+    navigate(backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress", { replace: true });
+  }, [navigate, backLessonId]);
 
   if (!topicKey) {
     return (
@@ -250,10 +295,10 @@ export default function QuizSessionPage() {
     return (
       <div className="max-w-2xl mx-auto p-4">
         <Link
-          to={lessonIdParam ? `/lesson/${lessonIdParam}` : "/student/my-progress"}
+          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
           className="text-indigo-600 hover:underline"
         >
-          {lessonIdParam ? "← Back to lesson" : "← Back to Progress"}
+          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
         </Link>
         <p className="mt-4 text-gray-600">
           {freshMode ? "Preparing questions…" : "Loading quiz…"}
@@ -266,10 +311,10 @@ export default function QuizSessionPage() {
     return (
       <div className="max-w-2xl mx-auto p-4">
         <Link
-          to={lessonIdParam ? `/lesson/${lessonIdParam}` : "/student/my-progress"}
+          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
           className="text-indigo-600 hover:underline"
         >
-          {lessonIdParam ? "← Back to lesson" : "← Back to Progress"}
+          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
         </Link>
         <div className="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg">
           <p className="text-amber-800">{error}</p>
@@ -292,10 +337,10 @@ export default function QuizSessionPage() {
     return (
       <div className="max-w-2xl mx-auto p-4">
         <Link
-          to={lessonIdParam ? `/lesson/${lessonIdParam}` : "/student/my-progress"}
+          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
           className="text-indigo-600 hover:underline"
         >
-          {lessonIdParam ? "← Back to lesson" : "← Back to Progress"}
+          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
         </Link>
         <div className="mt-4 p-4 border border-gray-200 rounded-lg">
           <p className="text-gray-700">
@@ -303,9 +348,9 @@ export default function QuizSessionPage() {
               ? "No new questions available. Review your practice on the lesson."
               : "No quiz questions available for this topic yet."}
           </p>
-          {lessonIdParam ? (
+          {backLessonId ? (
             <Link
-              to={`/lesson/${lessonIdParam}`}
+              to={`/lesson/${backLessonId}`}
               className="inline-block mt-3 text-indigo-600 hover:underline text-sm font-semibold"
             >
               Review your practice
@@ -325,10 +370,10 @@ export default function QuizSessionPage() {
     <div className="max-w-2xl mx-auto p-4">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <Link
-          to={lessonIdParam ? `/lesson/${lessonIdParam}` : "/student/my-progress"}
+          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
           className="text-indigo-600 hover:underline"
         >
-          {lessonIdParam ? "← Back to lesson" : "← Back to Progress"}
+          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
         </Link>
         <span className="text-sm text-gray-500">{topicKeyToTitle(topicKey)}</span>
       </div>
@@ -340,7 +385,12 @@ export default function QuizSessionPage() {
             : ""}
         </p>
       ) : null}
-      <PracticeRunner items={items} teacherId={teacherId!} onComplete={handleComplete} />
+      <PracticeRunner
+        items={items}
+        teacherId={teacherId!}
+        practiceSetId={activePracticeSetId}
+        onComplete={handleComplete}
+      />
       {freshMode ? (
         <div className="mt-4">
           <button

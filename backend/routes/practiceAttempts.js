@@ -6,6 +6,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const PracticeAttempt = require("../models/PracticeAttempt");
+const PracticeSet = require("../models/PracticeSet");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { computeMcqCorrectness } = require("../services/computeMcqCorrectness");
@@ -35,7 +36,18 @@ router.post("/", auth, async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { specKey, topicKey, contentType, contentId, isCorrect, selectedChoiceIndex, confidence, timeSpentSec, teacherId } = req.body || {};
+  const {
+    specKey,
+    topicKey,
+    contentType,
+    contentId,
+    isCorrect,
+    selectedChoiceIndex,
+    confidence,
+    timeSpentSec,
+    teacherId,
+    practiceSetId,
+  } = req.body || {};
 
   if (!specKey || typeof specKey !== "string") {
     return res.status(400).json({ error: "specKey is required" });
@@ -49,7 +61,9 @@ router.post("/", auth, async (req, res) => {
   if (!contentId) {
     return res.status(400).json({ error: "contentId is required" });
   }
-  if (!teacherId) {
+  // Linked dashboard path needs teacherId. No-link resume may send practiceSetId only
+  // (teacher is resolved from the owned set — client teacherId is not authorisation).
+  if (!teacherId && !practiceSetId) {
     return res.status(400).json({ error: "teacherId is required" });
   }
 
@@ -78,25 +92,62 @@ router.post("/", auth, async (req, res) => {
     return res.status(400).json({ error: e.message || "Invalid spec or topic", code });
   }
 
+  const mongoose = require("mongoose");
+
   let contentIdObj;
   try {
-    const mongoose = require("mongoose");
     contentIdObj = new mongoose.Types.ObjectId(contentId);
   } catch {
     return res.status(400).json({ error: "contentId must be a valid ObjectId" });
   }
 
-  let teacherIdObj;
-  try {
-    const mongoose = require("mongoose");
-    teacherIdObj = new mongoose.Types.ObjectId(teacherId);
-  } catch {
-    return res.status(400).json({ error: "teacherId must be a valid ObjectId" });
+  /**
+   * A) Linked-teacher path: StudentTeacherLink for client teacherId — unchanged; practiceSetId optional.
+   * B) No-link path: require practiceSetId; ownership + exact item membership; teacher from set.
+   */
+  let teacherIdObj = null;
+
+  if (teacherId) {
+    try {
+      teacherIdObj = new mongoose.Types.ObjectId(teacherId);
+    } catch {
+      return res.status(400).json({ error: "teacherId must be a valid ObjectId" });
+    }
+    const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
+    if (link) {
+      // Linked dashboard / ordinary practice — keep using validated link teacherId.
+    } else {
+      teacherIdObj = null;
+    }
   }
 
-  const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
-  if (!link) {
-    return res.status(403).json({ error: "No student-teacher link for this teacher. Ask your teacher to add you." });
+  if (!teacherIdObj) {
+    if (!practiceSetId) {
+      return res.status(403).json({
+        error: "No student-teacher link for this teacher. Ask your teacher to add you.",
+      });
+    }
+    if (!mongoose.Types.ObjectId.isValid(String(practiceSetId))) {
+      return res.status(400).json({ error: "Invalid practiceSetId" });
+    }
+
+    const set = await PracticeSet.findById(practiceSetId).lean();
+    // Same safe 403 for missing / other-owned — do not leak ownership.
+    if (!set || String(set.studentId) !== String(studentId)) {
+      return res.status(403).json({ error: "You do not have access to this practice set." });
+    }
+
+    const inSet = (set.items || []).some(
+      (it) =>
+        String(it.contentId) === String(contentIdObj) &&
+        it.contentType === contentType
+    );
+    if (!inSet) {
+      return res.status(403).json({ error: "You do not have access to this practice item." });
+    }
+
+    // Authoritative teacher for the attempt record — never trust client teacherId here.
+    teacherIdObj = set.teacherId;
   }
 
   const confidenceNum =

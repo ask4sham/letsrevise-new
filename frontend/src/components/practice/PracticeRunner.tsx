@@ -9,6 +9,8 @@ import { submitPracticeAttempt } from "../../api/practiceAttempts";
 export type PracticeRunnerProps = {
   items: PracticeSetItem[];
   teacherId: string;
+  /** Frozen set id — included on submit for no-link item-level authorisation. */
+  practiceSetId?: string | null;
   onComplete?: () => void;
   onLinkError?: (message: string) => void;
 };
@@ -16,6 +18,7 @@ export type PracticeRunnerProps = {
 export function PracticeRunner({
   items,
   teacherId,
+  practiceSetId,
   onComplete,
   onLinkError,
 }: PracticeRunnerProps) {
@@ -42,6 +45,7 @@ export function PracticeRunner({
       try {
         await submitPracticeAttempt({
           teacherId,
+          practiceSetId: practiceSetId || undefined,
           specKey: currentItem.topicKey.split(":")[0] || "",
           topicKey: currentItem.topicKey,
           contentType: "quiz_mcq",
@@ -61,7 +65,7 @@ export function PracticeRunner({
         setSubmitting(false);
       }
     },
-    [currentItem, teacherId, onLinkError]
+    [currentItem, teacherId, practiceSetId, onLinkError]
   );
 
   const handleSubmitSelfMark = useCallback(
@@ -73,6 +77,7 @@ export function PracticeRunner({
       try {
         await submitPracticeAttempt({
           teacherId,
+          practiceSetId: practiceSetId || undefined,
           specKey: currentItem.topicKey.split(":")[0] || "",
           topicKey: currentItem.topicKey,
           contentType: currentItem.contentType,
@@ -92,7 +97,7 @@ export function PracticeRunner({
         setSubmitting(false);
       }
     },
-    [currentItem, teacherId, onLinkError]
+    [currentItem, teacherId, practiceSetId, onLinkError]
   );
 
   const goNext = useCallback(() => {

@@ -540,6 +540,9 @@ async function getPracticeSetForStudent(practiceSetId, studentId) {
     mode: "standard",
     specKey: set.specKey,
     topicKeys: set.topicKeys,
+    // Owner teacher for PracticeRunner / practice-attempts (resume must not require dashboard link).
+    teacherId: set.teacherId ? String(set.teacherId) : null,
+    lessonId: set.lessonId ? String(set.lessonId) : null,
   };
 }
 
