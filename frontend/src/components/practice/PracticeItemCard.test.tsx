@@ -27,7 +27,9 @@ describe("PracticeItemCard", () => {
     expect(screen.getByText("Choose one answer")).toBeInTheDocument();
     const group = screen.getByTestId("practice-answer-options");
     expect(group).toHaveAttribute("role", "radiogroup");
+    expect(group).toHaveClass("fp-options");
     expect(screen.getAllByRole("radio")).toHaveLength(4);
+    expect(screen.getByTestId("practice-answer-option-0")).toHaveClass("fp-option");
   });
 
   test("selected answer exposes selected state", () => {
@@ -45,6 +47,15 @@ describe("PracticeItemCard", () => {
     );
     fireEvent.click(screen.getByTestId("practice-answer-option-2"));
     expect(onSelect).toHaveBeenCalledWith(2);
+  });
+
+  test("radio control sits after answer text (right-aligned layout)", () => {
+    render(<PracticeItemCard item={item} selectedChoiceIndex={0} />);
+    const option = screen.getByTestId("practice-answer-option-0");
+    expect(option.innerHTML.indexOf("fp-option__text")).toBeGreaterThan(-1);
+    expect(option.innerHTML.indexOf("fp-option__radio")).toBeGreaterThan(
+      option.innerHTML.indexOf("fp-option__text")
+    );
   });
 
   test("does not expose correctness before submission", () => {
