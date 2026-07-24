@@ -1,5 +1,6 @@
 /**
  * PR-PRACTICE-LOOP-1 Frontend: Submit practice attempt (MCQ: selectedChoiceIndex; others: isCorrect).
+ * Frozen-set resume: include practiceSetId so the server can enforce item-level ownership.
  */
 import api from "../services/api";
 
@@ -9,6 +10,8 @@ export type SubmitPracticeAttemptPayload = {
   topicKey: string;
   contentType: string;
   contentId: string;
+  /** Required for no-link students answering a frozen PracticeSet item. */
+  practiceSetId?: string;
   confidence?: number;
   timeSpentSec?: number;
 } & (
@@ -28,6 +31,7 @@ export async function submitPracticeAttempt(
     contentType: payload.contentType,
     contentId: payload.contentId,
   };
+  if (payload.practiceSetId) body.practiceSetId = payload.practiceSetId;
   if (payload.confidence != null) body.confidence = payload.confidence;
   if (payload.timeSpentSec != null) body.timeSpentSec = payload.timeSpentSec;
 

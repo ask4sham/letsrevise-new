@@ -63,6 +63,9 @@ export type GeneratePracticeSetResponse = {
   selectedCount?: number;
   allQuestionsFresh?: boolean;
   reusedFromIdempotencyKey?: boolean;
+  /** Present on GET /practice-sets/:id (resume). Content-owner teacher for attempt submit. */
+  teacherId?: string | null;
+  lessonId?: string | null;
 };
 
 export type FreshAvailabilityResponse = {

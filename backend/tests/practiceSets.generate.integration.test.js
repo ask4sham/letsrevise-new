@@ -543,6 +543,7 @@ describe("POST /api/practice-sets/generate", () => {
       .set("Authorization", `Bearer ${studentToken}`);
     expect(resumed.status).toBe(200);
     expect(resumed.body.items.map((it) => String(it.contentId)).sort()).toEqual(firstIds);
+    expect(String(resumed.body.teacherId)).toBe(String(teacherId));
 
     const second = await request(app)
       .post("/api/practice-sets/generate")
