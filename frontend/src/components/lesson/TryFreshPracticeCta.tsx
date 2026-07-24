@@ -1,7 +1,8 @@
 /**
  * Contextual fresh-practice CTA after Revision practice quiz completion.
  * Lesson-scoped: server resolves lesson owner after verifying lesson access.
- * Mount after a perfect Revision finish; renders nothing when availableFreshCount is zero.
+ * Prefer resumable stranded PracticeSet over generating a new set.
+ * Mount after a perfect Revision finish; renders nothing when neither resume nor fresh count.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +22,12 @@ type Props = {
   sessionExclusions?: RevisionQuizSessionExclusions | null;
 };
 
+type ResumeInfo = {
+  practiceSetId: string;
+  itemCount: number;
+  lessonId: string;
+};
+
 export function TryFreshPracticeCta({
   lessonId,
   specKey,
@@ -30,6 +37,7 @@ export function TryFreshPracticeCta({
   const navigate = useNavigate();
   const [freshCount, setFreshCount] = useState(0);
   const [requestedCount, setRequestedCount] = useState(5);
+  const [resume, setResume] = useState<ResumeInfo | null>(null);
   const [ready, setReady] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +56,7 @@ export function TryFreshPracticeCta({
       if (!lid || !specKey || !topicKey) {
         if (!cancelled) {
           setFreshCount(0);
+          setResume(null);
           setReady(true);
         }
         return;
@@ -62,10 +71,22 @@ export function TryFreshPracticeCta({
           sessionExclusions: sessionExclusions || undefined,
         });
         if (cancelled) return;
+        if (avail.resumeAvailable && avail.resumePracticeSetId) {
+          setResume({
+            practiceSetId: String(avail.resumePracticeSetId),
+            itemCount: avail.resumeItemCount || avail.resumeRemainingCount || 5,
+            lessonId: String(avail.lessonId || lid),
+          });
+        } else {
+          setResume(null);
+        }
         setFreshCount(avail.availableFreshCount ?? 0);
         setRequestedCount(avail.requestedCount ?? 5);
       } catch {
-        if (!cancelled) setFreshCount(0);
+        if (!cancelled) {
+          setFreshCount(0);
+          setResume(null);
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -78,6 +99,20 @@ export function TryFreshPracticeCta({
   }, [specKey, topicKey, lessonId, exclusionKey]);
 
   const nNew = Math.min(freshCount || 0, requestedCount || 5);
+  const showResume = Boolean(resume?.practiceSetId);
+  const showCta = showResume || nNew > 0;
+
+  const handleResume = () => {
+    if (!resume?.practiceSetId || preparing || inFlightRef.current) return;
+    const lid = String(resume.lessonId || lessonId || "").trim();
+    if (!lid || !topicKey) return;
+    const params = new URLSearchParams();
+    params.set("practiceSetId", resume.practiceSetId);
+    params.set("fresh", "1");
+    params.set("limit", String(resume.itemCount || 5));
+    params.set("lessonId", lid);
+    navigate(`/practice/quiz/${encodeURIComponent(topicKey)}?${params.toString()}`);
+  };
 
   const handleTryNew = async () => {
     const lid = String(lessonId || "").trim();
@@ -128,7 +163,7 @@ export function TryFreshPracticeCta({
     }
   };
 
-  if (!ready || nNew <= 0) {
+  if (!ready || !showCta) {
     if (error) {
       return (
         <p style={{ margin: "12px 0 0", fontSize: 13, color: "#b91c1c" }} role="alert">
@@ -143,7 +178,7 @@ export function TryFreshPracticeCta({
     <div style={{ marginTop: 4 }} data-testid="try-fresh-practice-wrap">
       <button
         type="button"
-        onClick={handleTryNew}
+        onClick={showResume ? handleResume : handleTryNew}
         disabled={preparing}
         data-testid="try-fresh-practice"
         style={{
@@ -159,7 +194,9 @@ export function TryFreshPracticeCta({
       >
         {preparing
           ? "Preparing questions…"
-          : "Try another set"}
+          : showResume
+            ? "Resume practice"
+            : "Try another set"}
       </button>
       {error ? (
         <p style={{ margin: "8px 0 0", fontSize: 13, color: "#b91c1c" }} role="alert">

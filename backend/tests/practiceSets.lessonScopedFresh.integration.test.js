@@ -10,6 +10,7 @@ const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const LessonUnlock = require("../models/LessonUnlock");
 const PracticeSet = require("../models/PracticeSet");
+const PracticeAttempt = require("../models/PracticeAttempt");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 
@@ -268,4 +269,318 @@ describe("practice-sets lesson-scoped fresh practice", () => {
     expect(avail.status).toBe(400);
     expect(String(avail.body.error || "")).toMatch(/teacherId/i);
   });
+
+  describe("stranded fresh-practice resume availability", () => {
+    beforeEach(async () => {
+      await PracticeAttempt.deleteMany({
+        $or: [{ studentId: unlockStudentId }, { userId: unlockStudentId }],
+      });
+      await PracticeSet.deleteMany({ studentId: unlockStudentId });
+    });
+
+  test("completed set plus fully unattempted second set returns resume for second set", async () => {
+    const qIds = [];
+    for (let i = 0; i < 4; i++) {
+      const q = await TopicQuizQuestion.create({
+        ownerId: ownerTeacherId,
+        topicKey: TOPIC,
+        type: "mcq",
+        questionText: `Resume stranded stem ${i} unique fingerprint text here xx`,
+        choices: ["A", "B", "C"],
+        correctIndex: 0,
+        status: "published",
+        kind: "quiz",
+        fingerprint: `resume-stranded-${i}-${Date.now()}`,
+      });
+      qIds.push(q._id);
+    }
+
+    const completed = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [
+        { contentType: "quiz_mcq", contentId: qIds[0], topicKey: TOPIC },
+        { contentType: "quiz_mcq", contentId: qIds[1], topicKey: TOPIC },
+      ],
+    });
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: qIds[0],
+      isCorrect: true,
+    });
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: qIds[1],
+      isCorrect: false,
+    });
+
+    const stranded = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [
+        { contentType: "quiz_mcq", contentId: qIds[2], topicKey: TOPIC },
+        { contentType: "quiz_mcq", contentId: qIds[3], topicKey: TOPIC },
+      ],
+    });
+
+    const beforeSets = await PracticeSet.countDocuments({ studentId: unlockStudentId });
+    const beforeAttempts = await PracticeAttempt.countDocuments({ studentId: unlockStudentId });
+
+    const avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+
+    expect(avail.status).toBe(200);
+    expect(avail.body.resumeAvailable).toBe(true);
+    expect(avail.body.resumePracticeSetId).toBe(String(stranded._id));
+    expect(avail.body.resumeItemCount).toBe(2);
+    expect(avail.body.resumeRemainingCount).toBe(2);
+    expect(avail.body.lessonId).toBe(String(lessonId));
+    expect(avail.body.resumePracticeSetId).not.toBe(String(completed._id));
+
+    const afterSets = await PracticeSet.countDocuments({ studentId: unlockStudentId });
+    const afterAttempts = await PracticeAttempt.countDocuments({ studentId: unlockStudentId });
+    expect(afterSets).toBe(beforeSets);
+    expect(afterAttempts).toBe(beforeAttempts);
+
+    await PracticeAttempt.deleteMany({ studentId: unlockStudentId, contentId: { $in: qIds } });
+    await PracticeSet.deleteMany({ _id: { $in: [completed._id, stranded._id] } });
+    await TopicQuizQuestion.deleteMany({ _id: { $in: qIds } });
+  });
+
+  test("completed set alone is not resumable; wrong student/lesson/topic ignored", async () => {
+    const q = await TopicQuizQuestion.create({
+      ownerId: ownerTeacherId,
+      topicKey: TOPIC,
+      type: "mcq",
+      questionText: "Completed-only resume guard unique fingerprint stem text",
+      choices: ["A", "B", "C"],
+      correctIndex: 0,
+      status: "published",
+      kind: "quiz",
+      fingerprint: `completed-only-${Date.now()}`,
+    });
+
+    const completed = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [{ contentType: "quiz_mcq", contentId: q._id, topicKey: TOPIC }],
+    });
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: q._id,
+      isCorrect: true,
+    });
+
+    const availDone = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(availDone.status).toBe(200);
+    expect(availDone.body.resumeAvailable).toBe(false);
+    expect(availDone.body.resumePracticeSetId).toBeNull();
+
+    const otherStudent = await User.create({
+      email: "lesson-fresh-other-student@test.com",
+      password: await bcrypt.hash("Pass123!", 10),
+      firstName: "O",
+      lastName: "S",
+      userType: "student",
+    });
+    const otherSet = await PracticeSet.create({
+      studentId: otherStudent._id,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [{ contentType: "quiz_mcq", contentId: q._id, topicKey: TOPIC }],
+    });
+
+    const availOwn = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(availOwn.body.resumeAvailable).toBe(false);
+
+    // Set stored under a different topicKey must not resume for this topic.
+    const wrongTopicSet = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [`${SPEC}:mitosis`],
+      lessonId,
+      source: "fresh-practice",
+      items: [{ contentType: "quiz_mcq", contentId: q._id, topicKey: `${SPEC}:mitosis` }],
+    });
+    const availTopic = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+    expect(availTopic.status).toBe(200);
+    expect(availTopic.body.resumeAvailable).toBe(false);
+
+    await PracticeSet.deleteMany({
+      _id: { $in: [completed._id, otherSet._id, wrongTopicSet._id] },
+    });
+    await PracticeAttempt.deleteMany({ contentId: q._id });
+    await TopicQuizQuestion.deleteOne({ _id: q._id });
+    await User.deleteOne({ _id: otherStudent._id });
+  });
+
+  test("multiple unattempted sets: newest valid set wins deterministically", async () => {
+    const qA = await TopicQuizQuestion.create({
+      ownerId: ownerTeacherId,
+      topicKey: TOPIC,
+      type: "mcq",
+      questionText: "Newest resume A unique fingerprint stem text here",
+      choices: ["A", "B", "C"],
+      correctIndex: 0,
+      status: "published",
+      kind: "quiz",
+      fingerprint: `newest-a-${Date.now()}`,
+    });
+    const qB = await TopicQuizQuestion.create({
+      ownerId: ownerTeacherId,
+      topicKey: TOPIC,
+      type: "mcq",
+      questionText: "Newest resume B unique fingerprint stem text here",
+      choices: ["A", "B", "C"],
+      correctIndex: 0,
+      status: "published",
+      kind: "quiz",
+      fingerprint: `newest-b-${Date.now()}`,
+    });
+
+    const older = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [{ contentType: "quiz_mcq", contentId: qA._id, topicKey: TOPIC }],
+    });
+    const newer = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [{ contentType: "quiz_mcq", contentId: qB._id, topicKey: TOPIC }],
+    });
+    // Force deterministic ordering (timestamps can collide in fast tests).
+    await PracticeSet.collection.updateOne(
+      { _id: older._id },
+      { $set: { createdAt: new Date("2024-01-01T00:00:00.000Z") } }
+    );
+    await PracticeSet.collection.updateOne(
+      { _id: newer._id },
+      { $set: { createdAt: new Date("2025-06-01T00:00:00.000Z") } }
+    );
+
+    const avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+
+    expect(avail.status).toBe(200);
+    expect(avail.body.resumeAvailable).toBe(true);
+    expect(avail.body.resumePracticeSetId).toBe(String(newer._id));
+    expect(avail.body.resumePracticeSetId).not.toBe(String(older._id));
+
+    await PracticeSet.deleteMany({ _id: { $in: [older._id, newer._id] } });
+    await TopicQuizQuestion.deleteMany({ _id: { $in: [qA._id, qB._id] } });
+  });
+
+  test("attempt matching uses contentType + contentId even when practiceSetId absent", async () => {
+    const q = await TopicQuizQuestion.create({
+      ownerId: ownerTeacherId,
+      topicKey: TOPIC,
+      type: "mcq",
+      questionText: "Content identity resume match unique fingerprint stem",
+      choices: ["A", "B", "C"],
+      correctIndex: 0,
+      status: "published",
+      kind: "quiz",
+      fingerprint: `content-id-match-${Date.now()}`,
+    });
+    const set = await PracticeSet.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      lessonId,
+      source: "fresh-practice",
+      items: [{ contentType: "quiz_mcq", contentId: q._id, topicKey: TOPIC }],
+    });
+    // Attempt without practiceSetId — must still mark set non-resumable
+    await PracticeAttempt.create({
+      studentId: unlockStudentId,
+      teacherId: ownerTeacherId,
+      specKey: SPEC,
+      topicKey: TOPIC,
+      contentType: "quiz_mcq",
+      contentId: q._id,
+      isCorrect: true,
+    });
+
+    const avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(
+          TOPIC
+        )}&lessonId=${lessonId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${unlockStudentToken}`);
+
+    expect(avail.status).toBe(200);
+    expect(avail.body.resumeAvailable).toBe(false);
+    expect(avail.body.resumePracticeSetId).toBeNull();
+
+    await PracticeAttempt.deleteMany({ contentId: q._id });
+    await PracticeSet.deleteOne({ _id: set._id });
+    await TopicQuizQuestion.deleteOne({ _id: q._id });
+  });
+  }); // stranded fresh-practice resume availability
 });

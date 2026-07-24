@@ -19,7 +19,11 @@ const {
   getPracticeSetForStudent,
   CONTENT_TYPES,
 } = require("../services/generatePracticeSet");
-const { countLessonPracticeAttempts, listLessonPracticeAttemptedQuestionIds } = require("../services/freshPracticeExclusions");
+const {
+  countLessonPracticeAttempts,
+  listLessonPracticeAttemptedQuestionIds,
+  findResumableLessonFreshPracticeSet,
+} = require("../services/freshPracticeExclusions");
 
 function getUserId(req) {
   return req.user?.userId ?? req.user?._id ?? req.user?.id;
@@ -143,22 +147,34 @@ router.get("/fresh-availability", auth, async (req, res) => {
   if (resolved.error) return res.status(resolved.error.status).json(resolved.error.body);
 
   try {
+    const namespacedTopic = topicKey.includes(":") ? topicKey : `${specKey}:${topicKey}`;
+    const effectiveLessonId = resolved.lessonId || lessonId || null;
+
+    // Stranded frozen set: offer resume before ordinary new-question availability.
+    let resume = null;
+    if (effectiveLessonId) {
+      resume = await findResumableLessonFreshPracticeSet({
+        studentId,
+        lessonId: effectiveLessonId,
+        topicKey: namespacedTopic,
+      });
+    }
+
     const result = await generateAndPersistPracticeSet({
       studentId,
       teacherId: resolved.teacherIdObj,
       specKey,
-      topicKeys: [topicKey.includes(":") ? topicKey : `${specKey}:${topicKey}`],
+      topicKeys: [namespacedTopic],
       limit,
       include: includeTypes,
       excludeSeen: true,
-      lessonId: resolved.lessonId || lessonId || null,
+      lessonId: effectiveLessonId,
       dryRun: true,
       sessionExclusions,
     });
 
     let lessonPracticeAttemptCount = 0;
     let lessonPracticeAttemptedQuestionIds = [];
-    const effectiveLessonId = resolved.lessonId || lessonId || null;
     if (effectiveLessonId) {
       lessonPracticeAttemptCount = await countLessonPracticeAttempts(studentId, effectiveLessonId);
       lessonPracticeAttemptedQuestionIds = await listLessonPracticeAttemptedQuestionIds(
@@ -167,7 +183,7 @@ router.get("/fresh-availability", auth, async (req, res) => {
       );
     }
 
-    return res.status(200).json({
+    const body = {
       requestedCount: result.requestedCount,
       availableFreshCount: result.availableFreshCount,
       selectedCount: result.selectedCount,
@@ -175,7 +191,22 @@ router.get("/fresh-availability", auth, async (req, res) => {
       practiceSetId: null,
       lessonPracticeAttemptCount,
       lessonPracticeAttemptedQuestionIds,
-    });
+      resumeAvailable: false,
+      resumePracticeSetId: null,
+      resumeItemCount: 0,
+      resumeRemainingCount: 0,
+      lessonId: effectiveLessonId ? String(effectiveLessonId) : null,
+    };
+
+    if (resume) {
+      body.resumeAvailable = true;
+      body.resumePracticeSetId = resume.practiceSetId;
+      body.resumeItemCount = resume.itemCount;
+      body.resumeRemainingCount = resume.remainingCount;
+      body.lessonId = resume.lessonId;
+    }
+
+    return res.status(200).json(body);
   } catch (e) {
     if (
       e.code === "INVALID_SPEC_KEY" ||
