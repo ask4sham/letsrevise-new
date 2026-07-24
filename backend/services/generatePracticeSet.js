@@ -6,6 +6,7 @@ const ExamQuestion = require("../models/ExamQuestion");
 const PastPaperQuestion = require("../models/PastPaperQuestion");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const PracticeSet = require("../models/PracticeSet");
+const PracticeAttempt = require("../models/PracticeAttempt");
 const { assertValidSpecKey, assertValidSpecTopic, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { buildTopicKey, parseTopicKey, queryCandidates } = require("../utils/topicKey");
 const {
@@ -14,6 +15,7 @@ const {
   filterFreshCandidates,
   shuffleInPlace,
   mergeClientSessionExclusions,
+  contentKey,
 } = require("./freshPracticeExclusions");
 
 const OUTCOME_ENUM = ["correct", "partial", "wrong"];
@@ -530,6 +532,38 @@ async function getPracticeSetForStudent(practiceSetId, studentId) {
     }
   }
 
+  // Prior outcomes for resume scoring — isCorrect only (no correct answers / explanations).
+  const priorOutcomes = [];
+  if (items.length > 0) {
+    const orClauses = items.map((it) => ({
+      contentType: it.contentType,
+      contentId: it.contentId,
+    }));
+    const attemptRows = await PracticeAttempt.find({
+      $and: [
+        { $or: [{ studentId }, { userId: studentId }] },
+        { $or: orClauses },
+      ],
+    })
+      .select("contentType contentId isCorrect createdAt")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const byKey = new Map();
+    for (const row of attemptRows) {
+      if (!row?.contentType || !row?.contentId || typeof row.isCorrect !== "boolean") continue;
+      byKey.set(contentKey(row.contentType, row.contentId), {
+        contentType: row.contentType,
+        contentId: String(row.contentId),
+        isCorrect: row.isCorrect,
+      });
+    }
+    for (const it of items) {
+      const prior = byKey.get(contentKey(it.contentType, it.contentId));
+      if (prior) priorOutcomes.push(prior);
+    }
+  }
+
   return {
     practiceSetId: set._id,
     items,
@@ -543,6 +577,7 @@ async function getPracticeSetForStudent(practiceSetId, studentId) {
     // Owner teacher for PracticeRunner / practice-attempts (resume must not require dashboard link).
     teacherId: set.teacherId ? String(set.teacherId) : null,
     lessonId: set.lessonId ? String(set.lessonId) : null,
+    priorOutcomes,
   };
 }
 
@@ -555,5 +590,5 @@ module.exports = {
   isStrongChallengeQuestion,
   challengeRankScore,
   selectChallengePracticeItems,
-  contentKey: require("./freshPracticeExclusions").contentKey,
+  contentKey,
 };

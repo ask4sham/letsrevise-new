@@ -348,24 +348,72 @@
   cursor: not-allowed;
 }
 
-.fp-saved {
+.fp-feedback {
   margin-top: 16px;
-  border: 1px solid #a7f3d0;
-  background: #ecfdf5;
   border-radius: 16px;
   padding: 16px 20px;
 }
 
-.fp-saved__title {
+.fp-feedback--correct {
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+}
+
+.fp-feedback--incorrect {
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+}
+
+.fp-feedback--saved {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.fp-feedback__title {
   margin: 0 0 8px;
   font-weight: 700;
+}
+
+.fp-feedback--correct .fp-feedback__title {
   color: #065f46;
 }
 
-.fp-saved__body {
+.fp-feedback--incorrect .fp-feedback__title {
+  color: #92400e;
+}
+
+.fp-feedback--saved .fp-feedback__title {
+  color: #334155;
+}
+
+.fp-feedback__body {
   margin: 0 0 16px;
   font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.fp-feedback--correct .fp-feedback__body {
   color: #047857;
+}
+
+.fp-feedback--incorrect .fp-feedback__body {
+  color: #78350f;
+}
+
+.fp-feedback--saved .fp-feedback__body {
+  color: #475569;
+}
+
+.fp-option--correct {
+  border-color: #34d399 !important;
+  background: #ecfdf5 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25);
+}
+
+.fp-option--incorrect {
+  border-color: #f87171 !important;
+  background: #fef2f2 !important;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.25);
 }
 
 .fp-error {
@@ -379,21 +427,61 @@
 }
 
 .fp-complete {
+  margin-top: 20px;
   border: 1px solid #a7f3d0;
   background: #ecfdf5;
   border-radius: 16px;
   padding: 24px 28px;
 }
 
-.fp-complete h2 {
+.fp-complete__eyebrow {
   margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #047857;
+}
+
+.fp-complete h2 {
+  margin: 0 0 16px;
   font-size: 1.25rem;
   color: #064e3b;
 }
 
-.fp-complete p {
-  margin: 0;
+.fp-complete__score-label {
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: #065f46;
+}
+
+.fp-complete__score {
+  margin: 0 0 12px;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #064e3b;
+}
+
+.fp-complete__copy {
+  margin: 0 0 20px;
+  color: #065f46;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.fp-complete__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .fp-complete__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 
 .fp-self-mark {

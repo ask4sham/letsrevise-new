@@ -54,6 +54,13 @@ export type GeneratePracticeSetPayload = {
   };
 };
 
+/** Prior attempt outcomes for resume scoring (no correct answers / explanations). */
+export type PracticePriorOutcome = {
+  contentType: string;
+  contentId: string;
+  isCorrect: boolean;
+};
+
 export type GeneratePracticeSetResponse = {
   practiceSetId: string | null;
   items: PracticeSetItem[];
@@ -66,6 +73,8 @@ export type GeneratePracticeSetResponse = {
   /** Present on GET /practice-sets/:id (resume). Content-owner teacher for attempt submit. */
   teacherId?: string | null;
   lessonId?: string | null;
+  /** Owner resume: one isCorrect per previously attempted set item. */
+  priorOutcomes?: PracticePriorOutcome[];
 };
 
 export type FreshAvailabilityResponse = {

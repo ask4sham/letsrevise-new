@@ -10,8 +10,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { PracticeRunner } from "../components/practice/PracticeRunner";
 import {
+  fetchFreshAvailability,
   generatePracticeSet,
   getPracticeSet,
+  type PracticePriorOutcome,
   type PracticeSetItem,
 } from "../api/practiceSets";
 import { getStudentDashboard } from "../api/studentDashboard";
@@ -86,9 +88,13 @@ export default function QuizSessionPage() {
   const [loadedPracticeSetId, setLoadedPracticeSetId] = useState<string | null>(null);
   /** Prefer server-returned lessonId over URL when available. */
   const [lessonIdFromSet, setLessonIdFromSet] = useState<string | null>(null);
+  const [priorOutcomes, setPriorOutcomes] = useState<PracticePriorOutcome[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [sessionComplete, setSessionComplete] = useState(false);
+  const [tryAnotherAvailable, setTryAnotherAvailable] = useState(false);
+  const [tryAnotherBusy, setTryAnotherBusy] = useState(false);
   const loadGenRef = useRef(0);
 
   const topicKey = topicKeyParam || "";
@@ -107,6 +113,8 @@ export default function QuizSessionPage() {
     const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
+    setSessionComplete(false);
+    setTryAnotherAvailable(false);
     try {
       // Resume existing frozen set: owner-only GET, no dashboard / StudentTeacherLink gate.
       if (practiceSetIdParam) {
@@ -118,12 +126,14 @@ export default function QuizSessionPage() {
           setItems([]);
           setTeacherId(null);
           setLoadedPracticeSetId(null);
+          setPriorOutcomes([]);
           return;
         }
         setTeacherId(tid);
         setLoadedPracticeSetId(String(res.practiceSetId || practiceSetIdParam));
         if (res.lessonId) setLessonIdFromSet(String(res.lessonId));
         setItems(res.items || []);
+        setPriorOutcomes(Array.isArray(res.priorOutcomes) ? res.priorOutcomes : []);
         setActiveIndex(startIndexParam);
         return;
       }
@@ -178,6 +188,7 @@ export default function QuizSessionPage() {
 
       const selected = res.selectedCount ?? (res.items || []).length;
       setItems(res.items || []);
+      setPriorOutcomes([]);
       setActiveIndex(0);
       if (res.practiceSetId) setLoadedPracticeSetId(String(res.practiceSetId));
 
@@ -218,11 +229,70 @@ export default function QuizSessionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicKey, practiceSetIdParam, freshMode, lessonIdParam, limitParam, idempotencyKeyParam]);
 
-  const handleComplete = useCallback(() => {
+  const handleReturnToLesson = useCallback(() => {
     getStudentDashboard({ specKey: DEFAULT_SPEC }).catch(() => {});
-    // Existing behaviour: final question returns to the lesson (no in-page another-set gate).
     navigate(backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress", { replace: true });
   }, [navigate, backLessonId]);
+
+  const handleResultsReady = useCallback(async () => {
+    setSessionComplete(true);
+    setTryAnotherAvailable(false);
+    if (!backLessonId || !topicKey) return;
+    try {
+      const specKey = topicKey.includes(":") ? topicKey.split(":")[0] : DEFAULT_SPEC;
+      const avail = await fetchFreshAvailability({
+        specKey,
+        topicKey,
+        lessonId: backLessonId,
+        limit: limitParam,
+        include: ["quiz_mcq", "quiz_short"],
+      });
+      setTryAnotherAvailable((avail.availableFreshCount ?? 0) > 0);
+    } catch {
+      setTryAnotherAvailable(false);
+    }
+  }, [backLessonId, topicKey, limitParam]);
+
+  const handleTryAnotherSet = useCallback(async () => {
+    if (!topicKey || !backLessonId || tryAnotherBusy) return;
+    setTryAnotherBusy(true);
+    try {
+      const specKey = topicKey.includes(":") ? topicKey.split(":")[0] : DEFAULT_SPEC;
+      const idempotencyKey = createFreshPracticeIdempotencyKey({
+        topicKey,
+        lessonId: backLessonId,
+        clientRequestId: newClientRequestId(),
+      });
+      const res = await generatePracticeSet({
+        specKey,
+        topicKeys: [topicKey],
+        limit: limitParam,
+        include: ["quiz_mcq", "quiz_short"],
+        excludeSeen: true,
+        lessonId: backLessonId,
+        idempotencyKey,
+        source: "fresh-practice",
+      });
+      const selected = res.selectedCount ?? (res.items || []).length;
+      if (!res.practiceSetId || selected <= 0) {
+        setTryAnotherAvailable(false);
+        return;
+      }
+      const params = new URLSearchParams();
+      params.set("practiceSetId", String(res.practiceSetId));
+      params.set("fresh", "1");
+      params.set("limit", String(selected));
+      params.set("idempotencyKey", idempotencyKey);
+      params.set("lessonId", backLessonId);
+      navigate(`/practice/quiz/${encodeURIComponent(topicKey)}?${params.toString()}`, {
+        replace: true,
+      });
+    } catch {
+      setTryAnotherAvailable(false);
+    } finally {
+      setTryAnotherBusy(false);
+    }
+  }, [topicKey, backLessonId, limitParam, navigate, tryAnotherBusy]);
 
   const handleIndexChange = useCallback((index: number) => {
     setActiveIndex(index);
@@ -296,45 +366,52 @@ export default function QuizSessionPage() {
 
   return (
     <FocusedPracticeShell backLessonId={backLessonId}>
-      <header className="fp-header" data-testid="focused-practice-header">
-        <p className="fp-eyebrow">Focused practice</p>
-        <h1 className="fp-title" data-testid="focused-practice-title">
-          {topicTitle}
-        </h1>
-        <p className="fp-copy" data-testid="focused-practice-copy">
-          {isResumeSession
-            ? "Continue where you left off."
-            : "Practise this topic with a fresh set of questions."}
-        </p>
+      {!sessionComplete ? (
+        <header className="fp-header" data-testid="focused-practice-header">
+          <p className="fp-eyebrow">Focused practice</p>
+          <h1 className="fp-title" data-testid="focused-practice-title">
+            {topicTitle}
+          </h1>
+          <p className="fp-copy" data-testid="focused-practice-copy">
+            {isResumeSession
+              ? "Continue where you left off."
+              : "Practise this topic with a fresh set of questions."}
+          </p>
 
-        <div className="fp-progress-row">
-          <p className="fp-progress-label" data-testid="focused-practice-progress-label">
-            Question {questionNumber} of {total}
-          </p>
-          <p className="fp-remaining" data-testid="focused-practice-remaining">
-            {remaining} question{remaining === 1 ? "" : "s"} remaining
-          </p>
-        </div>
-        <div
-          className="fp-progress-track"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={total}
-          aria-valuenow={questionNumber}
-          aria-label={`Question ${questionNumber} of ${total}`}
-          data-testid="focused-practice-progress-bar"
-        >
-          <div className="fp-progress-fill" style={{ width: `${progressPct}%` }} />
-        </div>
-      </header>
+          <div className="fp-progress-row">
+            <p className="fp-progress-label" data-testid="focused-practice-progress-label">
+              Question {questionNumber} of {total}
+            </p>
+            <p className="fp-remaining" data-testid="focused-practice-remaining">
+              {remaining} question{remaining === 1 ? "" : "s"} remaining
+            </p>
+          </div>
+          <div
+            className="fp-progress-track"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={questionNumber}
+            aria-label={`Question ${questionNumber} of ${total}`}
+            data-testid="focused-practice-progress-bar"
+          >
+            <div className="fp-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+        </header>
+      ) : null}
 
       <PracticeRunner
         items={items}
         teacherId={teacherId!}
         practiceSetId={activePracticeSetId}
         initialIndex={practiceSetIdParam ? startIndexParam : 0}
+        priorOutcomes={priorOutcomes}
         onIndexChange={handleIndexChange}
-        onComplete={handleComplete}
+        onResultsReady={handleResultsReady}
+        onReturnToLesson={handleReturnToLesson}
+        tryAnotherSetAvailable={tryAnotherAvailable}
+        onTryAnotherSet={handleTryAnotherSet}
+        tryAnotherSetBusy={tryAnotherBusy}
       />
     </FocusedPracticeShell>
   );

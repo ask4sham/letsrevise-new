@@ -64,5 +64,20 @@ describe("PracticeItemCard", () => {
     expect(screen.queryByText(/incorrect/i)).toBeNull();
     expect(screen.queryByText(/mark scheme/i)).toBeNull();
     expect(screen.queryByText(/Answer saved/i)).toBeNull();
+    expect(screen.getByTestId("practice-answer-option-0")).not.toHaveAttribute("data-correct");
+  });
+
+  test("after submission styles correct and incorrect options from server feedback", () => {
+    render(
+      <PracticeItemCard
+        item={item}
+        selectedChoiceIndex={0}
+        submitted
+        feedback={{ isCorrect: false, correctChoiceIndex: 2 }}
+      />
+    );
+    expect(screen.getByTestId("practice-answer-option-0")).toHaveAttribute("data-incorrect", "true");
+    expect(screen.getByTestId("practice-answer-option-2")).toHaveAttribute("data-correct", "true");
   });
 });
+

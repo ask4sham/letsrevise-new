@@ -14,6 +14,13 @@ import { clearSingleFlightForTests } from "../../utils/freshPracticeSingleFlight
 jest.mock("../../api/practiceSets", () => ({
   generatePracticeSet: jest.fn(),
   getPracticeSet: jest.fn(),
+  fetchFreshAvailability: jest.fn().mockResolvedValue({
+    availableFreshCount: 0,
+    requestedCount: 5,
+    selectedCount: 0,
+    allQuestionsFresh: true,
+    practiceSetId: null,
+  }),
 }));
 
 jest.mock("../../api/studentDashboard", () => ({

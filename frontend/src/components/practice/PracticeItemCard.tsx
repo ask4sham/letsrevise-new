@@ -1,11 +1,18 @@
 /**
  * PR-PRACTICE-LOOP-1: One item — MCQ (choices) or non-MCQ (I got it right/wrong).
- * Does not show correct answer or mark scheme.
+ * Correctness styling only after server-grounded submission feedback.
  * Layout uses focusedPractice.css (Tailwind utilities are not compiled in this app).
  */
 import React from "react";
 import type { PracticeSetItem } from "../../api/practiceSets";
 import "./focusedPractice.css";
+
+export type PracticeItemFeedback = {
+  /** Server-provided; omit / undefined = unknown (legacy). */
+  isCorrect?: boolean;
+  correctChoiceIndex?: number;
+  explanation?: string;
+};
 
 export type PracticeItemCardProps = {
   item: PracticeSetItem;
@@ -15,6 +22,8 @@ export type PracticeItemCardProps = {
   onMarkSelf?: (isCorrect: boolean) => void;
   submitted?: boolean;
   disabled?: boolean;
+  /** Post-submit styling only — never pass before submission. */
+  feedback?: PracticeItemFeedback | null;
 };
 
 function skillChipLabel(item: PracticeSetItem): string | null {
@@ -38,11 +47,17 @@ export function PracticeItemCard({
   onMarkSelf,
   submitted,
   disabled,
+  feedback,
 }: PracticeItemCardProps) {
   const isMcq = item.contentType === "quiz_mcq" && Array.isArray(item.choices) && item.choices.length > 0;
   const skill = skillChipLabel(item);
   const timeSec = item.metadata?.estimatedTimeSec;
   const locked = Boolean(disabled || submitted);
+  const reveal =
+    Boolean(submitted) &&
+    feedback != null &&
+    typeof feedback.isCorrect === "boolean" &&
+    Number.isFinite(feedback.correctChoiceIndex);
 
   return (
     <div className="fp-panel" data-testid="practice-question-card">
@@ -74,6 +89,15 @@ export function PracticeItemCard({
           >
             {item.choices!.map((choice, i) => {
               const selected = selectedChoiceIndex === i;
+              const isServerCorrect =
+                reveal && Number(feedback!.correctChoiceIndex) === i;
+              const isServerWrongSelected =
+                reveal && selected && feedback!.isCorrect === false && !isServerCorrect;
+              let optionClass = "fp-option";
+              if (isServerCorrect) optionClass += " fp-option--correct";
+              else if (isServerWrongSelected) optionClass += " fp-option--incorrect";
+              else if (selected) optionClass += " fp-option--selected";
+
               return (
                 <button
                   key={i}
@@ -84,7 +108,9 @@ export function PracticeItemCard({
                   disabled={locked}
                   data-testid={`practice-answer-option-${i}`}
                   data-selected={selected ? "true" : "false"}
-                  className={`fp-option${selected ? " fp-option--selected" : ""}`}
+                  data-correct={isServerCorrect ? "true" : undefined}
+                  data-incorrect={isServerWrongSelected ? "true" : undefined}
+                  className={optionClass}
                 >
                   <span className="fp-option__row">
                     <span className="fp-option__text">{choice}</span>

@@ -164,6 +164,10 @@ router.post("/", auth, async (req, res) => {
 
   let isCorrectValue;
   let selectedChoiceIndexStored;
+  /** @type {number|undefined} */
+  let correctChoiceIndex;
+  /** @type {string|undefined} */
+  let explanation;
 
   if (contentType === MCQ_CONTENT_TYPE) {
     const idx = typeof selectedChoiceIndex === "number" ? selectedChoiceIndex : parseInt(selectedChoiceIndex, 10);
@@ -171,6 +175,10 @@ router.post("/", auth, async (req, res) => {
       const result = await computeMcqCorrectness(contentIdObj, idx);
       isCorrectValue = result.isCorrect;
       selectedChoiceIndexStored = idx;
+      if (Number.isFinite(result.correctChoiceIndex)) {
+        correctChoiceIndex = result.correctChoiceIndex;
+      }
+      if (result.explanation) explanation = result.explanation;
     } catch (e) {
       if (e.code === "CONTENT_NOT_FOUND" || e.code === "INVALID_CONTENT_TYPE") {
         return res.status(400).json({ error: e.message });
@@ -182,7 +190,7 @@ router.post("/", auth, async (req, res) => {
   }
 
   try {
-    await PracticeAttempt.create({
+    const created = await PracticeAttempt.create({
       studentId,
       teacherId: teacherIdObj,
       specKey: specKey.trim(),
@@ -226,7 +234,17 @@ router.post("/", auth, async (req, res) => {
       }).catch(() => {});
     }
 
-    return res.status(200).json({ ok: true });
+    // Post-submit feedback only — correctness is never accepted from the client for quiz_mcq.
+    const body = {
+      ok: true,
+      attemptId: String(created._id),
+      isCorrect: Boolean(isCorrectValue),
+    };
+    if (contentType === MCQ_CONTENT_TYPE && correctChoiceIndex != null && Number.isFinite(correctChoiceIndex)) {
+      body.correctChoiceIndex = correctChoiceIndex;
+    }
+    if (explanation) body.explanation = explanation;
+    return res.status(200).json(body);
   } catch (e) {
     return res.status(500).json({ error: e.message || "Failed to save attempt" });
   }
