@@ -16,11 +16,19 @@ const mockPost = api.post as jest.Mock;
 describe("submitPracticeAttempt", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPost.mockResolvedValue({ data: { ok: true } });
+    mockPost.mockResolvedValue({
+      data: {
+        ok: true,
+        isCorrect: true,
+        correctChoiceIndex: 2,
+        attemptId: "att-1",
+        explanation: "Server explanation",
+      },
+    });
   });
 
   test("includes practiceSetId when provided", async () => {
-    await submitPracticeAttempt({
+    const res = await submitPracticeAttempt({
       teacherId: "t1",
       practiceSetId: "set1",
       specKey: "aqa-gcse-biology",
@@ -40,6 +48,12 @@ describe("submitPracticeAttempt", () => {
         teacherId: "t1",
       })
     );
+    const body = mockPost.mock.calls[0][1];
+    expect(body).not.toHaveProperty("isCorrect");
+    expect(body).not.toHaveProperty("correctChoiceIndex");
+    expect(res.isCorrect).toBe(true);
+    expect(res.correctChoiceIndex).toBe(2);
+    expect(res.explanation).toBe("Server explanation");
   });
 
   test("does not send practiceSetId when absent", async () => {

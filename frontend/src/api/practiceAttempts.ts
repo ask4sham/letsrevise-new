@@ -1,6 +1,7 @@
 /**
  * PR-PRACTICE-LOOP-1 Frontend: Submit practice attempt (MCQ: selectedChoiceIndex; others: isCorrect).
  * Frozen-set resume: include practiceSetId so the server can enforce item-level ownership.
+ * Correctness for quiz_mcq is computed server-side and returned after submit.
  */
 import api from "../services/api";
 
@@ -19,7 +20,18 @@ export type SubmitPracticeAttemptPayload = {
   | { contentType: string; isCorrect: boolean }
 );
 
-export type SubmitPracticeAttemptResponse = { ok: true };
+/** Server-grounded post-submit feedback (never invent on the client). */
+export type SubmitPracticeAttemptResponse = {
+  ok: true;
+  attemptId?: string;
+  /** Present when the server computed or accepted an outcome. */
+  isCorrect?: boolean;
+  /** MCQ only — revealed after successful submit. */
+  correctChoiceIndex?: number;
+  /** Optional server explanation / feedback text. */
+  explanation?: string;
+  feedback?: string;
+};
 
 export async function submitPracticeAttempt(
   payload: SubmitPracticeAttemptPayload

@@ -70,7 +70,9 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(true);
+    expect(res.body.attemptId).toBeTruthy();
 
     const doc = await PracticeAttempt.findOne({ studentId, contentId });
     expect(doc).toBeTruthy();
@@ -86,6 +88,7 @@ describe("POST /api/practice-attempts", () => {
       questionText: "What is a cell?",
       choices: ["A", "B", "C"],
       correctIndex: 1,
+      explanation: "A cell is the basic unit of life.",
       status: "published",
       kind: "quiz",
       fingerprint: "slice3-mcq-correct-1",
@@ -105,6 +108,11 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(true);
+    expect(res.body.correctChoiceIndex).toBe(1);
+    expect(res.body.explanation).toBe("A cell is the basic unit of life.");
+    expect(res.body.attemptId).toBeTruthy();
 
     const doc = await PracticeAttempt.findOne({ studentId, contentId: mcq._id });
     expect(doc).toBeTruthy();
@@ -137,6 +145,10 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(false);
+    expect(res.body.correctChoiceIndex).toBe(0);
+    expect(res.body.attemptId).toBeTruthy();
 
     const doc = await PracticeAttempt.findOne({ studentId, contentId: mcq._id });
     expect(doc).toBeTruthy();
@@ -251,7 +263,9 @@ describe("POST /api/practice-attempts", () => {
           teacherId: lessonTeacher._id.toString(),
         });
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ ok: true });
+      expect(res.body.ok).toBe(true);
+      expect(res.body.isCorrect).toBe(true);
+      expect(res.body.attemptId).toBeTruthy();
       const doc = await PracticeAttempt.findOne({ studentId, contentId: setItemId }).sort({ createdAt: -1 });
       expect(String(doc.teacherId)).toBe(String(lessonTeacher._id));
     });
@@ -466,7 +480,9 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(true);
+    expect(res.body.attemptId).toBeTruthy();
   });
 
   test("rejects bad specKey", async () => {
