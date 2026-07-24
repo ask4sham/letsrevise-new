@@ -9,11 +9,18 @@ import {
   submitPracticeAttempt,
   type SubmitPracticeAttemptResponse,
 } from "../../api/practiceAttempts";
+import {
+  allItemsAttempted,
+  buildPriorOutcomeMap,
+  firstUnansweredIndex,
+  practiceItemKey,
+} from "../../utils/practicePriorOutcomes";
 import "./focusedPractice.css";
 
 export type PracticeItemResult = {
   contentType: string;
   contentId: string;
+  attempted: boolean;
   isCorrect?: boolean;
 };
 
@@ -24,12 +31,17 @@ export type PracticeRunnerProps = {
   practiceSetId?: string | null;
   /** First unanswered index when resuming a partial set (frozen order). */
   initialIndex?: number;
-  /** Server prior outcomes for resume scoring (isCorrect only). */
+  /** Server prior state for resume / completed-set hydration. */
   priorOutcomes?: PracticePriorOutcome[];
   /** Notify parent for progress UI (0-based). */
   onIndexChange?: (index: number) => void;
   /** Fired once when the completion screen is shown (not an auto-redirect). */
-  onResultsReady?: (score: { correctCount: number; total: number }) => void;
+  onResultsReady?: (score: {
+    correctCount: number;
+    total: number;
+    scoreAvailable: boolean;
+    attemptedCount: number;
+  }) => void;
   /** Legacy dashboard/exam runners — fired when results are shown (do not use for auto-redirect on focused practice). */
   onComplete?: () => void;
   onReturnToLesson?: () => void;
@@ -39,10 +51,6 @@ export type PracticeRunnerProps = {
   tryAnotherSetBusy?: boolean;
   onLinkError?: (message: string) => void;
 };
-
-function itemKey(contentType: string, contentId: string): string {
-  return `${contentType}:${contentId}`;
-}
 
 function clampStartIndex(raw: number | undefined, length: number): number {
   if (!length) return 0;
@@ -81,6 +89,39 @@ function feedbackFromResponse(
   return feedback;
 }
 
+function mapFromPriors(
+  priorOutcomes: PracticePriorOutcome[] | undefined
+): Record<string, PracticeItemResult> {
+  const built = buildPriorOutcomeMap(priorOutcomes);
+  const map: Record<string, PracticeItemResult> = {};
+  for (const [key, row] of Object.entries(built)) {
+    map[key] = {
+      contentType: row.contentType,
+      contentId: String(row.contentId),
+      attempted: true,
+      ...(typeof row.isCorrect === "boolean" ? { isCorrect: row.isCorrect } : {}),
+    };
+  }
+  return map;
+}
+
+function resolveStartState(
+  items: PracticeSetItem[],
+  priorOutcomes: PracticePriorOutcome[] | undefined,
+  initialIndex: number
+) {
+  const fromPriors = firstUnansweredIndex(items, priorOutcomes);
+  const complete = allItemsAttempted(items, priorOutcomes);
+  if (complete) {
+    return { index: 0, showResults: true };
+  }
+  // Prefer server-derived first unanswered over a stale URL startIndex=0.
+  if ((priorOutcomes || []).length > 0) {
+    return { index: clampStartIndex(fromPriors, items.length), showResults: false };
+  }
+  return { index: clampStartIndex(initialIndex, items.length), showResults: false };
+}
+
 export function PracticeRunner({
   items,
   teacherId,
@@ -96,48 +137,31 @@ export function PracticeRunner({
   tryAnotherSetBusy = false,
   onLinkError,
 }: PracticeRunnerProps) {
-  const [index, setIndex] = useState(() => clampStartIndex(initialIndex, items.length));
+  const start = resolveStartState(items, priorOutcomes, initialIndex);
+  const [index, setIndex] = useState(start.index);
   const [submitted, setSubmitted] = useState(false);
   const [feedback, setFeedback] = useState<PracticeItemFeedback | null>(null);
-  const [showResults, setShowResults] = useState(false);
+  const [showResults, setShowResults] = useState(start.showResults);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mcqSelection, setMcqSelection] = useState<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const resultsReadyFiredRef = useRef(false);
 
-  const [outcomes, setOutcomes] = useState<Record<string, PracticeItemResult>>(() => {
-    const map: Record<string, PracticeItemResult> = {};
-    for (const row of priorOutcomes || []) {
-      if (!row?.contentType || !row?.contentId || typeof row.isCorrect !== "boolean") continue;
-      map[itemKey(row.contentType, row.contentId)] = {
-        contentType: row.contentType,
-        contentId: String(row.contentId),
-        isCorrect: row.isCorrect,
-      };
-    }
-    return map;
-  });
+  const [outcomes, setOutcomes] = useState<Record<string, PracticeItemResult>>(() =>
+    mapFromPriors(priorOutcomes)
+  );
 
   useEffect(() => {
-    const next = clampStartIndex(initialIndex, items.length);
-    setIndex(next);
+    const next = resolveStartState(items, priorOutcomes, initialIndex);
+    setIndex(next.index);
+    setShowResults(next.showResults);
     setSubmitted(false);
     setFeedback(null);
     setError(null);
     setMcqSelection(null);
-    setShowResults(false);
     resultsReadyFiredRef.current = false;
-    const map: Record<string, PracticeItemResult> = {};
-    for (const row of priorOutcomes || []) {
-      if (!row?.contentType || !row?.contentId || typeof row.isCorrect !== "boolean") continue;
-      map[itemKey(row.contentType, row.contentId)] = {
-        contentType: row.contentType,
-        contentId: String(row.contentId),
-        isCorrect: row.isCorrect,
-      };
-    }
-    setOutcomes(map);
+    setOutcomes(mapFromPriors(priorOutcomes));
   }, [initialIndex, items, priorOutcomes]);
 
   useEffect(() => {
@@ -150,11 +174,18 @@ export function PracticeRunner({
   const score = useMemo(() => {
     const total = items.length;
     let correctCount = 0;
+    let knownCount = 0;
+    let attemptedCount = 0;
     for (const it of items) {
-      const row = outcomes[itemKey(it.contentType, it.contentId)];
-      if (row?.isCorrect === true) correctCount += 1;
+      const row = outcomes[practiceItemKey(it.contentType, it.contentId)];
+      if (row?.attempted) attemptedCount += 1;
+      if (typeof row?.isCorrect === "boolean") {
+        knownCount += 1;
+        if (row.isCorrect) correctCount += 1;
+      }
     }
-    return { correctCount, total };
+    const scoreAvailable = total > 0 && knownCount === total;
+    return { correctCount, total, scoreAvailable, attemptedCount, knownCount };
   }, [items, outcomes]);
 
   useEffect(() => {
@@ -164,20 +195,25 @@ export function PracticeRunner({
   useEffect(() => {
     if (!showResults || resultsReadyFiredRef.current) return;
     resultsReadyFiredRef.current = true;
-    onResultsReady?.(score);
+    onResultsReady?.({
+      correctCount: score.correctCount,
+      total: score.total,
+      scoreAvailable: score.scoreAvailable,
+      attemptedCount: score.attemptedCount,
+    });
     onComplete?.();
   }, [showResults, score, onResultsReady, onComplete]);
 
   const recordOutcome = useCallback(
     (item: PracticeSetItem, res: SubmitPracticeAttemptResponse) => {
-      if (typeof res.isCorrect !== "boolean") return;
-      const key = itemKey(item.contentType, item.contentId);
+      const key = practiceItemKey(item.contentType, item.contentId);
       setOutcomes((prev) => ({
         ...prev,
         [key]: {
           contentType: item.contentType,
           contentId: item.contentId,
-          isCorrect: res.isCorrect,
+          attempted: true,
+          ...(typeof res.isCorrect === "boolean" ? { isCorrect: res.isCorrect } : {}),
         },
       }));
     },
@@ -273,18 +309,26 @@ export function PracticeRunner({
   if (items.length === 0) return null;
 
   if (showResults) {
-    const { correctCount, total } = score;
+    const { correctCount, total, scoreAvailable } = score;
     return (
       <div className="fp-complete" data-testid="practice-complete-card">
         <p className="fp-complete__eyebrow">Practice complete</p>
         <h2>You completed {total} question{total === 1 ? "" : "s"}.</h2>
-        <p className="fp-complete__score-label">Score</p>
-        <p className="fp-complete__score" data-testid="practice-complete-score">
-          {correctCount} / {total}
-        </p>
-        <p className="fp-complete__copy" data-testid="practice-complete-copy">
-          {scoreCopy(correctCount, total)}
-        </p>
+        {scoreAvailable ? (
+          <>
+            <p className="fp-complete__score-label">Score</p>
+            <p className="fp-complete__score" data-testid="practice-complete-score">
+              {correctCount} / {total}
+            </p>
+            <p className="fp-complete__copy" data-testid="practice-complete-copy">
+              {scoreCopy(correctCount, total)}
+            </p>
+          </>
+        ) : (
+          <p className="fp-complete__copy" data-testid="practice-complete-copy">
+            All {total} questions completed. A score is unavailable for some earlier answers.
+          </p>
+        )}
         <div className="fp-complete__actions">
           <button
             type="button"
