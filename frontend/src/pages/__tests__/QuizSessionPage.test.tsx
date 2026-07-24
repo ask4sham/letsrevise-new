@@ -33,7 +33,6 @@ jest.mock("../../components/practice/PracticeRunner", () => ({
     initialIndex?: number;
   }) => {
     const start = Math.max(0, Number(initialIndex) || 0);
-    const shown = start + 1;
     return (
       <div
         data-testid="practice-runner"
@@ -41,7 +40,6 @@ jest.mock("../../components/practice/PracticeRunner", () => ({
         data-teacher-id={teacherId || ""}
         data-initial-index={String(start)}
       >
-        Question {shown} of {items.length}
         <ul>
           {items.map((it) => (
             <li key={it.contentId}>{it.contentId}</li>
@@ -102,11 +100,12 @@ describe("QuizSessionPage practiceSetId resume", () => {
       teacherId: TEACHER_ID,
     });
 
-    renderQuiz(
-      `?practiceSetId=${SET_ID}&fresh=1&limit=5&idempotencyKey=k1&lessonId=${LESSON_ID}`
-    );
+    renderQuiz(`?practiceSetId=${SET_ID}&fresh=1&limit=5&lessonId=${LESSON_ID}`);
 
-    expect(await screen.findByText("Question 1 of 5")).toBeInTheDocument();
+    expect(await screen.findByTestId("focused-practice-header")).toBeInTheDocument();
+    expect(screen.getByTestId("focused-practice-progress-label")).toHaveTextContent(
+      "Question 1 of 5"
+    );
     expect(screen.queryByText(/Link to a teacher/i)).not.toBeInTheDocument();
     expect(screen.getByText("← Back to lesson")).toBeInTheDocument();
     expect(getSet).toHaveBeenCalledWith(SET_ID);
@@ -115,6 +114,31 @@ describe("QuizSessionPage practiceSetId resume", () => {
     const runner = screen.getByTestId("practice-runner");
     expect(runner).toHaveAttribute("data-practice-set-id", SET_ID);
     expect(runner).toHaveAttribute("data-teacher-id", TEACHER_ID);
+  });
+
+  test("focused practice header, human title, resume copy, no new-questions label", async () => {
+    getSet.mockResolvedValue({
+      practiceSetId: SET_ID,
+      items: fiveItems,
+      selectedCount: 5,
+      teacherId: TEACHER_ID,
+      lessonId: LESSON_ID,
+    });
+
+    renderQuiz(
+      `?practiceSetId=${SET_ID}&fresh=1&limit=5&lessonId=${LESSON_ID}&startIndex=1`
+    );
+
+    expect(await screen.findByTestId("focused-practice-header")).toBeInTheDocument();
+    expect(screen.getByText("Focused practice")).toBeInTheDocument();
+    expect(screen.getByTestId("focused-practice-title")).toHaveTextContent(
+      /Sexual & Asexual Reproduction Differences/i
+    );
+    expect(screen.getByTestId("focused-practice-copy")).toHaveTextContent(
+      "Continue where you left off."
+    );
+    expect(screen.queryByText(/new questions available/i)).toBeNull();
+    expect(screen.queryByText("Try another set")).toBeNull();
   });
 
   test("startIndex query begins runner at first unanswered question", async () => {
@@ -133,7 +157,15 @@ describe("QuizSessionPage practiceSetId resume", () => {
       `?practiceSetId=${SET_ID}&fresh=1&limit=5&lessonId=${LESSON_ID}&startIndex=1`
     );
 
-    expect(await screen.findByText("Question 2 of 5")).toBeInTheDocument();
+    expect(await screen.findByTestId("focused-practice-progress-label")).toHaveTextContent(
+      "Question 2 of 5"
+    );
+    expect(screen.getByTestId("focused-practice-remaining")).toHaveTextContent(
+      "4 questions remaining"
+    );
+    const bar = screen.getByTestId("focused-practice-progress-bar");
+    expect(bar).toHaveAttribute("aria-valuenow", "2");
+    expect(bar).toHaveAttribute("aria-valuemax", "5");
     expect(screen.getByTestId("practice-runner")).toHaveAttribute("data-initial-index", "1");
     expect(generate).not.toHaveBeenCalled();
   });
@@ -152,7 +184,9 @@ describe("QuizSessionPage practiceSetId resume", () => {
 
     renderQuiz(`?practiceSetId=${SET_ID}&fresh=1&limit=5`);
 
-    expect(await screen.findByText("Question 1 of 5")).toBeInTheDocument();
+    expect(await screen.findByTestId("focused-practice-progress-label")).toHaveTextContent(
+      "Question 1 of 5"
+    );
     const back = screen.getByText("← Back to lesson");
     expect(back).toHaveAttribute("href", `/lesson/${LESSON_ID}`);
   });
@@ -169,14 +203,18 @@ describe("QuizSessionPage practiceSetId resume", () => {
     });
 
     const { unmount } = renderQuiz(`?practiceSetId=${SET_ID}&fresh=1&limit=5`);
-    expect(await screen.findByText("Question 1 of 5")).toBeInTheDocument();
+    expect(await screen.findByTestId("focused-practice-progress-label")).toHaveTextContent(
+      "Question 1 of 5"
+    );
     expect(screen.getByText("q1")).toBeInTheDocument();
     expect(getSet).toHaveBeenCalled();
     const callsAfterFirstMount = getSet.mock.calls.length;
     unmount();
 
     renderQuiz(`?practiceSetId=${SET_ID}&fresh=1&limit=5`);
-    expect(await screen.findByText("Question 1 of 5")).toBeInTheDocument();
+    expect(await screen.findByTestId("focused-practice-progress-label")).toHaveTextContent(
+      "Question 1 of 5"
+    );
     const ids = screen.getAllByRole("listitem").map((el) => el.textContent);
     expect(ids).toEqual(["q1", "q2", "q3", "q4", "q5"]);
     expect(getSet.mock.calls.length).toBeGreaterThan(callsAfterFirstMount);
@@ -213,6 +251,19 @@ describe("QuizSessionPage practiceSetId resume", () => {
     expect(await screen.findByText("This practice set is no longer available.")).toBeInTheDocument();
     expect(screen.queryByText(/Link to a teacher/i)).not.toBeInTheDocument();
     expect(screen.getByText("← Back to lesson")).toBeInTheDocument();
+  });
+
+  test("focused shell uses centred max-width container", async () => {
+    getSet.mockResolvedValue({
+      practiceSetId: SET_ID,
+      items: fiveItems,
+      teacherId: TEACHER_ID,
+      lessonId: LESSON_ID,
+    });
+    renderQuiz(`?practiceSetId=${SET_ID}&fresh=1&lessonId=${LESSON_ID}`);
+    const shell = await screen.findByTestId("focused-practice-shell");
+    expect(shell).toBeInTheDocument();
+    expect(shell.innerHTML).toMatch(/max-w-\[960px\]/);
   });
 });
 
@@ -265,7 +316,9 @@ describe("QuizSessionPage no practiceSetId (dashboard)", () => {
         expect.objectContaining({ teacherId: TEACHER_ID })
       );
     });
-    expect(await screen.findByText("Question 1 of 2")).toBeInTheDocument();
+    expect(await screen.findByTestId("focused-practice-progress-label")).toHaveTextContent(
+      "Question 1 of 2"
+    );
     expect(getDash).toHaveBeenCalled();
   });
 });

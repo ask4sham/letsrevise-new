@@ -1,0 +1,57 @@
+/**
+ * @jest-environment jsdom
+ */
+import React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { PracticeItemCard } from "./PracticeItemCard";
+
+const item = {
+  contentType: "quiz_mcq" as const,
+  contentId: "q1",
+  topicKey: "edexcel-igcse-biology:sexual-and-asexual-reproduction-differences",
+  prompt: "Which comparison is correct?",
+  choices: [
+    "Option A long text for wrapping",
+    "Option B long text for wrapping",
+    "Option C long text for wrapping",
+    "Option D long text for wrapping",
+  ],
+  metadata: { skill: "application", estimatedTimeSec: 55 },
+};
+
+describe("PracticeItemCard", () => {
+  test("renders stacked selectable answer options with skill and time", () => {
+    render(<PracticeItemCard item={item} />);
+    expect(screen.getByTestId("practice-skill-chip")).toHaveTextContent("APPLY");
+    expect(screen.getByTestId("practice-time-estimate")).toHaveTextContent("About 55 seconds");
+    expect(screen.getByText("Choose one answer")).toBeInTheDocument();
+    const group = screen.getByTestId("practice-answer-options");
+    expect(group).toHaveAttribute("role", "radiogroup");
+    expect(screen.getAllByRole("radio")).toHaveLength(4);
+  });
+
+  test("selected answer exposes selected state", () => {
+    const onSelect = jest.fn();
+    render(
+      <PracticeItemCard item={item} selectedChoiceIndex={1} onSelectChoice={onSelect} />
+    );
+    expect(screen.getByTestId("practice-answer-option-1")).toHaveAttribute(
+      "data-selected",
+      "true"
+    );
+    expect(screen.getByTestId("practice-answer-option-1")).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+    fireEvent.click(screen.getByTestId("practice-answer-option-2"));
+    expect(onSelect).toHaveBeenCalledWith(2);
+  });
+
+  test("does not expose correctness before submission", () => {
+    render(<PracticeItemCard item={item} selectedChoiceIndex={0} />);
+    expect(screen.queryByText(/^Correct$/i)).toBeNull();
+    expect(screen.queryByText(/incorrect/i)).toBeNull();
+    expect(screen.queryByText(/mark scheme/i)).toBeNull();
+    expect(screen.queryByText(/Answer saved/i)).toBeNull();
+  });
+});
