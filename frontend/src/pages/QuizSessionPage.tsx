@@ -31,10 +31,15 @@ function normalizeTopicKey(topicKey: string, specKey: string): string {
   return `${specKey}:${k}`;
 }
 
-function topicKeyToTitle(topicKey: string): string {
+/** Human-readable topic leaf for student-facing headers. */
+export function topicKeyToTitle(topicKey: string): string {
   const last = (topicKey || "").split(":");
   const leaf = last[last.length - 1];
-  return leaf ? leaf.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : topicKey || "";
+  if (!leaf) return topicKey || "";
+  return leaf
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bAnd\b/g, "&");
 }
 
 function practiceSetLoadErrorMessage(e: unknown): string {
@@ -46,6 +51,31 @@ function practiceSetLoadErrorMessage(e: unknown): string {
     return "This practice set is no longer available.";
   }
   return getApiClientErrorMessage(e, "Failed to load practice set");
+}
+
+function FocusedPracticeShell({
+  backLessonId,
+  children,
+}: {
+  backLessonId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="min-h-[70vh] bg-slate-50"
+      data-testid="focused-practice-shell"
+    >
+      <div className="mx-auto w-full max-w-[960px] px-4 py-6 sm:px-6 sm:py-10">
+        <Link
+          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
+          className="inline-flex items-center text-sm font-semibold text-indigo-700 hover:text-indigo-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded"
+        >
+          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
+        </Link>
+        <div className="mt-5">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 export default function QuizSessionPage() {
@@ -60,12 +90,7 @@ export default function QuizSessionPage() {
   const [lessonIdFromSet, setLessonIdFromSet] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [freshMeta, setFreshMeta] = useState<{
-    requestedCount: number;
-    availableFreshCount: number;
-    selectedCount: number;
-    allQuestionsFresh: boolean;
-  } | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
   const loadGenRef = useRef(0);
 
   const topicKey = topicKeyParam || "";
@@ -77,6 +102,7 @@ export default function QuizSessionPage() {
   const idempotencyKeyParam = searchParams.get("idempotencyKey") || "";
   const startIndexParam = Math.max(0, parseInt(searchParams.get("startIndex") || "0", 10) || 0);
   const activePracticeSetId = loadedPracticeSetId || practiceSetIdParam || null;
+  const topicTitle = topicKeyToTitle(topicKey);
 
   const load = useCallback(async () => {
     if (!topicKey) return;
@@ -100,13 +126,7 @@ export default function QuizSessionPage() {
         setLoadedPracticeSetId(String(res.practiceSetId || practiceSetIdParam));
         if (res.lessonId) setLessonIdFromSet(String(res.lessonId));
         setItems(res.items || []);
-        const selected = res.selectedCount ?? (res.items || []).length;
-        setFreshMeta({
-          requestedCount: res.requestedCount ?? selected,
-          availableFreshCount: res.availableFreshCount ?? selected,
-          selectedCount: selected,
-          allQuestionsFresh: res.allQuestionsFresh !== false,
-        });
+        setActiveIndex(startIndexParam);
         return;
       }
 
@@ -160,13 +180,8 @@ export default function QuizSessionPage() {
 
       const selected = res.selectedCount ?? (res.items || []).length;
       setItems(res.items || []);
+      setActiveIndex(0);
       if (res.practiceSetId) setLoadedPracticeSetId(String(res.practiceSetId));
-      setFreshMeta({
-        requestedCount: res.requestedCount ?? (freshMode ? limitParam : 10),
-        availableFreshCount: res.availableFreshCount ?? selected,
-        selectedCount: selected,
-        allQuestionsFresh: !!res.allQuestionsFresh,
-      });
 
       if (res.practiceSetId) {
         const next = new URLSearchParams(searchParams);
@@ -195,6 +210,7 @@ export default function QuizSessionPage() {
     lessonIdParam,
     limitParam,
     idempotencyKeyParam,
+    startIndexParam,
     searchParams,
     setSearchParams,
   ]);
@@ -204,121 +220,39 @@ export default function QuizSessionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicKey, practiceSetIdParam, freshMode, lessonIdParam, limitParam, idempotencyKeyParam]);
 
-  const handleAnotherSet = useCallback(async () => {
-    if (!topicKey || loading) return;
-    const lessonForGenerate = backLessonId;
-    // Lesson-scoped another set: lessonId is enough (server resolves owner). Dashboard needs teacherId.
-    if (!lessonForGenerate && !teacherId) return;
-    setLoading(true);
-    setError(null);
-    const clientRequestId = newClientRequestId();
-    const idempotencyKey = createFreshPracticeIdempotencyKey({
-      topicKey,
-      lessonId: lessonForGenerate,
-      clientRequestId,
-    });
-    try {
-      const sk =
-        (topicKey.includes(":") ? topicKey.split(":")[0] : null) ||
-        DEFAULT_SPEC;
-      const nk = normalizeTopicKey(topicKey, sk);
-      const res = await runSingleFlight(idempotencyKey, () =>
-        generatePracticeSet({
-          teacherId: lessonForGenerate ? undefined : teacherId!,
-          specKey: sk,
-          topicKeys: [nk || topicKey],
-          limit: limitParam,
-          include: ["quiz_mcq", "quiz_short"],
-          excludeSeen: true,
-          lessonId: lessonForGenerate || undefined,
-          idempotencyKey,
-          source: "fresh-practice",
-        })
-      );
-      const selected = res.selectedCount ?? (res.items || []).length;
-      if (!res.practiceSetId || selected <= 0) {
-        setItems([]);
-        setLoadedPracticeSetId(null);
-        setFreshMeta({
-          requestedCount: res.requestedCount ?? limitParam,
-          availableFreshCount: 0,
-          selectedCount: 0,
-          allQuestionsFresh: true,
-        });
-        return;
-      }
-      if (res.teacherId) setTeacherId(String(res.teacherId));
-      if (res.lessonId) setLessonIdFromSet(String(res.lessonId));
-      setLoadedPracticeSetId(String(res.practiceSetId));
-      setItems(res.items || []);
-      setFreshMeta({
-        requestedCount: res.requestedCount ?? limitParam,
-        availableFreshCount: res.availableFreshCount ?? selected,
-        selectedCount: selected,
-        allQuestionsFresh: true,
-      });
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("practiceSetId", String(res.practiceSetId));
-          next.set("fresh", "1");
-          next.set("limit", String(selected));
-          next.set("idempotencyKey", idempotencyKey);
-          if (lessonForGenerate) next.set("lessonId", lessonForGenerate);
-          return next;
-        },
-        { replace: true }
-      );
-    } catch (e: unknown) {
-      setError(getApiClientErrorMessage(e, "Failed to load another set"));
-    } finally {
-      setLoading(false);
-    }
-  }, [teacherId, topicKey, limitParam, backLessonId, loading, setSearchParams]);
-
   const handleComplete = useCallback(() => {
     getStudentDashboard({ specKey: DEFAULT_SPEC }).catch(() => {});
+    // Existing behaviour: final question returns to the lesson (no in-page another-set gate).
     navigate(backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress", { replace: true });
   }, [navigate, backLessonId]);
 
+  const handleIndexChange = useCallback((index: number) => {
+    setActiveIndex(index);
+  }, []);
+
   if (!topicKey) {
     return (
-      <div className="max-w-2xl mx-auto p-4">
-        <Link to="/student/my-progress" className="text-indigo-600 hover:underline">
-          ← Back to Progress
-        </Link>
-        <p className="mt-4 text-red-600">Invalid topic. Topic key is required.</p>
-      </div>
+      <FocusedPracticeShell backLessonId="">
+        <p className="mt-4 text-rose-700">Invalid topic. Topic key is required.</p>
+      </FocusedPracticeShell>
     );
   }
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto p-4">
-        <Link
-          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
-          className="text-indigo-600 hover:underline"
-        >
-          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
-        </Link>
-        <p className="mt-4 text-gray-600">
+      <FocusedPracticeShell backLessonId={backLessonId}>
+        <p className="mt-2 text-slate-600">
           {freshMode ? "Preparing questions…" : "Loading quiz…"}
         </p>
-      </div>
+      </FocusedPracticeShell>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto p-4">
-        <Link
-          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
-          className="text-indigo-600 hover:underline"
-        >
-          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
-        </Link>
-        <div className="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg">
-          <p className="text-amber-800">{error}</p>
+      <FocusedPracticeShell backLessonId={backLessonId}>
+        <div className="mt-2 p-5 border border-amber-200 bg-amber-50 rounded-2xl">
+          <p className="text-amber-900">{error}</p>
           <button
             type="button"
             className="mt-3 text-sm font-semibold text-indigo-700 hover:underline"
@@ -330,21 +264,15 @@ export default function QuizSessionPage() {
             Try again
           </button>
         </div>
-      </div>
+      </FocusedPracticeShell>
     );
   }
 
   if (items.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto p-4">
-        <Link
-          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
-          className="text-indigo-600 hover:underline"
-        >
-          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
-        </Link>
-        <div className="mt-4 p-4 border border-gray-200 rounded-lg">
-          <p className="text-gray-700">
+      <FocusedPracticeShell backLessonId={backLessonId}>
+        <div className="mt-2 p-5 border border-slate-200 bg-white rounded-2xl shadow-sm">
+          <p className="text-slate-700">
             {freshMode
               ? "No new questions available. Review your practice on the lesson."
               : "No quiz questions available for this topic yet."}
@@ -352,59 +280,83 @@ export default function QuizSessionPage() {
           {backLessonId ? (
             <Link
               to={`/lesson/${backLessonId}`}
-              className="inline-block mt-3 text-indigo-600 hover:underline text-sm font-semibold"
+              className="inline-block mt-3 text-indigo-700 hover:underline text-sm font-semibold"
             >
               Review your practice
             </Link>
           ) : null}
         </div>
-      </div>
+      </FocusedPracticeShell>
     );
   }
 
-  const showFreshLabel =
-    freshMode &&
-    freshMeta?.allQuestionsFresh &&
-    (freshMeta.selectedCount ?? items.length) > 0;
+  const total = items.length;
+  const questionNumber = Math.min(activeIndex + 1, total);
+  // Includes the current unanswered item (Q2 of 5 → 4 remaining).
+  const remaining = Math.max(0, total - activeIndex);
+  const progressPct = total > 0 ? Math.round((questionNumber / total) * 100) : 0;
+  // Resume CTA omits idempotencyKey; newly generated fresh sets include one.
+  const isResumeSession = Boolean(practiceSetIdParam) && !idempotencyKeyParam;
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <Link
-          to={backLessonId ? `/lesson/${backLessonId}` : "/student/my-progress"}
-          className="text-indigo-600 hover:underline"
-        >
-          {backLessonId ? "← Back to lesson" : "← Back to Progress"}
-        </Link>
-        <span className="text-sm text-gray-500">{topicKeyToTitle(topicKey)}</span>
-      </div>
-      {showFreshLabel ? (
-        <p className="mb-3 text-sm font-semibold text-emerald-800">
-          {items.length} new question{items.length === 1 ? "" : "s"} available
-          {freshMeta && freshMeta.requestedCount > items.length
-            ? ` (${freshMeta.requestedCount} requested)`
-            : ""}
+    <FocusedPracticeShell backLessonId={backLessonId}>
+      <header
+        className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 shadow-sm mb-5"
+        data-testid="focused-practice-header"
+      >
+        <p className="text-xs font-bold tracking-[0.08em] text-indigo-700 uppercase mb-2">
+          Focused practice
         </p>
-      ) : null}
+        <h1
+          className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 leading-tight"
+          data-testid="focused-practice-title"
+        >
+          {topicTitle}
+        </h1>
+        <p
+          className="mt-2 text-sm text-slate-600"
+          data-testid="focused-practice-copy"
+        >
+          {isResumeSession
+            ? "Continue where you left off."
+            : "Practise this topic with a fresh set of questions."}
+        </p>
+
+        <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2">
+          <p
+            className="text-sm font-semibold text-slate-800"
+            data-testid="focused-practice-progress-label"
+          >
+            Question {questionNumber} of {total}
+          </p>
+          <p className="text-sm text-slate-500" data-testid="focused-practice-remaining">
+            {remaining} question{remaining === 1 ? "" : "s"} remaining
+          </p>
+        </div>
+        <div
+          className="mt-2 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={questionNumber}
+          aria-label={`Question ${questionNumber} of ${total}`}
+          data-testid="focused-practice-progress-bar"
+        >
+          <div
+            className="h-full rounded-full bg-indigo-600 transition-[width] duration-300"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </header>
+
       <PracticeRunner
         items={items}
         teacherId={teacherId!}
         practiceSetId={activePracticeSetId}
         initialIndex={practiceSetIdParam ? startIndexParam : 0}
+        onIndexChange={handleIndexChange}
         onComplete={handleComplete}
       />
-      {freshMode ? (
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={handleAnotherSet}
-            disabled={loading}
-            className="text-sm font-semibold text-indigo-700 hover:underline disabled:opacity-50"
-          >
-            Try another set
-          </button>
-        </div>
-      ) : null}
-    </div>
+    </FocusedPracticeShell>
   );
 }

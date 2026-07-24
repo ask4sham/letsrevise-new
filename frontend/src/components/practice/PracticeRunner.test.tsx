@@ -28,15 +28,11 @@ describe("PracticeRunner attempt payload", () => {
 
   test("includes practiceSetId when provided (frozen-set resume)", async () => {
     render(
-      <PracticeRunner
-        items={[item]}
-        teacherId="teacher-1"
-        practiceSetId="set-abc"
-      />
+      <PracticeRunner items={[item]} teacherId="teacher-1" practiceSetId="set-abc" />
     );
 
     fireEvent.click(screen.getByText("A"));
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
 
     await waitFor(() => {
       expect(submit).toHaveBeenCalledWith(
@@ -55,7 +51,7 @@ describe("PracticeRunner attempt payload", () => {
     render(<PracticeRunner items={[item]} teacherId="teacher-1" />);
 
     fireEvent.click(screen.getByText("A"));
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
 
     await waitFor(() => {
       expect(submit).toHaveBeenCalled();
@@ -63,6 +59,28 @@ describe("PracticeRunner attempt payload", () => {
     const payload = submit.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.practiceSetId).toBeUndefined();
     expect(payload.teacherId).toBe("teacher-1");
+  });
+
+  test("Check answer disabled before selection and enabled after", () => {
+    render(<PracticeRunner items={[item]} teacherId="teacher-1" practiceSetId="set-1" />);
+    const check = screen.getByTestId("practice-check-answer");
+    expect(check).toBeDisabled();
+    fireEvent.click(screen.getByText("A"));
+    expect(check).not.toBeDisabled();
+  });
+
+  test("successful save exposes Next question", async () => {
+    const items = [
+      { ...item, contentId: "a", prompt: "Q1" },
+      { ...item, contentId: "b", prompt: "Q2" },
+    ];
+    render(
+      <PracticeRunner items={items} teacherId="teacher-1" practiceSetId="set-1" />
+    );
+    fireEvent.click(screen.getByText("A"));
+    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(await screen.findByTestId("practice-next")).toHaveTextContent("Next question");
+    expect(screen.getByTestId("practice-saved-panel")).toBeInTheDocument();
   });
 
   test("initialIndex starts on first unanswered item", () => {
@@ -74,7 +92,9 @@ describe("PracticeRunner attempt payload", () => {
     render(
       <PracticeRunner items={items} teacherId="teacher-1" practiceSetId="set-1" initialIndex={1} />
     );
-    expect(screen.getByText(/Question 2 of 3/i)).toBeInTheDocument();
+    expect(screen.getByTestId("practice-runner-progress")).toHaveTextContent(
+      "Question 2 of 3"
+    );
     expect(screen.getByText("Q2")).toBeInTheDocument();
   });
 
@@ -86,7 +106,18 @@ describe("PracticeRunner attempt payload", () => {
     render(
       <PracticeRunner items={items} teacherId="teacher-1" practiceSetId="set-1" initialIndex={0} />
     );
-    expect(screen.getByText(/Question 1 of 2/i)).toBeInTheDocument();
+    expect(screen.getByTestId("practice-runner-progress")).toHaveTextContent(
+      "Question 1 of 2"
+    );
     expect(screen.getByText("Q1")).toBeInTheDocument();
+  });
+
+  test("last question uses Finish practice label after save", async () => {
+    render(
+      <PracticeRunner items={[item]} teacherId="teacher-1" practiceSetId="set-1" />
+    );
+    fireEvent.click(screen.getByText("A"));
+    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(await screen.findByTestId("practice-next")).toHaveTextContent("Finish practice");
   });
 });

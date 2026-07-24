@@ -13,6 +13,8 @@ export type PracticeRunnerProps = {
   practiceSetId?: string | null;
   /** First unanswered index when resuming a partial set (frozen order). */
   initialIndex?: number;
+  /** Notify parent for progress UI (0-based). */
+  onIndexChange?: (index: number) => void;
   onComplete?: () => void;
   onLinkError?: (message: string) => void;
 };
@@ -30,6 +32,7 @@ export function PracticeRunner({
   teacherId,
   practiceSetId,
   initialIndex = 0,
+  onIndexChange,
   onComplete,
   onLinkError,
 }: PracticeRunnerProps) {
@@ -41,14 +44,20 @@ export function PracticeRunner({
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    setIndex(clampStartIndex(initialIndex, items.length));
+    const next = clampStartIndex(initialIndex, items.length);
+    setIndex(next);
     setSaved(false);
     setError(null);
     setMcqSelection(null);
   }, [initialIndex, items]);
 
+  useEffect(() => {
+    onIndexChange?.(index);
+  }, [index, onIndexChange]);
+
   const currentItem = index >= 0 && index < items.length ? items[index] : null;
   const isComplete = items.length > 0 && index >= items.length;
+  const isLast = index + 1 >= items.length;
 
   useEffect(() => {
     startTimeRef.current = Date.now();
@@ -128,22 +137,40 @@ export function PracticeRunner({
     }
   }, [index, items.length, onComplete]);
 
+  const resetAnswer = useCallback(() => {
+    if (saved || submitting) return;
+    setMcqSelection(null);
+    setError(null);
+  }, [saved, submitting]);
+
   if (items.length === 0) return null;
 
   if (isComplete) {
     return (
-      <div className="border rounded-lg p-6 bg-green-50">
-        <h2 className="text-lg font-semibold mb-2">Practice complete</h2>
-        <p className="text-gray-700">You’ve answered all {items.length} questions. Attempts have been saved.</p>
+      <div
+        className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8"
+        data-testid="practice-complete-card"
+      >
+        <h2 className="text-xl font-bold text-emerald-900 mb-2">Practice complete</h2>
+        <p className="text-emerald-800">
+          You completed {items.length} question{items.length === 1 ? "" : "s"}.
+        </p>
       </div>
     );
   }
 
+  const isMcq =
+    currentItem?.contentType === "quiz_mcq" &&
+    Array.isArray(currentItem.choices) &&
+    currentItem.choices.length > 0;
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500">
+    <div className="space-y-4" data-testid="practice-runner">
+      {/* Screen-reader + test-friendly progress echo (visual progress lives in page header). */}
+      <p className="sr-only" data-testid="practice-runner-progress">
         Question {index + 1} of {items.length}
       </p>
+
       <PracticeItemCard
         item={currentItem!}
         selectedChoiceIndex={mcqSelection ?? undefined}
@@ -152,29 +179,55 @@ export function PracticeRunner({
         submitted={saved}
         disabled={submitting}
       />
-      {currentItem?.contentType === "quiz_mcq" && (
-        <button
-          type="button"
-          onClick={() => mcqSelection !== null && handleSubmitMcq(mcqSelection)}
-          disabled={submitting || mcqSelection === null}
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+
+      {isMcq && !saved ? (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={() => mcqSelection !== null && handleSubmitMcq(mcqSelection)}
+            disabled={submitting || mcqSelection === null}
+            data-testid="practice-check-answer"
+            className="inline-flex justify-center items-center px-5 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:opacity-45 disabled:cursor-not-allowed"
+          >
+            {submitting ? "Saving…" : "Check answer"}
+          </button>
+          <button
+            type="button"
+            onClick={resetAnswer}
+            disabled={submitting || mcqSelection === null}
+            data-testid="practice-reset-answer"
+            className="inline-flex justify-center items-center px-5 py-3 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:opacity-45 disabled:cursor-not-allowed"
+          >
+            Reset answer
+          </button>
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      {saved ? (
+        <div
+          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 sm:px-5"
+          data-testid="practice-saved-panel"
         >
-          {submitting ? "Saving…" : "Submit answer"}
-        </button>
-      )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {saved && (
-        <div className="flex items-center gap-2">
-          <span className="text-green-600 font-medium">Saved ✓</span>
+          <p className="text-emerald-900 font-semibold mb-3">Answer saved</p>
+          <p className="text-sm text-emerald-800 mb-4">
+            Your attempt has been recorded. Continue when you are ready.
+          </p>
           <button
             type="button"
             onClick={goNext}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            data-testid="practice-next"
+            className="inline-flex justify-center items-center px-5 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
           >
-            Next
+            {isLast ? "Finish practice" : "Next question"}
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
