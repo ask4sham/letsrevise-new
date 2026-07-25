@@ -70,7 +70,9 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(true);
+    expect(res.body.attemptId).toBeTruthy();
 
     const doc = await PracticeAttempt.findOne({ studentId, contentId });
     expect(doc).toBeTruthy();
@@ -86,6 +88,7 @@ describe("POST /api/practice-attempts", () => {
       questionText: "What is a cell?",
       choices: ["A", "B", "C"],
       correctIndex: 1,
+      explanation: "A cell is the basic unit of life.",
       status: "published",
       kind: "quiz",
       fingerprint: "slice3-mcq-correct-1",
@@ -105,6 +108,11 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(true);
+    expect(res.body.correctChoiceIndex).toBe(1);
+    expect(res.body.explanation).toBe("A cell is the basic unit of life.");
+    expect(res.body.attemptId).toBeTruthy();
 
     const doc = await PracticeAttempt.findOne({ studentId, contentId: mcq._id });
     expect(doc).toBeTruthy();
@@ -137,6 +145,10 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(false);
+    expect(res.body.correctChoiceIndex).toBe(0);
+    expect(res.body.attemptId).toBeTruthy();
 
     const doc = await PracticeAttempt.findOne({ studentId, contentId: mcq._id });
     expect(doc).toBeTruthy();
@@ -199,6 +211,262 @@ describe("POST /api/practice-attempts", () => {
     await User.deleteOne({ _id: otherTeacher._id });
   });
 
+  describe("no-link PracticeSet item-level authorisation", () => {
+    const PracticeSet = require("../models/PracticeSet");
+    let lessonTeacher;
+    let setItemId;
+    let practiceSetId;
+    const TOPIC = "aqa-gcse-biology:cell-structure";
+
+    beforeAll(async () => {
+      lessonTeacher = await User.create({
+        email: "lesson-owner-item-auth@test.com",
+        password: await bcrypt.hash("Pass123!", 10),
+        firstName: "L",
+        lastName: "Owner",
+        userType: "teacher",
+      });
+      setItemId = new mongoose.Types.ObjectId();
+      const set = await PracticeSet.create({
+        studentId,
+        teacherId: lessonTeacher._id,
+        specKey: "aqa-gcse-biology",
+        topicKeys: [TOPIC],
+        items: [
+          {
+            contentType: "exam_question",
+            contentId: setItemId,
+            topicKey: TOPIC,
+          },
+        ],
+        source: "fresh-practice",
+      });
+      practiceSetId = set._id;
+    });
+
+    afterAll(async () => {
+      await PracticeSet.deleteMany({ teacherId: lessonTeacher._id });
+      await User.deleteOne({ _id: lessonTeacher._id });
+    });
+
+    test("owns exact set and item → attempt succeeds", async () => {
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: setItemId.toString(),
+          isCorrect: true,
+          practiceSetId: practiceSetId.toString(),
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.isCorrect).toBe(true);
+      expect(res.body.attemptId).toBeTruthy();
+      const doc = await PracticeAttempt.findOne({ studentId, contentId: setItemId }).sort({ createdAt: -1 });
+      expect(String(doc.teacherId)).toBe(String(lessonTeacher._id));
+      expect(String(doc.practiceSetId)).toBe(String(practiceSetId));
+    });
+
+    test("contentId outside the owned set → 403", async () => {
+      const outsideId = new mongoose.Types.ObjectId();
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: outsideId.toString(),
+          isCorrect: true,
+          practiceSetId: practiceSetId.toString(),
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toMatch(/access|practice/i);
+    });
+
+    test("correct ObjectId but wrong contentType → 403", async () => {
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "quiz_mcq",
+          contentId: setItemId.toString(),
+          selectedChoiceIndex: 0,
+          practiceSetId: practiceSetId.toString(),
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toMatch(/access|practice/i);
+    });
+
+    test("owns another set under same teacher — unrelated item still rejected", async () => {
+      const otherItemId = new mongoose.Types.ObjectId();
+      const otherSet = await PracticeSet.create({
+        studentId,
+        teacherId: lessonTeacher._id,
+        specKey: "aqa-gcse-biology",
+        topicKeys: [TOPIC],
+        items: [
+          {
+            contentType: "exam_question",
+            contentId: otherItemId,
+            topicKey: TOPIC,
+          },
+        ],
+        source: "fresh-practice",
+      });
+
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: otherItemId.toString(),
+          isCorrect: true,
+          practiceSetId: practiceSetId.toString(), // first set, not otherSet
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(403);
+
+      await PracticeSet.deleteOne({ _id: otherSet._id });
+    });
+
+    test("another student’s practiceSetId → 403", async () => {
+      const pw = await bcrypt.hash("Pass123!", 10);
+      const otherStudent = await User.create({
+        email: `other-set-owner-${Date.now()}@test.com`,
+        password: pw,
+        firstName: "O",
+        lastName: "Student",
+        userType: "student",
+      });
+      const foreignItem = new mongoose.Types.ObjectId();
+      const foreignSet = await PracticeSet.create({
+        studentId: otherStudent._id,
+        teacherId: lessonTeacher._id,
+        specKey: "aqa-gcse-biology",
+        topicKeys: [TOPIC],
+        items: [
+          {
+            contentType: "exam_question",
+            contentId: foreignItem,
+            topicKey: TOPIC,
+          },
+        ],
+      });
+
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: foreignItem.toString(),
+          isCorrect: true,
+          practiceSetId: foreignSet._id.toString(),
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(403);
+
+      await PracticeSet.deleteOne({ _id: foreignSet._id });
+      await User.deleteOne({ _id: otherStudent._id });
+    });
+
+    test("forged/nonexistent practiceSetId → 403", async () => {
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: setItemId.toString(),
+          isCorrect: true,
+          practiceSetId: new mongoose.Types.ObjectId().toString(),
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(403);
+    });
+
+    test("missing practiceSetId on no-link path → 403", async () => {
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: setItemId.toString(),
+          isCorrect: true,
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toMatch(/link|teacher|add you/i);
+    });
+
+    test("malformed practiceSetId → 400", async () => {
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: setItemId.toString(),
+          isCorrect: true,
+          practiceSetId: "not-an-object-id",
+          teacherId: lessonTeacher._id.toString(),
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/Invalid practiceSetId/i);
+    });
+
+    test("client teacherId cannot override PracticeSet.teacherId", async () => {
+      const decoyTeacher = await User.create({
+        email: `decoy-teacher-${Date.now()}@test.com`,
+        password: await bcrypt.hash("Pass123!", 10),
+        firstName: "D",
+        lastName: "Decoy",
+        userType: "teacher",
+      });
+
+      const res = await request(app)
+        .post("/api/practice-attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          specKey: "aqa-gcse-biology",
+          topicKey: TOPIC,
+          contentType: "exam_question",
+          contentId: setItemId.toString(),
+          isCorrect: true,
+          practiceSetId: practiceSetId.toString(),
+          teacherId: decoyTeacher._id.toString(),
+        });
+      expect(res.status).toBe(200);
+
+      const doc = await PracticeAttempt.findOne({
+        studentId,
+        contentId: setItemId,
+        teacherId: lessonTeacher._id,
+      }).sort({ createdAt: -1 });
+      expect(doc).toBeTruthy();
+      expect(String(doc.teacherId)).toBe(String(lessonTeacher._id));
+      expect(String(doc.teacherId)).not.toBe(String(decoyTeacher._id));
+
+      await User.deleteOne({ _id: decoyTeacher._id });
+    });
+  });
+
   test("with student-teacher link → success", async () => {
     const contentId = new mongoose.Types.ObjectId();
     const res = await request(app)
@@ -213,7 +481,9 @@ describe("POST /api/practice-attempts", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBe(true);
+    expect(res.body.isCorrect).toBe(true);
+    expect(res.body.attemptId).toBeTruthy();
   });
 
   test("rejects bad specKey", async () => {

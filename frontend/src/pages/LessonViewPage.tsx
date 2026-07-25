@@ -65,6 +65,11 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
 import {
+  markLocalPracticeAnswered,
+  getLocalAnsweredPracticeIds,
+} from "../utils/lessonPracticeProgress";
+import { resolveAuthUserId } from "../utils/revisionQuizCompletion";
+import {
   makeAbsoluteAssetUrl,
   preprocessMarkdownAssetUrls,
   resolveUploadedDiagramImageSrc,
@@ -97,17 +102,15 @@ import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
 import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentModal";
-import { StudyPlanPanel } from "../components/ai/StudyPlanPanel";
 import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import { ReportIssueModal } from "../components/lesson/ReportIssueModal";
-import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
 import {
   getSpecKeyFromLesson,
   resolveLessonTopicKeyForBank,
   resolveLessonTopicKeyForBankFromLesson,
 } from "../utils/resolveLessonTopicKey";
-import { recordMastery, getMastery } from "../api/mastery";
+import { recordMastery } from "../api/mastery";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { updateUser } from "../utils/authStorage";
@@ -939,6 +942,7 @@ function PracticeMCQQuestion({
                           isCorrect,
                           confidence: conf,
                         });
+                        markLocalPracticeAnswered(lessonId, q.id);
                       }
                       setRecorded(true);
                     }}
@@ -1030,6 +1034,7 @@ function PracticeShortQuestion({
       isCorrect: isFullyCorrect,
       confidence,
     });
+    markLocalPracticeAnswered(lessonId, q.id);
     setRecorded(true);
   }, [lessonId, q.id, checked, confidence, recorded, answer, shortGrade, isFullyCorrect]);
 
@@ -1189,6 +1194,18 @@ function PracticeSection({
   const isEmptyBank = practiceSource === "bank" && practiceQuestions.length === 0;
   const isEmptyEmbedded = practiceSource === "embeddedAssessment" && practiceQuestions.length === 0;
   const browseUrl = topicKey ? `/browse-lessons?topicKey=${encodeURIComponent(topicKey)}` : "/browse-lessons";
+  const [answeredIds, setAnsweredIds] = useState<Set<string>>(() => getLocalAnsweredPracticeIds(lessonId));
+
+  useEffect(() => {
+    setAnsweredIds(getLocalAnsweredPracticeIds(lessonId));
+    const onAnswered = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail as { lessonId?: string; questionId?: string } | undefined;
+      if (detail?.lessonId && lessonId && detail.lessonId !== lessonId) return;
+      setAnsweredIds(getLocalAnsweredPracticeIds(lessonId));
+    };
+    window.addEventListener("lesson-practice-answered", onAnswered);
+    return () => window.removeEventListener("lesson-practice-answered", onAnswered);
+  }, [lessonId]);
 
   const rightLabel =
     practiceSource === "attached"
@@ -1283,15 +1300,18 @@ function PracticeSection({
             </div>
           ) : (
             <>
-              {displayQuestions.map((q, idx) => (
+              {displayQuestions.map((q, idx) => {
+                const answered = answeredIds.has(String(q.id));
+                return (
                 <div
                   key={q.id}
                   className="lesson-practice-question-card"
+                  data-practice-question-id={String(q.id)}
                   style={{
                     padding: 16,
                     borderRadius: 12,
                     border: "1px solid #e5e7eb",
-                    background: "#fafafa",
+                    background: answered ? "#f0fdf4" : "#fafafa",
                     marginBottom: 16,
                   }}
                 >
@@ -1316,7 +1336,8 @@ function PracticeSection({
                     />
                   )}
                 </div>
-              ))}
+                );
+              })}
               {hasMore && (
                 <p style={{ color: "#6b7280", marginTop: 8 }}>
                   Showing first {PRACTICE_DISPLAY_LIMIT} of {practiceQuestions.length} questions.
@@ -1720,10 +1741,6 @@ const LessonViewPage: React.FC = () => {
     }
   }, [showReviews]);
 
-  // PR — Adaptive Testing Loop: topic mastery for adaptive feedback
-  const [masteryData, setMasteryData] = useState<{ attempts: number; correct: number; masteryScore: number } | null>(null);
-
-
   // ✅ Only enable legacy reviews when lessonId is a Mongo ObjectId.
   const reviewsEnabled = isMongoObjectId(id);
   // Single source of truth for green CTA: "Rajiv – review the lesson" (never #NAME or placeholders)
@@ -1959,8 +1976,7 @@ const LessonViewPage: React.FC = () => {
 
   /**
    * Topic key for student AI tutor + topic summary: prefer bank resolution, then lesson.topicKey,
-   * then slug from lesson.topic / lesson.title so the tutor can show whenever specKey exists
-   * (parity with “Today’s study plan”, selling point on production).
+   * then slug from lesson.topic / lesson.title so the tutor can show whenever specKey exists.
    */
   const studentTutorTopicKey = useMemo(() => {
     if (topicKeyForBank) return topicKeyForBank;
@@ -1983,14 +1999,13 @@ const LessonViewPage: React.FC = () => {
     return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: candidate });
   }, [topicKeyForBank, lesson, specKey]);
 
-  // PR — Adaptive Testing Loop: handleQuestionAnswered and fetch mastery (must be after topicKeyForBank, hasStructuredPages, currentPage, etc.)
+  // Record topic mastery quietly after quiz answers (no duplicate green mastery card on the lesson page).
   const handleQuestionAnswered = useCallback(
     async (correct: boolean) => {
       const tk = topicKeyForBank;
       if (!tk || user?.userType !== "student") return;
       try {
-        const res = await recordMastery(tk, correct);
-        setMasteryData({ attempts: res.attempts, correct: res.correct, masteryScore: res.masteryScore });
+        await recordMastery(tk, correct);
       } catch (e) {
         if (process.env.NODE_ENV !== "production") {
           console.warn("[LessonViewPage] recordMastery failed:", e);
@@ -1999,21 +2014,6 @@ const LessonViewPage: React.FC = () => {
     },
     [topicKeyForBank, user?.userType]
   );
-
-  // Fetch initial mastery when student reaches last page (structured) or on legacy single-page view
-  useEffect(() => {
-    if (user?.userType !== "student" || !topicKeyForBank) return;
-    const isStructuredLastPage =
-      hasStructuredPages &&
-      currentPage &&
-      orderedPages.length > 0 &&
-      (orderedPages.length <= 1 || currentPageIndex === orderedPages.length - 1);
-    const isLegacySinglePage = !hasStructuredPages;
-    if (!isStructuredLastPage && !isLegacySinglePage) return;
-    getMastery(topicKeyForBank)
-      .then((res) => setMasteryData({ attempts: res.attempts, correct: res.correct, masteryScore: res.masteryScore }))
-      .catch(() => {});
-  }, [user?.userType, topicKeyForBank, hasStructuredPages, currentPage, orderedPages.length, currentPageIndex]);
 
   useEffect(() => {
     fetchLessonSmart();
@@ -5059,10 +5059,6 @@ const LessonViewPage: React.FC = () => {
                     suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
                   />
                 )}
-                {/* PR-038: Today's study plan — student only */}
-                {isStudent && specKey && (
-                  <StudyPlanPanel specKey={specKey} currentLessonId={id} />
-                )}
 
                 {/* Testing section: Quick Quiz, Practice papers, Practice questions, Flashcards — only after final page */}
                 {isLastPage && (
@@ -5081,6 +5077,12 @@ const LessonViewPage: React.FC = () => {
                       ? (correct) => handleQuestionAnswered(correct)
                       : undefined
                   }
+                  enableFreshPractice={isStudent}
+                  lessonId={id || undefined}
+                  pageId={currentPage?.pageId ? String(currentPage.pageId) : "END"}
+                  studentId={resolveAuthUserId(user)}
+                  specKey={specKey || undefined}
+                  topicKey={topicKeyForBank || studentTutorTopicKey || undefined}
                 />
                 {/* Page Quiz — skipped when an inline pageQuiz block already renders QuizView */}
                 {showFooterQuizSection && flowFooterOrdinals.quizPage != null && (
@@ -5146,24 +5148,6 @@ const LessonViewPage: React.FC = () => {
                     </>
                   )}
                 </Section>
-                )}
-
-                {/* PR — Adaptive Testing Loop: adaptive feedback based on quiz mastery */}
-                {isStudent && topicKeyForBank && masteryData && (
-                  <AdaptiveFeedbackCard
-                    masteryScore={masteryData.masteryScore}
-                    topicKey={topicKeyForBank}
-                    hasAttempts={masteryData.attempts > 0}
-                    onReviewFlashcards={() => {
-                      setShowFlashcards(true);
-                      setTimeout(() => flashcardsViewerRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-                    }}
-                    onTryMorePractice={() => setPracticeSeedCounter((c) => c + 1)}
-                    onReviewContent={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                    onShowDiagram={() => {
-                      document.getElementById("lesson-visual")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                  />
                 )}
 
                 {/* Lane B: Practice papers (full papers attached to lesson) */}
@@ -5473,6 +5457,7 @@ const LessonViewPage: React.FC = () => {
                     )}
                   </div>
                 </Section>
+
                 </>
                 )}
               </div>
@@ -6067,10 +6052,6 @@ const LessonViewPage: React.FC = () => {
             />
           </>
         )}
-        {/* PR-038: Today's study plan — student only */}
-        {isStudent && specKey && (
-          <StudyPlanPanel specKey={specKey} currentLessonId={id} />
-        )}
 
         {/* Page Quiz — gate on hasFullLessonAccess (legacy view, no pages) */}
         <Section title="Page Quiz" variant="card">
@@ -6102,24 +6083,6 @@ const LessonViewPage: React.FC = () => {
             </>
           )}
         </Section>
-
-        {/* PR — Adaptive Testing Loop: adaptive feedback (legacy view) */}
-        {isStudent && topicKeyForBank && masteryData && (
-          <AdaptiveFeedbackCard
-            masteryScore={masteryData.masteryScore}
-            topicKey={topicKeyForBank}
-            hasAttempts={masteryData.attempts > 0}
-            onReviewFlashcards={() => {
-              setShowFlashcards(true);
-              setTimeout(() => flashcardsViewerRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-            }}
-            onTryMorePractice={() => setPracticeSeedCounter((c) => c + 1)}
-            onReviewContent={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            onShowDiagram={() => {
-              document.getElementById("lesson-visual")?.scrollIntoView({ behavior: "smooth" });
-            }}
-          />
-        )}
 
         {/* Lane B: Practice papers (full papers attached to lesson) */}
         {attachedPapersSummaries.length > 0 && (

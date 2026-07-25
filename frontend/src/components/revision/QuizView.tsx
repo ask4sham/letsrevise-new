@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { ExplainMyMistakeButton } from "../ai/ExplainMyMistakeButton";
 import { AnswerFeedbackPanel } from "../lesson/AnswerFeedbackPanel";
+import { RevisionQuizResultCard } from "../lesson/RevisionQuizResultCard";
 import { buildMcqFeedback, gradeMcq, type McqGradeResult } from "../../utils/gradeMcq";
 import {
   gradeShortAnswer,
@@ -83,11 +84,71 @@ function getQuizMcqOptionStyle(
   return { background: "white", border: baseBorder, icon: null };
 }
 
+export type QuizCompletePayload = {
+  questionCount: number;
+  questionIds: string[];
+  /** Auto-gradable correct count shown on the live complete screen. */
+  score: number;
+  gradableCount: number;
+};
+
+/** Restored completion display. `score: null` = legacy unknown (do not show 0/N). */
+export type QuizRestoredResult = {
+  score: number | null;
+  questionCount: number;
+};
+
+function isAutoGradableCorrect(qu: QuizQuestion, answer: string | undefined): boolean {
+  if (qu.type === "mcq") {
+    const a = answer;
+    return !!(a && a.trim() === qu.correctAnswer.trim());
+  }
+  if (qu.type === "short") {
+    const a = (answer ?? "").toLowerCase();
+    const c = qu.correctAnswer.toLowerCase();
+    return !!(a && (a === c || a.includes(c) || c.includes(a)));
+  }
+  return false;
+}
+
+function computeAutoGradableScore(
+  questions: QuizQuestion[],
+  answers: Record<string, string>
+): { score: number; gradableCount: number } {
+  let score = 0;
+  let gradableCount = 0;
+  for (const qu of questions) {
+    if (qu.type === "mcq" || qu.type === "short") {
+      gradableCount += 1;
+      if (isAutoGradableCorrect(qu, answers[qu.id])) score += 1;
+    }
+  }
+  return { score, gradableCount };
+}
+
+/** First incorrect auto-gradable index, or 0 when none found. */
+function firstIncorrectQuestionIndex(
+  questions: QuizQuestion[],
+  answers: Record<string, string>
+): number {
+  for (let idx = 0; idx < questions.length; idx++) {
+    const qu = questions[idx];
+    if (qu.type !== "mcq" && qu.type !== "short") continue;
+    if (!isAutoGradableCorrect(qu, answers[qu.id])) return idx;
+  }
+  return 0;
+}
+
 export function QuizView({
   questions,
   title = "Quiz",
   onQuestionAnswered,
   onContinueLesson,
+  onQuizComplete,
+  onQuizReset,
+  initialComplete = false,
+  restoredResult = null,
+  completeExtra,
 }: {
   questions: QuizQuestion[];
   title?: string;
@@ -95,12 +156,23 @@ export function QuizView({
   onQuestionAnswered?: (correct: boolean) => void;
   /** Optional: called when student clicks "Continue lesson" on the completion screen. */
   onContinueLesson?: () => void;
+  /** Fired once when Finish quiz shows the Quiz complete result. */
+  onQuizComplete?: (payload: QuizCompletePayload) => void;
+  /** Fired when Retry quiz clears completion. */
+  onQuizReset?: () => void;
+  /** Restore Quiz complete screen after reload for the same question set. */
+  initialComplete?: boolean;
+  /** Saved score/count for honest restore (null score = omit numeric result). */
+  restoredResult?: QuizRestoredResult | null;
+  /** Rendered beneath Quiz complete actions (e.g. fresh-practice CTA). */
+  completeExtra?: React.ReactNode;
 }) {
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastGrade, setLastGrade] = useState<GradeShortAnswerResult | null>(null);
-  const [isQuizComplete, setIsQuizComplete] = useState(false);
+  const [isQuizComplete, setIsQuizComplete] = useState(() => !!initialComplete);
+  const completeFiredRef = useRef(!!initialComplete);
   const [helpExpanded, setHelpExpanded] = useState<boolean>(() => {
     // Load user preference from localStorage; default collapsed so question is prominent
     try {
@@ -155,23 +227,18 @@ export function QuizView({
     }
   }, [helpExpanded]);
 
-  const score = useMemo(() => {
-    let s = 0;
-    for (const qu of questions) {
-      if (qu.type === "mcq") {
-        const a = answers[qu.id];
-        if (a && a.trim() === qu.correctAnswer.trim()) s += 1;
-      } else if (qu.type === "short") {
-        // simple exact/contains check; you can upgrade later
-        const a = (answers[qu.id] ?? "").toLowerCase();
-        const c = qu.correctAnswer.toLowerCase();
-        if (a && (a === c || a.includes(c) || c.includes(a))) s += 1;
-      } else {
-        // exam questions are teacher/self-mark unless you add rubric scoring
-      }
+  useEffect(() => {
+    if (initialComplete) {
+      setIsQuizComplete(true);
+      completeFiredRef.current = true;
     }
-    return s;
-  }, [answers, questions]);
+  }, [initialComplete]);
+
+  const liveGraded = useMemo(
+    () => computeAutoGradableScore(questions, answers),
+    [answers, questions]
+  );
+  const score = liveGraded.score;
 
   const handleCheck = () => {
     if (q.type === "short") {
@@ -222,12 +289,33 @@ export function QuizView({
     setLastGrade(null);
     setI(0);
     setIsQuizComplete(false);
+    completeFiredRef.current = false;
+    onQuizReset?.();
+  };
+
+  /** Re-open the quiz on the first missed question without clearing answers or completion. */
+  const handleReviewMistakes = () => {
+    const idx = firstIncorrectQuestionIndex(questions, answers);
+    setI(idx);
+    setLastGrade(null);
+    setShowFeedback(true);
+    setIsQuizComplete(false);
   };
 
   const finishQuiz = () => {
     setShowFeedback(false);
     setLastGrade(null);
     setIsQuizComplete(true);
+    if (!completeFiredRef.current) {
+      completeFiredRef.current = true;
+      const graded = computeAutoGradableScore(questions, answers);
+      onQuizComplete?.({
+        questionCount: questions.length,
+        questionIds: questions.map((qu) => String(qu.id)),
+        score: graded.score,
+        gradableCount: graded.gradableCount,
+      });
+    }
   };
 
   const toggleHelp = () => {
@@ -260,22 +348,46 @@ export function QuizView({
 
   // End-of-quiz results screen
   if (isQuizComplete) {
-    const totalCorrect = score;
-    const totalGradable = questions.filter((qu) => qu.type === "mcq" || qu.type === "short").length;
+    const answeredAny = Object.keys(answers).some((k) => String(answers[k] || "").trim());
+    const totalGradableLive = liveGraded.gradableCount;
     const totalQuestions = questions.length;
+    // Prefer live answers when present; otherwise restored payload (null score = legacy unknown).
+    const scoreKnown = answeredAny
+      ? true
+      : restoredResult
+        ? restoredResult.score != null
+        : true;
+    const totalCorrect = answeredAny
+      ? liveGraded.score
+      : restoredResult?.score != null
+        ? restoredResult.score
+        : liveGraded.score;
+    const totalGradable = answeredAny
+      ? totalGradableLive > 0
+        ? totalGradableLive
+        : totalQuestions
+      : restoredResult?.questionCount && restoredResult.questionCount > 0
+        ? restoredResult.questionCount
+        : totalGradableLive > 0
+          ? totalGradableLive
+          : totalQuestions;
     const percentage =
-      totalGradable > 0
+      scoreKnown && totalGradable > 0
         ? Math.round((totalCorrect / totalGradable) * 100)
-        : totalQuestions > 0
-          ? Math.round((totalCorrect / totalQuestions) * 100)
-          : 0;
+        : 0;
+    const isPerfectScore =
+      scoreKnown && totalGradable > 0 && totalCorrect >= totalGradable;
+    // Perfect → forward (fresh set / continue). Partial → review + retry. Legacy unknown → continue only.
+    const showRetrySameQuiz = scoreKnown && !isPerfectScore;
+    const showReviewMistakes = showRetrySameQuiz && answeredAny;
     const message =
-      percentage >= 80
-        ? "Great work!"
-        : percentage >= 50
-          ? "Good effort."
-          : "Review this topic again.";
-
+      !scoreKnown
+        ? null
+        : isPerfectScore
+          ? "Great work!"
+          : percentage >= 50
+            ? "Good effort."
+            : "Review this topic again.";
     return (
       <div className="rounded-2xl border p-4">
         <h1 style={{ fontSize: 28, fontWeight: 900, margin: "6px 0 12px" }}>{title || "Quiz"}</h1>
@@ -289,39 +401,78 @@ export function QuizView({
             boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", marginBottom: 16 }}>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: "#111827",
+              marginBottom: scoreKnown ? 16 : 24,
+            }}
+          >
             Quiz complete
           </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: "#2563eb", marginBottom: 4 }}>
-            Score: {totalCorrect} / {totalGradable > 0 ? totalGradable : totalQuestions}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#64748b", marginBottom: 16 }}>
-            {percentage}%
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#334155", marginBottom: 24 }}>
-            {message}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            <button
-              type="button"
-              onClick={handleReset}
-              style={{
-                padding: "10px 18px",
-                fontSize: 15,
-                fontWeight: 700,
-                background: "#2563eb",
-                color: "#ffffff",
-                borderRadius: 10,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Retry quiz
-            </button>
+          {scoreKnown ? (
+            <>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#2563eb", marginBottom: 4 }}>
+                Score: {totalCorrect} / {totalGradable}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#64748b", marginBottom: 16 }}>
+                {percentage}%
+              </div>
+              {message ? (
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#334155", marginBottom: 24 }}>
+                  {message}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+            {showReviewMistakes ? (
+              <button
+                type="button"
+                onClick={handleReviewMistakes}
+                data-testid="revision-review-mistakes"
+                style={{
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  background: "#f1f5f9",
+                  color: "#334155",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  cursor: "pointer",
+                }}
+              >
+                Review mistakes
+              </button>
+            ) : null}
+            {showRetrySameQuiz ? (
+              <button
+                type="button"
+                onClick={handleReset}
+                data-testid="revision-try-again"
+                style={{
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Retry same quiz
+              </button>
+            ) : null}
+            {isPerfectScore && completeExtra ? (
+              <div data-testid="revision-fresh-cta-slot">{completeExtra}</div>
+            ) : null}
             {onContinueLesson && (
               <button
                 type="button"
                 onClick={onContinueLesson}
+                data-testid="revision-continue-lesson"
                 style={{
                   padding: "10px 18px",
                   fontSize: 15,
@@ -337,6 +488,9 @@ export function QuizView({
               </button>
             )}
           </div>
+          {scoreKnown ? (
+            <RevisionQuizResultCard score={totalCorrect} questionCount={totalGradable} />
+          ) : null}
         </div>
       </div>
     );

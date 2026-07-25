@@ -6,6 +6,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const PracticeAttempt = require("../models/PracticeAttempt");
+const PracticeSet = require("../models/PracticeSet");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { computeMcqCorrectness } = require("../services/computeMcqCorrectness");
@@ -35,7 +36,18 @@ router.post("/", auth, async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { specKey, topicKey, contentType, contentId, isCorrect, selectedChoiceIndex, confidence, timeSpentSec, teacherId } = req.body || {};
+  const {
+    specKey,
+    topicKey,
+    contentType,
+    contentId,
+    isCorrect,
+    selectedChoiceIndex,
+    confidence,
+    timeSpentSec,
+    teacherId,
+    practiceSetId,
+  } = req.body || {};
 
   if (!specKey || typeof specKey !== "string") {
     return res.status(400).json({ error: "specKey is required" });
@@ -49,7 +61,9 @@ router.post("/", auth, async (req, res) => {
   if (!contentId) {
     return res.status(400).json({ error: "contentId is required" });
   }
-  if (!teacherId) {
+  // Linked dashboard path needs teacherId. No-link resume may send practiceSetId only
+  // (teacher is resolved from the owned set — client teacherId is not authorisation).
+  if (!teacherId && !practiceSetId) {
     return res.status(400).json({ error: "teacherId is required" });
   }
 
@@ -78,25 +92,79 @@ router.post("/", auth, async (req, res) => {
     return res.status(400).json({ error: e.message || "Invalid spec or topic", code });
   }
 
+  const mongoose = require("mongoose");
+
   let contentIdObj;
   try {
-    const mongoose = require("mongoose");
     contentIdObj = new mongoose.Types.ObjectId(contentId);
   } catch {
     return res.status(400).json({ error: "contentId must be a valid ObjectId" });
   }
 
-  let teacherIdObj;
-  try {
-    const mongoose = require("mongoose");
-    teacherIdObj = new mongoose.Types.ObjectId(teacherId);
-  } catch {
-    return res.status(400).json({ error: "teacherId must be a valid ObjectId" });
+  /**
+   * A) Linked-teacher path: StudentTeacherLink for client teacherId — unchanged; practiceSetId optional.
+   * B) No-link path: require practiceSetId; ownership + exact item membership; teacher from set.
+   */
+  let teacherIdObj = null;
+  /** Validated PracticeSet._id only — never persist an untrusted client set id. */
+  let validatedPracticeSetId = null;
+
+  if (teacherId) {
+    try {
+      teacherIdObj = new mongoose.Types.ObjectId(teacherId);
+    } catch {
+      return res.status(400).json({ error: "teacherId must be a valid ObjectId" });
+    }
+    const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
+    if (link) {
+      // Linked dashboard / ordinary practice — keep using validated link teacherId.
+    } else {
+      teacherIdObj = null;
+    }
   }
 
-  const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
-  if (!link) {
-    return res.status(403).json({ error: "No student-teacher link for this teacher. Ask your teacher to add you." });
+  if (!teacherIdObj) {
+    if (!practiceSetId) {
+      return res.status(403).json({
+        error: "No student-teacher link for this teacher. Ask your teacher to add you.",
+      });
+    }
+    if (!mongoose.Types.ObjectId.isValid(String(practiceSetId))) {
+      return res.status(400).json({ error: "Invalid practiceSetId" });
+    }
+
+    const set = await PracticeSet.findById(practiceSetId).lean();
+    // Same safe 403 for missing / other-owned — do not leak ownership.
+    if (!set || String(set.studentId) !== String(studentId)) {
+      return res.status(403).json({ error: "You do not have access to this practice set." });
+    }
+
+    const inSet = (set.items || []).some(
+      (it) =>
+        String(it.contentId) === String(contentIdObj) &&
+        it.contentType === contentType
+    );
+    if (!inSet) {
+      return res.status(403).json({ error: "You do not have access to this practice item." });
+    }
+
+    // Authoritative teacher for the attempt record — never trust client teacherId here.
+    teacherIdObj = set.teacherId;
+    validatedPracticeSetId = set._id;
+  } else if (practiceSetId && mongoose.Types.ObjectId.isValid(String(practiceSetId))) {
+    // Optional: when linked students also send a set id, persist only after ownership + membership checks.
+    const set = await PracticeSet.findById(practiceSetId).lean();
+    if (
+      set &&
+      String(set.studentId) === String(studentId) &&
+      (set.items || []).some(
+        (it) =>
+          String(it.contentId) === String(contentIdObj) &&
+          it.contentType === contentType
+      )
+    ) {
+      validatedPracticeSetId = set._id;
+    }
   }
 
   const confidenceNum =
@@ -113,6 +181,10 @@ router.post("/", auth, async (req, res) => {
 
   let isCorrectValue;
   let selectedChoiceIndexStored;
+  /** @type {number|undefined} */
+  let correctChoiceIndex;
+  /** @type {string|undefined} */
+  let explanation;
 
   if (contentType === MCQ_CONTENT_TYPE) {
     const idx = typeof selectedChoiceIndex === "number" ? selectedChoiceIndex : parseInt(selectedChoiceIndex, 10);
@@ -120,6 +192,10 @@ router.post("/", auth, async (req, res) => {
       const result = await computeMcqCorrectness(contentIdObj, idx);
       isCorrectValue = result.isCorrect;
       selectedChoiceIndexStored = idx;
+      if (Number.isFinite(result.correctChoiceIndex)) {
+        correctChoiceIndex = result.correctChoiceIndex;
+      }
+      if (result.explanation) explanation = result.explanation;
     } catch (e) {
       if (e.code === "CONTENT_NOT_FOUND" || e.code === "INVALID_CONTENT_TYPE") {
         return res.status(400).json({ error: e.message });
@@ -131,7 +207,7 @@ router.post("/", auth, async (req, res) => {
   }
 
   try {
-    await PracticeAttempt.create({
+    const attemptDoc = {
       studentId,
       teacherId: teacherIdObj,
       specKey: specKey.trim(),
@@ -142,7 +218,11 @@ router.post("/", auth, async (req, res) => {
       selectedChoiceIndex: selectedChoiceIndexStored,
       confidence: confidenceNum,
       timeSpentSec: timeSpent,
-    });
+    };
+    if (validatedPracticeSetId) {
+      attemptDoc.practiceSetId = validatedPracticeSetId;
+    }
+    const created = await PracticeAttempt.create(attemptDoc);
 
     // Learning evidence: fire-and-forget for dashboard mastery
     const topicOnly = (topicKey || "").includes(":") ? String(topicKey).split(":").pop() : String(topicKey).trim();
@@ -175,7 +255,17 @@ router.post("/", auth, async (req, res) => {
       }).catch(() => {});
     }
 
-    return res.status(200).json({ ok: true });
+    // Post-submit feedback only — correctness is never accepted from the client for quiz_mcq.
+    const body = {
+      ok: true,
+      attemptId: String(created._id),
+      isCorrect: Boolean(isCorrectValue),
+    };
+    if (contentType === MCQ_CONTENT_TYPE && correctChoiceIndex != null && Number.isFinite(correctChoiceIndex)) {
+      body.correctChoiceIndex = correctChoiceIndex;
+    }
+    if (explanation) body.explanation = explanation;
+    return res.status(200).json(body);
   } catch (e) {
     return res.status(500).json({ error: e.message || "Failed to save attempt" });
   }

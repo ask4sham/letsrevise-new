@@ -44,6 +44,8 @@ describe("POST /api/practice-sets/generate", () => {
     studentId = student._id;
 
     await StudentTeacherLink.create({ studentId, teacherId });
+    const { ensurePracticeSetIdempotencyIndex } = require("../services/practiceSetIdempotencyIndex");
+    await ensurePracticeSetIdempotencyIndex(PracticeSet);
 
     const login = await request(app).post("/api/auth/login").send({
       email: "practice-set-student@test.com",
@@ -432,5 +434,162 @@ describe("POST /api/practice-sets/generate", () => {
     expect(res.status).toBe(200);
     expect(res.body.items.length).toBe(1);
     expect(res.body.items[0].prompt).toMatch(/Describe Y for challenge fallback/i);
+  });
+
+  test("fresh V1 idempotency: same key returns same PracticeSet; concurrent creates one", async () => {
+    await TopicQuizQuestion.deleteMany({ ownerId: teacherId, topicKey: TOPIC });
+    for (let i = 0; i < 3; i++) {
+      await TopicQuizQuestion.create({
+        ownerId: teacherId,
+        topicKey: TOPIC,
+        type: "mcq",
+        questionText: `Idempotency stem unique question text ${i} abcdef`,
+        choices: ["A", "B", "C"],
+        correctIndex: 0,
+        status: "published",
+        kind: "quiz",
+        fingerprint: `idem-mcq-${i}-${Date.now()}`,
+      });
+    }
+
+    const key = `fresh-practice:test:${Date.now()}:client-a`;
+    const body = {
+      specKey: SPEC,
+      topicKeys: [TOPIC],
+      limit: 5,
+      include: ["quiz_mcq"],
+      teacherId: teacherId.toString(),
+      excludeSeen: true,
+      idempotencyKey: key,
+      source: "fresh-practice",
+    };
+
+    const [a, b] = await Promise.all([
+      request(app).post("/api/practice-sets/generate").set("Authorization", `Bearer ${studentToken}`).send(body),
+      request(app).post("/api/practice-sets/generate").set("Authorization", `Bearer ${studentToken}`).send(body),
+    ]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(a.body.practiceSetId).toBeTruthy();
+    expect(String(a.body.practiceSetId)).toBe(String(b.body.practiceSetId));
+
+    const again = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send(body);
+    expect(again.status).toBe(200);
+    expect(String(again.body.practiceSetId)).toBe(String(a.body.practiceSetId));
+    expect(again.body.reusedFromIdempotencyKey).toBe(true);
+
+    const otherKey = `${key}:other`;
+    const other = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({ ...body, idempotencyKey: otherKey });
+    expect(other.status).toBe(200);
+    // May be null if bank exhausted by exclusions of first set
+    if (other.body.practiceSetId) {
+      expect(String(other.body.practiceSetId)).not.toBe(String(a.body.practiceSetId));
+    }
+
+    const count = await PracticeSet.countDocuments({ studentId, idempotencyKey: key });
+    expect(count).toBe(1);
+  });
+
+  test("fresh V1: excludeSeen does not pad; honest counts; resume by id", async () => {
+    await TopicQuizQuestion.deleteMany({ ownerId: teacherId, topicKey: TOPIC });
+    const qids = [];
+    for (let i = 0; i < 4; i++) {
+      const q = await TopicQuizQuestion.create({
+        ownerId: teacherId,
+        topicKey: TOPIC,
+        type: "mcq",
+        questionText: `Fresh practice stem number ${i} unique enough for fingerprint`,
+        choices: ["A", "B", "C"],
+        correctIndex: 0,
+        status: "published",
+        kind: "quiz",
+        fingerprint: `fresh-v1-mcq-${i}-${Date.now()}`,
+      });
+      qids.push(q._id);
+    }
+
+    const first = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        specKey: SPEC,
+        topicKeys: [TOPIC],
+        limit: 5,
+        include: ["quiz_mcq"],
+        teacherId: teacherId.toString(),
+        excludeSeen: true,
+      });
+
+    expect(first.status).toBe(200);
+    expect(first.body.requestedCount).toBe(5);
+    expect(first.body.availableFreshCount).toBe(4);
+    expect(first.body.selectedCount).toBe(4);
+    expect(first.body.items.length).toBe(4);
+    expect(first.body.allQuestionsFresh).toBe(true);
+    expect(first.body.practiceSetId).toBeTruthy();
+    expect(first.body.items.length).toBeLessThan(5);
+
+    const setId = first.body.practiceSetId;
+    const firstIds = first.body.items.map((it) => String(it.contentId)).sort();
+
+    const resumed = await request(app)
+      .get(`/api/practice-sets/${setId}`)
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(resumed.status).toBe(200);
+    expect(resumed.body.items.map((it) => String(it.contentId)).sort()).toEqual(firstIds);
+    expect(String(resumed.body.teacherId)).toBe(String(teacherId));
+
+    const second = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        specKey: SPEC,
+        topicKeys: [TOPIC],
+        limit: 5,
+        include: ["quiz_mcq"],
+        teacherId: teacherId.toString(),
+        excludeSeen: true,
+      });
+    expect(second.status).toBe(200);
+    expect(second.body.availableFreshCount).toBe(0);
+    expect(second.body.selectedCount).toBe(0);
+    expect(second.body.practiceSetId).toBeNull();
+    expect(second.body.items.length).toBe(0);
+
+    const avail = await request(app)
+      .get(
+        `/api/practice-sets/fresh-availability?specKey=${SPEC}&topicKey=${encodeURIComponent(TOPIC)}&teacherId=${teacherId}&limit=5&include=quiz_mcq`
+      )
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(avail.status).toBe(200);
+    expect(avail.body.availableFreshCount).toBe(0);
+
+    const pw = await bcrypt.hash("Pass123!", 10);
+    const other = await User.create({
+      email: `practice-set-other-${Date.now()}@test.com`,
+      password: pw,
+      firstName: "O",
+      lastName: "Student",
+      userType: "student",
+    });
+    await StudentTeacherLink.create({ studentId: other._id, teacherId });
+    const otherLogin = await request(app).post("/api/auth/login").send({
+      email: other.email,
+      password: "Pass123!",
+    });
+    const forbidden = await request(app)
+      .get(`/api/practice-sets/${setId}`)
+      .set("Authorization", `Bearer ${otherLogin.body.token}`);
+    expect(forbidden.status).toBe(403);
+
+    await User.deleteOne({ _id: other._id });
+    await StudentTeacherLink.deleteMany({ studentId: other._id });
+    void qids;
   });
 });

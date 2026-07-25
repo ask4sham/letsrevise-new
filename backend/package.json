@@ -34,6 +34,8 @@
     "migrate:visuals-to-cloud": "node scripts/migrate-public-visuals-to-cloud.js",
     "verify:indexes": "node scripts/verify-indexes.js",
     "sync:indexes": "node scripts/sync-indexes.js",
+    "migrate:practice-set-idempotency-index": "node scripts/migrations/ensure_practice_set_idempotency_index.js",
+    "migrate:practice-set-idempotency-index:dry-run": "node scripts/migrations/ensure_practice_set_idempotency_index.js --dry-run",
     "validate:taxonomies": "node scripts/validateTaxonomies.js",
     "export:taxonomy-topics": "node scripts/exportTaxonomyTopicList.js",
     "generate:visual-pack-registry": "node ../visual-templates/scripts/generate-pack-registry-from-taxonomy.js",

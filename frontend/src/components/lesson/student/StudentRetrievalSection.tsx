@@ -1,9 +1,18 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import FlashcardsView from "../../revision/FlashcardsView";
-import { QuizView } from "../../revision/QuizView";
+import { QuizView, type QuizCompletePayload } from "../../revision/QuizView";
 import { deriveLessonRetrieval } from "../../../utils/deriveLessonRetrieval";
 import { buildRevisionPracticePool, type LayerQuizQuestion } from "../../../utils/lessonQuestionPools";
 import { normalizeQuizQuestion } from "../../../utils/normalizeQuizQuestion";
+import { TryFreshPracticeCta } from "../TryFreshPracticeCta";
+import { collectRevisionQuizSessionExclusions } from "../../../utils/revisionQuizFreshExclusions";
+import {
+  getRevisionQuizCompletion,
+  setRevisionQuizCompleted,
+  revisionCompletionScopeFromQuestions,
+  buildRevisionQuizCompletionPayload,
+  type RevisionQuizCompletionPayload,
+} from "../../../utils/revisionQuizCompletion";
 import "./studentRetrievalSection.css";
 
 type Props = {
@@ -16,6 +25,13 @@ type Props = {
   onQuestionAnswered?: (correct: boolean) => void;
   /** Display-only numbered heading (e.g. `17 — Revision practice`). */
   sectionTitle?: string;
+  /** Student-only Fresh Practice V1 after Revision quiz completion. */
+  enableFreshPractice?: boolean;
+  lessonId?: string | null;
+  pageId?: string | null;
+  studentId?: string | null;
+  specKey?: string | null;
+  topicKey?: string | null;
 };
 
 function mergeFlashcards(
@@ -58,6 +74,12 @@ export function StudentRetrievalSection({
   hasFullAccess,
   onQuestionAnswered,
   sectionTitle = "Revision practice",
+  enableFreshPractice = false,
+  lessonId,
+  pageId,
+  studentId,
+  specKey,
+  topicKey,
 }: Props): React.ReactElement | null {
   const derived = useMemo(() => deriveLessonRetrieval(pages), [pages]);
   const revisionPool = useMemo(
@@ -73,6 +95,76 @@ export function StudentRetrievalSection({
     [revisionPool]
   );
   const examQuestions = derived.examQuestions;
+
+  const completionScope = useMemo(
+    () =>
+      revisionCompletionScopeFromQuestions({
+        studentId,
+        lessonId,
+        pageId,
+        questions: revisionPool as unknown as Array<Record<string, unknown>>,
+      }),
+    [studentId, lessonId, pageId, revisionPool]
+  );
+
+  const [quizResult, setQuizResult] = useState<RevisionQuizCompletionPayload | null>(() =>
+    completionScope
+      ? getRevisionQuizCompletion(completionScope, revisionPool.length)
+      : null
+  );
+  const quizComplete = quizResult?.completed === true;
+
+  // Restore from storage when scope is valid. Never force false when scope is null
+  // (that would wipe in-session Finish quiz before studentId resolves).
+  useEffect(() => {
+    if (!completionScope) return;
+    const stored = getRevisionQuizCompletion(completionScope, revisionPool.length);
+    if (stored) setQuizResult(stored);
+  }, [completionScope, revisionPool.length]);
+
+  // Persist whenever we have a completed result and a valid scoped key.
+  useEffect(() => {
+    if (!completionScope || !quizResult?.completed) return;
+    setRevisionQuizCompleted(completionScope, quizResult);
+  }, [completionScope, quizResult]);
+
+  const sessionExclusions = useMemo(
+    () => collectRevisionQuizSessionExclusions(revisionPool as unknown as Array<Record<string, unknown>>),
+    [revisionPool]
+  );
+
+  const handleQuizComplete = useCallback(
+    (payload: QuizCompletePayload) => {
+      const next = buildRevisionQuizCompletionPayload({
+        score: payload.score,
+        questionCount: payload.gradableCount > 0 ? payload.gradableCount : payload.questionCount,
+        setSignature: completionScope?.setSignature || "",
+      });
+      setQuizResult(next);
+      if (completionScope) setRevisionQuizCompleted(completionScope, next);
+    },
+    [completionScope]
+  );
+
+  const handleQuizReset = useCallback(() => {
+    setQuizResult(null);
+    if (completionScope) setRevisionQuizCompleted(completionScope, false);
+  }, [completionScope]);
+
+  const isPerfectScore =
+    quizResult?.score != null &&
+    quizResult.questionCount > 0 &&
+    quizResult.score >= quizResult.questionCount;
+
+  // Fresh practice only after a perfect Revision finish (genuinely new questions).
+  // Imperfect finishes use "Try again" (same quiz) inside QuizView.
+  const showFreshCta =
+    enableFreshPractice === true &&
+    quizComplete &&
+    isPerfectScore &&
+    !!specKey &&
+    !!topicKey &&
+    hasFullAccess;
 
   const hasQuiz = quizQuestions.length > 0;
   const hasCards = flashcards.length > 0;
@@ -160,6 +252,24 @@ export function StudentRetrievalSection({
             questions={quizQuestions}
             onQuestionAnswered={onQuestionAnswered}
             onContinueLesson={() => window.scrollBy({ top: 200, behavior: "smooth" })}
+            onQuizComplete={handleQuizComplete}
+            onQuizReset={handleQuizReset}
+            initialComplete={quizComplete}
+            restoredResult={
+              quizResult
+                ? { score: quizResult.score, questionCount: quizResult.questionCount }
+                : null
+            }
+            completeExtra={
+              showFreshCta ? (
+                <TryFreshPracticeCta
+                  lessonId={lessonId}
+                  specKey={specKey!}
+                  topicKey={topicKey!}
+                  sessionExclusions={sessionExclusions}
+                />
+              ) : null
+            }
           />
         ) : null}
         {activeTab === "cards" && hasCards ? (

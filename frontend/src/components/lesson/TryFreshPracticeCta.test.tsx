@@ -1,0 +1,241 @@
+/**
+ * @jest-environment jsdom
+ */
+import React from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fetchFreshAvailability, generatePracticeSet } from "../../api/practiceSets";
+import { clearSingleFlightForTests } from "../../utils/freshPracticeSingleFlight";
+import * as lessonPracticeProgress from "../../utils/lessonPracticeProgress";
+import { TryFreshPracticeCta } from "./TryFreshPracticeCta";
+
+const mockNavigate = jest.fn();
+
+jest.mock("react-router-dom", () => ({
+  useNavigate: () => mockNavigate,
+}));
+
+jest.mock("../../api/studentDashboard", () => ({
+  getStudentDashboard: jest.fn(),
+}));
+
+jest.mock("../../api/practiceSets", () => ({
+  fetchFreshAvailability: jest.fn(),
+  generatePracticeSet: jest.fn(),
+}));
+
+const fetchAvail = fetchFreshAvailability as jest.MockedFunction<typeof fetchFreshAvailability>;
+const generate = generatePracticeSet as jest.MockedFunction<typeof generatePracticeSet>;
+
+describe("TryFreshPracticeCta", () => {
+  beforeEach(() => {
+    mockNavigate.mockReset();
+    clearSingleFlightForTests();
+    jest.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    clearSingleFlightForTests();
+  });
+
+  test("shows Try another set when fresh items exist (lesson-scoped, no teacherId)", async () => {
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 3,
+      requestedCount: 5,
+      selectedCount: 3,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
+      lessonPracticeAttemptedQuestionIds: [],
+    });
+
+    render(
+      <TryFreshPracticeCta
+        specKey="spec"
+        topicKey="topic"
+        lessonId="lesson1"
+        sessionExclusions={{
+          contentKeys: ["quiz_mcq:507f1f77bcf86cd799439011"],
+          stemTexts: ["How does sexual reproduction produce variation in offspring?"],
+        }}
+      />
+    );
+
+    expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent("Try another set");
+    expect(fetchAvail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lessonId: "lesson1",
+        sessionExclusions: expect.objectContaining({
+          contentKeys: ["quiz_mcq:507f1f77bcf86cd799439011"],
+        }),
+      })
+    );
+    expect(fetchAvail.mock.calls[0][0]).not.toHaveProperty("teacherId");
+    expect(screen.queryByText("Continue learning")).toBeNull();
+    expect(screen.queryByText("Review your practice")).toBeNull();
+    expect(screen.queryByText("Back to dashboard")).toBeNull();
+  });
+
+  test("renders nothing when zero fresh items", async () => {
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 0,
+      requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
+      lessonPracticeAttemptedQuestionIds: [],
+    });
+
+    const { container } = render(
+      <TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />
+    );
+
+    await waitFor(() => expect(fetchAvail).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByTestId("try-fresh-practice")).toBeNull();
+  });
+
+  test("does not request availability without lessonId", async () => {
+    const { container } = render(
+      <TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId={undefined} />
+    );
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    expect(fetchAvail).not.toHaveBeenCalled();
+  });
+
+  test("double click creates one generation request", async () => {
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 5,
+      requestedCount: 5,
+      selectedCount: 5,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
+      lessonPracticeAttemptedQuestionIds: [],
+    });
+
+    let resolveGen: (v: unknown) => void = () => {};
+    generate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveGen = resolve;
+        }) as any
+    );
+
+    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    const btn = await screen.findByTestId("try-fresh-practice");
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+    expect(generate.mock.calls[0][0]).not.toHaveProperty("teacherId");
+    expect(generate.mock.calls[0][0].lessonId).toBe("lesson1");
+
+    await act(async () => {
+      resolveGen({
+        practiceSetId: "ps1",
+        selectedCount: 5,
+        items: [{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }, { id: "5" }],
+      });
+    });
+  });
+
+  test("resumeAvailable renders Resume practice and navigates without generate or idempotency key", async () => {
+    const idemSpy = jest.spyOn(lessonPracticeProgress, "createFreshPracticeIdempotencyKey");
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 0,
+      requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: true,
+      resumePracticeSetId: "6a6313f4949a9f56bf3f55ff",
+      resumeItemCount: 5,
+      resumeAttemptedCount: 0,
+      resumeRemainingCount: 5,
+      resumeStartIndex: 0,
+      lessonId: "lesson1",
+      lessonPracticeAttemptedQuestionIds: [],
+    });
+
+    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    const btn = await screen.findByTestId("try-fresh-practice");
+    expect(btn).toHaveTextContent("Resume practice");
+
+    fireEvent.click(btn);
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(idemSpy).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/practice/quiz/topic?practiceSetId=6a6313f4949a9f56bf3f55ff&fresh=1&limit=5&lessonId=lesson1&startIndex=0"
+    );
+  });
+
+  test("partial resume includes resumeStartIndex and keeps Resume practice label", async () => {
+    const idemSpy = jest.spyOn(lessonPracticeProgress, "createFreshPracticeIdempotencyKey");
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 0,
+      requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: true,
+      resumePracticeSetId: "6a6313f4949a9f56bf3f55ff",
+      resumeItemCount: 5,
+      resumeAttemptedCount: 1,
+      resumeRemainingCount: 4,
+      resumeStartIndex: 1,
+      lessonId: "lesson1",
+    });
+
+    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent("Resume practice");
+    fireEvent.click(screen.getByTestId("try-fresh-practice"));
+    expect(generate).not.toHaveBeenCalled();
+    expect(idemSpy).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/practice/quiz/topic?practiceSetId=6a6313f4949a9f56bf3f55ff&fresh=1&limit=5&lessonId=lesson1&startIndex=1"
+    );
+  });
+
+  test("completed set with no resumeAvailable hides CTA", async () => {
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 0,
+      requestedCount: 5,
+      selectedCount: 0,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: false,
+      resumePracticeSetId: null,
+      resumeItemCount: 0,
+      resumeRemainingCount: 0,
+      resumeStartIndex: 0,
+      lessonId: "lesson1",
+    });
+
+    const { container } = render(
+      <TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />
+    );
+    await waitFor(() => expect(fetchAvail).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  test("resumeAvailable is prioritised over positive availableFreshCount", async () => {
+    fetchAvail.mockResolvedValue({
+      availableFreshCount: 5,
+      requestedCount: 5,
+      selectedCount: 5,
+      allQuestionsFresh: true,
+      practiceSetId: null,
+      resumeAvailable: true,
+      resumePracticeSetId: "set-resume",
+      resumeItemCount: 5,
+      resumeRemainingCount: 5,
+      resumeStartIndex: 0,
+      lessonId: "lesson1",
+    });
+
+    render(<TryFreshPracticeCta specKey="spec" topicKey="topic" lessonId="lesson1" />);
+    expect(await screen.findByTestId("try-fresh-practice")).toHaveTextContent("Resume practice");
+  });
+});
