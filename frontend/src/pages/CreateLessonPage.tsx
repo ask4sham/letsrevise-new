@@ -94,6 +94,7 @@ import {
   buildPagesFromGeneratorExport,
   lessonMetaFromExport,
 } from "../utils/lessonGeneratorImport";
+import { applyCreateLessonTaxonomyPayloadFields } from "../utils/createLessonTaxonomyPayloadFields";
 import {
   assertGeneratorExportV1QualityFloor,
   formatQualityFloorErrorMessage,
@@ -492,6 +493,7 @@ const CreateLessonPage: React.FC = () => {
     tier: "" as GcseTier,
     topic: "",
     topicKey: "",
+    canonicalTopicKey: "",
     tags: "",
     externalResources: "",
     estimatedDuration: 60,
@@ -670,76 +672,46 @@ const CreateLessonPage: React.FC = () => {
       const meta = lessonMetaFromExport(doc);
 
       setTitleTouched(true);
-      if (meta.title) {
-        setFormData((prev) => ({
-          ...prev,
-          title: meta.title!.slice(0, 280),
-        }));
-      }
-
       setDescriptionTouched(true);
-      if (meta.description) {
-        const d = meta.description.slice(0, LESSON_DESCRIPTION_MAX_LENGTH);
-        setFormData((prev) => ({
-          ...prev,
-          description: d,
-        }));
-      }
 
-      if (meta.board && EXAM_BOARDS.includes(meta.board as (typeof EXAM_BOARDS)[number])) {
-        setFormData((prev) => ({
-          ...prev,
-          board: meta.board as (typeof EXAM_BOARDS)[number],
-        }));
-      }
+      const lv = meta.level?.trim() || "";
+      const levelOk = lv === "GCSE" || lv === "A-Level" || lv === "KS3" || lv === "IGCSE";
+      const boardOk =
+        Boolean(meta.board) &&
+        EXAM_BOARDS.includes(meta.board as (typeof EXAM_BOARDS)[number]);
+      const tierOk = meta.tier === "foundation" || meta.tier === "higher";
+      const tierForLevel =
+        tierOk && (lv === "GCSE" || lv === "IGCSE") ? (meta.tier as GcseTier) : undefined;
 
-      if (meta.level) {
-        const lv = meta.level.trim();
-        if (lv === "GCSE" || lv === "A-Level" || lv === "KS3" || lv === "IGCSE") {
-          setFormData((prev) => ({
-            ...prev,
-            level: lv,
-            ...(lv !== "GCSE" ? { tier: "" as GcseTier } : {}),
-          }));
-        }
-      }
-
-      if (meta.tier === "foundation" || meta.tier === "higher") {
-        setFormData((prev) => ({
-          ...prev,
-          ...(prev.level === "GCSE" || prev.level === "IGCSE"
-            ? { tier: meta.tier }
+      setFormData((prev) => ({
+        ...prev,
+        ...(meta.title ? { title: meta.title.slice(0, 280) } : {}),
+        ...(meta.description
+          ? { description: meta.description.slice(0, LESSON_DESCRIPTION_MAX_LENGTH) }
+          : {}),
+        ...(boardOk ? { board: meta.board as (typeof EXAM_BOARDS)[number] } : {}),
+        ...(levelOk ? { level: lv } : {}),
+        ...(tierForLevel
+          ? { tier: tierForLevel }
+          : levelOk && lv !== "GCSE" && lv !== "IGCSE"
+            ? { tier: "" as GcseTier }
             : {}),
-        }));
-      }
+        ...(meta.subject ? { subject: meta.subject } : {}),
+        ...(meta.topic ? { topic: meta.topic } : {}),
+        ...(meta.topicKey ? { topicKey: meta.topicKey } : {}),
+        ...(meta.canonicalTopicKey
+          ? { canonicalTopicKey: meta.canonicalTopicKey }
+          : {}),
+      }));
 
-      if (meta.subject || meta.topic) {
-        const nextTopic = meta.topic ?? topicSelection.topic;
-        const nextSubject = meta.subject ?? topicSelection.subject;
-        setTopicSelection((prev) => ({
-          ...prev,
-          ...(meta.subject ? { subject: meta.subject } : {}),
-          ...(meta.topic ? { topic: meta.topic } : {}),
-          ...(meta.topicKey ? { topicKey: meta.topicKey } : {}),
-          ...(meta.specKey ? { specKey: meta.specKey } : {}),
-        }));
-        setFormData((prev) => ({
-          ...prev,
-          ...(nextSubject !== prev.subject ? { subject: nextSubject } : {}),
-          ...(nextTopic !== prev.topic ? { topic: nextTopic } : {}),
-          ...(meta.topicKey ? { topicKey: meta.topicKey } : {}),
-        }));
-      } else if (meta.topicKey) {
-        setFormData((prev) => ({
-          ...prev,
-          topicKey: meta.topicKey!,
-        }));
-        setTopicSelection((prev) => ({
-          ...prev,
-          topicKey: meta.topicKey!,
-          ...(meta.specKey ? { specKey: meta.specKey } : {}),
-        }));
-      }
+      // Always preserve export specKey / topic identity even when topic slug mapping is partial.
+      setTopicSelection((prev) => ({
+        ...prev,
+        ...(meta.subject ? { subject: meta.subject } : {}),
+        ...(meta.topic ? { topic: meta.topic } : {}),
+        ...(meta.topicKey ? { topicKey: meta.topicKey } : {}),
+        ...(meta.specKey ? { specKey: meta.specKey } : {}),
+      }));
 
       const built = buildPagesFromGeneratorExport(doc);
       if (!built.length) {
@@ -1676,16 +1648,15 @@ const CreateLessonPage: React.FC = () => {
         questions: pageQuizQuestions,
       },
     };
-    if (formData.topicKey.trim()) {
-      payload.topicKey = formData.topicKey.trim();
-      if (topicSelection.specKey) payload.specKey = topicSelection.specKey;
-      if (topicSelection.mainTopicTitle) payload.mainTopic = topicSelection.mainTopicTitle;
-      if (topicSelection.topic) payload.subTopic = topicSelection.topic;
-      const identity = topicSelection.specKey ? getSpecIdentity(topicSelection.specKey) : null;
-      if (identity?.examCode) payload.examCode = identity.examCode;
-    }
-
-    if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
+    applyCreateLessonTaxonomyPayloadFields(payload, {
+      level: formData.level,
+      tier: formData.tier,
+      topicKey: formData.topicKey,
+      canonicalTopicKey: formData.canonicalTopicKey,
+      specKey: topicSelection.specKey,
+      mainTopicTitle: topicSelection.mainTopicTitle,
+      subTopic: topicSelection.topic,
+    });
     payload.autoGenerateFromBanks = !!formData.autoGenerateFromBanks;
     return payload;
   };

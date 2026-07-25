@@ -1,19 +1,22 @@
 /**
  * Simulated create-lesson taxonomy finalize (mirrors POST /api/lessons contract).
  */
-const { parseTopicKey, buildTopicKey } = require("../utils/topicKey");
+const { buildTopicKey } = require("../utils/topicKey");
 const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
 const { assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { resolveSpecIdentity } = require("../config/specRegistry");
+const { resolveLessonCreateSpecKey } = require("../utils/resolveLessonCreateSpecKey");
 
 function simulateCreateTopicNormalization(lessonData) {
   if (typeof lessonData.topicKey !== "string" || !lessonData.topicKey.trim()) {
     return lessonData;
   }
-  const spec =
-    (lessonData.specKey && String(lessonData.specKey).trim()) ||
-    parseTopicKey(lessonData.topicKey).specKey ||
-    "aqa-gcse-biology";
+  const spec = resolveLessonCreateSpecKey(lessonData);
+  if (!spec) {
+    const err = new Error("unresolved spec");
+    err.code = "INVALID_SPEC_KEY";
+    throw err;
+  }
   const namespaced =
     normalizeNamespacedLessonTopicKey(spec, {
       topicKey: lessonData.topicKey,
@@ -27,7 +30,7 @@ function simulateCreateTopicNormalization(lessonData) {
       : buildTopicKey(spec, lessonData.topicKey.trim()));
   assertValidNamespacedTopicKey(spec, namespaced);
   lessonData.topicKey = namespaced;
-  lessonData.specKey = lessonData.specKey || spec;
+  lessonData.specKey = spec;
 
   const identity = resolveSpecIdentity({
     topicKey: lessonData.topicKey,
@@ -43,7 +46,7 @@ function simulateCreateTopicNormalization(lessonData) {
   if (identity.level) lessonData.level = identity.level;
   if (identity.board) lessonData.board = identity.board;
   if (identity.subject) lessonData.subject = identity.subject;
-  if (!lessonData.canonicalTopicKey && lessonData.topicKey.includes(":")) {
+  if (lessonData.topicKey.includes(":")) {
     lessonData.canonicalTopicKey = lessonData.topicKey.slice(lessonData.topicKey.indexOf(":") + 1);
   }
   return lessonData;

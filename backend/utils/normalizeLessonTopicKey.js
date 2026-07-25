@@ -94,6 +94,24 @@ function normalizeLessonTopicSlug(specKey, fields = {}) {
 
   let repaired = false;
 
+  // Path-style export keys (reproduction/adaptations-for-pollination): try leaf segment via registry.
+  if (!slug) {
+    for (const candidate of [canonicalHint, rawSlug]) {
+      const text = safeStr(candidate);
+      if (!text.includes("/")) continue;
+      const parts = text.split("/").map((p) => p.trim()).filter(Boolean);
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const hit = trySlug(parts[i]);
+        if (hit) {
+          slug = hit;
+          repaired = true;
+          break;
+        }
+      }
+      if (slug) break;
+    }
+  }
+
   if (!slug && rawSlug && isLikelyInvalidTopicSlug(rawSlug)) {
     repaired = true;
   }
