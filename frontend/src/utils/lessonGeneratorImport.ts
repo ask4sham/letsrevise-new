@@ -30,6 +30,7 @@ import {
 import { stripSs1PrefixFromTitle } from "./formatBlockHeading";
 import { mergeLessonBlockIntroFields } from "./lessonRichText";
 import { canonicalSlugFromText } from "./normalizeLessonTopicKey";
+import { getSpecIdentity } from "./specIdentity";
 import { cleanSequenceStepDescription } from "./cleanSequenceStepDescription";
 import { checkpointMarkSchemeForBlockPersist } from "./checkpointFeedback";
 import {
@@ -77,9 +78,11 @@ export type GeneratorExportV1Document = {
     title?: string;
     subject?: string;
     keyStage?: string;
+    level?: string;
     examBoard?: string;
     topic?: string;
     tier?: string;
+    specKey?: string;
     topicKey?: string;
     canonicalTopicKey?: string;
     topicResolvedFrom?: string;
@@ -871,20 +874,58 @@ export type LessonMetaApply = {
   tier?: "" | "foundation" | "higher";
 };
 
-function inferSpecKeyFromExport(L: GeneratorExportV1Document["lesson"]): string | undefined {
-  const explicit = String((L as { specKey?: string })?.specKey || "").trim();
+/** Word-boundary level checks — never treat "IGCSE" as "GCSE" via substring includes. */
+function exportTextLooksIgcse(...parts: Array<string | undefined | null>): boolean {
+  const blob = parts
+    .map((p) => String(p || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return /\bIGCSE\b/i.test(blob);
+}
+
+function exportTextLooksGcse(...parts: Array<string | undefined | null>): boolean {
+  if (exportTextLooksIgcse(...parts)) return false;
+  const blob = parts
+    .map((p) => String(p || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return /\bGCSE\b/i.test(blob) || /\bKS\s*4\b/i.test(blob) || /\bKEY\s*STAGE\s*4\b/i.test(blob);
+}
+
+function normalizeExportBoard(raw: string): string {
+  const boards = ["AQA", "OCR", "Edexcel", "WJEC"] as const;
+  const t = String(raw || "").trim();
+  if (!t) return "";
+  const hit = boards.find((b) => b.toLowerCase() === t.toLowerCase());
+  return hit || "";
+}
+
+/**
+ * Infer specKey from Generator export lesson metadata.
+ * Priority: valid explicit specKey → board+level → never default Edexcel/IGCSE to AQA.
+ */
+export function inferSpecKeyFromExport(L: GeneratorExportV1Document["lesson"]): string | undefined {
+  const explicit = String(L?.specKey || "").trim();
   if (explicit) return explicit;
 
   const subject = String(L?.subject || "")
     .trim()
     .toLowerCase();
-  const board = String(L?.examBoard || "AQA").trim();
-  const ks = String(L?.keyStage || "").toUpperCase();
-  // Prefer explicit IGCSE before the broad GCSE fallback.
-  if (ks.includes("IGCSE") && board === "Edexcel" && subject === "biology") {
+  const board = normalizeExportBoard(String(L?.examBoard || "").trim());
+  const level = String(L?.level || "").trim();
+  const keyStage = String(L?.keyStage || "").trim();
+
+  if (
+    board === "Edexcel" &&
+    subject === "biology" &&
+    exportTextLooksIgcse(level, keyStage)
+  ) {
     return "edexcel-igcse-biology";
   }
-  if (ks.includes("GCSE") || ks === "" || ks.includes("KEY STAGE 4")) {
+
+  if (exportTextLooksGcse(level, keyStage) || (!level && !keyStage)) {
+    // Only AQA GCSE fallback when board is AQA or genuinely unset (never overwrite Edexcel).
+    if (board === "Edexcel") return undefined;
     if (board === "AQA" || board === "") {
       if (subject === "biology") return "aqa-gcse-biology";
       if (subject === "chemistry") return "aqa-gcse-chemistry";
@@ -892,6 +933,41 @@ function inferSpecKeyFromExport(L: GeneratorExportV1Document["lesson"]): string 
     }
   }
   return undefined;
+}
+
+/**
+ * Path-style export keys (e.g. reproduction/adaptations-for-pollination) → slug candidates.
+ * Prefer exact path, then final segment (taxonomy leaf), never the first segment alone.
+ */
+export function topicSlugCandidatesFromExportKey(raw: string): string[] {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return [];
+  const unprefixed = trimmed.includes(":") ? trimmed.slice(trimmed.indexOf(":") + 1).trim() : trimmed;
+  if (!unprefixed) return [];
+  const out: string[] = [];
+  const push = (s: string) => {
+    const v = String(s || "").trim();
+    if (v && !out.includes(v)) out.push(v);
+  };
+  push(unprefixed);
+  if (unprefixed.includes("/")) {
+    const parts = unprefixed.split("/").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) {
+      push(parts[parts.length - 1]);
+      for (let i = parts.length - 2; i >= 0; i--) {
+        push(parts.slice(i).join("/"));
+      }
+    }
+  }
+  return out;
+}
+
+function looksLikeTopicSlug(slug: string): boolean {
+  const s = String(slug || "").trim();
+  if (!s || s.includes(" ")) return false;
+  if (s.length > 80) return false;
+  if (/\b(higher|foundation)-tier\b/i.test(s)) return false;
+  return true;
 }
 
 /** Resolve taxonomy topic slug from generator export lesson metadata (never slugify full title). */
@@ -904,14 +980,53 @@ export function topicKeyFromGeneratorExport(doc: GeneratorExportV1Document): {
   const specKey = inferSpecKeyFromExport(L);
   const canonicalHint = String(L.canonicalTopicKey || "").trim();
   const exportTopicKey = String(L.topicKey || "").trim();
-  const candidates = [
+
+  // Preserve a valid existing namespaced topicKey for this spec.
+  if (exportTopicKey.includes(":") && specKey) {
+    const prefix = `${specKey}:`;
+    if (exportTopicKey.startsWith(prefix)) {
+      const after = exportTopicKey.slice(prefix.length).trim();
+      const leaf =
+        topicSlugCandidatesFromExportKey(after).find((c) => !c.includes("/")) || after;
+      if (looksLikeTopicSlug(leaf)) {
+        return {
+          topicKey: `${specKey}:${leaf}`,
+          canonicalTopicKey: leaf,
+          specKey,
+        };
+      }
+    }
+  }
+
+  const pathAndHintCandidates = [
+    ...topicSlugCandidatesFromExportKey(canonicalHint),
+    ...topicSlugCandidatesFromExportKey(exportTopicKey),
+  ];
+
+  // Prefer non-path leaf slugs (final segment) when a path-style key was exported.
+  const orderedSlugs = [
+    ...pathAndHintCandidates.filter((c) => !c.includes("/")),
+    ...pathAndHintCandidates.filter((c) => c.includes("/")),
+  ];
+
+  for (const slug of orderedSlugs) {
+    if (!looksLikeTopicSlug(slug) || slug.includes("/")) continue;
+    const namespaced = specKey ? `${specKey}:${slug}` : slug;
+    return {
+      topicKey: namespaced,
+      canonicalTopicKey: slug,
+      ...(specKey ? { specKey } : {}),
+    };
+  }
+
+  // Alias repair (photosynthesis / respiration) — never invent board from title.
+  const aliasSources = [
     canonicalHint,
     exportTopicKey,
     String(L.topic || "").trim(),
     String(L.title || "").trim(),
   ].filter(Boolean);
-
-  for (const c of candidates) {
+  for (const c of aliasSources) {
     const slug = canonicalSlugFromText(c);
     if (slug) {
       const namespaced = specKey ? `${specKey}:${slug}` : slug;
@@ -923,47 +1038,50 @@ export function topicKeyFromGeneratorExport(doc: GeneratorExportV1Document): {
     }
   }
 
-  if (exportTopicKey && !exportTopicKey.includes(" ")) {
-    const slug = exportTopicKey.includes(":") ? exportTopicKey.split(":").pop()! : exportTopicKey;
-    if (slug.length <= 48 && !/\b(higher|foundation)-tier\b/.test(slug)) {
+  if (exportTopicKey && looksLikeTopicSlug(exportTopicKey.replace(/^[^:]+:/, ""))) {
+    const slug = exportTopicKey.includes(":")
+      ? exportTopicKey.slice(exportTopicKey.indexOf(":") + 1)
+      : exportTopicKey;
+    const leaf = topicSlugCandidatesFromExportKey(slug).find((c) => !c.includes("/")) || slug;
+    if (looksLikeTopicSlug(leaf) && !leaf.includes("/")) {
       return {
-        topicKey: specKey && !exportTopicKey.includes(":") ? `${specKey}:${slug}` : exportTopicKey,
-        ...(canonicalHint ? { canonicalTopicKey: canonicalHint } : {}),
+        topicKey: specKey ? `${specKey}:${leaf}` : leaf,
+        canonicalTopicKey: leaf,
         ...(specKey ? { specKey } : {}),
       };
     }
   }
 
+  // Topic mapping failed — still return specKey so board/level identity is not lost.
+  if (specKey) {
+    return { topicKey: "", canonicalTopicKey: undefined, specKey };
+  }
   return null;
+}
+
+function levelFromGeneratorExport(L: GeneratorExportV1Document["lesson"]): string {
+  const explicit = String(L?.level || "").trim();
+  if (/^IGCSE$/i.test(explicit)) return "IGCSE";
+  if (/^GCSE$/i.test(explicit)) return "GCSE";
+  if (/^KS3$/i.test(explicit)) return "KS3";
+  if (/^A-?Level$/i.test(explicit)) return "A-Level";
+
+  const ks = String(L?.keyStage || "").trim();
+  if (exportTextLooksIgcse(ks)) return "IGCSE";
+  if (/A-?Level/i.test(ks) || /\bA\s*LEVEL\b/i.test(ks)) return "A-Level";
+  if (/^KS3$/i.test(ks) || /\bKEY\s*STAGE\s*3\b/i.test(ks)) return "KS3";
+  if (exportTextLooksGcse(ks)) return "GCSE";
+  if (explicit) return explicit;
+  if (ks) return ks;
+  return "GCSE";
 }
 
 export function lessonMetaFromExport(doc: GeneratorExportV1Document): LessonMetaApply {
   const L = doc.lesson ?? {};
-  const ks = String(L.keyStage || "").trim();
-  const ksUpper = ks.toUpperCase();
-  let levelGcse = "GCSE";
-  if (ksUpper.includes("A-LEVEL") || ks.includes("A-Level")) {
-    levelGcse = "A-Level";
-  } else if (ksUpper.includes("IGCSE")) {
-    levelGcse = "IGCSE";
-  } else if (ksUpper === "KS3" || ksUpper.includes("KEY STAGE 3")) {
-    levelGcse = "KS3";
-  } else if (ksUpper.includes("GCSE") || ksUpper.includes("KS4")) {
-    levelGcse = "GCSE";
-  } else if (ks) {
-    // Preserve explicit Create-Lesson-compatible level values.
-    levelGcse = ks;
-  }
-  let board =
-    typeof L.examBoard === "string" && L.examBoard.trim()
-      ? L.examBoard.trim()
-      : "";
-  const boards = ["AQA", "OCR", "Edexcel", "WJEC"] as const;
-  const boardNorm = boards.find((b) => b.toLowerCase() === board.toLowerCase());
-  if (boardNorm) board = boardNorm;
-  else if (board && !boards.includes(board as (typeof boards)[number])) {
-    board = "";
-  }
+  const levelGcse = levelFromGeneratorExport(L);
+  let board = normalizeExportBoard(
+    typeof L.examBoard === "string" && L.examBoard.trim() ? L.examBoard.trim() : ""
+  );
 
   const title = String(L.title || L.topic || "").trim();
   const topic = String(L.topic || "").trim();
@@ -980,6 +1098,11 @@ export function lessonMetaFromExport(doc: GeneratorExportV1Document): LessonMeta
   ].filter(Boolean);
 
   const topicResolution = topicKeyFromGeneratorExport(doc);
+  const specKey = topicResolution?.specKey || inferSpecKeyFromExport(L);
+  if (!board && specKey) {
+    const identity = getSpecIdentity(specKey);
+    if (identity?.board) board = identity.board;
+  }
   const displayTopic =
     topic && topic !== title ? topic : topicResolution?.canonicalTopicKey === "photosynthesis" ? "Photosynthesis" : topic;
 
@@ -988,9 +1111,9 @@ export function lessonMetaFromExport(doc: GeneratorExportV1Document): LessonMeta
     description: descParts.length ? descParts.join(" · ") : undefined,
     subject,
     topic: displayTopic,
-    topicKey: topicResolution?.topicKey,
+    topicKey: topicResolution?.topicKey || undefined,
     canonicalTopicKey: topicResolution?.canonicalTopicKey,
-    specKey: topicResolution?.specKey,
+    specKey,
     board: board || undefined,
     level: levelGcse,
     tier,
