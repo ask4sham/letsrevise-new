@@ -21,6 +21,7 @@ const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = r
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
 const { resolveSpecIdentity } = require("../config/specRegistry");
+const { resolveLessonCreateSpecKey } = require("../utils/resolveLessonCreateSpecKey");
 const {
   sanitizeCheckpointOrSelfCheckBlock,
   sanitizePageQuizBlock,
@@ -144,7 +145,9 @@ function normalizeTier(tier) {
 
 function sanitizeTierByLevel(level, tier) {
   if (!level) return undefined;
-  if (String(level).toUpperCase() !== "GCSE") return undefined;
+  const lv = String(level).toUpperCase();
+  // GCSE and IGCSE both use foundation/higher tiers.
+  if (lv !== "GCSE" && lv !== "IGCSE") return undefined;
   return normalizeTier(tier);
 }
 
@@ -1440,10 +1443,21 @@ async function createLessonHandler(req, res) {
     // Pattern B: reject unregistered topicKey; normalize to namespaced form + identity contract
     if (typeof lessonData.topicKey === "string" && lessonData.topicKey.trim()) {
       try {
-        const spec =
-          (lessonData.specKey && String(lessonData.specKey).trim()) ||
-          parseTopicKey(lessonData.topicKey).specKey ||
-          DEFAULT_SPEC_LEGACY;
+        const spec = resolveLessonCreateSpecKey({
+          specKey: lessonData.specKey,
+          topicKey: lessonData.topicKey,
+          board: lessonData.board,
+          subject: lessonData.subject,
+          level: lessonData.level,
+          title: lessonData.title,
+          topic: lessonData.topic,
+          subTopic: lessonData.subTopic,
+        });
+        if (!spec) {
+          return res.status(400).json({
+            msg: "Could not resolve a valid specification for this lesson taxonomy. Provide a valid specKey or matching board/level.",
+          });
+        }
         const namespaced =
           normalizeNamespacedLessonTopicKey(spec, {
             topicKey: lessonData.topicKey,
@@ -1455,7 +1469,7 @@ async function createLessonHandler(req, res) {
           (lessonData.topicKey.trim().includes(":") ? lessonData.topicKey.trim() : buildTopicKey(spec, lessonData.topicKey.trim()));
         assertValidNamespacedTopicKey(spec, namespaced);
         lessonData.topicKey = namespaced;
-        lessonData.specKey = lessonData.specKey || spec;
+        lessonData.specKey = spec;
 
         const identity = resolveSpecIdentity({
           topicKey: lessonData.topicKey,
@@ -1467,25 +1481,44 @@ async function createLessonHandler(req, res) {
           topic: lessonData.topic,
           subTopic: lessonData.subTopic,
         });
+        // Valid resolved spec is authoritative for board/level normalisation.
         if (identity.specKey) lessonData.specKey = identity.specKey;
         if (identity.level) lessonData.level = identity.level;
         if (identity.board) lessonData.board = identity.board;
         if (identity.subject) lessonData.subject = identity.subject;
-        if (!lessonData.canonicalTopicKey && lessonData.topicKey.includes(":")) {
+        // Always align canonicalTopicKey to the validated taxonomy leaf (repair path-style exports).
+        if (lessonData.topicKey.includes(":")) {
           lessonData.canonicalTopicKey = lessonData.topicKey.slice(lessonData.topicKey.indexOf(":") + 1);
         }
-        // Re-sanitize tier against reconciled level (IGCSE vs GCSE)
         const tierAfterIdentity = sanitizeTierByLevel(lessonData.level, lessonData.tier || tier);
         if (tierAfterIdentity) lessonData.tier = tierAfterIdentity;
-        else if (lessonData.level && String(lessonData.level).toUpperCase() === "IGCSE") {
-          // keep provided tier string for IGCSE when sanitize is GCSE-oriented
-          if (typeof tier === "string" && tier.trim()) lessonData.tier = tier.trim();
-        }
       } catch (e) {
         if (e.code === "INVALID_SPEC_KEY" || e.code === "INVALID_TOPIC_KEY") {
           return res.status(400).json({ msg: e.message || "Invalid topicKey for this specification." });
         }
         throw e;
+      }
+    } else if (!lessonData.specKey) {
+      // No topicKey: still resolve spec from explicit board/level when present (never AQA-overwrite Edexcel).
+      const specOnly = resolveLessonCreateSpecKey({
+        specKey: lessonData.specKey,
+        board: lessonData.board,
+        subject: lessonData.subject,
+        level: lessonData.level,
+        title: lessonData.title,
+        topic: lessonData.topic,
+      });
+      if (specOnly) {
+        lessonData.specKey = specOnly;
+        const identity = resolveSpecIdentity({
+          specKey: specOnly,
+          board: lessonData.board,
+          subject: lessonData.subject,
+          level: lessonData.level,
+        });
+        if (identity.board) lessonData.board = identity.board;
+        if (identity.level) lessonData.level = identity.level;
+        if (identity.subject) lessonData.subject = identity.subject;
       }
     }
 
@@ -4088,7 +4121,7 @@ router.put("/:id", auth, async (req, res) => {
     }
     if (typeof updates.topicKey === "string" && updates.topicKey.trim()) {
       try {
-        const identityHint = resolveSpecIdentity({
+        const spec = resolveLessonCreateSpecKey({
           topicKey: updates.topicKey,
           specKey: typeof updates.specKey === "string" ? updates.specKey : lesson.specKey,
           board: updates.board ?? updates.examBoard ?? lesson.board,
@@ -4098,12 +4131,11 @@ router.put("/:id", auth, async (req, res) => {
           topic: updates.topic ?? lesson.topic,
           subTopic: updates.subTopic ?? lesson.subTopic,
         });
-        const spec =
-          (typeof updates.specKey === "string" && updates.specKey.trim()) ||
-          lesson.specKey ||
-          identityHint.specKey ||
-          parseTopicKey(updates.topicKey).specKey ||
-          DEFAULT_SPEC_LEGACY;
+        if (!spec) {
+          return res.status(400).json({
+            msg: "Could not resolve a valid specification for this lesson taxonomy. Provide a valid specKey or matching board/level.",
+          });
+        }
         const namespaced =
           normalizeNamespacedLessonTopicKey(spec, {
             topicKey: updates.topicKey,
@@ -4115,7 +4147,7 @@ router.put("/:id", auth, async (req, res) => {
           (updates.topicKey.trim().includes(":") ? updates.topicKey.trim() : buildTopicKey(spec, updates.topicKey.trim()));
         assertValidNamespacedTopicKey(spec, namespaced);
         lesson.topicKey = namespaced;
-        if (!lesson.specKey) lesson.specKey = spec;
+        lesson.specKey = spec;
 
         const identity = resolveSpecIdentity({
           topicKey: lesson.topicKey,
@@ -4131,7 +4163,7 @@ router.put("/:id", auth, async (req, res) => {
         if (identity.level) lesson.level = identity.level;
         if (identity.board) lesson.board = identity.board;
         if (identity.subject) lesson.subject = identity.subject;
-        if (!lesson.canonicalTopicKey && lesson.topicKey.includes(":")) {
+        if (lesson.topicKey.includes(":")) {
           lesson.canonicalTopicKey = lesson.topicKey.slice(lesson.topicKey.indexOf(":") + 1);
         }
       } catch (e) {
