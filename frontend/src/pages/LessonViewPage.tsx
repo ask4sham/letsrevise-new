@@ -12,6 +12,7 @@ import { hideBrokenLessonImage, LessonImageFrame, lessonImageFrameImgStyle } fro
 import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
 import { LessonDiagramBlockDisplay } from "../components/lesson/LessonDiagramBlockDisplay";
 import { diagramCaptionForDisplayFromBlock } from "../utils/diagramPedagogyDisplay";
+import { resolveLessonDescriptionForDisplay } from "../utils/lessonMetadataDisplay";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import {
   LessonStudentBlockRenderer,
@@ -306,6 +307,8 @@ interface Lesson {
   topicKey?: string;
   /** Namespaced spec identity (from backend) — gates AI tutor, banks, taxonomy */
   specKey?: string;
+  /** Display-only read of stored tier (foundation/higher); not mutated here */
+  tier?: string;
   /** Assessment questions (from topic bank snapshot) */
   assessment?: { questions?: Array<unknown> };
   /** Lesson↔AssessmentPaper: IDs of attached assessment papers */
@@ -2750,6 +2753,10 @@ const LessonViewPage: React.FC = () => {
         },
         topicKey: typeof data.topicKey === "string" ? data.topicKey : undefined,
         specKey: typeof data.specKey === "string" ? data.specKey.trim() : undefined,
+        tier:
+          typeof (data as { tier?: unknown }).tier === "string"
+            ? String((data as { tier?: string }).tier).trim() || undefined
+            : undefined,
         assessment: data.assessment,
         assessmentPaperIds: Array.isArray(data.assessmentPaperIds)
           ? data.assessmentPaperIds.map((id: any) => String(id))
@@ -4468,6 +4475,16 @@ const LessonViewPage: React.FC = () => {
                   {lesson?.description && (() => {
                     const cleanedDesc = stripMediaFromDescription(lesson.description);
                     if (!cleanedDesc) return null;
+                    // Display-only: rewrite import catalog meta (Key stage: IGCSE → KS4 + Course).
+                    const displayDesc = resolveLessonDescriptionForDisplay(cleanedDesc, {
+                      topic: lesson.topic,
+                      level: lesson.level,
+                      tier: lesson.tier,
+                      subject: lesson.subject,
+                      specKey: lesson.specKey,
+                      examBoardName: lesson.examBoardName,
+                      description: cleanedDesc,
+                    });
                     return (
                       <div
                         className={v12StudentPresentation ? "lesson-student-blurb" : undefined}
@@ -4486,9 +4503,9 @@ const LessonViewPage: React.FC = () => {
                           <div style={{ fontWeight: 500, marginBottom: 4 }}>What you&apos;ll learn</div>
                         ) : null}
                         <div style={{ whiteSpace: "pre-wrap" }}>
-                          {cleanedDesc.length > 400
-                            ? `${cleanedDesc.slice(0, 400)}…`
-                            : cleanedDesc}
+                          {displayDesc.length > 400
+                            ? `${displayDesc.slice(0, 400)}…`
+                            : displayDesc}
                         </div>
                       </div>
                     );
