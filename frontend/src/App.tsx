@@ -120,6 +120,7 @@ import StructureNotesPage from "./pages/StructureNotesPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 import TeacherLinkStudentsPage from "./pages/TeacherLinkStudentsPage";
+import TeacherClassDetailPage from "./pages/TeacherClassDetailPage";
 import DocsViewerPage from "./pages/DocsViewerPage";
 import CoverageDashboardPage from "./pages/CoverageDashboardPage";
 import ContentIssuesPage from "./pages/ContentIssuesPage";
@@ -677,6 +678,14 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherLinkStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/classes/:classPublicId"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherClassDetailPage />
               </ProtectedRoute>
             }
           />
