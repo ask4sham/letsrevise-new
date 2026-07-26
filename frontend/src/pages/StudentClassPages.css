@@ -1,17 +1,24 @@
 /* Student class invitations + memberships V1 */
 
-.student-classes {
+/* Shared tokens: dashboard (.student-classes-dash) and full page (.student-classes).
+   Primary buttons use these vars — without them Accept becomes white-on-transparent. */
+.student-classes,
+.student-classes-dash {
   --sc-ink: #1f2937;
   --sc-muted: #6b7280;
   --sc-border: #e5e7eb;
   --sc-panel: #ffffff;
   --sc-bg: #f8fafc;
   --sc-primary: #0f766e;
+  --sc-primary-hover: #0d9488;
   --sc-primary-soft: #ccfbf1;
   --sc-joined: #166534;
   --sc-joined-bg: #dcfce7;
   --sc-invite: #92400e;
   --sc-invite-bg: #fef3c7;
+}
+
+.student-classes {
   max-width: 960px;
   margin: 0 auto;
   padding: 24px 20px 48px;
@@ -197,6 +204,7 @@
   cursor: pointer;
   font-size: 0.95rem;
   min-height: 44px;
+  line-height: 1.2;
 }
 
 .student-classes__btn:disabled {
@@ -204,15 +212,31 @@
   cursor: wait;
 }
 
+.student-classes__btn:focus-visible {
+  outline: 3px solid #0f766e;
+  outline-offset: 2px;
+}
+
 .student-classes__btn--primary {
-  background: var(--sc-primary);
+  background: var(--sc-primary, #0f766e);
+  border-color: var(--sc-primary, #0f766e);
   color: #fff;
+}
+
+.student-classes__btn--primary:hover:not(:disabled) {
+  background: var(--sc-primary-hover, #0d9488);
+  border-color: var(--sc-primary-hover, #0d9488);
 }
 
 .student-classes__btn--secondary {
   background: #fff;
-  border-color: var(--sc-border);
-  color: var(--sc-ink);
+  border-color: var(--sc-border, #e5e7eb);
+  color: var(--sc-ink, #1f2937);
+}
+
+.student-classes__btn--secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .student-classes__btn--danger {
@@ -221,13 +245,22 @@
   color: #9f1239;
 }
 
+.student-classes__btn--danger:hover:not(:disabled) {
+  background: #fff1f2;
+}
+
 .student-classes__btn--ghost {
   background: transparent;
-  color: var(--sc-primary);
+  color: var(--sc-primary, #0f766e);
   border-color: transparent;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+}
+
+.student-classes__btn--ghost:hover:not(:disabled) {
+  background: var(--sc-primary-soft, #ccfbf1);
+  text-decoration: underline;
 }
 
 .student-classes__empty {
@@ -303,6 +336,50 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   margin-bottom: 16px;
   border: 2px solid #cbd5e1;
+  color: var(--sc-ink);
+}
+
+.student-classes-dash__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.student-classes-dash__nav {
+  margin-top: 4px;
+}
+
+.student-classes-dash__nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #0f766e;
+  background: #f0fdfa;
+  color: #0f766e;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.student-classes-dash__nav-link:hover {
+  background: #ccfbf1;
+  color: #115e59;
+  text-decoration: underline;
+}
+
+.student-classes-dash__nav-link:focus-visible {
+  outline: 3px solid #0f766e;
+  outline-offset: 2px;
+}
+
+.student-classes-dash__nav-link:active {
+  background: #99f6e4;
 }
 
 .student-classes-dash__title {
@@ -361,7 +438,14 @@
     padding-right: 14px;
   }
 
-  .student-classes__btn {
+  .student-classes__actions,
+  .student-classes-dash__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .student-classes__btn,
+  .student-classes-dash__nav-link {
     width: 100%;
     justify-content: center;
   }

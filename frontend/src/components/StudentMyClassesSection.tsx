@@ -1,6 +1,6 @@
 /**
  * Compact Student Dashboard "My classes" section.
- * Full Accept/Decline/Leave lives on /student/classes.
+ * Full Leave + full lists live on /student/classes; Accept/Decline work here too.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -28,6 +28,13 @@ function formatDate(value?: string) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString();
+}
+
+/** Contextual CTA to /student/classes based on pending vs joined state. */
+export function getStudentClassesNavLabel(pendingCount: number, joinedCount: number): string {
+  if (pendingCount > 0) return "View all class invitations";
+  if (joinedCount > 0) return "Manage my classes";
+  return "View my classes";
 }
 
 type ConfirmState =
@@ -87,7 +94,7 @@ const StudentMyClassesSection: React.FC = () => {
   }, []);
 
   async function onConfirm() {
-    if (!confirm) return;
+    if (!confirm || busyId) return;
     const inv = confirm.invitation;
     setBusyId(inv.publicId);
     try {
@@ -130,6 +137,9 @@ const StudentMyClassesSection: React.FC = () => {
 
   const visibleInvites = invitations.slice(0, DASH_INVITE_LIMIT);
   const visibleJoined = memberships.slice(0, DASH_JOINED_LIMIT);
+  const classesNavLabel = getStudentClassesNavLabel(invitations.length, memberships.length);
+  const classesNavHref =
+    invitations.length > 0 ? "/student/classes?tab=invitations" : "/student/classes";
 
   return (
     <section className="student-classes-dash" aria-labelledby="my-classes-heading">
@@ -206,7 +216,7 @@ const StudentMyClassesSection: React.FC = () => {
                         </span>
                       ) : null}
                     </div>
-                    <div className="student-classes__actions">
+                    <div className="student-classes__actions student-classes-dash__actions">
                       <button
                         type="button"
                         className="student-classes__btn student-classes__btn--primary"
@@ -214,7 +224,7 @@ const StudentMyClassesSection: React.FC = () => {
                         aria-label={`Accept invitation to ${className}`}
                         onClick={() => setConfirm({ kind: "accept", invitation: inv })}
                       >
-                        {busyId === inv.publicId ? "Working…" : "Accept"}
+                        {busyId === inv.publicId ? "Working…" : "Accept invitation"}
                       </button>
                       <button
                         type="button"
@@ -231,14 +241,6 @@ const StudentMyClassesSection: React.FC = () => {
               })
             )}
           </div>
-
-          {invitations.length > DASH_INVITE_LIMIT && (
-            <p style={{ margin: "0 0 12px" }}>
-              <Link className="student-classes__btn student-classes__btn--ghost" to="/student/classes?tab=invitations">
-                View all requests
-              </Link>
-            </p>
-          )}
 
           <h3 style={{ margin: "8px 0 10px", fontSize: "1.05rem" }}>Joined classes</h3>
           {visibleJoined.length === 0 ? (
@@ -272,13 +274,11 @@ const StudentMyClassesSection: React.FC = () => {
             </div>
           )}
 
-          <Link
-            to="/student/classes"
-            className="student-classes__btn student-classes__btn--primary"
-            style={{ display: "inline-flex", textDecoration: "none" }}
-          >
-            Manage classes
-          </Link>
+          <p className="student-classes-dash__nav">
+            <Link to={classesNavHref} className="student-classes-dash__nav-link">
+              {classesNavLabel}
+            </Link>
+          </p>
         </>
       )}
 
