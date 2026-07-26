@@ -1039,15 +1039,16 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. MY REVISION */}
+        {/* 2. MY REVISION — indigo border distinguishes from My classes (teal) */}
         <div
+          className="student-dashboard-revision"
           style={{
             background: "white",
             padding: "22px 24px",
             borderRadius: "14px",
-            boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+            boxShadow: "0 3px 10px rgba(79, 70, 229, 0.10)",
             marginBottom: "16px",
-            border: "2px solid #cbd5e1",
+            border: "2px solid #4f46e5",
           }}
         >
           <h2 style={{ color: "#0f172a", margin: "0 0 6px 0", fontSize: "1.4rem", fontWeight: 800 }}>MY REVISION</h2>
