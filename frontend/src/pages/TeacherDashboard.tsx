@@ -971,7 +971,7 @@ const TeacherDashboard: React.FC = () => {
               <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #9ca3af", paddingLeft: 6 }}>Account</div>
               <button type="button" onClick={handleCreateWorksheet} disabled={creatingWorksheet} style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", border: "1px solid #d1d5db", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: creatingWorksheet ? "wait" : "pointer", width: "100%", textAlign: "center" }}>{creatingWorksheet ? "Creating…" : "Create worksheet"}</button>
               <Link to="/teacher/reports/attempts" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Assessment reports</Link>
-              <Link to="/teacher/ops/link-students" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create students</Link>
+              <Link to="/teacher/ops/link-students" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Manage classes</Link>
               <Link to="/teacher/exam-question-bank" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create questions</Link>
             </div>
           </div>
@@ -1484,7 +1484,7 @@ const TeacherDashboard: React.FC = () => {
                     fontSize: 13,
                   }}
                 >
-                  Link students (beta)
+                  Manage classes
                 </Link>
               </div>
               {/* PR5: Topics not yet covered (toggled by "View uncovered topics" CTA above); PR-039 Improve this topic */}
