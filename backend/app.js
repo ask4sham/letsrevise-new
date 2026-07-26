@@ -169,6 +169,8 @@ app.use("/api/admin/bulk-import", require("./routes/adminBulkImport"));
 app.use("/api/import", require("./routes/importRoutes"));
 app.use("/api/admin/student-teacher-links", require("./routes/adminStudentTeacherLinks"));
 app.use("/api/student-classes", createBulkLimiter(), require("./routes/studentClasses"));
+app.use("/api/student-class-invitations", require("./routes/studentClassInvitations"));
+app.use("/api/student-class-memberships", require("./routes/studentClassMemberships"));
 app.use("/api/admin/question-banks", require("./routes/adminQuestionBanks"));
 app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));
 

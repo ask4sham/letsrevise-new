@@ -15,6 +15,10 @@ const {
   serializeInvitationForTeacher,
   MAX_UNIQUE_VALID_EMAILS,
 } = require("../services/studentClassInvitations");
+const {
+  listInvitationsForTeacher,
+  listActiveRoster,
+} = require("../services/studentClassConsent");
 
 function getUserId(req) {
   return req.user?.userId ?? req.user?._id ?? req.user?.id;
@@ -238,6 +242,23 @@ router.post("/:classPublicId/invitations", auth, async (req, res) => {
   }
 });
 
+// GET /api/student-classes/:classPublicId/students — active roster (post-accept names only)
+router.get("/:classPublicId/students", auth, async (req, res) => {
+  try {
+    if (!isTeacherOrAdmin(req)) {
+      return res.status(403).json({ error: "Teachers and admins only" });
+    }
+    const loaded = await loadOwnedClass(req, req.params.classPublicId);
+    if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
+
+    const { students } = await listActiveRoster(loaded.cls);
+    return res.json({ ok: true, students });
+  } catch (err) {
+    console.error("[student-classes] roster error:", err);
+    return res.status(500).json({ error: "Failed to list students" });
+  }
+});
+
 // GET /api/student-classes/:classPublicId/invitations
 router.get("/:classPublicId/invitations", auth, async (req, res) => {
   try {
@@ -247,13 +268,10 @@ router.get("/:classPublicId/invitations", auth, async (req, res) => {
     const loaded = await loadOwnedClass(req, req.params.classPublicId);
     if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
 
-    const rows = await StudentClassInvitation.find({ classId: loaded.cls._id })
-      .sort({ requestedAt: -1 })
-      .lean();
-    const now = new Date();
+    const invitations = await listInvitationsForTeacher(loaded.cls._id);
     return res.json({
       ok: true,
-      invitations: rows.map((row) => serializeInvitationForTeacher(row, now)),
+      invitations,
     });
   } catch (err) {
     console.error("[student-classes] invitation list error:", err);
