@@ -197,11 +197,9 @@ const StudentMyClassesSection: React.FC = () => {
 
       {!loading && !error && (
         <>
-          <div className="student-classes-dash__block">
-            <h3 className="student-classes-dash__block-title">Invitation</h3>
-            {visibleInvites.length === 0 ? (
-              <p className="student-classes-dash__hint">No new class invitations.</p>
-            ) : (
+          {invitations.length > 0 ? (
+            <div className="student-classes-dash__block">
+              <h3 className="student-classes-dash__block-title">Invitation</h3>
               <ul className="student-classes-dash__rows">
                 {visibleInvites.map((inv) => {
                   const className = inv.class.name;
@@ -242,26 +240,24 @@ const StudentMyClassesSection: React.FC = () => {
                   );
                 })}
               </ul>
-            )}
-            {showInviteOverflowLink ? (
-              <p className="student-classes-dash__inline-nav">
-                <Link
-                  to="/student/classes?tab=invitations"
-                  className="student-classes-dash__nav-link student-classes-dash__nav-link--inline"
-                >
-                  {invitations.length === 1
-                    ? "View all 1 invitation"
-                    : `View all ${invitations.length} invitations`}
-                </Link>
-              </p>
-            ) : null}
-          </div>
+              {showInviteOverflowLink ? (
+                <p className="student-classes-dash__inline-nav">
+                  <Link
+                    to="/student/classes?tab=invitations"
+                    className="student-classes-dash__nav-link student-classes-dash__nav-link--inline"
+                  >
+                    {invitations.length === 1
+                      ? "View all 1 invitation"
+                      : `View all ${invitations.length} invitations`}
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
-          <div className="student-classes-dash__block">
-            <h3 className="student-classes-dash__block-title">Recent classes</h3>
-            {visibleJoined.length === 0 ? (
-              <p className="student-classes-dash__hint">You have not joined a class yet.</p>
-            ) : (
+          {memberships.length > 0 ? (
+            <div className="student-classes-dash__block">
+              <h3 className="student-classes-dash__block-title">Recent classes</h3>
               <ul className="student-classes-dash__rows">
                 {visibleJoined.map((m) => {
                   const meta = formatMeta(m.class);
@@ -283,8 +279,12 @@ const StudentMyClassesSection: React.FC = () => {
                   );
                 })}
               </ul>
-            )}
-          </div>
+            </div>
+          ) : null}
+
+          {invitations.length === 0 && memberships.length === 0 ? (
+            <p className="student-classes-dash__hint">You have not joined a class yet.</p>
+          ) : null}
 
           <p className="student-classes-dash__nav">
             <Link to={classesNavHref} className="student-classes-dash__nav-link">

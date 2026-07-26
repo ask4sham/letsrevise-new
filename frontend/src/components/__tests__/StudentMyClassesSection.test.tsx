@@ -120,7 +120,7 @@ describe("getStudentClassesNavLabel", () => {
   });
 });
 
-test("empty dashboard is compact with View my classes high-contrast CTA", async () => {
+test("empty dashboard omits Invitation and Recent headings", async () => {
   mockGetIncoming.mockResolvedValue([]);
   mockGetMemberships.mockResolvedValue([]);
   renderSection();
@@ -129,15 +129,40 @@ test("empty dashboard is compact with View my classes high-contrast CTA", async 
   expect(await screen.findByLabelText("Class summary")).toHaveTextContent(
     "0 invitations · 0 joined"
   );
-  expect(screen.getByText(/No new class invitations/i)).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /^Invitation$/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /Recent classes/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/No new class invitations/i)).not.toBeInTheDocument();
   expect(screen.getByText(/You have not joined a class yet/i)).toBeInTheDocument();
-  expect(screen.queryByText(/When a teacher invites you/i)).not.toBeInTheDocument();
 
   const nav = screen.getByRole("link", { name: /^View my classes$/i });
   expect(nav).toHaveAttribute("href", "/student/classes");
   expect(nav).toHaveClass("student-classes-dash__nav-link");
   expect(screen.queryByRole("link", { name: /Manage classes/i })).not.toBeInTheDocument();
   expect(screen.queryByText(/Student ID|Teacher ID/i)).not.toBeInTheDocument();
+});
+
+test("joined-only state hides empty Invitation subsection", async () => {
+  mockGetIncoming.mockResolvedValue([]);
+  mockGetMemberships.mockResolvedValue([
+    makeMembership(1, {
+      class: { publicId: "c-smoke", name: "Year 11 Biology Smoke Test", subject: "Biology" },
+      teacher: { displayName: "Sham Sharma" },
+    }),
+  ] as any);
+
+  renderSection();
+
+  expect(await screen.findByLabelText("Class summary")).toHaveTextContent(
+    "0 invitations · 1 joined"
+  );
+  expect(screen.queryByRole("heading", { name: /^Invitation$/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/No new class invitations/i)).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /Recent classes/i })).toBeInTheDocument();
+  expect(screen.getByText("Year 11 Biology Smoke Test")).toBeInTheDocument();
+
+  const nav = screen.getByRole("link", { name: /View all my classes \(1\)/i });
+  expect(nav).toHaveAttribute("href", "/student/classes");
+  expect(nav).toHaveClass("student-classes-dash__nav-link");
 });
 
 test("pending invitation shows class, teacher, metadata, Accept and Decline", async () => {
@@ -157,6 +182,7 @@ test("pending invitation shows class, teacher, metadata, Accept and Decline", as
 
   renderSection();
 
+  expect(await screen.findByRole("heading", { name: /^Invitation$/i })).toBeInTheDocument();
   expect(await screen.findByText("Year 11 Biology")).toBeInTheDocument();
   expect(
     screen.getByText(/Sham Sharma · Biology · Edexcel IGCSE · Higher/)
@@ -168,6 +194,7 @@ test("pending invitation shows class, teacher, metadata, Accept and Decline", as
   expect(
     screen.getByRole("button", { name: /Decline invitation to Year 11 Biology/i })
   ).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /Recent classes/i })).not.toBeInTheDocument();
 
   const nav = screen.getByRole("link", { name: /View all 1 invitation/i });
   expect(nav).toHaveAttribute("href", "/student/classes?tab=invitations");
@@ -207,6 +234,9 @@ test("renders at most 3 joined classes and View all my classes CTA", async () =>
   expect(screen.getByText("Joined Class 3")).toBeInTheDocument();
   expect(screen.queryByText("Joined Class 4")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Class summary")).toHaveTextContent("0 invitations · 4 joined");
+  expect(screen.queryByRole("heading", { name: /^Invitation$/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/No new class invitations/i)).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /Recent classes/i })).toBeInTheDocument();
 
   const nav = screen.getByRole("link", { name: /View all my classes \(4\)/i });
   expect(nav).toHaveAttribute("href", "/student/classes");
