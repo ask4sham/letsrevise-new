@@ -110,3 +110,66 @@ export type RemovedMembership = {
   status: "removed";
   leftAt?: string | null;
 };
+
+/** Student-facing invitation / membership types (no emails, no Mongo IDs). */
+
+export type TeacherDisplaySummary = {
+  displayName: string;
+};
+
+export type StudentClassInfoSummary = {
+  publicId: string;
+  name: string;
+  description?: string;
+  subject?: string | null;
+  board?: string | null;
+  specKey?: string | null;
+  tier?: string | null;
+  academicYear?: string | null;
+};
+
+export type StudentIncomingClassInvitation = {
+  publicId: string;
+  status: "pending";
+  requestedAt?: string;
+  expiresAt?: string;
+  class: StudentClassInfoSummary;
+  teacher: TeacherDisplaySummary;
+};
+
+export type StudentClassMembershipSummary = {
+  membershipPublicId: string;
+  joinedAt?: string;
+  class: StudentClassInfoSummary;
+  teacher: TeacherDisplaySummary;
+};
+
+export type AcceptClassInvitationResult = {
+  ok: true;
+  invitation: {
+    publicId: string;
+    status: "accepted";
+    respondedAt?: string | null;
+  };
+  membership: {
+    publicId: string;
+    status: "active" | string;
+    joinedAt?: string;
+  };
+  class: StudentClassInfoSummary;
+  teacher: TeacherDisplaySummary;
+};
+
+export type DeclineClassInvitationResult = {
+  ok: true;
+  invitation: {
+    publicId: string;
+    status: "declined";
+    respondedAt?: string | null;
+  };
+};
+
+export type LeaveClassResult = {
+  ok: true;
+  membership: RemovedMembership;
+};

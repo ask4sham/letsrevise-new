@@ -1,29 +1,39 @@
 /**
- * Teacher class-linking API — opaque publicIds only.
- * Never submit teacherId / studentId / Mongo IDs.
+ * Class-linking API — opaque publicIds only.
+ * Never submit teacherId / studentId / Mongo IDs / emails from the client.
  */
 import api from "../services/api";
 import type {
+  AcceptClassInvitationResult,
   CreateClassPayload,
   CreateInvitationsResult,
+  DeclineClassInvitationResult,
   InvitationPreview,
+  LeaveClassResult,
   RemovedMembership,
   StudentClassDetail,
   StudentClassInvitation,
   StudentClassMember,
+  StudentClassMembershipSummary,
   StudentClassSummary,
+  StudentIncomingClassInvitation,
   UpdateClassPayload,
 } from "../types/studentClasses";
 
 export type {
+  AcceptClassInvitationResult,
   CreateClassPayload,
   CreateInvitationsResult,
+  DeclineClassInvitationResult,
   InvitationPreview,
+  LeaveClassResult,
   RemovedMembership,
   StudentClassDetail,
   StudentClassInvitation,
   StudentClassMember,
+  StudentClassMembershipSummary,
   StudentClassSummary,
+  StudentIncomingClassInvitation,
   UpdateClassPayload,
 } from "../types/studentClasses";
 
@@ -159,23 +169,96 @@ export async function removeClassStudent(
   return data.membership;
 }
 
-/** Map API error to a teacher-safe message. */
-export function getStudentClassErrorMessage(err: unknown, fallback = "Something went wrong."): string {
+export async function getIncomingClassInvitations(): Promise<StudentIncomingClassInvitation[]> {
+  const { data } = await api.get<{ ok: true; invitations: StudentIncomingClassInvitation[] }>(
+    "/student-class-invitations/incoming"
+  );
+  return data.invitations || [];
+}
+
+export async function acceptClassInvitation(
+  invitationPublicId: string
+): Promise<AcceptClassInvitationResult> {
+  const { data } = await api.post<AcceptClassInvitationResult>(
+    `/student-class-invitations/${encodeURIComponent(invitationPublicId)}/accept`
+  );
+  return data;
+}
+
+export async function declineClassInvitation(
+  invitationPublicId: string
+): Promise<DeclineClassInvitationResult> {
+  const { data } = await api.post<DeclineClassInvitationResult>(
+    `/student-class-invitations/${encodeURIComponent(invitationPublicId)}/decline`
+  );
+  return data;
+}
+
+export async function getMyClassMemberships(): Promise<StudentClassMembershipSummary[]> {
+  const { data } = await api.get<{ ok: true; classes: StudentClassMembershipSummary[] }>(
+    "/student-class-memberships/mine"
+  );
+  return data.classes || [];
+}
+
+export async function leaveClass(membershipPublicId: string): Promise<LeaveClassResult> {
+  const { data } = await api.delete<LeaveClassResult>(
+    `/student-class-memberships/${encodeURIComponent(membershipPublicId)}`
+  );
+  return data;
+}
+
+function readApiError(err: unknown): {
+  status?: number;
+  code?: string;
+  message?: string;
+} {
   const e = err as {
     message?: string;
     status?: number;
     data?: { error?: string; msg?: string; code?: string };
     response?: { status?: number; data?: { error?: string; msg?: string; code?: string } };
   };
-  const status = e?.status ?? e?.response?.status;
-  const apiMsg =
-    e?.data?.error ||
-    e?.data?.msg ||
-    e?.response?.data?.error ||
-    e?.response?.data?.msg ||
-    e?.message;
+  return {
+    status: e?.status ?? e?.response?.status,
+    code: e?.data?.code || e?.response?.data?.code,
+    message:
+      e?.data?.error ||
+      e?.data?.msg ||
+      e?.response?.data?.error ||
+      e?.response?.data?.msg ||
+      e?.message,
+  };
+}
+
+/** Map API error to a teacher-safe message. */
+export function getStudentClassErrorMessage(err: unknown, fallback = "Something went wrong."): string {
+  const { status, message } = readApiError(err);
   if (status === 401) return "Please log in again.";
   if (status === 403) return "You don't have permission to manage this class.";
   if (status === 404) return "Class not found.";
-  return apiMsg || fallback;
+  return message || fallback;
+}
+
+/** Map API error to a student-safe invitation/membership message. */
+export function getStudentInvitationErrorMessage(
+  err: unknown,
+  fallback = "Something went wrong."
+): string {
+  const { status, code, message } = readApiError(err);
+  if (status === 401) return "Please log in again.";
+  if (code === "INVITATION_EXPIRED" || /expired/i.test(message || "")) {
+    return "This invitation has expired. Ask your teacher to resend it.";
+  }
+  if (code === "CLASS_ARCHIVED" || /archived/i.test(message || "")) {
+    return "This class is no longer active.";
+  }
+  if (status === 404 || code === "INVITATION_NOT_ACTIONABLE") {
+    return "This invitation is no longer available.";
+  }
+  if (code === "INVITATION_ACCEPTED") {
+    return "You have already joined this class.";
+  }
+  if (status === 403) return "You don't have permission to do that.";
+  return fallback;
 }

@@ -112,6 +112,7 @@ import StudentMyWorkPage from "./pages/StudentMyWorkPage";
 import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 import StudentPracticePage from "./pages/StudentPracticePage";
+import StudentClassesPage from "./pages/StudentClassesPage";
 import FlashcardSessionPage from "./pages/FlashcardSessionPage";
 import QuizSessionPage from "./pages/QuizSessionPage";
 import ExamPracticePage from "./pages/ExamPracticePage";
@@ -499,6 +500,15 @@ function App() {
             element={
               <ProtectedRoute requireStudent>
                 <StudentPracticePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/classes"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentClassesPage />
               </ProtectedRoute>
             }
           />

@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabaseClient";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 import { getKnowledgeGap, type KnowledgeGapResponse } from "../api/studentKnowledgeGap";
 import { getStudentDashboard, type DashboardResponse } from "../api/studentDashboard";
+import StudentMyClassesSection from "../components/StudentMyClassesSection";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getApiClientErrorMessage, getAxiosErrorMessage, getErrorMessageFromData } from "../utils/apiErrorMessage";
 
@@ -1419,6 +1420,9 @@ const StudentDashboard: React.FC = () => {
             </p>
           )}
         </div>
+
+        {/* My classes — invitations + joined summary */}
+        <StudentMyClassesSection />
 
         {/* 3. Revision Focus */}
         <RevisionFocusBlock dashboardData={dashboardData} dashboardLoading={dashboardLoading} />

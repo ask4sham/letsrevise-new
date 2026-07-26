@@ -3,14 +3,20 @@
  */
 import api from "../../services/api";
 import {
+  acceptClassInvitation,
   archiveClass,
   cancelInvitation,
   createClass,
   createInvitations,
+  declineClassInvitation,
   getClass,
   getClassStudents,
+  getIncomingClassInvitations,
   getInvitations,
+  getMyClassMemberships,
   getMyClasses,
+  getStudentInvitationErrorMessage,
+  leaveClass,
   previewCsv,
   previewEmailInput,
   removeClassStudent,
@@ -143,4 +149,60 @@ test("invitation lifecycle and roster routes use publicIds", async () => {
   expect(mockedApi.post).toHaveBeenCalledWith("/student-classes/c1/invitations/i1/cancel");
   expect(mockedApi.post).toHaveBeenCalledWith("/student-classes/c1/invitations/i1/resend");
   expect(mockedApi.delete).toHaveBeenCalledWith("/student-classes/c1/students/m1");
+});
+
+test("student inbox accept decline memberships leave use publicIds only", async () => {
+  mockedApi.get
+    .mockResolvedValueOnce({ data: { ok: true, invitations: [] } } as any)
+    .mockResolvedValueOnce({ data: { ok: true, classes: [] } } as any);
+  mockedApi.post
+    .mockResolvedValueOnce({
+      data: {
+        ok: true,
+        invitation: { publicId: "inv-1", status: "accepted" },
+        membership: { publicId: "mem-1", status: "active" },
+        class: { publicId: "c1", name: "Bio" },
+        teacher: { displayName: "Tina" },
+      },
+    } as any)
+    .mockResolvedValueOnce({
+      data: { ok: true, invitation: { publicId: "inv-2", status: "declined" } },
+    } as any);
+  mockedApi.delete.mockResolvedValue({
+    data: { ok: true, membership: { publicId: "mem-1", status: "removed" } },
+  } as any);
+
+  await getIncomingClassInvitations();
+  await getMyClassMemberships();
+  await acceptClassInvitation("inv-1");
+  await declineClassInvitation("inv-2");
+  await leaveClass("mem-1");
+
+  expect(mockedApi.get).toHaveBeenCalledWith("/student-class-invitations/incoming");
+  expect(mockedApi.get).toHaveBeenCalledWith("/student-class-memberships/mine");
+  expect(mockedApi.post).toHaveBeenCalledWith("/student-class-invitations/inv-1/accept");
+  expect(mockedApi.post).toHaveBeenCalledWith("/student-class-invitations/inv-2/decline");
+  expect(mockedApi.delete).toHaveBeenCalledWith("/student-class-memberships/mem-1");
+
+  for (const call of mockedApi.post.mock.calls) {
+    expect(call[1]).toBeUndefined();
+  }
+});
+
+test("getStudentInvitationErrorMessage maps controlled codes", () => {
+  expect(
+    getStudentInvitationErrorMessage({
+      response: { status: 410, data: { code: "INVITATION_EXPIRED", error: "Invitation has expired" } },
+    })
+  ).toMatch(/expired/i);
+  expect(
+    getStudentInvitationErrorMessage({
+      response: { status: 400, data: { code: "CLASS_ARCHIVED", error: "Class is archived" } },
+    })
+  ).toMatch(/no longer active/i);
+  expect(
+    getStudentInvitationErrorMessage({
+      response: { status: 404, data: { error: "Invitation not found" } },
+    })
+  ).toMatch(/no longer available/i);
 });
