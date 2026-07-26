@@ -112,6 +112,7 @@ import StudentMyWorkPage from "./pages/StudentMyWorkPage";
 import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 import StudentPracticePage from "./pages/StudentPracticePage";
+import StudentClassesPage from "./pages/StudentClassesPage";
 import FlashcardSessionPage from "./pages/FlashcardSessionPage";
 import QuizSessionPage from "./pages/QuizSessionPage";
 import ExamPracticePage from "./pages/ExamPracticePage";
@@ -120,6 +121,7 @@ import StructureNotesPage from "./pages/StructureNotesPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 import TeacherLinkStudentsPage from "./pages/TeacherLinkStudentsPage";
+import TeacherClassDetailPage from "./pages/TeacherClassDetailPage";
 import DocsViewerPage from "./pages/DocsViewerPage";
 import CoverageDashboardPage from "./pages/CoverageDashboardPage";
 import ContentIssuesPage from "./pages/ContentIssuesPage";
@@ -502,6 +504,15 @@ function App() {
             }
           />
 
+          <Route
+            path="/student/classes"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentClassesPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Actionable Revision Flow: topic-based practice sessions */}
           <Route
             path="/practice/flashcards/:topicKey"
@@ -677,6 +688,14 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherLinkStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/classes/:classPublicId"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherClassDetailPage />
               </ProtectedRoute>
             }
           />

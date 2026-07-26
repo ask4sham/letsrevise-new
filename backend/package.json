@@ -36,6 +36,7 @@
     "sync:indexes": "node scripts/sync-indexes.js",
     "migrate:practice-set-idempotency-index": "node scripts/migrations/ensure_practice_set_idempotency_index.js",
     "migrate:practice-set-idempotency-index:dry-run": "node scripts/migrations/ensure_practice_set_idempotency_index.js --dry-run",
+    "ops:indexes:student-classes": "node scripts/migrations/create_student_class_indexes.js",
     "validate:taxonomies": "node scripts/validateTaxonomies.js",
     "export:taxonomy-topics": "node scripts/exportTaxonomyTopicList.js",
     "generate:visual-pack-registry": "node ../visual-templates/scripts/generate-pack-registry-from-taxonomy.js",
