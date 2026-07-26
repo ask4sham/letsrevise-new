@@ -1,6 +1,6 @@
 /**
- * Compact Student Dashboard "My classes" section.
- * Full Accept/Decline/Leave lives on /student/classes.
+ * Compact Student Dashboard "My classes" summary.
+ * Full lists + Leave live on /student/classes; Accept/Decline work here too.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -17,17 +17,41 @@ import {
 import "../pages/StudentClassPages.css";
 
 const DASH_INVITE_LIMIT = 2;
-const DASH_JOINED_LIMIT = 2;
+const DASH_JOINED_LIMIT = 3;
 
 function formatMeta(cls: { subject?: string | null; board?: string | null; tier?: string | null }) {
   return [cls.subject, cls.board, cls.tier].filter(Boolean).join(" · ");
 }
 
-function formatDate(value?: string) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString();
+function formatTeacherMeta(
+  teacherName: string,
+  cls: { subject?: string | null; board?: string | null; tier?: string | null }
+) {
+  const meta = formatMeta(cls);
+  return meta ? `${teacherName} · ${meta}` : teacherName;
+}
+
+/** Compact header: "1 invitation · 4 joined" */
+export function formatClassesSummaryCounts(pendingCount: number, joinedCount: number): string {
+  const inviteLabel = pendingCount === 1 ? "1 invitation" : `${pendingCount} invitations`;
+  const joinedLabel = joinedCount === 1 ? "1 joined" : `${joinedCount} joined`;
+  return `${inviteLabel} · ${joinedLabel}`;
+}
+
+/**
+ * Primary dashboard CTA to /student/classes.
+ * Describes what the student will see next (not "Manage…").
+ */
+export function getStudentClassesNavLabel(pendingCount: number, joinedCount: number): string {
+  if (pendingCount > 0) {
+    return pendingCount === 1
+      ? "View all 1 invitation"
+      : `View all ${pendingCount} invitations`;
+  }
+  if (joinedCount > 0) {
+    return `View all my classes (${joinedCount})`;
+  }
+  return "View my classes";
 }
 
 type ConfirmState =
@@ -87,7 +111,7 @@ const StudentMyClassesSection: React.FC = () => {
   }, []);
 
   async function onConfirm() {
-    if (!confirm) return;
+    if (!confirm || busyId) return;
     const inv = confirm.invitation;
     setBusyId(inv.publicId);
     try {
@@ -128,8 +152,14 @@ const StudentMyClassesSection: React.FC = () => {
     }
   }
 
+  // API returns newest-first (joinedAt / requestedAt desc); do not re-sort client-side.
   const visibleInvites = invitations.slice(0, DASH_INVITE_LIMIT);
   const visibleJoined = memberships.slice(0, DASH_JOINED_LIMIT);
+  const summaryCounts = formatClassesSummaryCounts(invitations.length, memberships.length);
+  const classesNavLabel = getStudentClassesNavLabel(invitations.length, memberships.length);
+  const classesNavHref =
+    invitations.length > 0 ? "/student/classes?tab=invitations" : "/student/classes";
+  const showInviteOverflowLink = invitations.length > DASH_INVITE_LIMIT;
 
   return (
     <section className="student-classes-dash" aria-labelledby="my-classes-heading">
@@ -139,15 +169,19 @@ const StudentMyClassesSection: React.FC = () => {
         </div>
       )}
 
-      <h2 id="my-classes-heading" className="student-classes-dash__title">
-        My classes
-      </h2>
-      <p className="student-classes-dash__subtitle">
-        Respond to teacher invitations and view the classes you have joined.
-      </p>
+      <header className="student-classes-dash__header">
+        <h2 id="my-classes-heading" className="student-classes-dash__title">
+          My classes
+        </h2>
+        {!loading && !error ? (
+          <p className="student-classes-dash__counts" aria-label="Class summary">
+            {summaryCounts}
+          </p>
+        ) : null}
+      </header>
 
       {loading && (
-        <p className="student-classes__meta" aria-live="polite">
+        <p className="student-classes-dash__hint" aria-live="polite">
           Loading your classes…
         </p>
       )}
@@ -163,122 +197,100 @@ const StudentMyClassesSection: React.FC = () => {
 
       {!loading && !error && (
         <>
-          <div className="student-classes-dash__grid" aria-label="Class summary">
-            <div className="student-classes-dash__chip student-classes-dash__chip--invite">
-              <span>Invitations</span>
-              <strong>{invitations.length}</strong>
-            </div>
-            <div className="student-classes-dash__chip student-classes-dash__chip--joined">
-              <span>Joined</span>
-              <strong>{memberships.length}</strong>
-            </div>
-          </div>
-
-          <div className="student-classes__list" style={{ marginBottom: 14 }}>
-            {visibleInvites.length === 0 ? (
-              <p className="student-classes__meta" style={{ margin: 0 }}>
-                No new class invitations.
-              </p>
-            ) : (
-              visibleInvites.map((inv) => {
-                const className = inv.class.name;
-                const teacherName = inv.teacher.displayName;
-                const meta = formatMeta(inv.class);
-                return (
-                  <article
-                    key={inv.publicId}
-                    className="student-classes__card"
-                    aria-label={`Invitation to join ${className}`}
+          {invitations.length > 0 ? (
+            <div className="student-classes-dash__block">
+              <h3 className="student-classes-dash__block-title">Invitation</h3>
+              <ul className="student-classes-dash__rows">
+                {visibleInvites.map((inv) => {
+                  const className = inv.class.name;
+                  const teacherName = inv.teacher.displayName;
+                  const line = formatTeacherMeta(teacherName, inv.class);
+                  return (
+                    <li key={inv.publicId}>
+                      <article
+                        className="student-classes-dash__row student-classes-dash__row--invite"
+                        aria-label={`Invitation to join ${className}`}
+                      >
+                        <div className="student-classes-dash__row-main">
+                          <strong className="student-classes-dash__row-name">{className}</strong>
+                          <span className="student-classes-dash__row-meta">{line}</span>
+                        </div>
+                        <div className="student-classes__actions student-classes-dash__actions">
+                          <button
+                            type="button"
+                            className="student-classes__btn student-classes__btn--primary"
+                            disabled={busyId === inv.publicId}
+                            aria-label={`Accept invitation to ${className}`}
+                            onClick={() => setConfirm({ kind: "accept", invitation: inv })}
+                          >
+                            {busyId === inv.publicId ? "Working…" : "Accept invitation"}
+                          </button>
+                          <button
+                            type="button"
+                            className="student-classes__btn student-classes__btn--secondary"
+                            disabled={busyId === inv.publicId}
+                            aria-label={`Decline invitation to ${className}`}
+                            onClick={() => setConfirm({ kind: "decline", invitation: inv })}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </article>
+                    </li>
+                  );
+                })}
+              </ul>
+              {showInviteOverflowLink ? (
+                <p className="student-classes-dash__inline-nav">
+                  <Link
+                    to="/student/classes?tab=invitations"
+                    className="student-classes-dash__nav-link student-classes-dash__nav-link--inline"
                   >
-                    <div className="student-classes__card-main">
-                      <span className="student-classes__badge student-classes__badge--invite">
-                        Invitation
-                      </span>
-                      <h3>Teacher and class request</h3>
-                      <p className="student-classes__meta" style={{ margin: 0 }}>
-                        {teacherName} has invited you to join:
-                      </p>
-                      <strong>{className}</strong>
-                      {meta ? <span className="student-classes__meta">{meta}</span> : null}
-                      {inv.requestedAt ? (
-                        <span className="student-classes__meta">
-                          Requested {formatDate(inv.requestedAt)}
+                    {invitations.length === 1
+                      ? "View all 1 invitation"
+                      : `View all ${invitations.length} invitations`}
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {memberships.length > 0 ? (
+            <div className="student-classes-dash__block">
+              <h3 className="student-classes-dash__block-title">Recent classes</h3>
+              <ul className="student-classes-dash__rows">
+                {visibleJoined.map((m) => {
+                  const meta = formatMeta(m.class);
+                  return (
+                    <li key={m.membershipPublicId}>
+                      <article
+                        className="student-classes-dash__row student-classes-dash__row--joined"
+                        aria-label={`Joined class ${m.class.name}`}
+                      >
+                        <strong className="student-classes-dash__row-name">{m.class.name}</strong>
+                        <span className="student-classes-dash__row-aside">
+                          {m.teacher.displayName}
+                          {meta ? (
+                            <span className="student-classes-dash__row-meta"> · {meta}</span>
+                          ) : null}
                         </span>
-                      ) : null}
-                    </div>
-                    <div className="student-classes__actions">
-                      <button
-                        type="button"
-                        className="student-classes__btn student-classes__btn--primary"
-                        disabled={busyId === inv.publicId}
-                        aria-label={`Accept invitation to ${className}`}
-                        onClick={() => setConfirm({ kind: "accept", invitation: inv })}
-                      >
-                        {busyId === inv.publicId ? "Working…" : "Accept"}
-                      </button>
-                      <button
-                        type="button"
-                        className="student-classes__btn student-classes__btn--secondary"
-                        disabled={busyId === inv.publicId}
-                        aria-label={`Decline invitation to ${className}`}
-                        onClick={() => setConfirm({ kind: "decline", invitation: inv })}
-                      >
-                        Decline
-                      </button>
-                    </div>
-                  </article>
-                );
-              })
-            )}
-          </div>
-
-          {invitations.length > DASH_INVITE_LIMIT && (
-            <p style={{ margin: "0 0 12px" }}>
-              <Link className="student-classes__btn student-classes__btn--ghost" to="/student/classes?tab=invitations">
-                View all requests
-              </Link>
-            </p>
-          )}
-
-          <h3 style={{ margin: "8px 0 10px", fontSize: "1.05rem" }}>Joined classes</h3>
-          {visibleJoined.length === 0 ? (
-            <div className="student-classes__empty" style={{ padding: "16px 8px" }}>
-              <p style={{ margin: "0 0 6px", fontWeight: 700, color: "#0f172a" }}>
-                You have not joined a class yet.
-              </p>
-              <p style={{ margin: 0 }}>When a teacher invites you, the request will appear here.</p>
+                      </article>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          ) : (
-            <div className="student-classes__list" style={{ marginBottom: 12 }}>
-              {visibleJoined.map((m) => {
-                const meta = formatMeta(m.class);
-                return (
-                  <article
-                    key={m.membershipPublicId}
-                    className="student-classes__card"
-                    aria-label={`Joined class ${m.class.name}`}
-                  >
-                    <div className="student-classes__card-main">
-                      <span className="student-classes__badge student-classes__badge--joined">
-                        Joined
-                      </span>
-                      <strong>{m.class.name}</strong>
-                      <span className="student-classes__meta">{m.teacher.displayName}</span>
-                      {meta ? <span className="student-classes__meta">{meta}</span> : null}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+          ) : null}
 
-          <Link
-            to="/student/classes"
-            className="student-classes__btn student-classes__btn--primary"
-            style={{ display: "inline-flex", textDecoration: "none" }}
-          >
-            Manage classes
-          </Link>
+          {invitations.length === 0 && memberships.length === 0 ? (
+            <p className="student-classes-dash__hint">You have not joined a class yet.</p>
+          ) : null}
+
+          <p className="student-classes-dash__nav">
+            <Link to={classesNavHref} className="student-classes-dash__nav-link">
+              {classesNavLabel}
+            </Link>
+          </p>
         </>
       )}
 
