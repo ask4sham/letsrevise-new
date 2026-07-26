@@ -154,4 +154,3 @@ test("error state offers retry", async () => {
   fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
   expect(await screen.findByText(/You have no class invitations/i)).toBeInTheDocument();
 });
-

@@ -143,4 +143,3 @@ test("declines invitation without creating membership", async () => {
   expect(await screen.findByText(/Invitation declined/i)).toBeInTheDocument();
   expect(mockAccept).not.toHaveBeenCalled();
 });
-
