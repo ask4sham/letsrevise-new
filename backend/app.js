@@ -168,6 +168,7 @@ app.use("/api/admin/bulk-import", require("./routes/adminBulkImport"));
 // Phase 1: CSV import for flashcards and exam questions (teacher/admin)
 app.use("/api/import", require("./routes/importRoutes"));
 app.use("/api/admin/student-teacher-links", require("./routes/adminStudentTeacherLinks"));
+app.use("/api/student-classes", createBulkLimiter(), require("./routes/studentClasses"));
 app.use("/api/admin/question-banks", require("./routes/adminQuestionBanks"));
 app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));
 
