@@ -12,8 +12,8 @@ const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
-const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { canAccessContent } = require("../utils/canAccessContent");
+const { hasAcceptedStudentTeacherLink } = require("../utils/hasAcceptedStudentTeacherLink");
 const {
   generateAndPersistPracticeSet,
   getPracticeSetForStudent,
@@ -50,8 +50,11 @@ async function resolveTeacherLink(studentId, teacherId) {
   if (!teacherIdObj) {
     return { error: { status: 400, body: { error: "teacherId is required (content owner)." } } };
   }
-  const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
-  if (!link) {
+  const linked = await hasAcceptedStudentTeacherLink({
+    studentId,
+    teacherId: teacherIdObj,
+  });
+  if (!linked) {
     return {
       error: {
         status: 403,
