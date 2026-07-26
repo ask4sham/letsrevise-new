@@ -1,0 +1,247 @@
+.practice-setup {
+  --ps-ink: #0f172a;
+  --ps-muted: #64748b;
+  --ps-border: #e2e8f0;
+  --ps-primary: #4f46e5;
+  --ps-class: #0f766e;
+  --ps-course: #0369a1;
+  --ps-topic: #7c3aed;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--ps-ink);
+}
+
+.practice-setup__intro {
+  margin: 0 0 4px;
+  color: var(--ps-muted);
+  font-size: 0.95rem;
+}
+
+.practice-setup__stage {
+  background: #fff;
+  border: 1px solid var(--ps-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.practice-setup__stage--class {
+  border-left: 4px solid var(--ps-class);
+}
+
+.practice-setup__stage--course {
+  border-left: 4px solid var(--ps-course);
+}
+
+.practice-setup__stage--topic {
+  border-left: 4px solid var(--ps-topic);
+}
+
+.practice-setup__stage-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.practice-setup__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--ps-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.practice-setup__stage--class .practice-setup__step {
+  background: #ccfbf1;
+  color: var(--ps-class);
+}
+
+.practice-setup__stage--course .practice-setup__step {
+  background: #e0f2fe;
+  color: var(--ps-course);
+}
+
+.practice-setup__stage--topic .practice-setup__step {
+  background: #ede9fe;
+  color: var(--ps-topic);
+}
+
+.practice-setup__label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.practice-setup__select,
+.practice-setup__input {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--ps-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  font-size: 0.95rem;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.practice-setup__help,
+.practice-setup__meta {
+  margin: 8px 0 0;
+  color: var(--ps-muted);
+  font-size: 0.85rem;
+}
+
+.practice-setup__selected {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+  color: #134e4a;
+}
+
+.practice-setup__empty {
+  text-align: center;
+  padding: 12px 8px;
+}
+
+.practice-setup__empty-title {
+  margin: 0 0 6px;
+  font-weight: 800;
+}
+
+.practice-setup__empty p {
+  margin: 0 0 12px;
+  color: var(--ps-muted);
+}
+
+.practice-setup__error {
+  color: #9f1239;
+  background: #ffe4e6;
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0;
+}
+
+.practice-setup__field-error {
+  color: #9f1239;
+  font-size: 0.85rem;
+  margin: 6px 0 0;
+}
+
+.practice-setup__optional {
+  margin-top: 14px;
+  border: 1px solid var(--ps-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.practice-setup__optional summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #334155;
+}
+
+.practice-setup__optional-body {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.practice-setup__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.practice-setup__chips {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.practice-setup__chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ps-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  background: #fff;
+}
+
+.practice-setup__chips button {
+  border: none;
+  background: transparent;
+  color: #e11d48;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.practice-setup__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.practice-setup__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  min-height: 44px;
+  font-size: 0.95rem;
+}
+
+.practice-setup__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.practice-setup__btn--primary {
+  background: var(--ps-primary);
+  color: #fff;
+}
+
+.practice-setup__btn--secondary {
+  background: #fff;
+  border-color: var(--ps-border);
+  color: var(--ps-ink);
+}
+
+.practice-setup__btn--start {
+  min-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .practice-setup__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .practice-setup__btn--start,
+  .practice-setup__btn {
+    width: 100%;
+  }
+}

@@ -37,12 +37,12 @@ export async function submitPracticeAttempt(
   payload: SubmitPracticeAttemptPayload
 ): Promise<SubmitPracticeAttemptResponse> {
   const body: Record<string, unknown> = {
-    teacherId: payload.teacherId,
     specKey: payload.specKey,
     topicKey: payload.topicKey,
     contentType: payload.contentType,
     contentId: payload.contentId,
   };
+  if (payload.teacherId) body.teacherId = payload.teacherId;
   if (payload.practiceSetId) body.practiceSetId = payload.practiceSetId;
   if (payload.confidence != null) body.confidence = payload.confidence;
   if (payload.timeSpentSec != null) body.timeSpentSec = payload.timeSpentSec;
