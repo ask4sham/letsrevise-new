@@ -1,12 +1,14 @@
 /**
- * Teacher class + invitation APIs (Phase 1).
+ * Teacher class + invitation APIs (Phase 1–3A).
  * Anti-enumeration: invitation create never queries User.
  */
 "use strict";
 
 const express = require("express");
+const multer = require("multer");
 const router = express.Router();
 const auth = require("../middleware/auth");
+const { createUploadLimiter, createAttemptLimiter } = require("../middleware/rateLimitBulk");
 const StudentClass = require("../models/StudentClass");
 const StudentClassInvitation = require("../models/StudentClassInvitation");
 const {
@@ -19,6 +21,28 @@ const {
   listInvitationsForTeacher,
   listActiveRoster,
 } = require("../services/studentClassConsent");
+const { parseStudentInvitationCsv, CSV_MAX_BYTES } = require("../services/studentClassCsvPreview");
+const {
+  resendInvitation,
+  applyClassPatch,
+  archiveClass,
+  teacherRemoveMembership,
+} = require("../services/studentClassMembershipLifecycle");
+
+const mutationLimiter = createAttemptLimiter();
+const csvUploadLimiter = createUploadLimiter();
+
+const uploadCsv = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: CSV_MAX_BYTES, files: 1 },
+  fileFilter(req, file, cb) {
+    const name = String(file.originalname || "").toLowerCase();
+    if (!name.endsWith(".csv")) {
+      return cb(new Error("Only .csv files are allowed"));
+    }
+    cb(null, true);
+  },
+});
 
 function getUserId(req) {
   return req.user?.userId ?? req.user?._id ?? req.user?.id;
@@ -149,6 +173,113 @@ router.get("/:classPublicId", auth, async (req, res) => {
   }
 });
 
+// PATCH /api/student-classes/:classPublicId
+router.patch("/:classPublicId", auth, mutationLimiter, async (req, res) => {
+  try {
+    if (!isTeacherOrAdmin(req)) {
+      return res.status(403).json({ error: "Teachers and admins only" });
+    }
+    const loaded = await loadOwnedClass(req, req.params.classPublicId);
+    if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
+
+    const cls = await StudentClass.findById(loaded.cls._id);
+    if (!cls) return res.status(404).json({ error: "Class not found" });
+
+    const validation = applyClassPatch(cls, req.body || {});
+    if (validation && validation.error) {
+      return res.status(validation.error.status).json(validation.error.body);
+    }
+
+    await cls.save();
+    return res.json({ ok: true, class: serializeClass(cls) });
+  } catch (err) {
+    console.error("[student-classes] patch error:", err);
+    return res.status(500).json({ error: "Failed to update class" });
+  }
+});
+
+// POST /api/student-classes/:classPublicId/archive
+router.post("/:classPublicId/archive", auth, mutationLimiter, async (req, res) => {
+  try {
+    if (!isTeacherOrAdmin(req)) {
+      return res.status(403).json({ error: "Teachers and admins only" });
+    }
+    const loaded = await loadOwnedClass(req, req.params.classPublicId);
+    if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
+
+    const archived = await archiveClass(loaded.cls);
+    return res.json({
+      ok: true,
+      class: {
+        publicId: archived.publicId,
+        name: archived.name,
+        status: "archived",
+        archivedAt: archived.archivedAt,
+      },
+    });
+  } catch (err) {
+    console.error("[student-classes] archive error:", err);
+    return res.status(500).json({ error: "Failed to archive class" });
+  }
+});
+
+// POST /api/student-classes/:classPublicId/invitations/csv/preview
+router.post(
+  "/:classPublicId/invitations/csv/preview",
+  auth,
+  csvUploadLimiter,
+  (req, res, next) => {
+    uploadCsv.single("file")(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({ error: "File exceeds 5 MB limit", code: "FILE_TOO_LARGE" });
+          }
+          return res.status(400).json({ error: err.message || "Upload failed", code: "UPLOAD_ERROR" });
+        }
+        return res.status(400).json({
+          error: err.message || "Only .csv files are allowed",
+          code: "INVALID_FILE_TYPE",
+        });
+      }
+      return next();
+    });
+  },
+  async (req, res) => {
+    try {
+      if (!isTeacherOrAdmin(req)) {
+        return res.status(403).json({ error: "Teachers and admins only" });
+      }
+      const loaded = await loadOwnedClass(req, req.params.classPublicId);
+      if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
+
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "File is required", code: "FILE_REQUIRED" });
+      }
+
+      const parsed = parseStudentInvitationCsv(req.file.buffer);
+      if (!parsed.ok) {
+        return res.status(400).json({
+          error: parsed.error,
+          code: parsed.code,
+          ...(parsed.maxUnique != null ? { maxUnique: parsed.maxUnique } : {}),
+        });
+      }
+
+      return res.json({
+        ok: true,
+        summary: parsed.summary,
+        validEmails: parsed.validEmails,
+        duplicateEntries: parsed.duplicateEntries,
+        invalidEntries: parsed.invalidEntries,
+      });
+    } catch (err) {
+      console.error("[student-classes] csv preview error:", err);
+      return res.status(500).json({ error: "Failed to preview CSV" });
+    }
+  }
+);
+
 // POST /api/student-classes/:classPublicId/invitations/preview
 router.post("/:classPublicId/invitations/preview", auth, async (req, res) => {
   try {
@@ -278,6 +409,62 @@ router.get("/:classPublicId/invitations", auth, async (req, res) => {
     return res.status(500).json({ error: "Failed to list invitations" });
   }
 });
+
+// DELETE /api/student-classes/:classPublicId/students/:membershipPublicId
+router.delete(
+  "/:classPublicId/students/:membershipPublicId",
+  auth,
+  mutationLimiter,
+  async (req, res) => {
+    try {
+      if (!isTeacherOrAdmin(req)) {
+        return res.status(403).json({ error: "Teachers and admins only" });
+      }
+      const loaded = await loadOwnedClass(req, req.params.classPublicId);
+      if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
+
+      const outcome = await teacherRemoveMembership({
+        classDoc: loaded.cls,
+        membershipPublicId: req.params.membershipPublicId,
+      });
+      if (outcome.error) {
+        return res.status(outcome.error.status).json(outcome.error.body);
+      }
+      return res.json(outcome.result);
+    } catch (err) {
+      console.error("[student-classes] remove student error:", err);
+      return res.status(500).json({ error: "Failed to remove student" });
+    }
+  }
+);
+
+// POST /api/student-classes/:classPublicId/invitations/:invitationPublicId/resend
+router.post(
+  "/:classPublicId/invitations/:invitationPublicId/resend",
+  auth,
+  mutationLimiter,
+  async (req, res) => {
+    try {
+      if (!isTeacherOrAdmin(req)) {
+        return res.status(403).json({ error: "Teachers and admins only" });
+      }
+      const loaded = await loadOwnedClass(req, req.params.classPublicId);
+      if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
+
+      const outcome = await resendInvitation({
+        classDoc: loaded.cls,
+        invitationPublicId: req.params.invitationPublicId,
+      });
+      if (outcome.error) {
+        return res.status(outcome.error.status).json(outcome.error.body);
+      }
+      return res.json(outcome.result);
+    } catch (err) {
+      console.error("[student-classes] resend error:", err);
+      return res.status(500).json({ error: "Failed to resend invitation" });
+    }
+  }
+);
 
 // POST /api/student-classes/:classPublicId/invitations/:invitationPublicId/cancel
 router.post("/:classPublicId/invitations/:invitationPublicId/cancel", auth, async (req, res) => {
