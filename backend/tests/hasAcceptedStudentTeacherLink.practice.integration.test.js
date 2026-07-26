@@ -1,5 +1,5 @@
 /**
- * Practice regression: accepted-link helper + invitation alone never authorises.
+ * Practice regression: link + active class membership authorisation.
  */
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
@@ -9,12 +9,13 @@ const User = require("../models/User");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
 const StudentClass = require("../models/StudentClass");
 const StudentClassInvitation = require("../models/StudentClassInvitation");
+const StudentClassMembership = require("../models/StudentClassMembership");
 const PracticeAttempt = require("../models/PracticeAttempt");
 const { hasAcceptedStudentTeacherLink } = require("../utils/hasAcceptedStudentTeacherLink");
 
 jest.setTimeout(60000);
 
-describe("Practice authorisation via hasAcceptedStudentTeacherLink", () => {
+describe("Practice authorisation via hasAcceptedStudentTeacherLink (Phase 2)", () => {
   let teacher;
   let student;
   let studentToken;
@@ -25,14 +26,14 @@ describe("Practice authorisation via hasAcceptedStudentTeacherLink", () => {
     const pw = await bcrypt.hash("Pass123!", 10);
     [teacher, student] = await Promise.all([
       User.create({
-        email: `prac-link-t-${stamp}@test.com`,
+        email: `prac2-link-t-${stamp}@test.com`,
         password: pw,
         firstName: "T",
         lastName: "Teacher",
         userType: "teacher",
       }),
       User.create({
-        email: `prac-link-s-${stamp}@test.com`,
+        email: `prac2-link-s-${stamp}@test.com`,
         password: pw,
         firstName: "S",
         lastName: "Student",
@@ -50,6 +51,7 @@ describe("Practice authorisation via hasAcceptedStudentTeacherLink", () => {
   afterAll(async () => {
     await PracticeAttempt.deleteMany({ studentId: student._id });
     await StudentTeacherLink.deleteMany({ studentId: student._id });
+    await StudentClassMembership.deleteMany({ studentId: student._id });
     await StudentClassInvitation.deleteMany({ teacherId: teacher._id });
     await StudentClass.deleteMany({ teacherId: teacher._id });
     await User.deleteMany({ _id: { $in: ids } });
@@ -57,10 +59,13 @@ describe("Practice authorisation via hasAcceptedStudentTeacherLink", () => {
 
   afterEach(async () => {
     await StudentTeacherLink.deleteMany({ studentId: student._id, teacherId: teacher._id });
+    await StudentClassMembership.deleteMany({ studentId: student._id });
+    await StudentClassInvitation.deleteMany({ teacherId: teacher._id });
+    await StudentClass.deleteMany({ teacherId: teacher._id });
     await PracticeAttempt.deleteMany({ studentId: student._id });
   });
 
-  async function submitAttempt() {
+  async function submitAttempt(teacherId = teacher._id) {
     return request(app)
       .post("/api/practice-attempts")
       .set("Authorization", `Bearer ${studentToken}`)
@@ -70,61 +75,140 @@ describe("Practice authorisation via hasAcceptedStudentTeacherLink", () => {
         contentType: "exam_question",
         contentId: new mongoose.Types.ObjectId().toString(),
         isCorrect: true,
-        teacherId: teacher._id.toString(),
+        teacherId: teacherId.toString(),
       });
   }
 
-  test("legacy missing-status link authorises", async () => {
+  async function makeActiveMembership({ archived = false } = {}) {
+    const cls = await StudentClass.create({
+      teacherId: teacher._id,
+      name: "Practice Membership Class",
+      status: archived ? "archived" : "active",
+      archivedAt: archived ? new Date() : null,
+    });
+    const membership = await StudentClassMembership.create({
+      classId: cls._id,
+      teacherId: teacher._id,
+      studentId: student._id,
+      status: "active",
+    });
+    return { cls, membership };
+  }
+
+  test("legacy StudentTeacherLink authorises", async () => {
     await StudentTeacherLink.create({ studentId: student._id, teacherId: teacher._id });
-    await expect(
-      hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })
-    ).resolves.toBe(true);
-    const res = await submitAttempt();
-    expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      true
+    );
+    expect((await submitAttempt()).status).toBe(200);
   });
 
-  test("accepted status authorises", async () => {
+  test("accepted StudentTeacherLink authorises", async () => {
     await StudentTeacherLink.create({
       studentId: student._id,
       teacherId: teacher._id,
       status: "accepted",
       source: "admin",
     });
-    const res = await submitAttempt();
-    expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
+    expect((await submitAttempt()).status).toBe(200);
   });
 
-  test("revoked link does not authorise", async () => {
+  test("revoked link with no membership denied", async () => {
     await StudentTeacherLink.create({
       studentId: student._id,
       teacherId: teacher._id,
       status: "revoked",
       source: "class",
     });
-    await expect(
-      hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })
-    ).resolves.toBe(false);
-    const res = await submitAttempt();
-    expect(res.status).toBe(403);
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      false
+    );
+    expect((await submitAttempt()).status).toBe(403);
   });
 
-  test("pending invitation alone does not authorise", async () => {
-    const cls = await StudentClass.create({
-      teacherId: teacher._id,
-      name: "Pending Invite Class",
-    });
+  test("active class membership authorises", async () => {
+    await makeActiveMembership();
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      true
+    );
+    expect((await submitAttempt()).status).toBe(200);
+  });
+
+  test("archived class membership denied", async () => {
+    await makeActiveMembership({ archived: true });
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      false
+    );
+    expect((await submitAttempt()).status).toBe(403);
+  });
+
+  test("removed membership denied", async () => {
+    const { membership } = await makeActiveMembership();
+    await StudentClassMembership.updateOne(
+      { _id: membership._id },
+      { $set: { status: "removed", leftAt: new Date() } }
+    );
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      false
+    );
+    expect((await submitAttempt()).status).toBe(403);
+  });
+
+  test("pending/declined/cancelled/expired invitation denied", async () => {
+    const cls = await StudentClass.create({ teacherId: teacher._id, name: "Invite Only" });
+    for (const status of ["pending", "declined", "cancelled"]) {
+      await StudentClassInvitation.deleteMany({ classId: cls._id });
+      await StudentClassInvitation.create({
+        classId: cls._id,
+        teacherId: teacher._id,
+        targetEmail: student.email,
+        status,
+      });
+      expect(
+        await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })
+      ).toBe(false);
+    }
+    await StudentClassInvitation.deleteMany({ classId: cls._id });
     await StudentClassInvitation.create({
       classId: cls._id,
       teacherId: teacher._id,
       targetEmail: student.email,
       status: "pending",
+      expiresAt: new Date(Date.now() - 1000),
     });
-    await expect(
-      hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })
-    ).resolves.toBe(false);
-    const res = await submitAttempt();
-    expect(res.status).toBe(403);
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      false
+    );
+    expect((await submitAttempt()).status).toBe(403);
+  });
+
+  test("forged teacher ID denied", async () => {
+    await makeActiveMembership();
+    const forged = new mongoose.Types.ObjectId();
+    expect((await submitAttempt(forged)).status).toBe(403);
+  });
+
+  test("legacy STL still authorises when unrelated class is archived", async () => {
+    await StudentTeacherLink.create({ studentId: student._id, teacherId: teacher._id });
+    await makeActiveMembership({ archived: true });
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      true
+    );
+    expect((await submitAttempt()).status).toBe(200);
+  });
+
+  test("class-source STL alone does not authorise after class archived", async () => {
+    const { cls } = await makeActiveMembership({ archived: true });
+    await StudentTeacherLink.create({
+      studentId: student._id,
+      teacherId: teacher._id,
+      status: "accepted",
+      source: "class",
+    });
+    void cls;
+    expect(await hasAcceptedStudentTeacherLink({ studentId: student._id, teacherId: teacher._id })).toBe(
+      false
+    );
+    expect((await submitAttempt()).status).toBe(403);
   });
 });
