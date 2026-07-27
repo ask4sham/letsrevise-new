@@ -121,7 +121,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-test("renders Practice title, subtitle, and one unified Practice Setup panel", async () => {
+test("renders Practice title, progress strip, and three bordered step cards without stage rails", async () => {
   mockGetMemberships.mockResolvedValue([]);
   renderPage();
 
@@ -132,30 +132,39 @@ test("renders Practice title, subtitle, and one unified Practice Setup panel", a
 
   const panel = screen.getByTestId("practice-setup-panel");
   expect(panel).toBeInTheDocument();
-  expect(within(panel).getByRole("heading", { name: /Practice setup/i })).toBeInTheDocument();
+  expect(within(panel).queryByRole("heading", { name: /^Practice setup$/i })).not.toBeInTheDocument();
   expect(
     within(panel).getByRole("list", { name: /Practice setup progress/i })
   ).toBeInTheDocument();
-  expect(within(panel).getByTestId("practice-row-class")).toBeInTheDocument();
-  expect(within(panel).getByTestId("practice-row-course")).toBeInTheDocument();
-  expect(within(panel).getByTestId("practice-topic-card")).toBeInTheDocument();
-  expect(
-    within(panel).getByTestId("practice-action-footer")
-  ).toBeInTheDocument();
-  expect(
-    within(screen.getByTestId("practice-action-footer")).getByRole("button", {
-      name: /Start practice/i,
-    })
-  ).toBeInTheDocument();
+
+  const classCard = within(panel).getByTestId("practice-row-class");
+  const courseCard = within(panel).getByTestId("practice-row-course");
+  const topicCard = within(panel).getByTestId("practice-topic-card");
+  expect(classCard).toHaveClass("practice-setup__row--class");
+  expect(courseCard).toHaveClass("practice-setup__row--course");
+  expect(topicCard).toHaveClass("practice-setup__row--topic");
   expect(screen.getAllByTestId(/practice-row-|practice-topic-card/)).toHaveLength(3);
+
+  // Stage rails removed — step cards expose headings only (progress strip owns step numbers).
+  expect(within(classCard).getByRole("heading", { name: /Practice with class/i })).toBeInTheDocument();
+  expect(within(courseCard).getByRole("heading", { name: /^Course$/i })).toBeInTheDocument();
+  expect(within(topicCard).getByRole("heading", { name: /^Topic$/i })).toBeInTheDocument();
+  expect(within(classCard).queryByLabelText(/stage rail/i)).not.toBeInTheDocument();
+
+  expect(within(topicCard).getByTestId("practice-action-footer")).toBeInTheDocument();
+  expect(
+    within(topicCard).getByRole("button", { name: /Start practice/i })
+  ).toBeInTheDocument();
 });
 
-test("Start practice lives in the panel action footer; no duplicate Practice with class label", async () => {
+test("Start practice lives inside the Topic card; no duplicate Practice with class label", async () => {
   mockGetMemberships.mockResolvedValue([singleMembership] as any);
   renderPage();
   expect(await screen.findByRole("combobox", { name: /^Class$/i })).toBeInTheDocument();
-  const footer = screen.getByTestId("practice-action-footer");
-  expect(within(footer).getByRole("button", { name: /Start practice/i })).toBeInTheDocument();
+  const topicCard = screen.getByTestId("practice-topic-card");
+  expect(
+    within(topicCard).getByRole("button", { name: /Start practice/i })
+  ).toBeInTheDocument();
   expect(screen.getAllByText(/Practice with class/i)).toHaveLength(1);
 });
 

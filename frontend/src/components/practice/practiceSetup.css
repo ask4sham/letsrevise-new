@@ -1,4 +1,4 @@
-/* Student Practice — unified Practice Setup panel */
+/* Student Practice — separated step cards with coloured borders */
 
 .practice-page {
   --ps-ink: #0f172a;
@@ -6,7 +6,7 @@
   --ps-border: #cbd5e1;
   --ps-primary: #4f46e5;
   --ps-class: #0f766e;
-  --ps-class-bg: #ecfdf5;
+  --ps-class-bg: #f0fdfa;
   --ps-course: #2563eb;
   --ps-course-bg: #eff6ff;
   --ps-topic: #4f46e5;
@@ -59,34 +59,15 @@
   line-height: 1.45;
 }
 
-/* —— Unified panel —— */
+/* —— Setup stack (page background shows between cards) —— */
 .practice-setup {
-  background: #fff;
-  border: 1px solid var(--ps-border);
-  border-radius: 18px;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.07);
-  overflow: hidden;
-}
-
-.practice-setup__panel-head {
-  padding: 18px 22px 14px;
-  border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
-}
-
-.practice-setup__panel-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  color: #334155;
-}
-
-.practice-setup__panel-sub {
-  margin: 4px 0 0;
-  color: var(--ps-muted);
-  font-size: 0.92rem;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .practice-setup__sr-only {
@@ -108,8 +89,11 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  background: #fff;
+  border: 1px solid var(--ps-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .practice-setup__progress-item {
@@ -119,6 +103,12 @@
 
 .practice-setup__progress-item:last-child {
   border-right: none;
+}
+
+/* —— Separated step cards —— */
+.practice-setup__steps {
+  display: grid;
+  gap: 20px;
 }
 
 .practice-setup__progress-seg {
@@ -194,74 +184,63 @@
   box-shadow: inset 0 -3px 0 currentColor;
 }
 
-/* —— Horizontal setup rows —— */
+/* —— Full-width step cards (no left rails) —— */
 .practice-setup__row {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  border-bottom: 1px solid #e2e8f0;
-  min-height: 0;
-}
-
-.practice-setup__rail {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  padding: 18px 16px;
-  border-right: 1px solid #e2e8f0;
-}
-
-.practice-setup__row--class .practice-setup__rail {
-  background: var(--ps-class-bg);
-  border-left: 4px solid var(--ps-class);
-  color: var(--ps-class);
-}
-
-.practice-setup__row--course .practice-setup__rail {
-  background: var(--ps-course-bg);
-  border-left: 4px solid var(--ps-course);
-  color: var(--ps-course);
-}
-
-.practice-setup__row--topic .practice-setup__rail {
-  background: var(--ps-topic-bg);
-  border-left: 4px solid var(--ps-topic);
-  color: var(--ps-topic);
-}
-
-.practice-setup__rail-num {
-  font-size: 1.35rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.practice-setup__rail-name {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.practice-setup__body {
-  padding: 16px 20px 18px;
+  display: block;
+  width: 100%;
   min-width: 0;
+  padding: 22px 24px;
+  border-radius: 16px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.practice-setup__row--class {
+  background: var(--ps-class-bg);
+  border: 2px solid #0f766e;
+  box-shadow: 0 2px 10px rgba(15, 118, 110, 0.12);
+}
+
+.practice-setup__row--course {
+  background: var(--ps-course-bg);
+  border: 2px solid #2563eb;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.12);
+}
+
+.practice-setup__row--topic {
+  background: var(--ps-topic-bg);
+  border: 2px solid #4f46e5;
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.12);
 }
 
 .practice-setup__row-title {
   margin: 0 0 4px;
-  font-size: 1.05rem;
-  font-weight: 800;
+  font-size: 1.125rem; /* 18px */
+  font-weight: 700;
+}
+
+.practice-setup__row--class .practice-setup__row-title {
+  color: #0f766e;
+}
+
+.practice-setup__row--course .practice-setup__row-title {
+  color: #1d4ed8;
+}
+
+.practice-setup__row--topic .practice-setup__row-title {
+  color: #4338ca;
 }
 
 .practice-setup__row-help {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   color: var(--ps-muted);
   font-size: 0.9rem;
   line-height: 1.4;
 }
 
 .practice-setup__controls {
-  max-width: 720px;
+  width: 100%;
+  max-width: 860px;
 }
 
 .practice-setup__label {
@@ -274,7 +253,7 @@
 .practice-setup__select,
 .practice-setup__input {
   width: 100%;
-  max-width: 720px;
+  max-width: 860px;
   border: 1px solid var(--ps-border);
   border-radius: 10px;
   padding: 10px 12px;
@@ -297,7 +276,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  max-width: 720px;
+  max-width: 860px;
 }
 
 .practice-setup__spec label {
@@ -366,10 +345,8 @@
 }
 
 .practice-setup__panel-error {
-  margin: 0;
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
+  margin: 14px 0 0;
+  border-radius: 12px;
 }
 
 .practice-setup__field-error {
@@ -382,7 +359,7 @@
   margin-top: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: #f8fafc;
+  background: #fff;
 }
 
 .practice-setup__optional summary {
@@ -462,16 +439,17 @@
   min-height: 28px;
 }
 
-/* —— Integrated action footer —— */
+/* —— Start action (inside Topic card) —— */
 .practice-setup__footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px 16px;
-  padding: 18px 22px;
-  background: #f5f3ff;
-  border-top: 1px solid #e0e7ff;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #c7d2fe;
+  background: transparent;
 }
 
 .practice-setup__footer-hint {
@@ -572,6 +550,14 @@
     padding: 16px 12px 40px;
   }
 
+  .practice-setup {
+    gap: 14px;
+  }
+
+  .practice-setup__steps {
+    gap: 14px;
+  }
+
   .practice-setup__progress {
     grid-template-columns: 1fr;
   }
@@ -586,24 +572,7 @@
   }
 
   .practice-setup__row {
-    grid-template-columns: 1fr;
-  }
-
-  .practice-setup__rail {
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    border-right: none;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-    padding: 10px 14px;
-  }
-
-  .practice-setup__rail-num {
-    font-size: 1.1rem;
-  }
-
-  .practice-setup__body {
-    padding: 14px 14px 16px;
+    padding: 16px;
   }
 
   .practice-setup__controls,
@@ -621,12 +590,23 @@
   .practice-setup__footer {
     flex-direction: column;
     align-items: stretch;
-    padding: 16px 14px;
+    margin-top: 14px;
+    padding-top: 14px;
+  }
+
+  /* Desktop uses flex: 1 1 200px for horizontal grow; in a column that
+     basis becomes vertical height and leaves a blank band above the button. */
+  .practice-setup__footer-hint {
+    flex: 0 0 auto;
   }
 
   .practice-setup__btn--start,
   .practice-setup__btn {
     width: 100%;
     margin-left: 0;
+  }
+
+  .practice-setup__btn--start {
+    min-height: 44px;
   }
 }

@@ -1,5 +1,5 @@
 /**
- * Practice setup — unified panel: class → course → topic → Start.
+ * Practice setup — class → course → topic → Start.
  * No Teacher ID / Student ID in the normal student UI.
  */
 import React, { useEffect, useMemo, useState } from "react";
@@ -169,11 +169,6 @@ export function PracticeSetBuilder({
 
   return (
     <div className="practice-setup" data-testid="practice-setup-panel">
-      <div className="practice-setup__panel-head">
-        <h2 className="practice-setup__panel-title">Practice setup</h2>
-        <p className="practice-setup__panel-sub">Choose a class, course and topic.</p>
-      </div>
-
       <ol className="practice-setup__progress" aria-label="Practice setup progress">
         {stepperSteps.map((step) => {
           const state = stepStates[step.id];
@@ -201,16 +196,12 @@ export function PracticeSetBuilder({
         })}
       </ol>
 
-      <section
-        className="practice-setup__row practice-setup__row--class"
-        aria-labelledby="practice-step-class"
-        data-testid="practice-row-class"
-      >
-        <div className="practice-setup__rail" aria-hidden="true">
-          <span className="practice-setup__rail-num">1</span>
-          <span className="practice-setup__rail-name">Class</span>
-        </div>
-        <div className="practice-setup__body">
+      <div className="practice-setup__steps">
+        <section
+          className="practice-setup__row practice-setup__row--class"
+          aria-labelledby="practice-step-class"
+          data-testid="practice-row-class"
+        >
           <h3 id="practice-step-class" className="practice-setup__row-title">
             Practice with class
           </h3>
@@ -274,19 +265,13 @@ export function PracticeSetBuilder({
               )}
             </div>
           )}
-        </div>
-      </section>
+        </section>
 
-      <section
-        className="practice-setup__row practice-setup__row--course"
-        aria-labelledby="practice-step-course"
-        data-testid="practice-row-course"
-      >
-        <div className="practice-setup__rail" aria-hidden="true">
-          <span className="practice-setup__rail-num">2</span>
-          <span className="practice-setup__rail-name">Course</span>
-        </div>
-        <div className="practice-setup__body">
+        <section
+          className="practice-setup__row practice-setup__row--course"
+          aria-labelledby="practice-step-course"
+          data-testid="practice-row-course"
+        >
           <h3 id="practice-step-course" className="practice-setup__row-title">
             Course
           </h3>
@@ -300,19 +285,13 @@ export function PracticeSetBuilder({
               className="practice-setup__spec"
             />
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section
-        className="practice-setup__row practice-setup__row--topic"
-        aria-labelledby="practice-step-topic"
-        data-testid="practice-topic-card"
-      >
-        <div className="practice-setup__rail" aria-hidden="true">
-          <span className="practice-setup__rail-num">3</span>
-          <span className="practice-setup__rail-name">Topic</span>
-        </div>
-        <div className="practice-setup__body">
+        <section
+          className="practice-setup__row practice-setup__row--topic"
+          aria-labelledby="practice-step-topic"
+          data-testid="practice-topic-card"
+        >
           <h3 id="practice-step-topic" className="practice-setup__row-title">
             Topic
           </h3>
@@ -392,29 +371,29 @@ export function PracticeSetBuilder({
               </div>
             </details>
           </div>
-        </div>
-      </section>
 
-      {error && (
-        <div className="practice-setup__panel-error" role="alert">
-          {error}
-        </div>
-      )}
+          {error && (
+            <div className="practice-setup__panel-error" role="alert">
+              {error}
+            </div>
+          )}
 
-      <div className="practice-setup__footer" data-testid="practice-action-footer">
-        <p className="practice-setup__footer-hint" id="practice-start-hint">
-          {generating ? "Starting your practice set…" : disabledHint || "Ready when you are."}
-        </p>
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={!canStart}
-          className="practice-setup__btn practice-setup__btn--primary practice-setup__btn--start"
-          aria-describedby="practice-start-hint"
-          aria-busy={generating || undefined}
-        >
-          {generating ? "Starting…" : "Start practice"}
-        </button>
+          <div className="practice-setup__footer" data-testid="practice-action-footer">
+            <p className="practice-setup__footer-hint" id="practice-start-hint">
+              {generating ? "Starting your practice set…" : disabledHint || "Ready when you are."}
+            </p>
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={!canStart}
+              className="practice-setup__btn practice-setup__btn--primary practice-setup__btn--start"
+              aria-describedby="practice-start-hint"
+              aria-busy={generating || undefined}
+            >
+              {generating ? "Starting…" : "Start practice"}
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );
