@@ -46,7 +46,7 @@ export function AskAboutLesson({ lessonId, lessonTitle, className }: Props) {
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 8, color: "#166534" }}>
-        Ask the AI tutor about this topic
+        Ask Sham
       </div>
       <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#15803d" }}>
         Ask a question and get an answer grounded in this lesson’s content.
