@@ -12,6 +12,7 @@ const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
 const { validatePasswordStrength } = require("../utils/passwordStrength");
 const { sendInternalError, IS_PRODUCTION } = require("../utils/safeErrorResponse");
+const { CURRENT_USER_PROJECTION, toCurrentUserDto } = require("../utils/userResponse");
 
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -1131,7 +1132,7 @@ router.get("/user", async (req, res) => {
       return res.status(401).json({ msg: "Token valid but user id missing in payload" });
     }
 
-    const user = await User.findById(userId).select("-password");
+    const user = await User.findById(userId).select(CURRENT_USER_PROJECTION).lean();
     if (!user) {
       return res.status(401).json({ msg: "User not found" });
     }
@@ -1142,8 +1143,7 @@ router.get("/user", async (req, res) => {
       });
     }
 
-    // ✅ Ensure yearGroup + stageKey are returned for gating
-    res.json(user);
+    res.json(toCurrentUserDto(user));
   } catch (err) {
     console.error(err.message);
     return res.status(401).json({ msg: "Token is not valid" });
