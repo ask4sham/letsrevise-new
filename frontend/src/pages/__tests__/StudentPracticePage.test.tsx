@@ -121,7 +121,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-test("renders Practice title, subtitle, stepper and three cards", async () => {
+test("renders Practice title, subtitle, and one unified Practice Setup panel", async () => {
   mockGetMemberships.mockResolvedValue([]);
   renderPage();
 
@@ -129,11 +129,34 @@ test("renders Practice title, subtitle, stepper and three cards", async () => {
   expect(
     screen.getByText(/Choose a class, course and topic to create a focused practice session/i)
   ).toBeInTheDocument();
-  expect(screen.getByRole("list", { name: /Practice setup progress/i })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: /Practice with class/i })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: /^Course$/i })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: /^Topic$/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /Start practice/i })).toBeInTheDocument();
+
+  const panel = screen.getByTestId("practice-setup-panel");
+  expect(panel).toBeInTheDocument();
+  expect(within(panel).getByRole("heading", { name: /Practice setup/i })).toBeInTheDocument();
+  expect(
+    within(panel).getByRole("list", { name: /Practice setup progress/i })
+  ).toBeInTheDocument();
+  expect(within(panel).getByTestId("practice-row-class")).toBeInTheDocument();
+  expect(within(panel).getByTestId("practice-row-course")).toBeInTheDocument();
+  expect(within(panel).getByTestId("practice-topic-card")).toBeInTheDocument();
+  expect(
+    within(panel).getByTestId("practice-action-footer")
+  ).toBeInTheDocument();
+  expect(
+    within(screen.getByTestId("practice-action-footer")).getByRole("button", {
+      name: /Start practice/i,
+    })
+  ).toBeInTheDocument();
+  expect(screen.getAllByTestId(/practice-row-|practice-topic-card/)).toHaveLength(3);
+});
+
+test("Start practice lives in the panel action footer; no duplicate Practice with class label", async () => {
+  mockGetMemberships.mockResolvedValue([singleMembership] as any);
+  renderPage();
+  expect(await screen.findByRole("combobox", { name: /^Class$/i })).toBeInTheDocument();
+  const footer = screen.getByTestId("practice-action-footer");
+  expect(within(footer).getByRole("button", { name: /Start practice/i })).toBeInTheDocument();
+  expect(screen.getAllByText(/Practice with class/i)).toHaveLength(1);
 });
 
 test("shows empty class state and no Teacher ID field", async () => {
@@ -194,7 +217,7 @@ test("auto-selects single class and submits membershipPublicId only", async () =
     );
   });
 
-  fireEvent.change(screen.getByLabelText(/^Topic$/i), {
+  fireEvent.change(screen.getByRole("combobox", { name: /^Topic$/i }), {
     target: { value: "cell-structure" },
   });
   const start = screen.getByRole("button", { name: /Start practice/i });
@@ -253,7 +276,7 @@ test("course remains changeable and filters topics; Course label not Subject", a
       "edexcel-igcse-biology"
     );
   });
-  fireEvent.change(screen.getByLabelText(/^Topic$/i), { target: { value: "cell-structure" } });
+  fireEvent.change(screen.getByRole("combobox", { name: /^Topic$/i }), { target: { value: "cell-structure" } });
   fireEvent.change(screen.getByRole("combobox", { name: /^Course$/i }), {
     target: { value: "aqa-gcse-biology" },
   });
@@ -323,15 +346,6 @@ test("stepper marks class current until selected, then progresses", async () => 
   expect(screen.getByTestId("practice-stepper-topic")).toHaveAttribute("data-state", "current");
 });
 
-test("Start practice is inside the Topic card; no duplicate Practice with class label", async () => {
-  mockGetMemberships.mockResolvedValue([singleMembership] as any);
-  renderPage();
-  expect(await screen.findByRole("combobox", { name: /^Class$/i })).toBeInTheDocument();
-  const topicCard = screen.getByTestId("practice-topic-card");
-  expect(within(topicCard).getByRole("button", { name: /Start practice/i })).toBeInTheDocument();
-  expect(screen.getAllByText(/Practice with class/i)).toHaveLength(1);
-});
-
 test("generating disables Start and Start another set clears questions", async () => {
   mockGetMemberships.mockResolvedValue([singleMembership] as any);
   let resolveGen: (v: unknown) => void = () => {};
@@ -349,7 +363,7 @@ test("generating disables Start and Start another set clears questions", async (
       "edexcel-igcse-biology"
     );
   });
-  fireEvent.change(screen.getByLabelText(/^Topic$/i), { target: { value: "cell-structure" } });
+  fireEvent.change(screen.getByRole("combobox", { name: /^Topic$/i }), { target: { value: "cell-structure" } });
   const start = screen.getByRole("button", { name: /Start practice/i });
   fireEvent.click(start);
   await waitFor(() => expect(start).toBeDisabled());
@@ -389,7 +403,7 @@ test("membership errors reload memberships", async () => {
       "edexcel-igcse-biology"
     );
   });
-  fireEvent.change(screen.getByLabelText(/^Topic$/i), { target: { value: "cell-structure" } });
+  fireEvent.change(screen.getByRole("combobox", { name: /^Topic$/i }), { target: { value: "cell-structure" } });
   mockGetMemberships.mockClear();
   mockGetMemberships.mockResolvedValue([]);
   fireEvent.click(screen.getByRole("button", { name: /Start practice/i }));
