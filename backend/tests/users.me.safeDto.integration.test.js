@@ -7,8 +7,10 @@
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
-const app = require("../app");
+const { createUsersRouteTestApp } = require("./helpers/createUsersRouteTestApp");
 const User = require("../models/User");
+
+const app = createUsersRouteTestApp();
 
 jest.setTimeout(60000);
 

@@ -134,9 +134,6 @@ app.use("/api/assessment-items", require("./routes/assessmentItems"));
 // ✅ Add auth routes if your assessment endpoints need auth middleware
 app.use("/api/auth", require("./routes/auth"));
 
-// Current-user / self-profile (allowlisted DTOs) — required for /users/me security tests and SPA
-app.use("/api/users", require("./routes/users"));
-
 // ✅ Phase 9B: me/entitlements (auth-only, non-sensitive)
 app.use("/api/me", require("./routes/me"));
 
