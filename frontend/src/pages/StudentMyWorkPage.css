@@ -16,8 +16,9 @@
   --mw-overdue: #b91c1c;
   --mw-overdue-bg: #fee2e2;
   padding: 24px 16px 48px;
-  max-width: 920px;
-  margin: 0 auto;
+  width: min(100% - 32px, 880px);
+  max-width: 880px;
+  margin-inline: auto;
   color: var(--mw-ink);
 }
 
@@ -59,7 +60,7 @@
 }
 
 .my-work__filter {
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid #cbd5e1;
@@ -256,11 +257,17 @@
   border: 1px solid #e2e8f0;
   background: #fff;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  /* Natural content height — never stretch to fill a tall parent */
+  height: auto;
+  min-height: 0;
 }
 
 .my-work-item__main {
   flex: 1 1 220px;
   min-width: 0;
+  /* Prevent the text block from absorbing leftover flex height */
+  flex-grow: 1;
+  align-self: center;
 }
 
 .my-work-item__badges {
@@ -368,16 +375,40 @@
 
 @media (max-width: 640px) {
   .my-work {
+    width: 100%;
+    max-width: none;
     padding: 16px 12px 40px;
+    box-sizing: border-box;
   }
 
   .my-work-item {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
+    align-content: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .my-work-item__main {
+    flex: 0 0 auto;
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .my-work-item__badges {
+    margin-bottom: 4px;
+  }
+
+  .my-work-item__meta {
+    margin-top: 2px;
   }
 
   .my-work-item__actions {
     margin-left: 0;
+    margin-top: 2px;
+    width: 100%;
+    flex: 0 0 auto;
   }
 
   .my-work-item__action {
