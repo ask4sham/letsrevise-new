@@ -176,13 +176,16 @@ export default function StudentPracticePage() {
   }, []);
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <div className="flex items-center gap-4 mb-4">
-        <Link to="/student-dashboard" className="text-indigo-600 hover:underline">
-          ← Dashboard
-        </Link>
-        <h1 className="text-xl font-semibold">Practice</h1>
-      </div>
+    <div className="practice-page">
+      <Link to="/student-dashboard" className="practice-page__back">
+        ← Dashboard
+      </Link>
+      <header className="practice-page__header">
+        <h1 className="practice-page__title">Practice</h1>
+        <p className="practice-page__subtitle">
+          Choose a class, course and topic to create a focused practice session.
+        </p>
+      </header>
 
       <PracticeSetBuilder
         memberships={memberships}
@@ -201,23 +204,17 @@ export default function StudentPracticePage() {
       />
 
       {linkError && (
-        <div className="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg">
-          <p className="text-amber-800">{linkError}</p>
-          <Link to="/student/classes" className="text-indigo-600 hover:underline text-sm font-semibold">
-            View my classes
-          </Link>
+        <div className="practice-page__link-error" role="alert">
+          <p>{linkError}</p>
+          <Link to="/student/classes">View my classes</Link>
         </div>
       )}
 
       {items.length > 0 && (
-        <div className="mt-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold">Questions</h2>
-            <button
-              type="button"
-              onClick={startOver}
-              className="text-sm text-indigo-600 hover:underline"
-            >
+        <div className="practice-page__questions">
+          <div className="practice-page__questions-header">
+            <h2>Questions</h2>
+            <button type="button" onClick={startOver} className="practice-page__start-over">
               Start another set
             </button>
           </div>

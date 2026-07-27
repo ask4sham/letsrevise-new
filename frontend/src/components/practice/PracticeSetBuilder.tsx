@@ -25,6 +25,8 @@ export type PracticeSetBuilderProps = {
   error: string | null;
 };
 
+type StepId = "class" | "course" | "topic";
+
 function membershipLabel(m: StudentClassMembershipSummary): string {
   const bits = [m.class.name];
   const meta = m.class.board || m.class.subject;
@@ -33,6 +35,35 @@ function membershipLabel(m: StudentClassMembershipSummary): string {
   }
   bits.push(m.teacher.displayName);
   return bits.join(" — ");
+}
+
+function resolveStepStates(args: {
+  classComplete: boolean;
+  courseComplete: boolean;
+  topicComplete: boolean;
+}): Record<StepId, "complete" | "current" | "upcoming"> {
+  const { classComplete, courseComplete, topicComplete } = args;
+
+  if (classComplete && courseComplete && topicComplete) {
+    return { class: "complete", course: "complete", topic: "complete" };
+  }
+
+  let current: StepId = "class";
+  if (!classComplete) current = "class";
+  else if (!courseComplete) current = "course";
+  else current = "topic";
+
+  const stateFor = (id: StepId, complete: boolean): "complete" | "current" | "upcoming" => {
+    if (id === current) return complete ? "complete" : "current";
+    if (complete) return "complete";
+    return "upcoming";
+  };
+
+  return {
+    class: stateFor("class", classComplete),
+    course: stateFor("course", courseComplete),
+    topic: stateFor("topic", topicComplete),
+  };
 }
 
 export function PracticeSetBuilder({
@@ -71,14 +102,19 @@ export function PracticeSetBuilder({
     setSimpleTopicKey("");
   }, [specKey]);
 
+  useEffect(() => {
+    if (topicKeys.length === 1 && topicKeys[0].startsWith(prefix)) {
+      setSimpleTopicKey(topicKeys[0].slice(prefix.length));
+    }
+  }, [topicKeys, prefix]);
+
   const applySimpleTopic = (slug: string) => {
     setSimpleTopicKey(slug);
     if (!slug.trim()) {
       onTopicKeysChange([]);
       return;
     }
-    const full = `${prefix}${slug}`;
-    onTopicKeysChange([full]);
+    onTopicKeysChange([`${prefix}${slug}`]);
   };
 
   const addTopic = () => {
@@ -106,6 +142,11 @@ export function PracticeSetBuilder({
     onTopicKeysChange(topicKeys.filter((_, i) => i !== idx));
   };
 
+  const classComplete = !!selectedMembershipPublicId;
+  const courseComplete = !!specKey;
+  const topicComplete = topicKeys.length > 0;
+  const stepStates = resolveStepStates({ classComplete, courseComplete, topicComplete });
+
   const canStart =
     !!selectedMembershipPublicId && topicKeys.length > 0 && !generating && !membershipsLoading;
 
@@ -120,167 +161,239 @@ export function PracticeSetBuilder({
     }
   }
 
+  const stepperSteps: Array<{ id: StepId; label: string; n: number }> = [
+    { id: "class", label: "Class", n: 1 },
+    { id: "course", label: "Course", n: 2 },
+    { id: "topic", label: "Topic", n: 3 },
+  ];
+
   return (
-    <div className="practice-setup">
-      <p className="practice-setup__intro">
-        Build a focused set of questions for your course and topic.
-      </p>
+    <div className="practice-setup" data-testid="practice-setup-panel">
+      <ol className="practice-setup__progress" aria-label="Practice setup progress">
+        {stepperSteps.map((step) => {
+          const state = stepStates[step.id];
+          const stateLabel =
+            state === "complete" ? "completed" : state === "current" ? "current" : "upcoming";
+          return (
+            <li
+              key={step.id}
+              className={`practice-setup__progress-item practice-setup__progress-item--${step.id} practice-setup__progress-item--${state}`}
+              data-testid={`practice-stepper-${step.id}`}
+              data-state={state}
+            >
+              <span
+                className="practice-setup__progress-seg"
+                aria-current={state === "current" ? "step" : undefined}
+              >
+                <span className="practice-setup__progress-mark" aria-hidden="true">
+                  {state === "complete" ? "✓" : step.n}
+                </span>
+                <span className="practice-setup__progress-label">{step.label}</span>
+                <span className="practice-setup__sr-only">{stateLabel}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
 
-      <section className="practice-setup__stage practice-setup__stage--class" aria-labelledby="practice-step-class">
-        <h2 id="practice-step-class" className="practice-setup__stage-title">
-          <span className="practice-setup__step">1</span> Practice with class
-        </h2>
-
-        {membershipsLoading && (
-          <p className="practice-setup__meta" aria-live="polite">
-            Loading your classes…
+      <div className="practice-setup__steps">
+        <section
+          className="practice-setup__row practice-setup__row--class"
+          aria-labelledby="practice-step-class"
+          data-testid="practice-row-class"
+        >
+          <h3 id="practice-step-class" className="practice-setup__row-title">
+            Practice with class
+          </h3>
+          <p className="practice-setup__row-help">
+            Choose the teacher and class for this practice set.
           </p>
-        )}
 
-        {!membershipsLoading && membershipsError && (
-          <div className="practice-setup__error" role="alert">
-            <p>{membershipsError}</p>
-            <button type="button" className="practice-setup__btn practice-setup__btn--secondary" onClick={onRetryMemberships}>
-              Try again
-            </button>
+          {membershipsLoading && (
+            <p className="practice-setup__meta" role="status" aria-live="polite">
+              Loading your classes…
+            </p>
+          )}
+
+          {!membershipsLoading && membershipsError && (
+            <div className="practice-setup__error" role="alert">
+              <p>{membershipsError}</p>
+              <button
+                type="button"
+                className="practice-setup__btn practice-setup__btn--secondary"
+                onClick={onRetryMemberships}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {!membershipsLoading && !membershipsError && memberships.length === 0 && (
+            <div className="practice-setup__empty">
+              <p className="practice-setup__empty-title">You have not joined a class yet.</p>
+              <p>Accept a teacher invitation before starting teacher-linked Practice.</p>
+              <Link to="/student/classes" className="practice-setup__btn practice-setup__btn--primary">
+                View my classes
+              </Link>
+            </div>
+          )}
+
+          {!membershipsLoading && !membershipsError && memberships.length > 0 && (
+            <div className="practice-setup__controls">
+              <label htmlFor="practice-class" className="practice-setup__label">
+                Class
+              </label>
+              <select
+                id="practice-class"
+                value={selectedMembershipPublicId}
+                onChange={(e) => onMembershipChange(e.target.value)}
+                className="practice-setup__select"
+              >
+                {memberships.length > 1 && <option value="">Select a class…</option>}
+                {memberships.map((m) => (
+                  <option key={m.membershipPublicId} value={m.membershipPublicId}>
+                    {membershipLabel(m)}
+                  </option>
+                ))}
+              </select>
+              {selectedMembership && (
+                <p className="practice-setup__chip" aria-live="polite">
+                  Selected: <strong>{selectedMembership.class.name}</strong>
+                  {" · "}
+                  {selectedMembership.teacher.displayName}
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section
+          className="practice-setup__row practice-setup__row--course"
+          aria-labelledby="practice-step-course"
+          data-testid="practice-row-course"
+        >
+          <h3 id="practice-step-course" className="practice-setup__row-title">
+            Course
+          </h3>
+          <p className="practice-setup__row-help">Confirm the course for this practice set.</p>
+          <div className="practice-setup__controls">
+            <SpecSelector
+              value={specKey}
+              onChange={onSpecKeyChange}
+              label="Course"
+              id="practice-course"
+              className="practice-setup__spec"
+            />
           </div>
-        )}
+        </section>
 
-        {!membershipsLoading && !membershipsError && memberships.length === 0 && (
-          <div className="practice-setup__empty">
-            <p className="practice-setup__empty-title">You have not joined a class yet.</p>
-            <p>Accept a teacher invitation before starting teacher-linked Practice.</p>
-            <Link to="/student/classes" className="practice-setup__btn practice-setup__btn--primary">
-              View my classes
-            </Link>
-          </div>
-        )}
+        <section
+          className="practice-setup__row practice-setup__row--topic"
+          aria-labelledby="practice-step-topic"
+          data-testid="practice-topic-card"
+        >
+          <h3 id="practice-step-topic" className="practice-setup__row-title">
+            Topic
+          </h3>
+          <p className="practice-setup__row-help">Choose what you want to practise.</p>
 
-        {!membershipsLoading && !membershipsError && memberships.length > 0 && (
-          <>
-            <label htmlFor="practice-class" className="practice-setup__label">
-              Practice with class
+          <div className="practice-setup__controls">
+            <label htmlFor="practice-topic" className="practice-setup__label">
+              Topic
             </label>
             <select
-              id="practice-class"
-              value={selectedMembershipPublicId}
-              onChange={(e) => onMembershipChange(e.target.value)}
+              id="practice-topic"
+              value={simpleTopicKey}
+              onChange={(e) => applySimpleTopic(e.target.value)}
               className="practice-setup__select"
+              disabled={!selectedMembershipPublicId && memberships.length > 0}
             >
-              {memberships.length > 1 && <option value="">Select a class…</option>}
-              {memberships.map((m) => (
-                <option key={m.membershipPublicId} value={m.membershipPublicId}>
-                  {membershipLabel(m)}
+              <option value="">Select a topic…</option>
+              {topicOptions.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
                 </option>
               ))}
             </select>
-            {selectedMembership && (
-              <p className="practice-setup__selected" aria-live="polite">
-                Selected: <strong>{selectedMembership.class.name}</strong>
-                {" · "}
-                {selectedMembership.teacher.displayName}
-              </p>
-            )}
-          </>
-        )}
-      </section>
+            <p className="practice-setup__help">Topics match your selected course.</p>
 
-      <section className="practice-setup__stage practice-setup__stage--course" aria-labelledby="practice-step-course">
-        <h2 id="practice-step-course" className="practice-setup__stage-title">
-          <span className="practice-setup__step">2</span> Course
-        </h2>
-        <div className="practice-setup__field">
-          <SpecSelector value={specKey} onChange={onSpecKeyChange} />
-        </div>
-      </section>
-
-      <section className="practice-setup__stage practice-setup__stage--topic" aria-labelledby="practice-step-topic">
-        <h2 id="practice-step-topic" className="practice-setup__stage-title">
-          <span className="practice-setup__step">3</span> Topic
-        </h2>
-        <label htmlFor="practice-topic" className="practice-setup__label">
-          Topic
-        </label>
-        <select
-          id="practice-topic"
-          value={simpleTopicKey}
-          onChange={(e) => applySimpleTopic(e.target.value)}
-          className="practice-setup__select"
-          disabled={!selectedMembershipPublicId && memberships.length > 0}
-        >
-          <option value="">Select a topic…</option>
-          {topicOptions.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <p className="practice-setup__help">Topics match your selected course.</p>
-
-        <details className="practice-setup__optional">
-          <summary>Optional topic filters</summary>
-          <div className="practice-setup__optional-body">
-            <label className="practice-setup__label" htmlFor="practice-topic-code">
-              Add topic by code
-            </label>
-            <div className="practice-setup__row">
-              <input
-                id="practice-topic-code"
-                type="text"
-                value={topicInput}
-                onChange={(e) => {
-                  setTopicInput(e.target.value);
-                  setTopicError(null);
-                }}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTopic())}
-                placeholder={`e.g. ${specKey}:cell-structure`}
-                className="practice-setup__input"
-              />
-              <button type="button" onClick={addTopic} className="practice-setup__btn practice-setup__btn--secondary">
-                Add topic
-              </button>
-            </div>
-            {topicError && (
-              <p className="practice-setup__field-error" role="alert">
-                {topicError}
-              </p>
-            )}
-            {topicKeys.length > 0 && (
-              <ul className="practice-setup__chips">
-                {topicKeys.map((tk, i) => (
-                  <li key={`${tk}-${i}`}>
-                    <span>{tk}</span>
-                    <button type="button" onClick={() => removeTopic(i)} aria-label={`Remove ${tk}`}>
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <details className="practice-setup__optional">
+              <summary>
+                <span className="practice-setup__optional-chevron" aria-hidden="true" />
+                Optional topic filters
+              </summary>
+              <div className="practice-setup__optional-body">
+                <label className="practice-setup__label" htmlFor="practice-topic-code">
+                  Add topic by code
+                </label>
+                <div className="practice-setup__inline">
+                  <input
+                    id="practice-topic-code"
+                    type="text"
+                    value={topicInput}
+                    onChange={(e) => {
+                      setTopicInput(e.target.value);
+                      setTopicError(null);
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTopic())}
+                    placeholder={`e.g. ${specKey}:cell-structure`}
+                    className="practice-setup__input"
+                  />
+                  <button
+                    type="button"
+                    onClick={addTopic}
+                    className="practice-setup__btn practice-setup__btn--secondary"
+                  >
+                    Add topic
+                  </button>
+                </div>
+                {topicError && (
+                  <p className="practice-setup__field-error" role="alert">
+                    {topicError}
+                  </p>
+                )}
+                {topicKeys.length > 0 && (
+                  <ul className="practice-setup__chips">
+                    {topicKeys.map((tk, i) => (
+                      <li key={`${tk}-${i}`}>
+                        <span>{tk}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTopic(i)}
+                          aria-label={`Remove ${tk}`}
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </details>
           </div>
-        </details>
-      </section>
 
-      {error && (
-        <p className="practice-setup__error" role="alert">
-          {error}
-        </p>
-      )}
+          {error && (
+            <div className="practice-setup__panel-error" role="alert">
+              {error}
+            </div>
+          )}
 
-      <div className="practice-setup__actions">
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={!canStart}
-          className="practice-setup__btn practice-setup__btn--primary practice-setup__btn--start"
-        >
-          {generating ? "Starting…" : "Start practice"}
-        </button>
-        {disabledHint && !generating && (
-          <p className="practice-setup__help" id="practice-start-hint">
-            {disabledHint}
-          </p>
-        )}
+          <div className="practice-setup__footer" data-testid="practice-action-footer">
+            <p className="practice-setup__footer-hint" id="practice-start-hint">
+              {generating ? "Starting your practice set…" : disabledHint || "Ready when you are."}
+            </p>
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={!canStart}
+              className="practice-setup__btn practice-setup__btn--primary practice-setup__btn--start"
+              aria-describedby="practice-start-hint"
+              aria-busy={generating || undefined}
+            >
+              {generating ? "Starting…" : "Start practice"}
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );
