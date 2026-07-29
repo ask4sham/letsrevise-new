@@ -38,6 +38,29 @@ describe("generateCompositeQuestionDraft error handling", () => {
     ).rejects.toThrow(/AI draft failed validation/);
   });
 
+  test("surfaces friendly message when explanation validation fails", async () => {
+    mockedPost.mockRejectedValue({
+      message: "AI draft failed validation.",
+      status: 422,
+      data: {
+        success: false,
+        msg: "AI draft failed validation.",
+        code: "AI_DRAFT_INVALID",
+        issues: ["mcq_explanation_generic:part_a"],
+      },
+    });
+    await expect(
+      generateCompositeQuestionDraft({
+        subject: "Biology",
+        examBoard: "Edexcel",
+        level: "IGCSE",
+        topic: "Osmosis",
+        topicKey: "t",
+        difficulty: "easy",
+      })
+    ).rejects.toThrow(/could not produce a valid explanation for the multiple-choice answer/i);
+  });
+
   test("surfaces 404 endpoint missing clearly", async () => {
     mockedPost.mockRejectedValue({
       message: "Request failed with status code 404",
