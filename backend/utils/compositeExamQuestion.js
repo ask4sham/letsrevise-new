@@ -1,13 +1,28 @@
 /**
  * Composite Exam Question helpers (V1 + additive V2 table parts).
  *
- * V1 parts remain mcq/short with no partData.
+ * V1 parts remain mcq/short; MCQ may optionally store partData: { explanation }.
  * V2 table parts add type "table" + partData { headers, rows }.
  * Old questions require zero migration.
  */
 
 const PART_TYPES = ["mcq", "short", "table"];
 const DEFAULT_LABELS = "abcdefghijklmnopqrstuvwxyz".split("");
+/** Optional MCQ educational rationale (plain text). */
+const MCQ_EXPLANATION_MAX_LENGTH = 1000;
+
+/**
+ * Approved MCQ partData shape: { explanation: string } only.
+ * Strips arbitrary keys; omits partData when explanation is empty/invalid.
+ * @returns {{ explanation: string } | undefined}
+ */
+function normalizeMcqPartData(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  if (typeof raw.explanation !== "string") return undefined;
+  const explanation = raw.explanation.trim();
+  if (!explanation) return undefined;
+  return { explanation };
+}
 
 function isCompositePayload(body) {
   if (!body) return false;
@@ -105,7 +120,10 @@ function normalizePart(rawPart, index) {
     out.correctIndex = null;
   }
 
-  if (type === "table") {
+  if (type === "mcq") {
+    const mcqData = normalizeMcqPartData(part.partData);
+    if (mcqData) out.partData = mcqData;
+  } else if (type === "table") {
     const tableData = normalizeTablePartData(part.partData);
     if (tableData) out.partData = tableData;
   }
@@ -182,6 +200,13 @@ function validateCompositeDraft(body) {
       if (part.correctIndex == null) {
         return { ok: false, msg: `Part (${part.label}) MCQ needs a selected correct option.` };
       }
+      const explanation = part.partData?.explanation;
+      if (typeof explanation === "string" && explanation.length > MCQ_EXPLANATION_MAX_LENGTH) {
+        return {
+          ok: false,
+          msg: `Part (${part.label}) explanation must be at most ${MCQ_EXPLANATION_MAX_LENGTH} characters.`,
+        };
+      }
     }
     if (part.type === "table") {
       const tableCheck = validateTablePartData(part.partData, part.label);
@@ -225,9 +250,11 @@ function validateCompositePublish(doc) {
 
 module.exports = {
   PART_TYPES,
+  MCQ_EXPLANATION_MAX_LENGTH,
   isCompositePayload,
   normalizePart,
   normalizeParts,
+  normalizeMcqPartData,
   normalizeTablePartData,
   validateTablePartData,
   computeTotalMarks,

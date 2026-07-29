@@ -32,6 +32,105 @@ describe("compositeExamQuestion table parts", () => {
     expect(part.partData).toBeUndefined();
   });
 
+  test("normalizePart preserves MCQ explanation and strips unexpected keys", () => {
+    const part = normalizePart(
+      {
+        type: "mcq",
+        marks: 1,
+        questionText: "Pick one",
+        options: ["A", "B"],
+        correctIndex: 0,
+        partData: {
+          explanation: "  Water activates enzymes.  ",
+          unexpectedKey: "remove me",
+        },
+      },
+      0
+    );
+    expect(part.partData).toEqual({ explanation: "Water activates enzymes." });
+    expect(part.partData).not.toHaveProperty("unexpectedKey");
+  });
+
+  test("normalizePart omits empty or whitespace-only MCQ explanation", () => {
+    const empty = normalizePart(
+      {
+        type: "mcq",
+        marks: 1,
+        questionText: "Pick one",
+        options: ["A", "B"],
+        correctIndex: 0,
+        partData: { explanation: "   " },
+      },
+      0
+    );
+    expect(empty.partData).toBeUndefined();
+
+    const blankObj = normalizePart(
+      {
+        type: "mcq",
+        marks: 1,
+        questionText: "Pick one",
+        options: ["A", "B"],
+        correctIndex: 0,
+        partData: {},
+      },
+      0
+    );
+    expect(blankObj.partData).toBeUndefined();
+  });
+
+  test("normalizePart rejects non-string MCQ explanation types", () => {
+    for (const explanation of [{ nested: true }, ["arr"], 42, true, null]) {
+      const part = normalizePart(
+        {
+          type: "mcq",
+          marks: 1,
+          questionText: "Pick one",
+          options: ["A", "B"],
+          correctIndex: 0,
+          partData: { explanation },
+        },
+        0
+      );
+      expect(part.partData).toBeUndefined();
+    }
+  });
+
+  test("normalizePart leaves short parts without partData", () => {
+    const part = normalizePart(
+      {
+        type: "short",
+        marks: 2,
+        questionText: "Explain",
+        markScheme: ["Point"],
+        partData: { explanation: "should not persist on short" },
+      },
+      0
+    );
+    expect(part.type).toBe("short");
+    expect(part.partData).toBeUndefined();
+  });
+
+  test("validateCompositeDraft rejects MCQ explanation over 1000 characters", () => {
+    const result = validateCompositeDraft({
+      topicKey: "edexcel_igcse_biology_topic",
+      sharedStem: "Shared stem for the composite question.",
+      parts: [
+        {
+          label: "a",
+          type: "mcq",
+          marks: 1,
+          questionText: "Which is correct?",
+          options: ["A", "B"],
+          correctIndex: 0,
+          partData: { explanation: "x".repeat(1001) },
+        },
+      ],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.msg).toMatch(/at most 1000 characters/i);
+  });
+
   test("normalizePart stores table partData", () => {
     const part = normalizePart(
       {

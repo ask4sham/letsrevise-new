@@ -100,6 +100,7 @@ describe("CompositePartsEditor table authoring", () => {
     expect(screen.getByDisplayValue("Pick the answer.")).toBeInTheDocument();
     expect(screen.getByDisplayValue("One")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Two")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Why this answer is correct/i)).toBeInTheDocument();
     expect(screen.queryByTestId("composite-table-part-editor")).not.toBeInTheDocument();
 
     const payload = JSON.parse(screen.getByTestId("saved-payload").textContent || "[]");
@@ -112,6 +113,60 @@ describe("CompositePartsEditor table authoring", () => {
       options: ["One", "Two"],
       correctIndex: 1,
     });
+  });
+
+  test("MCQ rationale textarea serialises to partData.explanation and clears when emptied", () => {
+    const rationale =
+      "Light is not essential for germination because the seed initially uses energy stored in its food reserves. Water activates enzymes, oxygen is required for aerobic respiration, and a suitable temperature allows enzyme-controlled reactions to occur.";
+    const part: CompositePartForm = {
+      ...makeEmptyCompositePart(0),
+      type: "mcq",
+      questionText: "Which factor is NOT essential for seed germination?",
+      options: ["Water", "Oxygen", "Suitable temperature", "Light"],
+      correctIndex: 3,
+      markScheme: "Award 1 mark for selecting Light.",
+    };
+
+    render(<EditorHarness initialParts={[part]} tablePartsEnabled={false} />);
+
+    const explanation = screen.getByTestId("mcq-explanation-0");
+    fireEvent.change(explanation, { target: { value: rationale } });
+
+    let payload = JSON.parse(screen.getByTestId("saved-payload").textContent || "[]");
+    expect(payload[0].partData).toEqual({ explanation: rationale });
+    expect(payload[0].markScheme).toEqual(["Award 1 mark for selecting Light."]);
+    expect(payload[0].correctIndex).toBe(3);
+    expect(payload[0].options).toEqual(["Water", "Oxygen", "Suitable temperature", "Light"]);
+    expect(payload[0].marks).toBe(2);
+
+    fireEvent.change(explanation, { target: { value: "" } });
+    payload = JSON.parse(screen.getByTestId("saved-payload").textContent || "[]");
+    expect(payload[0]).not.toHaveProperty("partData");
+    expect(payload[0].markScheme).toEqual(["Award 1 mark for selecting Light."]);
+    expect(payload[0].correctIndex).toBe(3);
+  });
+
+  test("existing API MCQ rationale loads into the textarea", () => {
+    const part: CompositePartForm = {
+      ...makeEmptyCompositePart(0),
+      type: "mcq",
+      questionText: "Pick one.",
+      options: ["A", "B", "", ""],
+      correctIndex: 0,
+      markScheme: "",
+      partData: { explanation: "Water activates enzymes." },
+    };
+
+    render(<EditorHarness initialParts={[part]} tablePartsEnabled={false} />);
+
+    expect(screen.getByTestId("mcq-explanation-0")).toHaveValue("Water activates enzymes.");
+    const payload = JSON.parse(screen.getByTestId("saved-payload").textContent || "[]");
+    expect(payload[0].partData).toEqual({ explanation: "Water activates enzymes." });
+  });
+
+  test("short parts do not show Why this answer is correct", () => {
+    render(<EditorHarness initialParts={[makeEmptyCompositePart(0)]} tablePartsEnabled={false} />);
+    expect(screen.queryByLabelText(/Why this answer is correct/i)).not.toBeInTheDocument();
   });
 
   test("switching to table initializes default partData", () => {

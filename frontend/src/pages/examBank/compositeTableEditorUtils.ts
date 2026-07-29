@@ -4,10 +4,18 @@ import { parseTablePartData } from "../../components/lesson/examComposite/intera
 export const BASE_COMPOSITE_PART_TYPES = ["short", "mcq"] as const;
 export const TABLE_COMPOSITE_PART_TYPE = "table" as const;
 
+/** Optional MCQ educational rationale stored under partData.explanation. */
+export const MCQ_EXPLANATION_MAX_LENGTH = 1000;
+
 export type BaseCompositePartType = (typeof BASE_COMPOSITE_PART_TYPES)[number];
 export type CompositePartFormType = BaseCompositePartType | typeof TABLE_COMPOSITE_PART_TYPE;
 
 export const COMPOSITE_PART_LABELS = "abcdefghijklmnopqrstuvwxyz".split("");
+
+/** MCQ-only partData: approved shape is { explanation } only. */
+export type McqPartDataForm = {
+  explanation?: string;
+};
 
 export type CompositePartForm = {
   label: string;
@@ -17,8 +25,21 @@ export type CompositePartForm = {
   options: string[];
   correctIndex: number;
   markScheme: string;
-  partData?: TablePartData;
+  /** Table headers/rows, or MCQ { explanation }. */
+  partData?: TablePartData | McqPartDataForm;
 };
+
+export function getMcqExplanationText(partData: CompositePartForm["partData"]): string {
+  if (!partData || typeof partData !== "object") return "";
+  if ("headers" in partData) return "";
+  return typeof partData.explanation === "string" ? partData.explanation : "";
+}
+
+export function parseMcqExplanationFromApi(partData: unknown): string {
+  if (!partData || typeof partData !== "object" || Array.isArray(partData)) return "";
+  const expl = (partData as { explanation?: unknown }).explanation;
+  return typeof expl === "string" ? expl : "";
+}
 
 export type ApiCompositePart = {
   label?: string;
@@ -96,6 +117,7 @@ export function mapApiPartToCompositePartForm(
         : "short";
   const pOpts = Array.isArray(part.options) ? part.options.map((o) => String(o ?? "")) : [];
   const parsedTable = type === TABLE_COMPOSITE_PART_TYPE ? parseTablePartData(part.partData) : null;
+  const mcqExplanation = type === "mcq" ? parseMcqExplanationFromApi(part.partData) : "";
 
   return {
     label: part.label || (COMPOSITE_PART_LABELS[index] ?? String(index + 1)),
@@ -105,7 +127,12 @@ export function mapApiPartToCompositePartForm(
     options: [...pOpts, "", "", "", ""].slice(0, Math.max(4, pOpts.length)),
     correctIndex: typeof part.correctIndex === "number" && part.correctIndex >= 0 ? part.correctIndex : 0,
     markScheme: Array.isArray(part.markScheme) ? part.markScheme.join("\n") : "",
-    partData: parsedTable ?? (type === TABLE_COMPOSITE_PART_TYPE ? makeDefaultTablePartData() : undefined),
+    partData:
+      type === TABLE_COMPOSITE_PART_TYPE
+        ? parsedTable ?? makeDefaultTablePartData()
+        : type === "mcq" && mcqExplanation
+          ? { explanation: mcqExplanation }
+          : undefined,
   };
 }
 
@@ -124,11 +151,16 @@ export function serializeCompositePartForSave(part: CompositePartForm): Record<s
 
   if (part.type === "mcq") {
     const options = part.options.map((s) => s.trim()).filter(Boolean);
-    return {
+    const explanation = getMcqExplanationText(part.partData).trim();
+    const out: Record<string, unknown> = {
       ...base,
       options,
       correctIndex: part.correctIndex,
     };
+    if (explanation) {
+      out.partData = { explanation };
+    }
+    return out;
   }
 
   if (part.type === TABLE_COMPOSITE_PART_TYPE) {
@@ -136,7 +168,7 @@ export function serializeCompositePartForSave(part: CompositePartForm): Record<s
       ...base,
       options: [],
       correctIndex: null,
-      partData: part.partData ?? makeDefaultTablePartData(),
+      partData: parseTablePartData(part.partData) ?? makeDefaultTablePartData(),
     };
   }
 
@@ -165,10 +197,14 @@ export function validateCompositePartForm(part: CompositePartForm): string | nul
     if (part.correctIndex < 0 || part.correctIndex >= opts.length) {
       return `Part (${part.label}) MCQ needs a selected correct option.`;
     }
+    const explanation = getMcqExplanationText(part.partData);
+    if (explanation.length > MCQ_EXPLANATION_MAX_LENGTH) {
+      return `Part (${part.label}) explanation must be at most ${MCQ_EXPLANATION_MAX_LENGTH} characters.`;
+    }
   }
 
   if (part.type === TABLE_COMPOSITE_PART_TYPE) {
-    const data = part.partData ?? makeDefaultTablePartData();
+    const data = parseTablePartData(part.partData) ?? makeDefaultTablePartData();
     if (!data.headers.length || !data.rows.length) {
       return `Part (${part.label}) table needs headers and at least one row.`;
     }

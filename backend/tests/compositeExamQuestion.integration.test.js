@@ -233,4 +233,99 @@ describe("Composite Exam Question V1", () => {
     expect(q.parts).toHaveLength(3);
     expect(q.totalMarks).toBe(5);
   });
+
+  test("MCQ partData.explanation survives POST/GET/PUT and by-ids without changing scoring fields", async () => {
+    const rationale =
+      "Light is not essential for germination because the seed initially uses energy stored in its food reserves. Water activates enzymes, oxygen is required for aerobic respiration, and a suitable temperature allows enzyme-controlled reactions to occur.";
+    const created = await request(app)
+      .post("/api/exam-questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        compositePayload({
+          parts: [
+            {
+              label: "a",
+              type: "mcq",
+              marks: 1,
+              questionText: "Which factor is NOT essential for seed germination?",
+              options: ["Water", "Oxygen", "Suitable temperature", "Light"],
+              correctIndex: 3,
+              markScheme: ["Award 1 mark for selecting Light."],
+              partData: {
+                explanation: `  ${rationale}  `,
+                unexpectedKey: "remove me",
+              },
+            },
+            {
+              label: "b",
+              type: "short",
+              marks: 2,
+              questionText: "Explain why water is needed.",
+              markScheme: ["Water activates enzymes so metabolism can begin."],
+            },
+          ],
+        })
+      );
+    expect(created.status).toBe(201);
+    const id = String(created.body.question._id);
+    const mcq = created.body.question.parts[0];
+    expect(mcq.partData).toEqual({ explanation: rationale });
+    expect(mcq.partData).not.toHaveProperty("unexpectedKey");
+    expect(mcq.options).toEqual(["Water", "Oxygen", "Suitable temperature", "Light"]);
+    expect(mcq.correctIndex).toBe(3);
+    expect(mcq.marks).toBe(1);
+
+    const got = await request(app)
+      .get(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(got.status).toBe(200);
+    expect(got.body.question.parts[0].partData).toEqual({ explanation: rationale });
+
+    const updatedRationale = "Updated rationale: seeds use stored food reserves, so light is not essential.";
+    const put = await request(app)
+      .put(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionMode: "composite",
+        sharedStem: created.body.question.sharedStem,
+        topicKey: TOPIC_KEY,
+        specKey: SPEC_KEY,
+        parts: [
+          {
+            label: "a",
+            type: "mcq",
+            marks: 1,
+            questionText: "Which factor is NOT essential for seed germination?",
+            options: ["Water", "Oxygen", "Suitable temperature", "Light"],
+            correctIndex: 3,
+            markScheme: ["Award 1 mark for selecting Light."],
+            partData: { explanation: updatedRationale },
+          },
+          {
+            label: "b",
+            type: "short",
+            marks: 2,
+            questionText: "Explain why water is needed.",
+            markScheme: ["Water activates enzymes so metabolism can begin."],
+          },
+        ],
+      });
+    expect(put.status).toBe(200);
+    expect(put.body.question.parts[0].partData).toEqual({ explanation: updatedRationale });
+    expect(put.body.question.parts[0].correctIndex).toBe(3);
+    expect(put.body.question.parts[0].marks).toBe(1);
+    expect(put.body.question.totalMarks).toBe(3);
+
+    const byIds = await request(app)
+      .post("/api/exam-questions/by-ids")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ ids: [id] });
+    expect(byIds.status).toBe(200);
+    const listed = byIds.body?.questions || byIds.body;
+    const found = Array.isArray(listed)
+      ? listed.find((q) => String(q._id) === id)
+      : null;
+    expect(found).toBeTruthy();
+    expect(found.parts[0].partData).toEqual({ explanation: updatedRationale });
+  });
 });
