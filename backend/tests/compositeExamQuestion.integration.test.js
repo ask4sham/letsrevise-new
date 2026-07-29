@@ -233,4 +233,232 @@ describe("Composite Exam Question V1", () => {
     expect(q.parts).toHaveLength(3);
     expect(q.totalMarks).toBe(5);
   });
+
+  test("MCQ partData.explanation survives POST/GET/PUT and by-ids without changing scoring fields", async () => {
+    const rationale =
+      "Light is not essential for germination because the seed initially uses energy stored in its food reserves. Water activates enzymes, oxygen is required for aerobic respiration, and a suitable temperature allows enzyme-controlled reactions to occur.";
+    const created = await request(app)
+      .post("/api/exam-questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        compositePayload({
+          parts: [
+            {
+              label: "a",
+              type: "mcq",
+              marks: 1,
+              questionText: "Which factor is NOT essential for seed germination?",
+              options: ["Water", "Oxygen", "Suitable temperature", "Light"],
+              correctIndex: 3,
+              markScheme: ["Award 1 mark for selecting Light."],
+              partData: {
+                explanation: `  ${rationale}  `,
+                unexpectedKey: "remove me",
+              },
+            },
+            {
+              label: "b",
+              type: "short",
+              marks: 2,
+              questionText: "Explain why water is needed.",
+              markScheme: ["Water activates enzymes so metabolism can begin."],
+            },
+          ],
+        })
+      );
+    expect(created.status).toBe(201);
+    const id = String(created.body.question._id);
+    const mcq = created.body.question.parts[0];
+    expect(mcq.partData).toEqual({ explanation: rationale });
+    expect(mcq.partData).not.toHaveProperty("unexpectedKey");
+    expect(mcq.options).toEqual(["Water", "Oxygen", "Suitable temperature", "Light"]);
+    expect(mcq.correctIndex).toBe(3);
+    expect(mcq.marks).toBe(1);
+
+    const got = await request(app)
+      .get(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(got.status).toBe(200);
+    expect(got.body.question.parts[0].partData).toEqual({ explanation: rationale });
+
+    const updatedRationale = "Updated rationale: seeds use stored food reserves, so light is not essential.";
+    const put = await request(app)
+      .put(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionMode: "composite",
+        sharedStem: created.body.question.sharedStem,
+        topicKey: TOPIC_KEY,
+        specKey: SPEC_KEY,
+        parts: [
+          {
+            label: "a",
+            type: "mcq",
+            marks: 1,
+            questionText: "Which factor is NOT essential for seed germination?",
+            options: ["Water", "Oxygen", "Suitable temperature", "Light"],
+            correctIndex: 3,
+            markScheme: ["Award 1 mark for selecting Light."],
+            partData: { explanation: updatedRationale },
+          },
+          {
+            label: "b",
+            type: "short",
+            marks: 2,
+            questionText: "Explain why water is needed.",
+            markScheme: ["Water activates enzymes so metabolism can begin."],
+          },
+        ],
+      });
+    expect(put.status).toBe(200);
+    expect(put.body.question.parts[0].partData).toEqual({ explanation: updatedRationale });
+    expect(put.body.question.parts[0].correctIndex).toBe(3);
+    expect(put.body.question.parts[0].marks).toBe(1);
+    expect(put.body.question.totalMarks).toBe(3);
+
+    const byIds = await request(app)
+      .post("/api/exam-questions/by-ids")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ ids: [id] });
+    expect(byIds.status).toBe(200);
+    const listed = byIds.body?.questions || byIds.body;
+    const found = Array.isArray(listed)
+      ? listed.find((q) => String(q._id) === id)
+      : null;
+    expect(found).toBeTruthy();
+    expect(found.parts[0].partData).toEqual({ explanation: updatedRationale });
+  });
+
+  test("POST rejects over-length MCQ explanation with 400", async () => {
+    const res = await request(app)
+      .post("/api/exam-questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        compositePayload({
+          parts: [
+            {
+              label: "a",
+              type: "mcq",
+              marks: 1,
+              questionText: "Pick one",
+              options: ["A", "B", "C", "D"],
+              correctIndex: 0,
+              partData: { explanation: "x".repeat(1001) },
+            },
+          ],
+        })
+      );
+    expect(res.status).toBe(400);
+    expect(res.body?.msg || res.body?.error || "").toMatch(/at most 1000 characters/i);
+  });
+
+  test("PUT rejects over-length explanation without persisting and clearing removes partData", async () => {
+    const validRationale = "Water activates enzymes so metabolism can begin in the seed.";
+    const created = await request(app)
+      .post("/api/exam-questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        compositePayload({
+          parts: [
+            {
+              label: "a",
+              type: "mcq",
+              marks: 1,
+              questionText: "Pick one",
+              options: ["Water", "Light"],
+              correctIndex: 0,
+              markScheme: ["Award 1 mark for Water."],
+              partData: { explanation: validRationale },
+            },
+            {
+              label: "b",
+              type: "short",
+              marks: 2,
+              questionText: "Explain briefly.",
+              markScheme: ["Point one is long enough"],
+            },
+          ],
+        })
+      );
+    expect(created.status).toBe(201);
+    const id = String(created.body.question._id);
+    expect(created.body.question.parts[0].partData).toEqual({ explanation: validRationale });
+    expect(created.body.question.status).toBe("draft");
+
+    const rejected = await request(app)
+      .put(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionMode: "composite",
+        sharedStem: created.body.question.sharedStem,
+        topicKey: TOPIC_KEY,
+        specKey: SPEC_KEY,
+        parts: [
+          {
+            label: "a",
+            type: "mcq",
+            marks: 1,
+            questionText: "Pick one",
+            options: ["Water", "Light"],
+            correctIndex: 0,
+            markScheme: ["Award 1 mark for Water."],
+            partData: { explanation: "x".repeat(1001) },
+          },
+          {
+            label: "b",
+            type: "short",
+            marks: 2,
+            questionText: "Explain briefly.",
+            markScheme: ["Point one is long enough"],
+          },
+        ],
+      });
+    expect(rejected.status).toBe(400);
+    expect(rejected.body?.msg || "").toMatch(/at most 1000 characters/i);
+
+    const afterReject = await ExamQuestion.findById(id).lean();
+    expect(afterReject.parts[0].partData).toEqual({ explanation: validRationale });
+    expect(afterReject.parts[0].correctIndex).toBe(0);
+    expect(afterReject.parts[0].options).toEqual(["Water", "Light"]);
+    expect(afterReject.parts[0].marks).toBe(1);
+    expect(afterReject.status).toBe("draft");
+
+    const cleared = await request(app)
+      .put(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionMode: "composite",
+        sharedStem: created.body.question.sharedStem,
+        topicKey: TOPIC_KEY,
+        specKey: SPEC_KEY,
+        parts: [
+          {
+            label: "a",
+            type: "mcq",
+            marks: 1,
+            questionText: "Pick one",
+            options: ["Water", "Light"],
+            correctIndex: 0,
+            markScheme: ["Award 1 mark for Water."],
+          },
+          {
+            label: "b",
+            type: "short",
+            marks: 2,
+            questionText: "Explain briefly.",
+            markScheme: ["Point one is long enough"],
+          },
+        ],
+      });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.question.parts[0].partData).toBeUndefined();
+    expect(cleared.body.question.parts[0].correctIndex).toBe(0);
+    expect(cleared.body.question.status).toBe("draft");
+
+    const got = await request(app)
+      .get(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(got.status).toBe(200);
+    expect(got.body.question.parts[0].partData).toBeUndefined();
+  });
 });
