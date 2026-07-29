@@ -151,13 +151,21 @@ export function CompositePartMarkingSection({
   const mcqFeedback = useMemo(() => {
     if (!mcqGrade) return undefined;
     const correctOption = options[mcqGrade.correctIndex] ?? "";
+    const partData =
+      part.partData && typeof part.partData === "object"
+        ? (part.partData as Record<string, unknown>)
+        : null;
+    const legacyExplanation = ["explanation", "modelAnswer", "whyCorrect"]
+      .map((key) => (partData && typeof partData[key] === "string" ? String(partData[key]).trim() : ""))
+      .find(Boolean);
     return buildMcqFeedback({
       grade: mcqGrade,
       options,
       markScheme,
       correctAnswer: correctOption,
+      ...(legacyExplanation ? { explanation: legacyExplanation } : {}),
     });
-  }, [mcqGrade, options, markScheme]);
+  }, [mcqGrade, options, markScheme, part.partData]);
 
   const tableGrade = useMemo(() => {
     if (!checked || !isTable) return null;
