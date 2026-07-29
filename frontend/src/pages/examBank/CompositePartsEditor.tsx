@@ -269,8 +269,11 @@ export function CompositePartsEditor({
                   rows={3}
                   style={{ ...fieldStyle, resize: "vertical" }}
                 />
-                {getMcqExplanationText(part.partData).length > MCQ_EXPLANATION_MAX_LENGTH ? (
-                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>
+                {getMcqExplanationText(part.partData).trim().length > MCQ_EXPLANATION_MAX_LENGTH ? (
+                  <p
+                    data-testid={`mcq-explanation-error-${index}`}
+                    style={{ margin: "6px 0 0", fontSize: 12, color: "#b91c1c", fontWeight: 600 }}
+                  >
                     Explanation must be at most {MCQ_EXPLANATION_MAX_LENGTH} characters.
                   </p>
                 ) : null}

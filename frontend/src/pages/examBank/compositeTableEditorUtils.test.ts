@@ -4,7 +4,9 @@ import {
   getCompositePartTypeOptions,
   makeDefaultTablePartData,
   mapApiPartToCompositePartForm,
+  MCQ_EXPLANATION_MAX_LENGTH,
   serializeCompositePartForSave,
+  validateCompositePartForm,
   type CompositePartForm,
 } from "./compositeTableEditorUtils";
 
@@ -222,5 +224,35 @@ describe("compositeTableEditorUtils", () => {
     );
     expect(loaded.type).toBe("short");
     expect(loaded.partData).toBeUndefined();
+  });
+
+  test("validateCompositePartForm uses trimmed length for the 1000-character limit", () => {
+    const base: CompositePartForm = {
+      label: "a",
+      type: "mcq",
+      marks: 1,
+      questionText: "Pick one.",
+      options: ["A", "B"],
+      correctIndex: 0,
+      markScheme: "",
+    };
+    expect(
+      validateCompositePartForm({
+        ...base,
+        partData: { explanation: `  ${"x".repeat(999)}  ` },
+      })
+    ).toBeNull();
+    expect(
+      validateCompositePartForm({
+        ...base,
+        partData: { explanation: `  ${"x".repeat(1000)}  ` },
+      })
+    ).toBeNull();
+    expect(
+      validateCompositePartForm({
+        ...base,
+        partData: { explanation: "x".repeat(1001) },
+      })
+    ).toBe(`Part (a) explanation must be at most ${MCQ_EXPLANATION_MAX_LENGTH} characters.`);
   });
 });

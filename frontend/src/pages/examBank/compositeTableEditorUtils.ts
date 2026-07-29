@@ -197,7 +197,7 @@ export function validateCompositePartForm(part: CompositePartForm): string | nul
     if (part.correctIndex < 0 || part.correctIndex >= opts.length) {
       return `Part (${part.label}) MCQ needs a selected correct option.`;
     }
-    const explanation = getMcqExplanationText(part.partData);
+    const explanation = getMcqExplanationText(part.partData).trim();
     if (explanation.length > MCQ_EXPLANATION_MAX_LENGTH) {
       return `Part (${part.label}) explanation must be at most ${MCQ_EXPLANATION_MAX_LENGTH} characters.`;
     }

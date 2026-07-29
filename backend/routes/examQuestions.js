@@ -746,6 +746,9 @@ router.put("/:id", auth, async (req, res) => {
     }
     return res.json({ success: true, question: toResponseQuestion(question.toObject ? question.toObject() : question) });
   } catch (err) {
+    if (err && (err.code === "MCQ_EXPLANATION_TOO_LONG" || err.status === 400)) {
+      return res.status(400).json({ success: false, msg: err.message || "Invalid exam question" });
+    }
     console.error("ExamQuestions PUT error:", err);
     return res.status(500).json({ success: false, msg: "Server error" });
   }

@@ -5,6 +5,8 @@ import {
   buildCompositeSaveParts,
   makeEmptyCompositePart,
   makeDefaultTablePartData,
+  MCQ_EXPLANATION_MAX_LENGTH,
+  validateCompositePartForm,
   type CompositePartForm,
 } from "./compositeTableEditorUtils";
 
@@ -167,6 +169,80 @@ describe("CompositePartsEditor table authoring", () => {
   test("short parts do not show Why this answer is correct", () => {
     render(<EditorHarness initialParts={[makeEmptyCompositePart(0)]} tablePartsEnabled={false} />);
     expect(screen.queryByLabelText(/Why this answer is correct/i)).not.toBeInTheDocument();
+  });
+
+  test("trimmed length 1000 passes and 1001 fails while retaining textarea text", () => {
+    const part: CompositePartForm = {
+      ...makeEmptyCompositePart(0),
+      type: "mcq",
+      questionText: "Pick one.",
+      options: ["A", "B", "", ""],
+      correctIndex: 0,
+      markScheme: "Admin line",
+    };
+    render(<EditorHarness initialParts={[part]} tablePartsEnabled={false} />);
+    const explanation = screen.getByTestId("mcq-explanation-0");
+
+    const paddedUnder = `  ${"x".repeat(999)}  `;
+    fireEvent.change(explanation, { target: { value: paddedUnder } });
+    expect(screen.queryByTestId("mcq-explanation-error-0")).not.toBeInTheDocument();
+    expect(validateCompositePartForm({ ...part, partData: { explanation: paddedUnder } })).toBeNull();
+
+    const paddedExact = `  ${"x".repeat(1000)}  `;
+    fireEvent.change(explanation, { target: { value: paddedExact } });
+    expect(screen.queryByTestId("mcq-explanation-error-0")).not.toBeInTheDocument();
+    expect(validateCompositePartForm({ ...part, partData: { explanation: paddedExact } })).toBeNull();
+
+    const over = "x".repeat(1001);
+    fireEvent.change(explanation, { target: { value: over } });
+    expect(screen.getByTestId("mcq-explanation-0")).toHaveValue(over);
+    expect(screen.getByTestId("mcq-explanation-error-0")).toHaveTextContent(
+      "Explanation must be at most 1000 characters."
+    );
+    expect(validateCompositePartForm({ ...part, partData: { explanation: over } })).toBe(
+      `Part (${part.label}) explanation must be at most ${MCQ_EXPLANATION_MAX_LENGTH} characters.`
+    );
+
+    const payload = JSON.parse(screen.getByTestId("saved-payload").textContent || "[]");
+    expect(payload[0].markScheme).toEqual(["Admin line"]);
+    expect(payload[0].correctIndex).toBe(0);
+    expect(payload[0].options).toEqual(["A", "B"]);
+    expect(payload[0].marks).toBe(2);
+  });
+
+  test("multiple MCQ parts keep independent rationale values", () => {
+    const parts: CompositePartForm[] = [
+      {
+        ...makeEmptyCompositePart(0),
+        type: "mcq",
+        questionText: "Q1",
+        options: ["A", "B", "", ""],
+        correctIndex: 0,
+        markScheme: "",
+      },
+      {
+        ...makeEmptyCompositePart(1),
+        type: "mcq",
+        questionText: "Q2",
+        options: ["C", "D", "", ""],
+        correctIndex: 1,
+        markScheme: "",
+      },
+    ];
+    render(<EditorHarness initialParts={parts} tablePartsEnabled={false} />);
+
+    fireEvent.change(screen.getByTestId("mcq-explanation-0"), {
+      target: { value: "Rationale for part a." },
+    });
+    fireEvent.change(screen.getByTestId("mcq-explanation-1"), {
+      target: { value: "Rationale for part b." },
+    });
+
+    const payload = JSON.parse(screen.getByTestId("saved-payload").textContent || "[]");
+    expect(payload[0].partData).toEqual({ explanation: "Rationale for part a." });
+    expect(payload[1].partData).toEqual({ explanation: "Rationale for part b." });
+    expect(payload[0].correctIndex).toBe(0);
+    expect(payload[1].correctIndex).toBe(1);
   });
 
   test("switching to table initializes default partData", () => {

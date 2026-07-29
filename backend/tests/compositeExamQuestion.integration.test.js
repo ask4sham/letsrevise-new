@@ -328,4 +328,137 @@ describe("Composite Exam Question V1", () => {
     expect(found).toBeTruthy();
     expect(found.parts[0].partData).toEqual({ explanation: updatedRationale });
   });
+
+  test("POST rejects over-length MCQ explanation with 400", async () => {
+    const res = await request(app)
+      .post("/api/exam-questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        compositePayload({
+          parts: [
+            {
+              label: "a",
+              type: "mcq",
+              marks: 1,
+              questionText: "Pick one",
+              options: ["A", "B", "C", "D"],
+              correctIndex: 0,
+              partData: { explanation: "x".repeat(1001) },
+            },
+          ],
+        })
+      );
+    expect(res.status).toBe(400);
+    expect(res.body?.msg || res.body?.error || "").toMatch(/at most 1000 characters/i);
+  });
+
+  test("PUT rejects over-length explanation without persisting and clearing removes partData", async () => {
+    const validRationale = "Water activates enzymes so metabolism can begin in the seed.";
+    const created = await request(app)
+      .post("/api/exam-questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        compositePayload({
+          parts: [
+            {
+              label: "a",
+              type: "mcq",
+              marks: 1,
+              questionText: "Pick one",
+              options: ["Water", "Light"],
+              correctIndex: 0,
+              markScheme: ["Award 1 mark for Water."],
+              partData: { explanation: validRationale },
+            },
+            {
+              label: "b",
+              type: "short",
+              marks: 2,
+              questionText: "Explain briefly.",
+              markScheme: ["Point one is long enough"],
+            },
+          ],
+        })
+      );
+    expect(created.status).toBe(201);
+    const id = String(created.body.question._id);
+    expect(created.body.question.parts[0].partData).toEqual({ explanation: validRationale });
+    expect(created.body.question.status).toBe("draft");
+
+    const rejected = await request(app)
+      .put(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionMode: "composite",
+        sharedStem: created.body.question.sharedStem,
+        topicKey: TOPIC_KEY,
+        specKey: SPEC_KEY,
+        parts: [
+          {
+            label: "a",
+            type: "mcq",
+            marks: 1,
+            questionText: "Pick one",
+            options: ["Water", "Light"],
+            correctIndex: 0,
+            markScheme: ["Award 1 mark for Water."],
+            partData: { explanation: "x".repeat(1001) },
+          },
+          {
+            label: "b",
+            type: "short",
+            marks: 2,
+            questionText: "Explain briefly.",
+            markScheme: ["Point one is long enough"],
+          },
+        ],
+      });
+    expect(rejected.status).toBe(400);
+    expect(rejected.body?.msg || "").toMatch(/at most 1000 characters/i);
+
+    const afterReject = await ExamQuestion.findById(id).lean();
+    expect(afterReject.parts[0].partData).toEqual({ explanation: validRationale });
+    expect(afterReject.parts[0].correctIndex).toBe(0);
+    expect(afterReject.parts[0].options).toEqual(["Water", "Light"]);
+    expect(afterReject.parts[0].marks).toBe(1);
+    expect(afterReject.status).toBe("draft");
+
+    const cleared = await request(app)
+      .put(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionMode: "composite",
+        sharedStem: created.body.question.sharedStem,
+        topicKey: TOPIC_KEY,
+        specKey: SPEC_KEY,
+        parts: [
+          {
+            label: "a",
+            type: "mcq",
+            marks: 1,
+            questionText: "Pick one",
+            options: ["Water", "Light"],
+            correctIndex: 0,
+            markScheme: ["Award 1 mark for Water."],
+          },
+          {
+            label: "b",
+            type: "short",
+            marks: 2,
+            questionText: "Explain briefly.",
+            markScheme: ["Point one is long enough"],
+          },
+        ],
+      });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.question.parts[0].partData).toBeUndefined();
+    expect(cleared.body.question.parts[0].correctIndex).toBe(0);
+    expect(cleared.body.question.status).toBe("draft");
+
+    const got = await request(app)
+      .get(`/api/exam-questions/${id}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(got.status).toBe(200);
+    expect(got.body.question.parts[0].partData).toBeUndefined();
+  });
 });
