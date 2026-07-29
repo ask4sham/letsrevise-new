@@ -28,6 +28,8 @@ function validMcqPart(label = "a", { hard = false } = {}) {
         "Meiosis increases mutation rate in every tuber generation",
       ],
       correctIndex: 0,
+      explanation:
+        "Asexual offspring are clones, so they share the same alleles and are all vulnerable to the same pathogen.",
       markSchemeLines: [
         "Award 1 mark for selecting Option A (clones / identical genetics / shared susceptibility).",
       ],
@@ -47,6 +49,8 @@ function validMcqPart(label = "a", { hard = false } = {}) {
       "Meiosis always occurs before fertilisation",
     ],
     correctIndex: 1,
+    explanation:
+      "Asexual reproduction involves one parent and produces genetically identical offspring through mitosis.",
     markSchemeLines: [
       "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
     ],
@@ -297,6 +301,30 @@ describe("validateCompositeExamAiDraft", () => {
     expect(normalizeDifficulty("Easy")).toBe("easy");
     expect(normalizeDifficulty("nope")).toBeNull();
   });
+
+  test("MCQ missing explanation fails", () => {
+    const bad = validEasy();
+    delete bad.parts[0].explanation;
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/mcq_explanation_missing:part_a/);
+  });
+
+  test("MCQ weak explanation fails", () => {
+    const bad = validEasy();
+    bad.parts[0].explanation = "This is correct.";
+    const res = validateCompositeExamAiDraft(bad, { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(false);
+    expect(res.issues.join(" ")).toMatch(/mcq_explanation_/);
+  });
+
+  test("valid draft preserves MCQ explanation on output", () => {
+    const res = validateCompositeExamAiDraft(validEasy(), { difficulty: "easy", hasImage: false });
+    expect(res.ok).toBe(true);
+    const mcq = res.draft.parts.find((p) => p.type === "mcq");
+    expect(mcq.explanation).toMatch(/genetically identical/i);
+    expect(res.draft.parts.find((p) => p.type === "short").explanation).toBeUndefined();
+  });
 });
 
 describe("generateCompositeExamDraft service", () => {
@@ -304,7 +332,7 @@ describe("generateCompositeExamDraft service", () => {
     callOpenAiJson.mockReset();
   });
 
-  test("returns validated draft with exactly one MCQ", async () => {
+  test("returns validated draft with exactly one MCQ and explanation — no repair", async () => {
     callOpenAiJson.mockResolvedValue(validMedium());
     const draft = await generateCompositeExamDraft({
       subject: "Biology",
@@ -315,11 +343,93 @@ describe("generateCompositeExamDraft service", () => {
       difficulty: "medium",
       hasImage: false,
     });
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1);
     expect(draft.parts.filter((p) => p.type === "mcq")).toHaveLength(1);
     expect(draft.parts.filter((p) => p.type === "short").length).toBeGreaterThanOrEqual(1);
+    expect(draft.parts.find((p) => p.type === "mcq").explanation).toBeTruthy();
   });
 
-  test("rejects short-only AI output with 422", async () => {
+  test("missing explanation triggers one repair then succeeds", async () => {
+    const first = validEasy();
+    delete first.parts[0].explanation;
+    const repaired = validEasy();
+    callOpenAiJson.mockResolvedValueOnce(first).mockResolvedValueOnce(repaired);
+
+    const draft = await generateCompositeExamDraft({
+      topicKey: "edexcel-igcse-biology:x",
+      difficulty: "easy",
+    });
+    expect(callOpenAiJson).toHaveBeenCalledTimes(2);
+    expect(draft.parts.find((p) => p.type === "mcq").explanation).toMatch(/genetically identical/i);
+  });
+
+  test("weak explanation triggers one repair then succeeds", async () => {
+    const first = validEasy();
+    first.parts[0].explanation = "Light.";
+    const repaired = validEasy();
+    callOpenAiJson.mockResolvedValueOnce(first).mockResolvedValueOnce(repaired);
+
+    const draft = await generateCompositeExamDraft({
+      topicKey: "edexcel-igcse-biology:x",
+      difficulty: "easy",
+    });
+    expect(callOpenAiJson).toHaveBeenCalledTimes(2);
+    expect(draft.parts.find((p) => p.type === "mcq").explanation.length).toBeGreaterThan(20);
+  });
+
+  test("repair also invalid → exactly two LLM calls and 422", async () => {
+    const first = validEasy();
+    delete first.parts[0].explanation;
+    const stillBad = validEasy();
+    stillBad.parts[0].explanation = "This is correct.";
+    callOpenAiJson.mockResolvedValueOnce(first).mockResolvedValueOnce(stillBad);
+
+    await expect(
+      generateCompositeExamDraft({
+        topicKey: "edexcel-igcse-biology:x",
+        difficulty: "easy",
+      })
+    ).rejects.toMatchObject({ code: "AI_DRAFT_INVALID", statusCode: 422 });
+    expect(callOpenAiJson).toHaveBeenCalledTimes(2);
+  });
+
+  test("repair cannot silently change correctIndex — scoring preserved from first draft", async () => {
+    const first = validEasy();
+    delete first.parts[0].explanation;
+    const repaired = validEasy();
+    repaired.parts[0].correctIndex = 0;
+    repaired.parts[0].explanation =
+      "Asexual reproduction involves one parent and produces genetically identical offspring through mitosis.";
+    callOpenAiJson.mockResolvedValueOnce(first).mockResolvedValueOnce(repaired);
+
+    const draft = await generateCompositeExamDraft({
+      topicKey: "edexcel-igcse-biology:x",
+      difficulty: "easy",
+    });
+    expect(draft.parts.find((p) => p.type === "mcq").correctIndex).toBe(1);
+    expect(draft.parts.find((p) => p.type === "mcq").options).toEqual(first.parts[0].options);
+  });
+
+  test("repair cannot silently change options or marks", async () => {
+    const first = validEasy();
+    delete first.parts[0].explanation;
+    const repaired = validEasy();
+    repaired.parts[0].options = ["A", "B", "C", "D"];
+    repaired.parts[0].marks = 1;
+    repaired.parts[1].marks = 9;
+    repaired.parts[0].explanation =
+      "Asexual reproduction involves one parent and produces genetically identical offspring through mitosis.";
+    callOpenAiJson.mockResolvedValueOnce(first).mockResolvedValueOnce(repaired);
+
+    const draft = await generateCompositeExamDraft({
+      topicKey: "edexcel-igcse-biology:x",
+      difficulty: "easy",
+    });
+    expect(draft.parts[0].options).toEqual(first.parts[0].options);
+    expect(draft.parts[1].marks).toBe(2);
+  });
+
+  test("rejects short-only AI output with 422 after one repair still short-only", async () => {
     callOpenAiJson.mockResolvedValue(shortOnlyEasy());
     await expect(
       generateCompositeExamDraft({
@@ -327,6 +437,7 @@ describe("generateCompositeExamDraft service", () => {
         difficulty: "easy",
       })
     ).rejects.toMatchObject({ code: "AI_DRAFT_INVALID", statusCode: 422 });
+    expect(callOpenAiJson).toHaveBeenCalledTimes(2);
   });
 
   test("rejects missing topicKey before calling LLM", async () => {
@@ -334,5 +445,18 @@ describe("generateCompositeExamDraft service", () => {
       generateCompositeExamDraft({ difficulty: "easy", topicKey: "" })
     ).rejects.toMatchObject({ code: "TOPIC_REQUIRED", statusCode: 400 });
     expect(callOpenAiJson).not.toHaveBeenCalled();
+  });
+
+  test("malformed JSON path: LLM_BAD_JSON surfaces without DB write", async () => {
+    const e = new Error("bad json");
+    e.code = "LLM_BAD_JSON";
+    callOpenAiJson.mockRejectedValue(e);
+    await expect(
+      generateCompositeExamDraft({
+        topicKey: "edexcel-igcse-biology:x",
+        difficulty: "easy",
+      })
+    ).rejects.toMatchObject({ code: "LLM_BAD_JSON", statusCode: 503 });
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1);
   });
 });

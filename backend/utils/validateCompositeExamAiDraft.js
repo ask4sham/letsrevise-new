@@ -1,7 +1,11 @@
 /**
  * Validate AI-generated composite exam drafts (V1.1: short + mcq; no table).
  * Pure — no DB, no LLM.
+ * V2.1: every MCQ part must include a substantive transient `explanation`
+ * (mapped to partData.explanation on Save Draft — not a persisted top-level DB field).
  */
+
+const { validateMcqExplanation } = require("./validateMcqExplanation");
 
 const DIFFICULTIES = Object.freeze({
   // Exactly one MCQ + remaining short answers (table never AI-generated).
@@ -145,6 +149,8 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
     let options = [];
     /** @type {number | null} */
     let correctIndex = null;
+    /** @type {string | undefined} */
+    let validatedExplanation;
 
     if (type === "mcq") {
       options = Array.isArray(p.options)
@@ -185,6 +191,18 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
           issues.push(`answer_leak:part_${expectedLabel || i}`);
         }
       }
+
+      // V2.1: AI-draft MCQ must include a substantive educational explanation.
+      const correctOptForExpl =
+        correctIndex != null && options[correctIndex] != null ? options[correctIndex] : "";
+      const explCheck = validateMcqExplanation(p.explanation, { correctOption: correctOptForExpl });
+      if (!explCheck.ok) {
+        for (const code of explCheck.issues || []) {
+          issues.push(`mcq_${code}:part_${expectedLabel || i}`);
+        }
+      } else {
+        validatedExplanation = explCheck.explanation;
+      }
     }
 
     const normText = questionText.toLowerCase().replace(/\s+/g, " ");
@@ -219,6 +237,9 @@ function validateCompositeExamAiDraft(raw, opts = {}) {
     if (type === "mcq") {
       partOut.options = options;
       partOut.correctIndex = correctIndex;
+      if (validatedExplanation) {
+        partOut.explanation = validatedExplanation;
+      }
     }
     parts.push(partOut);
   }
