@@ -93,82 +93,116 @@ Return:
 }
 For short parts omit options/correctIndex/explanation (or leave empty). For the required mcq part, options, correctIndex and explanation are mandatory.`;
 
-function isRepairableDraftFailure(issues) {
+/**
+ * Repair is allowed only when EVERY validation issue is an MCQ-explanation issue.
+ * Positive allow rule: issue code starts with "mcq_explanation_".
+ * Mixed rationale + any other failure → no repair (fail-fast).
+ */
+function isRationaleOnlyRepairable(issues) {
   if (!Array.isArray(issues) || !issues.length) return false;
-  if (issues.includes("not_object") || issues.includes("invalid_difficulty")) return false;
-  return true;
+  return issues.every((issue) => String(issue || "").startsWith("mcq_explanation_"));
 }
 
-function hasStableMcqScoring(part) {
-  if (!part || typeof part !== "object") return false;
-  if (String(part.type || "").toLowerCase() !== "mcq") return false;
-  const options = Array.isArray(part.options)
-    ? part.options.map((o) => String(o || "").trim())
-    : [];
-  if (options.length !== 4 || options.some((o) => !o)) return false;
-  const ci = Number(part.correctIndex);
-  return Number.isInteger(ci) && ci >= 0 && ci <= 3;
+/** @deprecated use isRationaleOnlyRepairable — kept name alias for test/export clarity */
+function isRepairableDraftFailure(issues) {
+  return isRationaleOnlyRepairable(issues);
 }
 
 /**
- * After repair, keep original scoring/structure when the first draft already had a stable MCQ.
- * Explanation (and other weak fields) come from the repaired draft.
+ * Labels that need explanation repair, derived from issue codes like
+ * "mcq_explanation_missing:part_a".
+ * @param {string[]} issues
+ * @returns {Set<string>}
  */
-function mergeRepairPreservingStructure(originalCandidate, repairedParsed, difficulty) {
+function explanationRepairLabels(issues) {
+  const labels = new Set();
+  for (const raw of issues || []) {
+    const s = String(raw || "");
+    if (!s.startsWith("mcq_explanation_")) continue;
+    const m = s.match(/:part_([a-z0-9]+)$/i);
+    if (m) labels.add(m[1].toLowerCase());
+  }
+  return labels;
+}
+
+function partLabelKey(part) {
+  return String(part?.label || "")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Build a candidate from the ORIGINAL draft only.
+ * Take repaired MCQ explanation strings matched by exact label; ignore every other repaired field.
+ * Never accept repaired structure (count/order/labels/types/scoring/text).
+ *
+ * @returns {{ ok: true, candidate: object } | { ok: false, reason: string }}
+ */
+function mergeRationaleOnlyExplanations(originalCandidate, repairedParsed, difficulty, issues) {
   const originalParts = Array.isArray(originalCandidate?.parts) ? originalCandidate.parts : [];
   const repairedParts = Array.isArray(repairedParsed?.parts) ? repairedParsed.parts : [];
-  if (!originalParts.length || repairedParts.length !== originalParts.length) {
-    return { ...repairedParsed, difficulty };
+  const needLabels = explanationRepairLabels(issues);
+
+  if (!originalParts.length) {
+    return { ok: false, reason: "original_parts_missing" };
+  }
+  if (!needLabels.size) {
+    return { ok: false, reason: "no_explanation_labels" };
   }
 
-  const mergedParts = repairedParts.map((rp, i) => {
-    const op = originalParts[i];
-    if (!op || typeof op !== "object") return rp;
-    const opType = String(op.type || "").toLowerCase();
-    const label = String(op.label || rp.label || "").trim().toLowerCase() || String(rp.label || "");
+  /** @type {Map<string, object[]>} */
+  const repairedByLabel = new Map();
+  for (const rp of repairedParts) {
+    if (!rp || typeof rp !== "object") continue;
+    const key = partLabelKey(rp);
+    if (!key) continue;
+    if (!repairedByLabel.has(key)) repairedByLabel.set(key, []);
+    repairedByLabel.get(key).push(rp);
+  }
 
-    if (opType === "mcq" && hasStableMcqScoring(op)) {
-      return {
-        ...rp,
-        label,
-        type: "mcq",
-        marks: op.marks,
-        options: op.options,
-        correctIndex: op.correctIndex,
-        questionText:
-          String(op.questionText || "").trim().length >= 8 ? op.questionText : rp.questionText,
-        markSchemeLines:
-          Array.isArray(op.markSchemeLines) && op.markSchemeLines.length
-            ? op.markSchemeLines
-            : rp.markSchemeLines,
-        commandWord: op.commandWord != null ? op.commandWord : rp.commandWord,
-        skill: op.skill != null ? op.skill : rp.skill,
-        explanation: rp.explanation,
-      };
+  const mergedParts = originalParts.map((op) => {
+    const key = partLabelKey(op);
+    const opType = String(op.type || "").toLowerCase();
+    // Deep-ish clone of original part — never take structural fields from repair.
+    const base = {
+      ...op,
+      options: Array.isArray(op.options) ? [...op.options] : op.options,
+      markSchemeLines: Array.isArray(op.markSchemeLines) ? [...op.markSchemeLines] : op.markSchemeLines,
+    };
+
+    if (opType !== "mcq" || !needLabels.has(key)) {
+      return base;
     }
 
+    const matches = repairedByLabel.get(key) || [];
+    if (matches.length !== 1) {
+      // Missing or duplicate label — leave original explanation (still invalid → 422).
+      return base;
+    }
+    const rp = matches[0];
+    if (String(rp.type || "").toLowerCase() !== "mcq") {
+      return base;
+    }
+    if (typeof rp.explanation !== "string") {
+      return base;
+    }
     return {
-      ...rp,
-      label,
-      type: opType || rp.type,
-      marks: op.marks != null ? op.marks : rp.marks,
-      questionText:
-        String(op.questionText || "").trim().length >= 8 ? op.questionText : rp.questionText,
-      markSchemeLines:
-        Array.isArray(op.markSchemeLines) && op.markSchemeLines.length
-          ? op.markSchemeLines
-          : rp.markSchemeLines,
-      commandWord: op.commandWord != null ? op.commandWord : rp.commandWord,
-      skill: op.skill != null ? op.skill : rp.skill,
+      ...base,
+      explanation: rp.explanation,
     };
   });
 
   return {
-    ...repairedParsed,
-    difficulty,
-    title: String(originalCandidate.title || "").trim() || repairedParsed.title,
-    sharedStem: String(originalCandidate.sharedStem || "").trim() || repairedParsed.sharedStem,
-    parts: mergedParts,
+    ok: true,
+    candidate: {
+      ...originalCandidate,
+      difficulty,
+      title: originalCandidate.title,
+      sharedStem: originalCandidate.sharedStem,
+      totalMarks: originalCandidate.totalMarks,
+      warnings: originalCandidate.warnings,
+      parts: mergedParts,
+    },
   };
 }
 
@@ -340,13 +374,16 @@ Return JSON only.`;
   let lastIssues = validated.issues || [];
   let lastMsg = validated.msg || "AI draft failed validation.";
 
-  if (!isRepairableDraftFailure(lastIssues)) {
+  if (!isRationaleOnlyRepairable(lastIssues)) {
     const err = new Error(lastMsg);
     err.statusCode = 422;
     err.code = "AI_DRAFT_INVALID";
     err.issues = lastIssues;
     throw err;
   }
+
+  const originalForRepair = candidate;
+  const repairIssues = lastIssues;
 
   for (let attempt = 1; attempt <= MAX_REPAIR_ATTEMPTS; attempt += 1) {
     let repairedParsed;
@@ -364,8 +401,8 @@ Return JSON only.`;
           band,
           mixHint,
           hasImage,
-          issues: lastIssues,
-          invalidDraft: candidate,
+          issues: repairIssues,
+          invalidDraft: originalForRepair,
         }),
         temperature,
       });
@@ -376,7 +413,21 @@ Return JSON only.`;
       throw e;
     }
 
-    candidate = mergeRepairPreservingStructure(candidate, repairedParsed, difficulty);
+    const merged = mergeRationaleOnlyExplanations(
+      originalForRepair,
+      repairedParsed,
+      difficulty,
+      repairIssues
+    );
+    if (!merged.ok) {
+      const err = new Error(lastMsg);
+      err.statusCode = 422;
+      err.code = "AI_DRAFT_INVALID";
+      err.issues = repairIssues;
+      throw err;
+    }
+
+    candidate = merged.candidate;
     validated = validateCompositeExamAiDraft(candidate, { difficulty, hasImage });
     if (validated.ok) {
       return validated.draft;
@@ -396,6 +447,8 @@ module.exports = {
   generateCompositeExamDraft,
   SYSTEM,
   MAX_REPAIR_ATTEMPTS,
-  mergeRepairPreservingStructure,
+  isRationaleOnlyRepairable,
   isRepairableDraftFailure,
+  explanationRepairLabels,
+  mergeRationaleOnlyExplanations,
 };
