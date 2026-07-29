@@ -1,4 +1,9 @@
-import { buildMcqFeedback, gradeMcq, mcqOptionLabel } from "./gradeMcq";
+import {
+  buildMcqFeedback,
+  gradeMcq,
+  mcqOptionLabel,
+  NEUTRAL_WHY_CORRECT,
+} from "./gradeMcq";
 
 const OPTIONS = ["0", "1", "2", "23"];
 
@@ -158,5 +163,128 @@ describe("buildMcqFeedback", () => {
         "A sperm cell is haploid and contains either one X chromosome or one Y chromosome.",
     });
     expect(feedback.memoryRule).toBeUndefined();
+  });
+});
+
+describe("buildMcqFeedback whyCorrect quality (exam-composite V1)", () => {
+  const GERMINATION_OPTIONS = ["Water", "Oxygen", "Suitable temperature", "Light"];
+
+  test("A. genuine supplied explanation is used as whyCorrect", () => {
+    const grade = gradeMcq(3, 3, GERMINATION_OPTIONS, 1);
+    const explanation =
+      "Light is not essential because the seed initially uses stored food reserves. Germination requires water, oxygen and a suitable temperature.";
+    const feedback = buildMcqFeedback({
+      grade,
+      options: GERMINATION_OPTIONS,
+      correctAnswer: "Light",
+      explanation,
+    });
+    expect(feedback.whyCorrect).toBe(explanation);
+    expect(feedback.whyCorrect).not.toBe("Light");
+    expect(grade.status).toBe("correct");
+    expect(grade.marksAwarded).toBe(1);
+  });
+
+  test("B. explicit Why X is correct mark-scheme rationale is used without prefix", () => {
+    const grade = gradeMcq(3, 3, GERMINATION_OPTIONS, 1);
+    const feedback = buildMcqFeedback({
+      grade,
+      options: GERMINATION_OPTIONS,
+      correctAnswer: "Light",
+      markScheme: [
+        "Why C is correct: Light is not required because germination initially uses energy stored in the seed.",
+      ],
+    });
+    expect(feedback.whyCorrect).toMatch(
+      /Light is not required because germination initially uses energy/i
+    );
+    expect(feedback.whyCorrect).not.toMatch(/^Why C is correct:/i);
+    expect(feedback.whyCorrect).not.toBe("Light");
+  });
+
+  test("C. bare option text falls back to neutral whyCorrect", () => {
+    const grade = gradeMcq(3, 3, GERMINATION_OPTIONS, 1);
+    const feedback = buildMcqFeedback({
+      grade,
+      options: GERMINATION_OPTIONS,
+      correctAnswer: "Light",
+    });
+    expect(feedback.whyCorrect).toBe(NEUTRAL_WHY_CORRECT);
+    expect(feedback.whyCorrect).not.toBe("Light");
+    expect(grade.status).toBe("correct");
+    expect(grade.marksAwarded).toBe(1);
+    expect(grade.totalMarks).toBe(1);
+  });
+
+  test("D. administrative Award 1 mark line is not used as whyCorrect", () => {
+    const grade = gradeMcq(3, 3, GERMINATION_OPTIONS, 1);
+    const feedback = buildMcqFeedback({
+      grade,
+      options: GERMINATION_OPTIONS,
+      correctAnswer: "Light",
+      markScheme: ["Award 1 mark for selecting Light."],
+    });
+    expect(feedback.whyCorrect).toBe(NEUTRAL_WHY_CORRECT);
+    expect(feedback.whyCorrect).not.toMatch(/Award 1 mark/i);
+  });
+
+  test("E. Correct answer declaration trailing option is not used as whyCorrect", () => {
+    const grade = gradeMcq(3, 3, GERMINATION_OPTIONS, 1);
+    const feedback = buildMcqFeedback({
+      grade,
+      options: GERMINATION_OPTIONS,
+      correctAnswer: "Light",
+      markScheme: ["Correct answer: C — Light"],
+    });
+    expect(feedback.whyCorrect).toBe(NEUTRAL_WHY_CORRECT);
+    expect(feedback.whyCorrect).not.toBe("Light");
+  });
+
+  test("F. educational mark-scheme teaching line is retained as whyCorrect", () => {
+    const grade = gradeMcq(3, 3, GERMINATION_OPTIONS, 1);
+    const feedback = buildMcqFeedback({
+      grade,
+      options: GERMINATION_OPTIONS,
+      correctAnswer: "Light",
+      markScheme: [
+        "Correct answer: D — Light",
+        "Seeds use stored food reserves at the start of germination, so light is not essential.",
+      ],
+    });
+    expect(feedback.whyCorrect).toMatch(/stored food reserves/i);
+    expect(feedback.whyCorrect).not.toBe("Light");
+  });
+
+  test("G. standalone-style explanation remains unchanged when present", () => {
+    const grade = gradeMcq(1, 1, OPTIONS, 1);
+    const explanation =
+      "A sperm cell is haploid and contains either one X chromosome or one Y chromosome.";
+    const feedback = buildMcqFeedback({
+      grade,
+      options: OPTIONS,
+      markScheme: ["Correct answer: B — 1"],
+      explanation,
+      correctAnswer: "1",
+    });
+    expect(feedback.whyCorrect).toBe(explanation);
+  });
+
+  test("H. incorrect marking and revise tips remain unchanged", () => {
+    const grade = gradeMcq(0, 3, GERMINATION_OPTIONS, 1);
+    const feedback = buildMcqFeedback({
+      grade,
+      options: GERMINATION_OPTIONS,
+      correctAnswer: "Light",
+      markScheme: [
+        "Why A is wrong: Water is essential for germination; it is not the factor that is unnecessary.",
+      ],
+    });
+    expect(grade.status).toBe("incorrect");
+    expect(grade.marksAwarded).toBe(0);
+    expect(grade.totalMarks).toBe(1);
+    expect(grade.selectedOption).toBe("Water");
+    expect(grade.correctOption).toBe("Light");
+    expect(feedback.whySelectedWrong).toMatch(/Water is essential/i);
+    expect(feedback.improvementTip).toMatch(/^Revise:/);
   });
 });

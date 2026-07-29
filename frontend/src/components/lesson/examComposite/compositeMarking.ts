@@ -56,11 +56,21 @@ export function buildCompositeExamSummary(
       if (correctIndex < 0 || options.length === 0) continue;
       const grade = gradeMcq(selectedIndex, correctIndex, options, part.marks ?? 1);
       marksAwarded += grade.marksAwarded;
+      const partData =
+        part.partData && typeof part.partData === "object"
+          ? (part.partData as Record<string, unknown>)
+          : null;
+      const legacyExplanation = ["explanation", "modelAnswer", "whyCorrect"]
+        .map((key) =>
+          partData && typeof partData[key] === "string" ? String(partData[key]).trim() : ""
+        )
+        .find(Boolean);
       const feedback = buildMcqFeedback({
         grade,
         options,
         markScheme,
         correctAnswer: options[correctIndex] ?? "",
+        ...(legacyExplanation ? { explanation: legacyExplanation } : {}),
       });
 
       if (grade.status === "correct") {
