@@ -121,4 +121,23 @@ describe("computeMcqRationaleSourceFingerprint", () => {
     expect(payload).not.toHaveProperty("updatedAt");
     expect(stableStringify(payload)).not.toContain("updatedAt");
   });
+
+  test("mediaContext diagnostic fields do not affect educational fingerprint", () => {
+    const a = computeMcqRationaleSourceFingerprint(baseInput());
+    const b = computeMcqRationaleSourceFingerprint({
+      ...baseInput(),
+      mediaContext: {
+        referencePresent: true,
+        scope: "question_shared",
+        trustedContextAvailable: false,
+      },
+    });
+    expect(a).toBe(b);
+    const payload = buildCanonicalSourcePayload({
+      ...baseInput(),
+      mediaContext: { referencePresent: true, scope: "question_shared", trustedContextAvailable: false },
+    });
+    expect(payload).not.toHaveProperty("mediaContext");
+    expect(stableStringify(payload)).not.toContain("mediaContext");
+  });
 });

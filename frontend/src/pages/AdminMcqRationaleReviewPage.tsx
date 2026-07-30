@@ -170,9 +170,29 @@ export default function AdminMcqRationaleReviewPage() {
   );
 }
 
+const SHARED_MEDIA_BLOCKED_MESSAGE =
+  "This Composite Exam Question has shared media attached, but no trusted description is available. Candidate generation remains blocked.";
+const SHARED_MEDIA_TRUSTED_MESSAGE = "Trusted context is available for the shared media.";
+const LEGACY_IMAGE_CONTEXT_MESSAGE =
+  "Trusted image context text is required before generation can be considered.";
+
 function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
   const tax = data.taxonomy;
   const candidate = data.latestCandidate;
+  // New wording only for a complete, internally consistent blocked shared-media diagnostic.
+  const showSharedMediaBlocked =
+    Boolean(data.imageContextRequired) &&
+    data.mediaContext?.referencePresent === true &&
+    data.mediaContext?.scope === "question_shared" &&
+    data.mediaContext?.trustedContextAvailable !== true;
+  const showSharedMediaTrusted =
+    data.mediaContext?.referencePresent === true &&
+    data.mediaContext?.scope === "question_shared" &&
+    data.mediaContext?.trustedContextAvailable === true &&
+    data.imageContextRequired !== true;
+  // Whenever image context is required, always show exactly one explanation.
+  // Malformed/inconsistent mediaContext must fall back to the legacy warning.
+  const showLegacyImageWarning = Boolean(data.imageContextRequired) && !showSharedMediaBlocked;
 
   return (
     <div data-testid="mcq-rationale-review-body" style={{ display: "grid", gap: 18 }}>
@@ -338,9 +358,19 @@ function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
             Published-question candidate generation is not enabled.
           </p>
         ) : null}
-        {data.imageContextRequired ? (
+        {showSharedMediaBlocked ? (
+          <p data-testid="mcq-rationale-review-shared-media-warning" style={noticeBox}>
+            {SHARED_MEDIA_BLOCKED_MESSAGE}
+          </p>
+        ) : null}
+        {showSharedMediaTrusted ? (
+          <p data-testid="mcq-rationale-review-shared-media-trusted" style={noticeBox}>
+            {SHARED_MEDIA_TRUSTED_MESSAGE}
+          </p>
+        ) : null}
+        {showLegacyImageWarning ? (
           <p data-testid="mcq-rationale-review-image-context-warning" style={noticeBox}>
-            Trusted image context text is required before generation can be considered.
+            {LEGACY_IMAGE_CONTEXT_MESSAGE}
           </p>
         ) : null}
         {data.canGenerateReason &&

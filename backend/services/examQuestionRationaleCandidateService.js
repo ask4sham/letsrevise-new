@@ -176,13 +176,33 @@ function isResolvableVisualAsset(asset) {
   return VISUAL_ASSET_TYPES.has(type);
 }
 
+/**
+ * Bounded diagnostic for review UI. Never includes URLs, mediaIds, filenames, or alt text.
+ * Current schema media is question-level only → scope is "question_shared" or "none".
+ */
+function buildMediaContextDiagnostic({ referencePresent, trustedContextAvailable }) {
+  const present = Boolean(referencePresent);
+  return {
+    referencePresent: present,
+    scope: present ? "question_shared" : "none",
+    trustedContextAvailable: Boolean(trustedContextAvailable),
+  };
+}
+
 function resolveImageContext(question) {
   const imageUrl = normalizeText(question.imageUrl);
   const assets = Array.isArray(question.assets) ? question.assets : [];
   const imageAssets = assets.filter(isResolvableVisualAsset);
   const dependsOnImage = Boolean(imageUrl) || imageAssets.length > 0;
   if (!dependsOnImage) {
-    return { ok: true, imageContextText: "" };
+    return {
+      ok: true,
+      imageContextText: "",
+      mediaContext: buildMediaContextDiagnostic({
+        referencePresent: false,
+        trustedContextAvailable: false,
+      }),
+    };
   }
 
   const altParts = [];
@@ -192,9 +212,24 @@ function resolveImageContext(question) {
   }
   const imageContextText = altParts.join("\n").trim();
   if (imageContextText.length < MIN_IMAGE_CONTEXT_CHARS) {
-    return { ok: false, code: "IMAGE_CONTEXT_REQUIRED", imageContextText: "" };
+    return {
+      ok: false,
+      code: "IMAGE_CONTEXT_REQUIRED",
+      imageContextText: "",
+      mediaContext: buildMediaContextDiagnostic({
+        referencePresent: true,
+        trustedContextAvailable: false,
+      }),
+    };
   }
-  return { ok: true, imageContextText };
+  return {
+    ok: true,
+    imageContextText,
+    mediaContext: buildMediaContextDiagnostic({
+      referencePresent: true,
+      trustedContextAvailable: true,
+    }),
+  };
 }
 
 function isCompositeQuestion(question) {

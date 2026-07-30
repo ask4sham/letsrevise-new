@@ -10,24 +10,45 @@ const mongoose = require("mongoose");
 
 const TRUSTED_ALT = "Bar chart showing rate of photosynthesis against light intensity.";
 
+const NONE_MEDIA = {
+  referencePresent: false,
+  scope: "none",
+  trustedContextAvailable: false,
+};
+
+const SHARED_UNTRUSTED = {
+  referencePresent: true,
+  scope: "question_shared",
+  trustedContextAvailable: false,
+};
+
+const SHARED_TRUSTED = {
+  referencePresent: true,
+  scope: "question_shared",
+  trustedContextAvailable: true,
+};
+
 describe("resolveImageContext resolvable-media rule", () => {
   test("A: no image fields → not required", () => {
     const r = resolveImageContext({});
     expect(r.ok).toBe(true);
     expect(r.imageContextText).toBe("");
     expect(r.code).toBeUndefined();
+    expect(r.mediaContext).toEqual(NONE_MEDIA);
   });
 
   test("B: empty imageUrl and empty assets → not required", () => {
     const r = resolveImageContext({ imageUrl: "", assets: [] });
     expect(r.ok).toBe(true);
     expect(r.imageContextText).toBe("");
+    expect(r.mediaContext).toEqual(NONE_MEDIA);
   });
 
   test("C: empty stub object → not required", () => {
     const r = resolveImageContext({ assets: [{}] });
     expect(r.ok).toBe(true);
     expect(r.imageContextText).toBe("");
+    expect(r.mediaContext).toEqual(NONE_MEDIA);
   });
 
   test("D: typed blank stub → not required", () => {
@@ -36,6 +57,7 @@ describe("resolveImageContext resolvable-media rule", () => {
     });
     expect(r.ok).toBe(true);
     expect(r.imageContextText).toBe("");
+    expect(r.mediaContext).toEqual(NONE_MEDIA);
   });
 
   test("E: diagram stub with blank media → not required", () => {
@@ -44,6 +66,7 @@ describe("resolveImageContext resolvable-media rule", () => {
     });
     expect(r.ok).toBe(true);
     expect(r.imageContextText).toBe("");
+    expect(r.mediaContext).toEqual(NONE_MEDIA);
   });
 
   test("F: real asset URL without trusted context → IMAGE_CONTEXT_REQUIRED", () => {
@@ -52,6 +75,7 @@ describe("resolveImageContext resolvable-media rule", () => {
     });
     expect(r.ok).toBe(false);
     expect(r.code).toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(r.mediaContext).toEqual(SHARED_UNTRUSTED);
   });
 
   test("G: real asset mediaId without trusted context → IMAGE_CONTEXT_REQUIRED", () => {
@@ -67,12 +91,14 @@ describe("resolveImageContext resolvable-media rule", () => {
     });
     expect(r.ok).toBe(false);
     expect(r.code).toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(r.mediaContext).toEqual(SHARED_UNTRUSTED);
   });
 
   test("H: question-level imageUrl without trusted context → IMAGE_CONTEXT_REQUIRED", () => {
     const r = resolveImageContext({ imageUrl: "https://example.com/fig.png" });
     expect(r.ok).toBe(false);
     expect(r.code).toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(r.mediaContext).toEqual(SHARED_UNTRUSTED);
   });
 
   test("I: real visual reference with trusted alt → available", () => {
@@ -83,6 +109,7 @@ describe("resolveImageContext resolvable-media rule", () => {
     });
     expect(r.ok).toBe(true);
     expect(r.imageContextText).toBe(TRUSTED_ALT);
+    expect(r.mediaContext).toEqual(SHARED_TRUSTED);
   });
 
   test("J: trusted context shorter than minimum → IMAGE_CONTEXT_REQUIRED", () => {
@@ -92,6 +119,7 @@ describe("resolveImageContext resolvable-media rule", () => {
     });
     expect(r.ok).toBe(false);
     expect(r.code).toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(r.mediaContext).toEqual(SHARED_UNTRUSTED);
   });
 
   test("PDF URL alone is not treated as answer-critical visual media", () => {
@@ -100,6 +128,7 @@ describe("resolveImageContext resolvable-media rule", () => {
     });
     expect(r.ok).toBe(true);
     expect(r.imageContextText).toBe("");
+    expect(r.mediaContext).toEqual(NONE_MEDIA);
   });
 
   test("question text mentioning diagram does not create dependency", () => {
@@ -108,5 +137,22 @@ describe("resolveImageContext resolvable-media rule", () => {
       question: "Which statement about the graph is correct?",
     });
     expect(r.ok).toBe(true);
+    expect(r.mediaContext).toEqual(NONE_MEDIA);
+  });
+
+  test("diagnostic never embeds URL or mediaId", () => {
+    const mediaId = new mongoose.Types.ObjectId();
+    const r = resolveImageContext({
+      imageUrl: "https://secret.example/private.png?token=abc",
+      assets: [{ type: "image", url: "https://secret.example/private.png", mediaId, alt: "" }],
+    });
+    const serialized = JSON.stringify(r.mediaContext);
+    expect(serialized).not.toMatch(/secret\.example|private\.png|token=|https?:/i);
+    expect(serialized).not.toContain(String(mediaId));
+    expect(Object.keys(r.mediaContext).sort()).toEqual([
+      "referencePresent",
+      "scope",
+      "trustedContextAvailable",
+    ]);
   });
 });

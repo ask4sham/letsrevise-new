@@ -39,6 +39,13 @@ export type McqRationaleSafeCandidate = {
   failureCode: string;
 };
 
+/** Bounded media diagnostic — no URLs, mediaIds, filenames, or tokens. */
+export type McqRationaleMediaContext = {
+  referencePresent: boolean;
+  scope: "question_shared" | "none";
+  trustedContextAvailable: boolean;
+};
+
 export type McqRationaleReviewContext = {
   questionId: string;
   partLabel: string;
@@ -59,6 +66,8 @@ export type McqRationaleReviewContext = {
   imageContextAvailable: boolean;
   imageContextRequired: boolean;
   imageContextText?: string;
+  /** Optional for backward compatibility with older backends. */
+  mediaContext?: McqRationaleMediaContext;
   generationFeatureEnabled: boolean;
   publishedGenerationEnabled: boolean;
   canGenerate: boolean;
