@@ -62,6 +62,7 @@ import TeacherReteachPlansPage from "./pages/TeacherReteachPlansPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 import AdminIngestPage from "./pages/AdminIngestPage";
 import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
+import AdminMcqRationaleInventoryPage from "./pages/AdminMcqRationaleInventoryPage";
 import AdminTaxonomyPage from "./pages/AdminTaxonomyPage";
 import ContentCoveragePage from "./pages/ContentCoveragePage";
 import AdminLaunchCoveragePage from "./pages/AdminLaunchCoveragePage";
@@ -914,6 +915,15 @@ function App() {
             element={
               <ProtectedRoute requireAdminOrContentManager>
                 <AdminQuestionBanksPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/exam-question-rationale-inventory"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
+                <AdminMcqRationaleInventoryPage />
               </ProtectedRoute>
             }
           />

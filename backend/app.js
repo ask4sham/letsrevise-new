@@ -172,6 +172,10 @@ app.use("/api/student-classes", createBulkLimiter(), require("./routes/studentCl
 app.use("/api/student-class-invitations", require("./routes/studentClassInvitations"));
 app.use("/api/student-class-memberships", require("./routes/studentClassMemberships"));
 app.use("/api/admin/question-banks", require("./routes/adminQuestionBanks"));
+app.use(
+  "/api/admin/exam-question-rationale-inventory",
+  require("./routes/adminExamQuestionRationaleInventory")
+);
 app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));
 
 // PR10: Biology readiness report (teacher/admin)

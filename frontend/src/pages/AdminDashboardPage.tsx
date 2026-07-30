@@ -800,6 +800,20 @@ const AdminDashboardPage: React.FC = () => {
           Question Banks →
         </Link>
         <Link
+          to="/admin/exam-question-rationale-inventory"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#e0f2fe",
+            color: "#0369a1",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          MCQ Rationale Inventory →
+        </Link>
+        <Link
           to="/admin/taxonomy"
           style={{
             padding: "0.5rem 1rem",
