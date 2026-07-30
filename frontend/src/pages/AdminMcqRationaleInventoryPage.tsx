@@ -280,6 +280,21 @@ export default function AdminMcqRationaleInventoryPage() {
                 >
                   Open in Question Bank
                 </Link>
+                {row.status === "draft" &&
+                row.potentiallyEligibleForBackfill &&
+                row.rationaleBucket !== "malformed" &&
+                row.rationaleBucket !== "substantive" ? (
+                  <>
+                    {" · "}
+                    <Link
+                      data-testid="mcq-rationale-inventory-review-link"
+                      to={`/admin/exam-question-rationale-inventory/${encodeURIComponent(row.questionId)}/${encodeURIComponent(row.partLabel)}/review`}
+                      style={{ color: "#2563eb" }}
+                    >
+                      Review →
+                    </Link>
+                  </>
+                ) : null}
               </div>
             </article>
           );

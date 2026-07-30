@@ -63,6 +63,7 @@ import AdminMetricsPage from "./pages/AdminMetricsPage";
 import AdminIngestPage from "./pages/AdminIngestPage";
 import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
 import AdminMcqRationaleInventoryPage from "./pages/AdminMcqRationaleInventoryPage";
+import AdminMcqRationaleReviewPage from "./pages/AdminMcqRationaleReviewPage";
 import AdminTaxonomyPage from "./pages/AdminTaxonomyPage";
 import ContentCoveragePage from "./pages/ContentCoveragePage";
 import AdminLaunchCoveragePage from "./pages/AdminLaunchCoveragePage";
@@ -924,6 +925,15 @@ function App() {
             element={
               <ProtectedRoute requireAdminOrContentManager>
                 <AdminMcqRationaleInventoryPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/exam-question-rationale-inventory/:questionId/:partLabel/review"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
+                <AdminMcqRationaleReviewPage />
               </ProtectedRoute>
             }
           />
