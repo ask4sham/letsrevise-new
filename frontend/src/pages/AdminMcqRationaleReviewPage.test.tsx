@@ -257,6 +257,45 @@ describe("AdminMcqRationaleReviewPage", () => {
     expect(screen.queryByTestId("mcq-rationale-review-can-generate-reason")).not.toBeInTheDocument();
   });
 
+  test.each([
+    ["empty diagnostic object", {}],
+    [
+      "unknown scope",
+      { referencePresent: true, scope: "part_visual", trustedContextAvailable: false },
+    ],
+    [
+      "inconsistent false reference with shared scope",
+      { referencePresent: false, scope: "question_shared", trustedContextAvailable: false },
+    ],
+    [
+      "inconsistent true reference with none scope",
+      { referencePresent: true, scope: "none", trustedContextAvailable: false },
+    ],
+    [
+      "trusted true while imageContextRequired true",
+      { referencePresent: true, scope: "question_shared", trustedContextAvailable: true },
+    ],
+  ] as const)(
+    "malformed mediaContext (%s): legacy warning once, no shared/trusted wording",
+    async (_name, mediaContext) => {
+      mockFetchReview.mockResolvedValue({
+        ...baseContext,
+        imageContextRequired: true,
+        canGenerate: false,
+        canGenerateReason: "IMAGE_CONTEXT_REQUIRED",
+        // Intentionally malformed / inconsistent diagnostic shapes.
+        mediaContext: mediaContext as never,
+      });
+      renderReview();
+      expect(await screen.findByTestId("mcq-rationale-review-image-context-warning")).toBeInTheDocument();
+      expect(screen.getAllByText(/Trusted image context text is required/i)).toHaveLength(1);
+      expect(screen.queryByTestId("mcq-rationale-review-shared-media-warning")).not.toBeInTheDocument();
+      expect(screen.queryByText(SHARED_MEDIA_WARNING)).not.toBeInTheDocument();
+      expect(screen.queryByTestId("mcq-rationale-review-shared-media-trusted")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("mcq-rationale-review-can-generate-reason")).not.toBeInTheDocument();
+    }
+  );
+
   test("published-disabled notice once without duplicate generic reason", async () => {
     mockFetchReview.mockResolvedValue({
       ...baseContext,

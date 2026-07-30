@@ -179,18 +179,20 @@ const LEGACY_IMAGE_CONTEXT_MESSAGE =
 function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
   const tax = data.taxonomy;
   const candidate = data.latestCandidate;
-  const media = data.mediaContext;
+  // New wording only for a complete, internally consistent blocked shared-media diagnostic.
   const showSharedMediaBlocked =
-    Boolean(media?.referencePresent) &&
-    media?.scope === "question_shared" &&
-    data.imageContextRequired;
+    Boolean(data.imageContextRequired) &&
+    data.mediaContext?.referencePresent === true &&
+    data.mediaContext?.scope === "question_shared" &&
+    data.mediaContext?.trustedContextAvailable !== true;
   const showSharedMediaTrusted =
-    Boolean(media?.referencePresent) &&
-    media?.scope === "question_shared" &&
-    Boolean(media?.trustedContextAvailable) &&
-    !data.imageContextRequired;
-  // Older backends without mediaContext: keep the previous single image-context warning.
-  const showLegacyImageWarning = !media && data.imageContextRequired;
+    data.mediaContext?.referencePresent === true &&
+    data.mediaContext?.scope === "question_shared" &&
+    data.mediaContext?.trustedContextAvailable === true &&
+    data.imageContextRequired !== true;
+  // Whenever image context is required, always show exactly one explanation.
+  // Malformed/inconsistent mediaContext must fall back to the legacy warning.
+  const showLegacyImageWarning = Boolean(data.imageContextRequired) && !showSharedMediaBlocked;
 
   return (
     <div data-testid="mcq-rationale-review-body" style={{ display: "grid", gap: 18 }}>
