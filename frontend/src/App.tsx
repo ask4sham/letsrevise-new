@@ -62,6 +62,7 @@ import TeacherReteachPlansPage from "./pages/TeacherReteachPlansPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 import AdminIngestPage from "./pages/AdminIngestPage";
 import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
+import AdminExamQuestionViewPage from "./pages/AdminExamQuestionViewPage";
 import AdminMcqRationaleInventoryPage from "./pages/AdminMcqRationaleInventoryPage";
 import AdminMcqRationaleReviewPage from "./pages/AdminMcqRationaleReviewPage";
 import AdminTaxonomyPage from "./pages/AdminTaxonomyPage";
@@ -916,6 +917,15 @@ function App() {
             element={
               <ProtectedRoute requireAdminOrContentManager>
                 <AdminQuestionBanksPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/question-banks/exam-questions/:questionId"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
+                <AdminExamQuestionViewPage />
               </ProtectedRoute>
             }
           />
