@@ -130,7 +130,7 @@ describe("AdminMcqRationaleReviewPage", () => {
     expect(screen.getByTestId("mcq-rationale-review-stale-warning")).toBeInTheDocument();
   });
 
-  test("failed candidate and image-context warning", async () => {
+  test("failed candidate and image-context warning appears exactly once", async () => {
     mockFetchReview.mockResolvedValue({
       ...baseContext,
       imageContextRequired: true,
@@ -158,9 +158,40 @@ describe("AdminMcqRationaleReviewPage", () => {
     expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("failed");
     expect(screen.getByTestId("mcq-rationale-review-failure-code")).toHaveTextContent("LLM_ERROR");
     expect(screen.getByTestId("mcq-rationale-review-image-context-warning")).toBeInTheDocument();
+    expect(screen.queryByTestId("mcq-rationale-review-can-generate-reason")).not.toBeInTheDocument();
+    const matches = screen.getAllByText(/Trusted image context text is required/i);
+    expect(matches).toHaveLength(1);
   });
 
-  test("published-disabled notice", async () => {
+  test("feature-disabled plus image-context: each notice once", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...baseContext,
+      generationFeatureEnabled: false,
+      imageContextRequired: true,
+      canGenerate: false,
+      canGenerateReason: "IMAGE_CONTEXT_REQUIRED",
+    });
+    renderReview();
+    expect(await screen.findByTestId("mcq-rationale-review-feature-disabled")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-image-context-warning")).toBeInTheDocument();
+    expect(screen.getAllByText(/Trusted image context text is required/i)).toHaveLength(1);
+    expect(screen.getAllByText(/Candidate generation is currently disabled/i)).toHaveLength(1);
+  });
+
+  test("text-only context: no image-context warning", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...baseContext,
+      imageContextRequired: false,
+      canGenerateReason: "",
+      canGenerate: true,
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByTestId("mcq-rationale-review-image-context-warning")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Trusted image context text is required/i)).not.toBeInTheDocument();
+  });
+
+  test("published-disabled notice once without duplicate generic reason", async () => {
     mockFetchReview.mockResolvedValue({
       ...baseContext,
       questionStatus: "published",
@@ -169,6 +200,23 @@ describe("AdminMcqRationaleReviewPage", () => {
     });
     renderReview();
     expect(await screen.findByTestId("mcq-rationale-review-published-disabled")).toBeInTheDocument();
+    expect(screen.queryByTestId("mcq-rationale-review-can-generate-reason")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Published-question candidate generation is not enabled/i)).toHaveLength(1);
+  });
+
+  test("other eligibility reason still displays once", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...baseContext,
+      canGenerate: false,
+      canGenerateReason: "RATIONALE_SUBSTANTIVE",
+      imageContextRequired: false,
+      rationaleBucket: "substantive",
+      potentiallyEligibleForBackfill: false,
+    });
+    renderReview();
+    expect(await screen.findByTestId("mcq-rationale-review-can-generate-reason")).toHaveTextContent(
+      /substantive rationale already exists/i
+    );
   });
 
   test("API error", async () => {

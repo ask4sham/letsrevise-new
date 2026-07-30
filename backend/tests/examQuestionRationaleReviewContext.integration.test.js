@@ -453,6 +453,31 @@ describe("V2.3B1 flags and published / image", () => {
     expect(res.body.canGenerateReason).toBe("IMAGE_CONTEXT_REQUIRED");
     expect(JSON.stringify(res.body)).not.toMatch(/diagram\.png/);
   });
+
+  test("K: text-only and stub assets do not require image context", async () => {
+    const { token, user } = await loginAs("v23b1-stub@test.com", "admin");
+    const q = await createEligibleDraft(user._id, {
+      imageUrl: "",
+      assets: [{ type: "image", url: null, alt: null }, {}],
+    });
+    const res = await getReview(token, { questionId: q._id.toString(), partLabel: "a" });
+    expect(res.status).toBe(200);
+    expect(res.body.imageContextRequired).toBe(false);
+    expect(res.body.canGenerateReason).not.toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(res.body.canGenerate).toBe(true);
+  });
+
+  test("L: real visual without trusted context still sets IMAGE_CONTEXT_REQUIRED", async () => {
+    const { token, user } = await loginAs("v23b1-img2@test.com", "admin");
+    const q = await createEligibleDraft(user._id, {
+      imageUrl: "https://example.com/real.png",
+      assets: [{ type: "image", url: "https://example.com/real.png", alt: "" }],
+    });
+    const res = await getReview(token, { questionId: q._id.toString(), partLabel: "a" });
+    expect(res.status).toBe(200);
+    expect(res.body.imageContextRequired).toBe(true);
+    expect(res.body.canGenerateReason).toBe("IMAGE_CONTEXT_REQUIRED");
+  });
 });
 
 describe("V2.3B1 no mutation", () => {

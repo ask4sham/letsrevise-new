@@ -326,6 +326,20 @@ describe("V2.3A eligibility", () => {
     expect(callOpenAiJson).not.toHaveBeenCalled();
 
     callOpenAiJson.mockClear();
+    const stubQ = await createEligibleDraft(user._id, {
+      imageUrl: "",
+      assets: [{ type: "image", url: null, alt: null }, {}],
+    });
+    const stubRes = await postCandidate(token, {
+      questionId: stubQ._id.toString(),
+      partLabel: "a",
+      idempotencyKey: "elig-stub-asset-01",
+    });
+    expect(stubRes.status).toBe(201);
+    expect(stubRes.body.candidate.status).toBe("pending");
+    expect(callOpenAiJson).toHaveBeenCalled();
+
+    callOpenAiJson.mockClear();
     const imageOk = await createEligibleDraft(user._id, {
       imageUrl: "https://example.com/fig.png",
       assets: [

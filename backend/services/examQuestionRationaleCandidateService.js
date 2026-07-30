@@ -141,15 +141,45 @@ function parseRequestBody(body) {
   };
 }
 
+const VISUAL_ASSET_TYPES = new Set(["image", "diagram", "graph", "figure", "table"]);
+
+/**
+ * True when mediaId is a usable reference (ObjectId, non-empty string).
+ * Empty / null / blank stubs do not count.
+ */
+function hasResolvableMediaId(mediaId) {
+  if (mediaId == null) return false;
+  if (typeof mediaId === "object") {
+    // Mongoose ObjectId or similar
+    if (typeof mediaId.toString === "function") {
+      const s = String(mediaId.toString()).trim();
+      return Boolean(s) && s !== "[object Object]";
+    }
+    return false;
+  }
+  const s = String(mediaId).trim();
+  return Boolean(s);
+}
+
+/**
+ * Asset counts as visual media only when it has a resolvable url or mediaId
+ * and is a visual type (missing type defaults to "image" only when a reference exists).
+ * Empty / type-only stubs do not create image dependency.
+ * Non-visual types (e.g. pdf) with a URL alone are not treated as answer-critical visuals.
+ */
+function isResolvableVisualAsset(asset) {
+  if (!asset || typeof asset !== "object" || Array.isArray(asset)) return false;
+  const url = normalizeText(asset.url);
+  const hasRef = Boolean(url) || hasResolvableMediaId(asset.mediaId);
+  if (!hasRef) return false;
+  const type = normalizeText(asset.type).toLowerCase() || "image";
+  return VISUAL_ASSET_TYPES.has(type);
+}
+
 function resolveImageContext(question) {
   const imageUrl = normalizeText(question.imageUrl);
   const assets = Array.isArray(question.assets) ? question.assets : [];
-  const imageAssets = assets.filter((a) => {
-    if (!a || typeof a !== "object") return false;
-    const type = normalizeText(a.type).toLowerCase() || "image";
-    const isImageType = ["image", "diagram", "graph", "figure", "table"].includes(type);
-    return isImageType || Boolean(normalizeText(a.url)) || Boolean(a.mediaId);
-  });
+  const imageAssets = assets.filter(isResolvableVisualAsset);
   const dependsOnImage = Boolean(imageUrl) || imageAssets.length > 0;
   if (!dependsOnImage) {
     return { ok: true, imageContextText: "" };
@@ -727,6 +757,8 @@ module.exports = {
   createRationaleCandidate,
   parseRequestBody,
   resolveImageContext,
+  isResolvableVisualAsset,
+  hasResolvableMediaId,
   buildSourceSnapshot,
   toCandidateDto,
   findExactMcqPart,
