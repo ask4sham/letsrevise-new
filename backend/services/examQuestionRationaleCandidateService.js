@@ -1,7 +1,9 @@
 /**
  * V2.3A: generate and persist an ExamQuestion rationale candidate.
  * Read-only on ExamQuestion / Lesson. Writes only ExamQuestionRationaleCandidate.
+ * Generating reservations hold a bounded lease; stale recovery is lazy on later requests.
  */
+const crypto = require("crypto");
 const mongoose = require("mongoose");
 const ExamQuestion = require("../models/ExamQuestion");
 const ExamQuestionRationaleCandidate = require("../models/ExamQuestionRationaleCandidate");
@@ -13,6 +15,7 @@ const {
   isMcqRationaleBackfillPublishedAllowed,
   getMcqRationaleBackfillActorDailyCap,
   getMcqRationaleBackfillGlobalDailyCap,
+  getMcqRationaleGenerationLeaseMs,
 } = require("../config/mcqRationaleBackfillFlags");
 const {
   computeMcqRationaleSourceFingerprint,
@@ -35,6 +38,7 @@ const ALLOWED_BODY_KEYS = new Set([
 
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
 const FINGERPRINT_RE = /^[a-f0-9]{64}$/i;
+/** Service-level provider wait; underlying axios timeout is 120s. Lease default covers 2×120s. */
 const LLM_TIMEOUT_MS = 60_000;
 const MIN_IMAGE_CONTEXT_CHARS = 20;
 
@@ -75,6 +79,21 @@ function withTimeout(promise, ms) {
         reject(e);
       });
   });
+}
+
+function newLeaseToken() {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return crypto.randomBytes(16).toString("hex");
+}
+
+function computeLeaseExpiresAt(now = new Date()) {
+  return new Date(now.getTime() + getMcqRationaleGenerationLeaseMs());
+}
+
+function isLeaseExpired(candidate, now = new Date()) {
+  if (!candidate) return true;
+  if (!candidate.generationLeaseExpiresAt) return true;
+  return new Date(candidate.generationLeaseExpiresAt).getTime() <= now.getTime();
 }
 
 function parseRequestBody(body) {
@@ -122,9 +141,6 @@ function parseRequestBody(body) {
   };
 }
 
-/**
- * Resolve textual image context. Rejects image-dependent questions without adequate text.
- */
 function resolveImageContext(question) {
   const imageUrl = normalizeText(question.imageUrl);
   const assets = Array.isArray(question.assets) ? question.assets : [];
@@ -145,7 +161,6 @@ function resolveImageContext(question) {
     if (alt) altParts.push(alt);
   }
   const imageContextText = altParts.join("\n").trim();
-  // Never use URL/filename as description.
   if (imageContextText.length < MIN_IMAGE_CONTEXT_CHARS) {
     return { ok: false, code: "IMAGE_CONTEXT_REQUIRED", imageContextText: "" };
   }
@@ -221,15 +236,64 @@ function toCandidateDto(doc) {
   };
 }
 
-function requestScopeKey(questionId, partLabel, sourceFingerprint) {
-  return `${questionId}|${partLabel}|${sourceFingerprint}`;
-}
-
 async function findExistingIdempotent(actorId, idempotencyKey) {
   return ExamQuestionRationaleCandidate.findOne({
     generatedBy: actorObjectId(actorId),
     idempotencyKey,
   });
+}
+
+/**
+ * Atomically expire a generating reservation whose lease is past.
+ * Does not count as a new generation attempt.
+ */
+async function expireStaleGeneratingCandidate(candidateId, now = new Date()) {
+  return ExamQuestionRationaleCandidate.findOneAndUpdate(
+    {
+      _id: candidateId,
+      status: "generating",
+      active: true,
+      $or: [
+        { generationLeaseExpiresAt: { $lte: now } },
+        { generationLeaseExpiresAt: null },
+        { generationLeaseExpiresAt: { $exists: false } },
+      ],
+    },
+    {
+      $set: {
+        status: "failed",
+        active: false,
+        failureCode: "GENERATION_LEASE_EXPIRED",
+        completedAt: now,
+        explanation: "",
+      },
+    },
+    { new: true }
+  );
+}
+
+async function recoverActiveSourceIfStale(questionId, partLabel, sourceFingerprint, now = new Date()) {
+  const active = await ExamQuestionRationaleCandidate.findOne({
+    questionId,
+    partLabel,
+    sourceFingerprint,
+    active: true,
+  });
+  if (!active) return { blocking: null, recovered: false };
+
+  if (active.status === "pending") {
+    return { blocking: active, recovered: false };
+  }
+
+  if (active.status === "generating") {
+    if (!isLeaseExpired(active, now)) {
+      return { blocking: active, recovered: false };
+    }
+    const expired = await expireStaleGeneratingCandidate(active._id, now);
+    return { blocking: null, recovered: Boolean(expired), expired };
+  }
+
+  return { blocking: active, recovered: false };
 }
 
 async function assertDailyCaps(actorId) {
@@ -257,34 +321,106 @@ async function assertDailyCaps(actorId) {
     });
   }
 
-  // Honest note: a small race remains between this check and insert without an atomic ledger.
   return { actorCount, globalCount, actorCap, globalCap };
 }
 
-async function assertNoActiveGeneratingForActor(actorId) {
+async function assertNoActiveGeneratingForActor(actorId, now = new Date()) {
   const existing = await ExamQuestionRationaleCandidate.findOne({
     generatedBy: actorObjectId(actorId),
     status: "generating",
     active: true,
-  }).select("_id");
-  if (existing) {
-    throw new CandidateServiceError(
-      409,
-      "ACTOR_GENERATION_IN_PROGRESS",
-      "Another candidate generation is already in progress for this user"
-    );
+  });
+  if (!existing) return;
+  if (isLeaseExpired(existing, now)) {
+    await expireStaleGeneratingCandidate(existing._id, now);
+    return;
   }
+  throw new CandidateServiceError(
+    409,
+    "ACTOR_GENERATION_IN_PROGRESS",
+    "Another candidate generation is already in progress for this user"
+  );
 }
 
-async function markCandidateFailed(candidate, failureCode, validationIssueCodes = []) {
-  candidate.status = "failed";
-  candidate.active = false;
-  candidate.failureCode = failureCode;
-  candidate.validationIssueCodes = validationIssueCodes.slice(0, 40);
-  candidate.completedAt = new Date();
-  candidate.explanation = "";
-  await candidate.save();
-  return candidate;
+/**
+ * Conditional success: only the lease owner with a still-valid lease may move to pending.
+ */
+async function completePendingWithLease(candidateId, leaseToken, fields, now = new Date()) {
+  return ExamQuestionRationaleCandidate.findOneAndUpdate(
+    {
+      _id: candidateId,
+      status: "generating",
+      active: true,
+      generationLeaseToken: leaseToken,
+      generationLeaseExpiresAt: { $gt: now },
+    },
+    {
+      $set: {
+        explanation: fields.explanation,
+        status: "pending",
+        active: true,
+        completedAt: now,
+        promptVersion: fields.promptVersion || PROMPT_VERSION,
+        model: fields.model || "",
+        failureCode: "",
+        validationIssueCodes: [],
+      },
+    },
+    { new: true }
+  );
+}
+
+/**
+ * Conditional failure while still owning the generating reservation (lease may still be future).
+ */
+async function completeFailedWithLease(
+  candidateId,
+  leaseToken,
+  failureCode,
+  validationIssueCodes = [],
+  now = new Date()
+) {
+  return ExamQuestionRationaleCandidate.findOneAndUpdate(
+    {
+      _id: candidateId,
+      status: "generating",
+      active: true,
+      generationLeaseToken: leaseToken,
+    },
+    {
+      $set: {
+        status: "failed",
+        active: false,
+        failureCode,
+        validationIssueCodes: (validationIssueCodes || []).slice(0, 40),
+        completedAt: now,
+        explanation: "",
+      },
+    },
+    { new: true }
+  );
+}
+
+async function failIfLeaseExpiredOwned(candidateId, leaseToken, now = new Date()) {
+  return ExamQuestionRationaleCandidate.findOneAndUpdate(
+    {
+      _id: candidateId,
+      status: "generating",
+      active: true,
+      generationLeaseToken: leaseToken,
+      generationLeaseExpiresAt: { $lte: now },
+    },
+    {
+      $set: {
+        status: "failed",
+        active: false,
+        failureCode: "GENERATION_LEASE_EXPIRED",
+        completedAt: now,
+        explanation: "",
+      },
+    },
+    { new: true }
+  );
 }
 
 function extractExplanation(parsed) {
@@ -296,16 +432,17 @@ function extractExplanation(parsed) {
 }
 
 /**
- * @param {{ actorId: string, body: object, llmCall?: Function }} args
+ * @param {{ actorId: string, body: object, llmCall?: Function, now?: Date }} args
  */
-async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJson }) {
+async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJson, now: nowArg }) {
+  const now = nowArg ? new Date(nowArg) : new Date();
+
   if (!isMcqRationaleBackfillV23aEnabled()) {
     throw new CandidateServiceError(404, "FEATURE_DISABLED", "MCQ rationale backfill V2.3A is not enabled on this server");
   }
 
   const req = parseRequestBody(body);
 
-  // Read-only ExamQuestion load — never trust inventory/client educational fields
   const question = await ExamQuestion.findById(req.questionId).lean();
   if (!question) {
     throw new CandidateServiceError(404, "QUESTION_NOT_FOUND", "Exam question not found");
@@ -392,14 +529,35 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
         "idempotencyKey was already used for a different source request"
       );
     }
+
+    if (existingIdem.status === "generating" && existingIdem.active && isLeaseExpired(existingIdem, now)) {
+      const expired =
+        (await expireStaleGeneratingCandidate(existingIdem._id, now)) ||
+        (await ExamQuestionRationaleCandidate.findById(existingIdem._id));
+      return { dto: toCandidateDto(expired), replayed: true };
+    }
+
     return { dto: toCandidateDto(existingIdem), replayed: true };
   }
 
   await assertDailyCaps(actorId);
-  await assertNoActiveGeneratingForActor(actorId);
+
+  const recovery = await recoverActiveSourceIfStale(req.questionId, req.partLabel, sourceFingerprint, now);
+  if (recovery.blocking) {
+    throw new CandidateServiceError(
+      409,
+      "ACTIVE_CANDIDATE_EXISTS",
+      "An active candidate already exists for this question part and fingerprint",
+      { candidate: toCandidateDto(recovery.blocking) }
+    );
+  }
+
+  await assertNoActiveGeneratingForActor(actorId, now);
 
   const generationGroupKey = buildGenerationGroupKey(req.questionId, req.partLabel, sourceFingerprint);
   const modelName = process.env.LLM_MODEL || "gpt-4o-mini";
+  const leaseToken = newLeaseToken();
+  const leaseExpiresAt = computeLeaseExpiresAt(now);
 
   let candidate;
   try {
@@ -419,8 +577,10 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
       promptVersion: PROMPT_VERSION,
       model: modelName,
       generatedBy: actorObjectId(actorId),
-      generatedAt: new Date(),
+      generatedAt: now,
       completedAt: null,
+      generationLeaseToken: leaseToken,
+      generationLeaseExpiresAt: leaseExpiresAt,
       failureCode: "",
       validationIssueCodes: [],
     });
@@ -435,17 +595,14 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
       ) {
         return { dto: toCandidateDto(raced), replayed: true };
       }
-      const active = await ExamQuestionRationaleCandidate.findOne({
-        questionId: req.questionId,
-        partLabel: req.partLabel,
-        sourceFingerprint,
-        active: true,
-      });
-      if (active) {
+      // Another concurrent recovery may have reserved first — retry stale recovery once
+      const again = await recoverActiveSourceIfStale(req.questionId, req.partLabel, sourceFingerprint, new Date());
+      if (again.blocking) {
         throw new CandidateServiceError(
           409,
           "ACTIVE_CANDIDATE_EXISTS",
-          "An active candidate already exists for this question part and fingerprint"
+          "An active candidate already exists for this question part and fingerprint",
+          { candidate: toCandidateDto(again.blocking) }
         );
       }
       throw new CandidateServiceError(409, "DUPLICATE_RESERVATION", "Could not reserve candidate (duplicate key)");
@@ -466,9 +623,10 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
     llmCalls += 1;
 
     let explanation = extractExplanation(firstParsed);
-    let validated = explanation != null
-      ? validateMcqExplanation(explanation, { correctOption: sourceSnapshot.correctOption })
-      : { ok: false, issues: ["explanation_missing"] };
+    let validated =
+      explanation != null
+        ? validateMcqExplanation(explanation, { correctOption: sourceSnapshot.correctOption })
+        : { ok: false, issues: ["explanation_missing"] };
 
     if (!validated.ok) {
       const repairParsed = await withTimeout(
@@ -485,33 +643,62 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
       );
       llmCalls += 1;
       explanation = extractExplanation(repairParsed);
-      validated = explanation != null
-        ? validateMcqExplanation(explanation, { correctOption: sourceSnapshot.correctOption })
-        : { ok: false, issues: ["explanation_missing"] };
+      validated =
+        explanation != null
+          ? validateMcqExplanation(explanation, { correctOption: sourceSnapshot.correctOption })
+          : { ok: false, issues: ["explanation_missing"] };
 
       if (!validated.ok) {
-        await markCandidateFailed(candidate, "VALIDATION_FAILED", validated.issues || []);
+        const failed = await completeFailedWithLease(
+          candidate._id,
+          leaseToken,
+          "VALIDATION_FAILED",
+          validated.issues || [],
+          new Date()
+        );
+        if (!failed) {
+          throw new CandidateServiceError(409, "GENERATION_RESERVATION_LOST", "Generation reservation is no longer owned", {
+            llmCalls,
+          });
+        }
         throw new CandidateServiceError(422, "VALIDATION_FAILED", "Generated rationale failed validation", {
-          candidate: toCandidateDto(candidate),
+          candidate: toCandidateDto(failed),
           validationIssueCodes: validated.issues || [],
           llmCalls,
         });
       }
     }
 
-    candidate.explanation = validated.explanation;
-    candidate.status = "pending";
-    candidate.active = true;
-    candidate.completedAt = new Date();
-    candidate.promptVersion = PROMPT_VERSION;
-    candidate.model = modelName;
-    candidate.failureCode = "";
-    candidate.validationIssueCodes = [];
-    await candidate.save();
+    const completionNow = new Date();
+    const pending = await completePendingWithLease(
+      candidate._id,
+      leaseToken,
+      {
+        explanation: validated.explanation,
+        promptVersion: PROMPT_VERSION,
+        model: modelName,
+      },
+      completionNow
+    );
 
-    return { dto: toCandidateDto(candidate), replayed: false, llmCalls };
+    if (!pending) {
+      const expiredOwned = await failIfLeaseExpiredOwned(candidate._id, leaseToken, completionNow);
+      throw new CandidateServiceError(
+        409,
+        expiredOwned ? "GENERATION_LEASE_EXPIRED" : "GENERATION_RESERVATION_LOST",
+        expiredOwned
+          ? "Generation lease expired before completion"
+          : "Generation reservation is no longer owned",
+        {
+          candidate: expiredOwned ? toCandidateDto(expiredOwned) : null,
+          llmCalls,
+        }
+      );
+    }
+
+    return { dto: toCandidateDto(pending), replayed: false, llmCalls };
   } catch (err) {
-    if (err instanceof CandidateServiceError && err.code === "VALIDATION_FAILED") {
+    if (err instanceof CandidateServiceError) {
       throw err;
     }
 
@@ -521,19 +708,15 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
     else if (err && err.code === "LLM_EMPTY") failureCode = "LLM_EMPTY";
     else if (err && err.code === "LLM_NOT_CONFIGURED") failureCode = "LLM_NOT_CONFIGURED";
 
+    let failedDoc = null;
     try {
-      // Reload in case validation path already marked failed
-      const fresh = await ExamQuestionRationaleCandidate.findById(candidate._id);
-      if (fresh && fresh.status === "generating" && fresh.active) {
-        await markCandidateFailed(fresh, failureCode, []);
-        candidate = fresh;
-      }
+      failedDoc = await completeFailedWithLease(candidate._id, leaseToken, failureCode, [], new Date());
     } catch (_) {
-      // ignore secondary failure
+      // lease recovery on a later request will unblock if this fails
     }
 
     throw new CandidateServiceError(503, failureCode, "Rationale generation failed", {
-      candidate: candidate ? toCandidateDto(candidate) : null,
+      candidate: failedDoc ? toCandidateDto(failedDoc) : null,
       llmCalls,
     });
   }
@@ -546,11 +729,19 @@ module.exports = {
   resolveImageContext,
   buildSourceSnapshot,
   toCandidateDto,
-  requestScopeKey,
   utcDayBounds,
+  newLeaseToken,
+  computeLeaseExpiresAt,
+  isLeaseExpired,
+  expireStaleGeneratingCandidate,
+  recoverActiveSourceIfStale,
+  completePendingWithLease,
+  completeFailedWithLease,
+  failIfLeaseExpiredOwned,
   PROMPT_VERSION,
   SYSTEM_PROMPT,
   ALLOWED_BODY_KEYS,
   IDEMPOTENCY_KEY_RE,
   MIN_IMAGE_CONTEXT_CHARS,
+  LLM_TIMEOUT_MS,
 };

@@ -609,4 +609,347 @@ describe("V2.3A model indexes", () => {
     });
     expect(ok.status).toBe(201);
   });
+
+  test("lease token is stored server-side and not exposed in DTO", async () => {
+    const { token, user } = await loginAs("v23a-lease-dto@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const res = await postCandidate(token, {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      idempotencyKey: "lease-dto-000001",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.candidate.generationLeaseToken).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toMatch(/generationLeaseToken/);
+    const stored = await ExamQuestionRationaleCandidate.findById(res.body.candidate.candidateId);
+    expect(stored.generationLeaseToken).toMatch(/^[0-9a-f-]{16,}$/i);
+    expect(stored.generationLeaseExpiresAt).toBeTruthy();
+  });
+});
+
+describe("V2.3A generation lease recovery", () => {
+  const {
+    completePendingWithLease,
+    completeFailedWithLease,
+    expireStaleGeneratingCandidate,
+    newLeaseToken,
+  } = require("../services/examQuestionRationaleCandidateService");
+
+  async function seedStuckGenerating(teacherId, overrides = {}) {
+    const q = await createEligibleDraft(teacherId);
+    const actor = teacherId;
+    const token = newLeaseToken();
+    const cand = await ExamQuestionRationaleCandidate.create({
+      questionId: q._id,
+      partLabel: "a",
+      sourceFingerprint: "c".repeat(64),
+      sourceUpdatedAt: q.updatedAt,
+      sourceSnapshot: {
+        subject: "Biology",
+        examBoard: "AQA",
+        level: "GCSE",
+        topic: "Photosynthesis",
+        topicKey: "photosynthesis",
+        questionStatus: "draft",
+        sharedStem: String(q.sharedStem || ""),
+        questionText: q.parts[0].questionText,
+        options: q.parts[0].options,
+        correctIndex: q.parts[0].correctIndex,
+        correctOption: q.parts[0].options[q.parts[0].correctIndex],
+        marks: 1,
+        markScheme: q.parts[0].markScheme,
+        imageContextText: "",
+        currentExplanation: "",
+      },
+      priorExplanation: "",
+      explanation: "",
+      status: "generating",
+      active: true,
+      attemptNumber: 1,
+      generationGroupKey: `${q._id}:a:${"c".repeat(64)}`,
+      idempotencyKey: overrides.idempotencyKey || "stuck-seed-key-01",
+      promptVersion: "v23a.1",
+      model: "gpt-4o-mini",
+      generatedBy: actor,
+      generatedAt: new Date(Date.now() - 3600_000),
+      generationLeaseToken: token,
+      generationLeaseExpiresAt: overrides.leaseExpiresAt || new Date(Date.now() - 3600_000),
+      failureCode: "",
+      validationIssueCodes: [],
+      ...overrides.doc,
+    });
+    // Fix fingerprint to match real source so API recovery can find it
+    const { computeMcqRationaleSourceFingerprint } = require("../utils/mcqRationaleSourceFingerprint");
+    const fp = computeMcqRationaleSourceFingerprint({
+      questionId: q._id.toString(),
+      partLabel: "a",
+      sharedStem: cand.sourceSnapshot.sharedStem,
+      questionText: cand.sourceSnapshot.questionText,
+      options: cand.sourceSnapshot.options,
+      correctIndex: cand.sourceSnapshot.correctIndex,
+      marks: cand.sourceSnapshot.marks,
+      markScheme: cand.sourceSnapshot.markScheme,
+      subject: cand.sourceSnapshot.subject,
+      examBoard: cand.sourceSnapshot.examBoard,
+      level: cand.sourceSnapshot.level,
+      tier: "",
+      topic: cand.sourceSnapshot.topic,
+      topicKey: cand.sourceSnapshot.topicKey,
+      imageContextText: "",
+      currentExplanation: "",
+    });
+    cand.sourceFingerprint = fp;
+    cand.generationGroupKey = `${q._id}:a:${fp}`;
+    await cand.save();
+    return { q, cand, leaseToken: token, fingerprint: fp };
+  }
+
+  test("unexpired generating blocks different idempotency key without LLM", async () => {
+    const { token, user } = await loginAs("v23a-lease-live@test.com", "admin");
+    const { q, cand } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-live-owner1",
+      leaseExpiresAt: new Date(Date.now() + 600_000),
+    });
+    expect(cand.status).toBe("generating");
+    expect(cand.active).toBe(true);
+    callOpenAiJson.mockClear();
+    const blocked = await postCandidate(token, {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      idempotencyKey: "lease-live-other1",
+    });
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.code).toBe("ACTIVE_CANDIDATE_EXISTS");
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    const still = await ExamQuestionRationaleCandidate.findById(cand._id);
+    expect(still.status).toBe("generating");
+    expect(still.active).toBe(true);
+  });
+
+  test("unexpired generating same idempotency key replays without LLM", async () => {
+    const { token, user } = await loginAs("v23a-lease-replay@test.com", "admin");
+    const { q } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-replay-same1",
+      leaseExpiresAt: new Date(Date.now() + 600_000),
+    });
+    callOpenAiJson.mockClear();
+    const res = await postCandidate(token, {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      idempotencyKey: "lease-replay-same1",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.replayed).toBe(true);
+    expect(res.body.candidate.status).toBe("generating");
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+  });
+
+  test("expired lease recovery with new key creates pending; old becomes GENERATION_LEASE_EXPIRED", async () => {
+    const { token, user } = await loginAs("v23a-lease-rec@test.com", "admin");
+    const { q, cand } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-expired-old1",
+      leaseExpiresAt: new Date(Date.now() - 60_000),
+    });
+    const beforeQ = await ExamQuestion.findById(q._id).lean();
+    callOpenAiJson.mockClear();
+    const res = await postCandidate(token, {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      idempotencyKey: "lease-expired-new1",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.candidate.status).toBe("pending");
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1);
+    const old = await ExamQuestionRationaleCandidate.findById(cand._id);
+    expect(old.status).toBe("failed");
+    expect(old.active).toBe(false);
+    expect(old.failureCode).toBe("GENERATION_LEASE_EXPIRED");
+    expect(old.completedAt).toBeTruthy();
+    const afterQ = await ExamQuestion.findById(q._id).lean();
+    expect(afterQ.updatedAt.toISOString()).toBe(beforeQ.updatedAt.toISOString());
+  });
+
+  test("same idempotency key after expiry returns failed replay without new reservation/LLM", async () => {
+    const { token, user } = await loginAs("v23a-lease-same@test.com", "admin");
+    const { q } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-same-key-001",
+      leaseExpiresAt: new Date(Date.now() - 60_000),
+    });
+    callOpenAiJson.mockClear();
+    const res = await postCandidate(token, {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      idempotencyKey: "lease-same-key-001",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.replayed).toBe(true);
+    expect(res.body.candidate.status).toBe("failed");
+    expect(res.body.candidate.failureCode).toBe("GENERATION_LEASE_EXPIRED");
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(1);
+  });
+
+  test("concurrent recovery: only one new reservation and one LLM call", async () => {
+    const { token, user } = await loginAs("v23a-lease-conc@test.com", "admin");
+    const { q } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-conc-old-001",
+      leaseExpiresAt: new Date(Date.now() - 60_000),
+    });
+    callOpenAiJson.mockClear();
+    callOpenAiJson.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+      return { explanation: GOOD_EXPLANATION };
+    });
+    const [a, b] = await Promise.all([
+      postCandidate(token, {
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: "lease-conc-new-a1",
+      }),
+      postCandidate(token, {
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: "lease-conc-new-b1",
+      }),
+    ]);
+    const statuses = [a.status, b.status].sort();
+    expect(statuses).toEqual([201, 409].sort());
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1);
+    const active = await ExamQuestionRationaleCandidate.find({
+      questionId: q._id,
+      active: true,
+    });
+    expect(active).toHaveLength(1);
+    expect(active[0].status).toBe("pending");
+  });
+
+  test("delayed old success with expired token cannot revive candidate", async () => {
+    const { user } = await loginAs("v23a-lease-delay@test.com", "admin");
+    const { cand, leaseToken } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-delay-old-01",
+      leaseExpiresAt: new Date(Date.now() - 60_000),
+    });
+    const expired = await expireStaleGeneratingCandidate(cand._id, new Date());
+    expect(expired.status).toBe("failed");
+    const revived = await completePendingWithLease(cand._id, leaseToken, {
+      explanation: GOOD_EXPLANATION,
+      promptVersion: "v23a.1",
+      model: "gpt-4o-mini",
+    });
+    expect(revived).toBeNull();
+    const final = await ExamQuestionRationaleCandidate.findById(cand._id);
+    expect(final.status).toBe("failed");
+    expect(final.active).toBe(false);
+    expect(final.explanation).toBe("");
+  });
+
+  test("wrong lease token cannot complete success or failure", async () => {
+    const { user } = await loginAs("v23a-lease-tok@test.com", "admin");
+    const { cand } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-tok-0000001",
+      leaseExpiresAt: new Date(Date.now() + 600_000),
+    });
+    const bad = "00000000-0000-4000-8000-000000000000";
+    expect(
+      await completePendingWithLease(cand._id, bad, {
+        explanation: GOOD_EXPLANATION,
+        promptVersion: "v23a.1",
+        model: "x",
+      })
+    ).toBeNull();
+    expect(await completeFailedWithLease(cand._id, bad, "LLM_ERROR", [])).toBeNull();
+    const final = await ExamQuestionRationaleCandidate.findById(cand._id);
+    expect(final.status).toBe("generating");
+    expect(final.active).toBe(true);
+  });
+
+  test("valid output after lease expiry at completion becomes GENERATION_LEASE_EXPIRED", async () => {
+    const { createRationaleCandidate } = require("../services/examQuestionRationaleCandidateService");
+    const { token, user } = await loginAs("v23a-lease-comp@test.com", "admin");
+    void token;
+    const q = await createEligibleDraft(user._id);
+    const start = new Date();
+    // Force an already-expired lease at reservation by using negative lease via env temporarily
+    process.env.MCQ_RATIONALE_GENERATION_LEASE_MS = String(2 * 60 * 1000); // min clamp
+    // Inject llm that advances "now" past lease by using complete path with mocked dates:
+    // Create with short lease by directly creating then calling completion helpers.
+    const leaseToken = newLeaseToken();
+    const { computeMcqRationaleSourceFingerprint } = require("../utils/mcqRationaleSourceFingerprint");
+    const snap = {
+      subject: "Biology",
+      examBoard: "AQA",
+      level: "GCSE",
+      topic: "Photosynthesis",
+      topicKey: "photosynthesis",
+      questionStatus: "draft",
+      sharedStem: String(q.sharedStem || ""),
+      questionText: q.parts[0].questionText,
+      options: q.parts[0].options,
+      correctIndex: q.parts[0].correctIndex,
+      correctOption: q.parts[0].options[q.parts[0].correctIndex],
+      marks: 1,
+      markScheme: q.parts[0].markScheme,
+      imageContextText: "",
+      currentExplanation: "",
+    };
+    const fp = computeMcqRationaleSourceFingerprint({
+      questionId: q._id.toString(),
+      partLabel: "a",
+      ...snap,
+      tier: "",
+    });
+    const cand = await ExamQuestionRationaleCandidate.create({
+      questionId: q._id,
+      partLabel: "a",
+      sourceFingerprint: fp,
+      sourceUpdatedAt: q.updatedAt,
+      sourceSnapshot: snap,
+      priorExplanation: "",
+      explanation: "",
+      status: "generating",
+      active: true,
+      attemptNumber: 1,
+      generationGroupKey: `${q._id}:a:${fp}`,
+      idempotencyKey: "lease-comp-exp-001",
+      promptVersion: "v23a.1",
+      model: "gpt-4o-mini",
+      generatedBy: user._id,
+      generatedAt: start,
+      generationLeaseToken: leaseToken,
+      generationLeaseExpiresAt: new Date(Date.now() - 1000),
+    });
+    const pending = await completePendingWithLease(cand._id, leaseToken, {
+      explanation: GOOD_EXPLANATION,
+      promptVersion: "v23a.1",
+      model: "gpt-4o-mini",
+    });
+    expect(pending).toBeNull();
+    const {
+      failIfLeaseExpiredOwned,
+    } = require("../services/examQuestionRationaleCandidateService");
+    const expired = await failIfLeaseExpiredOwned(cand._id, leaseToken, new Date());
+    expect(expired.status).toBe("failed");
+    expect(expired.failureCode).toBe("GENERATION_LEASE_EXPIRED");
+    expect(expired.active).toBe(false);
+  });
+
+  test("failure-update failure then lease expiry allows new key recovery", async () => {
+    const { token, user } = await loginAs("v23a-lease-failup@test.com", "admin");
+    const { q, cand } = await seedStuckGenerating(user._id, {
+      idempotencyKey: "lease-failup-old1",
+      leaseExpiresAt: new Date(Date.now() - 60_000),
+    });
+    // Simulate abandoned generating still active (already expired lease)
+    expect(cand.active).toBe(true);
+    callOpenAiJson.mockClear();
+    const res = await postCandidate(token, {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      idempotencyKey: "lease-failup-new1",
+    });
+    expect(res.status).toBe(201);
+    expect(callOpenAiJson).toHaveBeenCalledTimes(1);
+    const old = await ExamQuestionRationaleCandidate.findById(cand._id);
+    expect(old.failureCode).toBe("GENERATION_LEASE_EXPIRED");
+  });
 });

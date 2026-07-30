@@ -98,6 +98,10 @@ const ExamQuestionRationaleCandidateSchema = new mongoose.Schema(
     },
     generatedAt: { type: Date, required: true, default: Date.now, index: true },
     completedAt: { type: Date, default: null },
+    /** Private lease token for the owning generation request — never accept from client / never expose in DTO. */
+    generationLeaseToken: { type: String, trim: true, maxlength: 80, default: "" },
+    /** Absolute expiry for generating reservations; lazy stale recovery uses this. */
+    generationLeaseExpiresAt: { type: Date, default: null },
     failureCode: { type: String, trim: true, maxlength: 80, default: "" },
     validationIssueCodes: {
       type: [
@@ -140,6 +144,11 @@ ExamQuestionRationaleCandidateSchema.index(
 ExamQuestionRationaleCandidateSchema.index(
   { status: 1, generatedAt: -1 },
   { name: "ix_status_queue" }
+);
+
+ExamQuestionRationaleCandidateSchema.index(
+  { status: 1, active: 1, generationLeaseExpiresAt: 1 },
+  { name: "ix_stale_generating_lookup" }
 );
 
 module.exports =
