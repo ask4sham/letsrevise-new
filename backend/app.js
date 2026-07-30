@@ -176,6 +176,10 @@ app.use(
   "/api/admin/exam-question-rationale-inventory",
   require("./routes/adminExamQuestionRationaleInventory")
 );
+app.use(
+  "/api/admin/exam-question-rationale-candidates",
+  require("./routes/adminExamQuestionRationaleCandidates")
+);
 app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));
 
 // PR10: Biology readiness report (teacher/admin)
