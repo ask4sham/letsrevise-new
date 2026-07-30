@@ -11,6 +11,10 @@ const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
 
 const requireContentManager = require("../middleware/requireContentManager");
+const {
+  getAdminExamQuestionView,
+  AdminExamQuestionViewError,
+} = require("../services/adminExamQuestionViewService");
 
 router.use(auth, requireContentManager);
 
@@ -149,6 +153,24 @@ router.get("/exam-questions", async (req, res) => {
   } catch (err) {
     console.error("Admin question-banks exam-questions error:", err);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * GET /api/admin/question-banks/exam-questions/:questionId
+ * Read-only single Exam Question view for admin / content_manager.
+ * Does not write ExamQuestion, Candidate, or Lesson.
+ */
+router.get("/exam-questions/:questionId", async (req, res) => {
+  try {
+    const dto = await getAdminExamQuestionView(req.params.questionId);
+    return res.json(dto);
+  } catch (err) {
+    if (err instanceof AdminExamQuestionViewError) {
+      return res.status(err.status).json({ error: err.message, code: err.code });
+    }
+    console.error("Admin question-banks exam-question view error:", err);
+    return res.status(500).json({ error: "Server error", code: "SERVER_ERROR" });
   }
 });
 

@@ -256,7 +256,8 @@ export default function AdminQuestionBanksPage() {
     const q = tk ? `?topicKey=${encodeURIComponent(tk)}` : "";
     if (type === "flashcards") return `/teacher/topic-banks/flashcards${q}`;
     if (type === "quizzes") return `/teacher/topic-banks/quizzes${q}`;
-    return `/teacher/exam-question-bank${q}`;
+    // Exam Questions: ID-based admin read-only view (no teacher-only topic deep-link).
+    return `/admin/question-banks/exam-questions/${encodeURIComponent(row.id)}`;
   };
 
   if (user?.userType !== "admin") return null;
@@ -580,8 +581,20 @@ function ExamTable({
               <td style={{ padding: "0.75rem" }}>{r.status}</td>
               <td style={{ padding: "0.75rem", whiteSpace: "nowrap" }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "—"}</td>
               <td style={{ padding: "0.75rem" }}>
-                <Link to={editUrl("exam-questions", r)} target="_blank" rel="noopener noreferrer" style={{ marginRight: 8, color: "#6366f1", textDecoration: "none", fontWeight: 500 }}>View</Link>
-                <Link to={editUrl("exam-questions", r)} style={{ marginRight: 8, color: "#6366f1", textDecoration: "none", fontWeight: 500 }}>Edit</Link>
+                <Link
+                  to={editUrl("exam-questions", r)}
+                  data-testid={`admin-question-banks-exam-view-${r.id}`}
+                  style={{ marginRight: 8, color: "#6366f1", textDecoration: "none", fontWeight: 500 }}
+                >
+                  View
+                </Link>
+                <span
+                  data-testid={`admin-question-banks-exam-edit-unavailable-${r.id}`}
+                  title="A dedicated admin Exam Question editor is not available yet"
+                  style={{ marginRight: 8, color: "#94a3b8", fontWeight: 500, fontSize: "0.85rem" }}
+                >
+                  Edit unavailable
+                </span>
                 <button type="button" onClick={() => onDelete("exam-questions", r.id, r.question)} style={{ color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Delete</button>
               </td>
             </tr>
