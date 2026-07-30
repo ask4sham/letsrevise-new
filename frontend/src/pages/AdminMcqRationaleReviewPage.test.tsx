@@ -66,6 +66,11 @@ const baseContext = {
   sourceUpdatedAt: new Date().toISOString(),
   imageContextAvailable: false,
   imageContextRequired: false,
+  mediaContext: {
+    referencePresent: false,
+    scope: "none" as const,
+    trustedContextAvailable: false,
+  },
   generationFeatureEnabled: false,
   publishedGenerationEnabled: false,
   canGenerate: true,
@@ -74,6 +79,9 @@ const baseContext = {
   candidateIsStale: false,
   readOnly: true as const,
 };
+
+const SHARED_MEDIA_WARNING =
+  /This Composite Exam Question has shared media attached, but no trusted description is available\. Candidate generation remains blocked\./;
 
 describe("AdminMcqRationaleReviewPage", () => {
   beforeEach(() => {
@@ -130,12 +138,17 @@ describe("AdminMcqRationaleReviewPage", () => {
     expect(screen.getByTestId("mcq-rationale-review-stale-warning")).toBeInTheDocument();
   });
 
-  test("failed candidate and image-context warning appears exactly once", async () => {
+  test("shared media without trusted context: explanatory warning once, no legacy sentence", async () => {
     mockFetchReview.mockResolvedValue({
       ...baseContext,
       imageContextRequired: true,
       canGenerate: false,
       canGenerateReason: "IMAGE_CONTEXT_REQUIRED",
+      mediaContext: {
+        referencePresent: true,
+        scope: "question_shared",
+        trustedContextAvailable: false,
+      },
       latestCandidate: {
         candidateId: "c2",
         questionId: "qid123",
@@ -157,38 +170,91 @@ describe("AdminMcqRationaleReviewPage", () => {
     renderReview();
     expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("failed");
     expect(screen.getByTestId("mcq-rationale-review-failure-code")).toHaveTextContent("LLM_ERROR");
-    expect(screen.getByTestId("mcq-rationale-review-image-context-warning")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-shared-media-warning")).toBeInTheDocument();
+    expect(screen.getAllByText(SHARED_MEDIA_WARNING)).toHaveLength(1);
+    expect(screen.queryByTestId("mcq-rationale-review-image-context-warning")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Trusted image context text is required/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("mcq-rationale-review-can-generate-reason")).not.toBeInTheDocument();
-    const matches = screen.getAllByText(/Trusted image context text is required/i);
-    expect(matches).toHaveLength(1);
   });
 
-  test("feature-disabled plus image-context: each notice once", async () => {
+  test("feature-disabled plus shared-media warning: each notice once", async () => {
     mockFetchReview.mockResolvedValue({
       ...baseContext,
       generationFeatureEnabled: false,
       imageContextRequired: true,
       canGenerate: false,
       canGenerateReason: "IMAGE_CONTEXT_REQUIRED",
+      mediaContext: {
+        referencePresent: true,
+        scope: "question_shared",
+        trustedContextAvailable: false,
+      },
     });
     renderReview();
     expect(await screen.findByTestId("mcq-rationale-review-feature-disabled")).toBeInTheDocument();
-    expect(screen.getByTestId("mcq-rationale-review-image-context-warning")).toBeInTheDocument();
-    expect(screen.getAllByText(/Trusted image context text is required/i)).toHaveLength(1);
+    expect(screen.getByTestId("mcq-rationale-review-shared-media-warning")).toBeInTheDocument();
+    expect(screen.getAllByText(SHARED_MEDIA_WARNING)).toHaveLength(1);
     expect(screen.getAllByText(/Candidate generation is currently disabled/i)).toHaveLength(1);
+    expect(screen.queryByText(/Trusted image context text is required/i)).not.toBeInTheDocument();
   });
 
-  test("text-only context: no image-context warning", async () => {
+  test("shared media with trusted context: neutral status once, no blocked warning", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...baseContext,
+      imageContextRequired: false,
+      imageContextAvailable: true,
+      canGenerateReason: "",
+      canGenerate: true,
+      mediaContext: {
+        referencePresent: true,
+        scope: "question_shared",
+        trustedContextAvailable: true,
+      },
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.getByTestId("mcq-rationale-review-shared-media-trusted")).toHaveTextContent(
+      /Trusted context is available for the shared media/
+    );
+    expect(screen.getAllByText(/Trusted context is available for the shared media/i)).toHaveLength(1);
+    expect(screen.queryByTestId("mcq-rationale-review-shared-media-warning")).not.toBeInTheDocument();
+    expect(screen.queryByText(SHARED_MEDIA_WARNING)).not.toBeInTheDocument();
+  });
+
+  test("no media: no media warning or trusted status", async () => {
     mockFetchReview.mockResolvedValue({
       ...baseContext,
       imageContextRequired: false,
       canGenerateReason: "",
       canGenerate: true,
+      mediaContext: {
+        referencePresent: false,
+        scope: "none",
+        trustedContextAvailable: false,
+      },
     });
     renderReview();
     await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByTestId("mcq-rationale-review-shared-media-warning")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mcq-rationale-review-shared-media-trusted")).not.toBeInTheDocument();
     expect(screen.queryByTestId("mcq-rationale-review-image-context-warning")).not.toBeInTheDocument();
     expect(screen.queryByText(/Trusted image context text is required/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(SHARED_MEDIA_WARNING)).not.toBeInTheDocument();
+  });
+
+  test("backward-compatible response without mediaContext: legacy warning, no crash", async () => {
+    const { mediaContext: _omit, ...legacy } = baseContext;
+    mockFetchReview.mockResolvedValue({
+      ...legacy,
+      imageContextRequired: true,
+      canGenerate: false,
+      canGenerateReason: "IMAGE_CONTEXT_REQUIRED",
+    });
+    renderReview();
+    expect(await screen.findByTestId("mcq-rationale-review-image-context-warning")).toBeInTheDocument();
+    expect(screen.getAllByText(/Trusted image context text is required/i)).toHaveLength(1);
+    expect(screen.queryByTestId("mcq-rationale-review-shared-media-warning")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mcq-rationale-review-can-generate-reason")).not.toBeInTheDocument();
   });
 
   test("published-disabled notice once without duplicate generic reason", async () => {

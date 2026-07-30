@@ -170,9 +170,27 @@ export default function AdminMcqRationaleReviewPage() {
   );
 }
 
+const SHARED_MEDIA_BLOCKED_MESSAGE =
+  "This Composite Exam Question has shared media attached, but no trusted description is available. Candidate generation remains blocked.";
+const SHARED_MEDIA_TRUSTED_MESSAGE = "Trusted context is available for the shared media.";
+const LEGACY_IMAGE_CONTEXT_MESSAGE =
+  "Trusted image context text is required before generation can be considered.";
+
 function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
   const tax = data.taxonomy;
   const candidate = data.latestCandidate;
+  const media = data.mediaContext;
+  const showSharedMediaBlocked =
+    Boolean(media?.referencePresent) &&
+    media?.scope === "question_shared" &&
+    data.imageContextRequired;
+  const showSharedMediaTrusted =
+    Boolean(media?.referencePresent) &&
+    media?.scope === "question_shared" &&
+    Boolean(media?.trustedContextAvailable) &&
+    !data.imageContextRequired;
+  // Older backends without mediaContext: keep the previous single image-context warning.
+  const showLegacyImageWarning = !media && data.imageContextRequired;
 
   return (
     <div data-testid="mcq-rationale-review-body" style={{ display: "grid", gap: 18 }}>
@@ -338,9 +356,19 @@ function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
             Published-question candidate generation is not enabled.
           </p>
         ) : null}
-        {data.imageContextRequired ? (
+        {showSharedMediaBlocked ? (
+          <p data-testid="mcq-rationale-review-shared-media-warning" style={noticeBox}>
+            {SHARED_MEDIA_BLOCKED_MESSAGE}
+          </p>
+        ) : null}
+        {showSharedMediaTrusted ? (
+          <p data-testid="mcq-rationale-review-shared-media-trusted" style={noticeBox}>
+            {SHARED_MEDIA_TRUSTED_MESSAGE}
+          </p>
+        ) : null}
+        {showLegacyImageWarning ? (
           <p data-testid="mcq-rationale-review-image-context-warning" style={noticeBox}>
-            Trusted image context text is required before generation can be considered.
+            {LEGACY_IMAGE_CONTEXT_MESSAGE}
           </p>
         ) : null}
         {data.canGenerateReason &&

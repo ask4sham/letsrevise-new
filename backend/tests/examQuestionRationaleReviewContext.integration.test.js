@@ -451,6 +451,11 @@ describe("V2.3B1 flags and published / image", () => {
     expect(res.body.imageContextRequired).toBe(true);
     expect(res.body.canGenerate).toBe(false);
     expect(res.body.canGenerateReason).toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(res.body.mediaContext).toEqual({
+      referencePresent: true,
+      scope: "question_shared",
+      trustedContextAvailable: false,
+    });
     expect(JSON.stringify(res.body)).not.toMatch(/diagram\.png/);
   });
 
@@ -465,6 +470,11 @@ describe("V2.3B1 flags and published / image", () => {
     expect(res.body.imageContextRequired).toBe(false);
     expect(res.body.canGenerateReason).not.toBe("IMAGE_CONTEXT_REQUIRED");
     expect(res.body.canGenerate).toBe(true);
+    expect(res.body.mediaContext).toEqual({
+      referencePresent: false,
+      scope: "none",
+      trustedContextAvailable: false,
+    });
   });
 
   test("L: real visual without trusted context still sets IMAGE_CONTEXT_REQUIRED", async () => {
@@ -477,6 +487,111 @@ describe("V2.3B1 flags and published / image", () => {
     expect(res.status).toBe(200);
     expect(res.body.imageContextRequired).toBe(true);
     expect(res.body.canGenerateReason).toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(res.body.mediaContext).toEqual({
+      referencePresent: true,
+      scope: "question_shared",
+      trustedContextAvailable: false,
+    });
+  });
+
+  test("M: shared imageUrl without trusted context → mediaContext question_shared", async () => {
+    const { token, user } = await loginAs("v23b1-imgurl@test.com", "admin");
+    const q = await createEligibleDraft(user._id, {
+      imageUrl: "https://example.com/only-url.png",
+      assets: [],
+    });
+    const res = await getReview(token, { questionId: q._id.toString(), partLabel: "a" });
+    expect(res.status).toBe(200);
+    expect(res.body.imageContextRequired).toBe(true);
+    expect(res.body.canGenerateReason).toBe("IMAGE_CONTEXT_REQUIRED");
+    expect(res.body.mediaContext).toEqual({
+      referencePresent: true,
+      scope: "question_shared",
+      trustedContextAvailable: false,
+    });
+    expect(JSON.stringify(res.body)).not.toMatch(/only-url|example\.com|https?:/i);
+  });
+
+  test("N: shared visual asset URL without trusted context → mediaContext question_shared", async () => {
+    const { token, user } = await loginAs("v23b1-asseturl@test.com", "admin");
+    const q = await createEligibleDraft(user._id, {
+      imageUrl: "",
+      assets: [{ type: "diagram", url: "https://cdn.example/asset-only.png", alt: "" }],
+    });
+    const res = await getReview(token, { questionId: q._id.toString(), partLabel: "a" });
+    expect(res.status).toBe(200);
+    expect(res.body.mediaContext).toEqual({
+      referencePresent: true,
+      scope: "question_shared",
+      trustedContextAvailable: false,
+    });
+    expect(res.body.imageContextRequired).toBe(true);
+    expect(JSON.stringify(res.body)).not.toMatch(/asset-only|cdn\.example/i);
+  });
+
+  test("O: shared mediaId without trusted context → mediaContext question_shared", async () => {
+    const { token, user } = await loginAs("v23b1-mediaid@test.com", "admin");
+    const mediaId = new mongoose.Types.ObjectId();
+    const q = await createEligibleDraft(user._id, {
+      imageUrl: "",
+      assets: [{ type: "image", url: null, mediaId, alt: "" }],
+    });
+    const res = await getReview(token, { questionId: q._id.toString(), partLabel: "a" });
+    expect(res.status).toBe(200);
+    expect(res.body.mediaContext).toEqual({
+      referencePresent: true,
+      scope: "question_shared",
+      trustedContextAvailable: false,
+    });
+    expect(res.body.imageContextRequired).toBe(true);
+    expect(JSON.stringify(res.body)).not.toContain(String(mediaId));
+    expect(JSON.stringify(res.body)).not.toMatch(/"assets"|mediaId/i);
+  });
+
+  test("P: shared media with adequate trusted context", async () => {
+    const { token, user } = await loginAs("v23b1-trusted@test.com", "admin");
+    const trusted =
+      "Bar chart showing rate of photosynthesis against light intensity values.";
+    const q = await createEligibleDraft(user._id, {
+      imageUrl: "https://example.com/trusted.png",
+      assets: [{ type: "image", url: "https://example.com/trusted.png", alt: trusted }],
+    });
+    const res = await getReview(token, { questionId: q._id.toString(), partLabel: "a" });
+    expect(res.status).toBe(200);
+    expect(res.body.mediaContext).toEqual({
+      referencePresent: true,
+      scope: "question_shared",
+      trustedContextAvailable: true,
+    });
+    expect(res.body.imageContextRequired).toBe(false);
+    expect(res.body.imageContextAvailable).toBe(true);
+    expect(res.body.canGenerateReason).not.toBe("IMAGE_CONTEXT_REQUIRED");
+    // Privacy: URL must never appear; imageContextText may already be an approved DTO field.
+    expect(JSON.stringify(res.body)).not.toMatch(/trusted\.png|example\.com\/trusted/i);
+  });
+
+  test("Q: mediaContext diagnostic keys only (privacy)", async () => {
+    const { token, user } = await loginAs("v23b1-privacy@test.com", "admin");
+    const q = await createEligibleDraft(user._id, {
+      imageUrl: "https://private.example/secret-token-xyz.png",
+      assets: [
+        {
+          type: "image",
+          url: "https://private.example/secret-token-xyz.png",
+          mediaId: new mongoose.Types.ObjectId(),
+          alt: "",
+        },
+      ],
+    });
+    const res = await getReview(token, { questionId: q._id.toString(), partLabel: "a" });
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body.mediaContext).sort()).toEqual([
+      "referencePresent",
+      "scope",
+      "trustedContextAvailable",
+    ]);
+    const serialized = JSON.stringify(res.body);
+    expect(serialized).not.toMatch(/private\.example|secret-token|filename|\.png\?/i);
   });
 });
 

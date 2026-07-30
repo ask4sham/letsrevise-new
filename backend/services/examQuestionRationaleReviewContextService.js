@@ -147,6 +147,12 @@ async function getRationaleReviewContext({ query }) {
   const imageContextRequired = !imageCtx.ok;
   const imageContextAvailable = Boolean(imageCtx.ok && normalizeText(imageCtx.imageContextText));
   const imageContextText = imageCtx.ok ? String(imageCtx.imageContextText || "") : "";
+  // Bounded diagnostic only — never URLs / mediaIds / filenames / tokens.
+  const mediaContext = imageCtx.mediaContext || {
+    referencePresent: Boolean(imageContextRequired || imageContextAvailable),
+    scope: imageContextRequired || imageContextAvailable ? "question_shared" : "none",
+    trustedContextAvailable: Boolean(imageContextAvailable),
+  };
 
   const sourceSnapshot = buildSourceSnapshot(
     question,
@@ -247,6 +253,11 @@ async function getRationaleReviewContext({ query }) {
     imageContextAvailable,
     imageContextRequired,
     imageContextText: imageContextText || undefined,
+    mediaContext: {
+      referencePresent: Boolean(mediaContext.referencePresent),
+      scope: mediaContext.scope === "question_shared" ? "question_shared" : "none",
+      trustedContextAvailable: Boolean(mediaContext.trustedContextAvailable),
+    },
     generationFeatureEnabled,
     publishedGenerationEnabled,
     canGenerate,
