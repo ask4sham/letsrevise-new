@@ -729,6 +729,8 @@ module.exports = {
   resolveImageContext,
   buildSourceSnapshot,
   toCandidateDto,
+  findExactMcqPart,
+  isCompositeQuestion,
   utcDayBounds,
   newLeaseToken,
   computeLeaseExpiresAt,

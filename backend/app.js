@@ -180,6 +180,10 @@ app.use(
   "/api/admin/exam-question-rationale-candidates",
   require("./routes/adminExamQuestionRationaleCandidates")
 );
+app.use(
+  "/api/admin/exam-question-rationale-review-context",
+  require("./routes/adminExamQuestionRationaleReviewContext")
+);
 app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));
 
 // PR10: Biology readiness report (teacher/admin)
