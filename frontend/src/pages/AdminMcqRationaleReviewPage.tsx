@@ -343,7 +343,9 @@ function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
             Trusted image context text is required before generation can be considered.
           </p>
         ) : null}
-        {data.canGenerateReason && data.canGenerateReason !== "PUBLISHED_NOT_ENABLED" ? (
+        {data.canGenerateReason &&
+        data.canGenerateReason !== "PUBLISHED_NOT_ENABLED" &&
+        data.canGenerateReason !== "IMAGE_CONTEXT_REQUIRED" ? (
           <p data-testid="mcq-rationale-review-can-generate-reason" style={{ ...bodyText, color: "#475569" }}>
             {canGenerateReasonLabel(data.canGenerateReason)}
           </p>
