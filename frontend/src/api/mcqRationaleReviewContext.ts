@@ -1,6 +1,6 @@
 /**
- * V2.3B1 read-only MCQ rationale review-context API client.
- * No generate / reject / regenerate / approve / save methods.
+ * V2.3B1 MCQ rationale review-context API client (GET only).
+ * Candidate creation lives in mcqRationaleCandidates.ts. No reject / approve / regenerate / save methods here.
  */
 import api from "../services/api";
 
