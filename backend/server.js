@@ -574,6 +574,25 @@ function tryListen(port) {
     process.exit(1);
   }
   try {
+    const {
+      ensureExamQuestionRationaleCandidateIndexes,
+    } = require("./services/examQuestionRationaleCandidateAttemptTwoIndex");
+    const indexResult = await ensureExamQuestionRationaleCandidateIndexes();
+    console.log(
+      "[ExamQuestionRationaleCandidate] Attempt-2 unique index ready:",
+      indexResult.indexName,
+      indexResult.created ? "(created)" : "(verified existing)"
+    );
+  } catch (err) {
+    console.error(
+      "[ExamQuestionRationaleCandidate] FATAL: Attempt-2 unique index uq_attempt2_generation_group " +
+        "could not be ensured/verified. Refusing to listen.",
+      err && err.code ? `code=${err.code}` : "",
+      err && err.message ? err.message : err
+    );
+    process.exit(1);
+  }
+  try {
     const { refreshSpecTopicRegistryCache } = require("./utils/specTopicRegistry");
     await refreshSpecTopicRegistryCache();
     console.log("[specTopicRegistry] admin sub-topic cache loaded");

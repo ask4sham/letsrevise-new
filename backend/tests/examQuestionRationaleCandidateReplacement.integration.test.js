@@ -27,6 +27,13 @@ const {
   resolveImageContext,
   findExactMcqPart,
 } = require("../services/examQuestionRationaleCandidateService");
+const {
+  createReplacementRationaleCandidate,
+} = require("../services/examQuestionRationaleCandidateReplacementService");
+const { rejectRationaleCandidate } = require("../services/examQuestionRationaleCandidateRejectService");
+const {
+  ensureExamQuestionRationaleCandidateIndexes,
+} = require("../services/examQuestionRationaleCandidateAttemptTwoIndex");
 const { classifyCompositeMcqPart } = require("../utils/classifyMcqRationaleInventory");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
@@ -193,7 +200,9 @@ function createAttempt1(token, body) {
 }
 
 beforeAll(async () => {
+  // Other Candidate unique indexes for test fixtures; Attempt-2 uses the production ensure helper.
   await ExamQuestionRationaleCandidate.syncIndexes();
+  await ensureExamQuestionRationaleCandidateIndexes();
 });
 
 beforeEach(async () => {
@@ -724,5 +733,262 @@ describe("V2.3B2b2a reject/replacement race", () => {
     expect(after.status).toBe(201);
     expect(after.body.candidate.attemptNumber).toBe(2);
     expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(2);
+  });
+});
+
+describe("V2.3B2b2a substantive rationale, failed replay, true concurrency", () => {
+  test("substantive rationale after reject → SOURCE_CHANGED; no Attempt 2; provider zero", async () => {
+    enableReplacementFlags();
+    const { token, user } = await loginAs("rep-substantive@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedRejectedAttemptOne(user._id, q);
+    const oldFp = cand.sourceFingerprint;
+    const eqBefore = JSON.parse(JSON.stringify(await ExamQuestion.findById(q._id).lean()));
+
+    q.parts[0].partData = {
+      explanation:
+        "Chlorophyll absorbs light energy so plants can make glucose during photosynthesis under suitable conditions.",
+    };
+    q.markModified("parts");
+    await q.save();
+    const qAfter = await ExamQuestion.findById(q._id).lean();
+    const classif = classifyCompositeMcqPart(qAfter.parts[0], {
+      isArchived: qAfter.isArchived,
+      subject: qAfter.subject,
+      topic: qAfter.topic,
+      topicKey: qAfter.topicKey,
+    });
+    expect(classif.bucket).toBe("substantive");
+    expect(classif.potentiallyEligibleForBackfill).toBe(false);
+
+    callOpenAiJson.mockClear();
+    const res = await replaceCandidate(token, cand._id.toString(), {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      expectedSourceFingerprint: oldFp,
+      idempotencyKey: "rep-sub-oldfp-aaaaaaaa",
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("SOURCE_CHANGED");
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(1);
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(0);
+
+    const eqFinal = await ExamQuestion.findById(q._id).lean();
+    expect(eqFinal.parts[0].partData.explanation).toBe(qAfter.parts[0].partData.explanation);
+    expect(eqFinal.parts[0].partData.explanation).not.toBe(eqBefore.parts[0]?.partData?.explanation);
+  });
+
+  test("failed Attempt 2 same-key replay — no second provider call; no Attempt 3", async () => {
+    enableReplacementFlags();
+    callOpenAiJson.mockRejectedValueOnce(Object.assign(new Error("timeout"), { code: "LLM_TIMEOUT" }));
+    const { token, user } = await loginAs("rep-fail-replay@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedRejectedAttemptOne(user._id, q);
+    const key = "rep-fail-replay-aaaaaaaa";
+
+    const failed = await replaceCandidate(token, cand._id.toString(), {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      expectedSourceFingerprint: cand.sourceFingerprint,
+      idempotencyKey: key,
+    });
+    expect(failed.status).toBe(503);
+    expect(failed.body.code).toBe("LLM_TIMEOUT");
+
+    callOpenAiJson.mockClear();
+    const replay = await replaceCandidate(token, cand._id.toString(), {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      expectedSourceFingerprint: cand.sourceFingerprint,
+      idempotencyKey: key,
+    });
+    expect(replay.status).toBe(200);
+    expect(replay.body.replayed).toBe(true);
+    expect(replay.body.candidate.status).toBe("failed");
+    expect(replay.body.candidate.attemptNumber).toBe(2);
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(1);
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 3 })).toBe(0);
+  });
+
+  test("true concurrent same-key — one Attempt 2; one provider workflow; one replay", async () => {
+    enableReplacementFlags();
+    const { user } = await loginAs("rep-conc-same@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedRejectedAttemptOne(user._id, q);
+    let providerStarts = 0;
+    let releaseProvider;
+    const providerGate = new Promise((resolve) => {
+      releaseProvider = resolve;
+    });
+    const slowLlm = async () => {
+      providerStarts += 1;
+      await providerGate;
+      return { explanation: GOOD_EXPLANATION };
+    };
+
+    const body = {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      expectedSourceFingerprint: cand.sourceFingerprint,
+      idempotencyKey: "rep-conc-same-aaaaaaaa",
+    };
+    const p1 = createReplacementRationaleCandidate({
+      actorId: user._id,
+      rejectedCandidateId: String(cand._id),
+      body,
+      llmCall: slowLlm,
+    }).then((r) => ({ ok: true, replayed: r.replayed })).catch((e) => ({ ok: false, code: e.code }));
+    // Yield so first reservation can start before second join.
+    await new Promise((r) => setImmediate(r));
+    const p2 = createReplacementRationaleCandidate({
+      actorId: user._id,
+      rejectedCandidateId: String(cand._id),
+      body,
+      llmCall: slowLlm,
+    }).then((r) => ({ ok: true, replayed: r.replayed })).catch((e) => ({ ok: false, code: e.code }));
+    await new Promise((r) => setTimeout(r, 30));
+    releaseProvider();
+    const settled = await Promise.all([p1, p2]);
+
+    expect(settled.every((s) => s.ok)).toBe(true);
+    expect(settled.filter((s) => s.replayed).length).toBe(1);
+    expect(settled.filter((s) => !s.replayed).length).toBe(1);
+    expect(providerStarts).toBe(1);
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(2);
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(1);
+  });
+
+  test("true concurrent different keys / different actors — one Attempt 2; one provider", async () => {
+    enableReplacementFlags();
+    const { user } = await loginAs("rep-conc-diff@test.com", "admin");
+    const { user: user2 } = await loginAs("rep-conc-diff2@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedRejectedAttemptOne(user._id, q);
+    let providerStarts = 0;
+    let releaseProvider;
+    const providerGate = new Promise((resolve) => {
+      releaseProvider = resolve;
+    });
+    const slowLlm = async () => {
+      providerStarts += 1;
+      await providerGate;
+      return { explanation: GOOD_EXPLANATION };
+    };
+    const base = {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      expectedSourceFingerprint: cand.sourceFingerprint,
+    };
+
+    const p1 = createReplacementRationaleCandidate({
+      actorId: user._id,
+      rejectedCandidateId: String(cand._id),
+      body: { ...base, idempotencyKey: "rep-conc-diff-aaaaaaaa" },
+      llmCall: slowLlm,
+    })
+      .then((r) => ({ ok: true, replayed: r.replayed }))
+      .catch((e) => ({ ok: false, code: e.code }));
+    const p2 = createReplacementRationaleCandidate({
+      actorId: user._id,
+      rejectedCandidateId: String(cand._id),
+      body: { ...base, idempotencyKey: "rep-conc-diff-bbbbbbbb" },
+      llmCall: slowLlm,
+    })
+      .then((r) => ({ ok: true, replayed: r.replayed }))
+      .catch((e) => ({ ok: false, code: e.code }));
+    const p3 = createReplacementRationaleCandidate({
+      actorId: user2._id,
+      rejectedCandidateId: String(cand._id),
+      body: { ...base, idempotencyKey: "rep-conc-diff-cccccccc" },
+      llmCall: slowLlm,
+    })
+      .then((r) => ({ ok: true, replayed: r.replayed }))
+      .catch((e) => ({ ok: false, code: e.code }));
+    await new Promise((r) => setTimeout(r, 40));
+    releaseProvider();
+    const settled = await Promise.all([p1, p2, p3]);
+
+    const winners = settled.filter((s) => s.ok && !s.replayed);
+    const losers = settled.filter((s) => !s.ok);
+    expect(winners.length).toBe(1);
+    expect(losers.length).toBe(2);
+    expect(losers.every((s) => ["ATTEMPT_2_ALREADY_EXISTS", "ATTEMPT_LIMIT_REACHED", "ACTIVE_CANDIDATE_EXISTS"].includes(s.code))).toBe(
+      true
+    );
+    expect(providerStarts).toBe(1);
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(2);
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(1);
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 3 })).toBe(0);
+  });
+
+  test("true concurrent reject∥replacement — safe outcomes; max two Candidates", async () => {
+    process.env.FEATURE_MCQ_RATIONALE_CANDIDATE_REJECT_V23B2B = "true";
+    enableReplacementFlags();
+    const { user } = await loginAs("rep-conc-rejr@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const pending = await seedCandidate(user._id, q, {
+      status: "pending",
+      active: true,
+      explanation: GOOD_EXPLANATION,
+      idempotencyKey: "rep-conc-pending-aaaaaa",
+    });
+    let providerStarts = 0;
+    const slowLlm = async () => {
+      providerStarts += 1;
+      await new Promise((r) => setTimeout(r, 40));
+      return { explanation: GOOD_EXPLANATION };
+    };
+
+    const settled = await Promise.all([
+      rejectRationaleCandidate({
+        actorId: user._id,
+        candidateId: String(pending._id),
+        body: {
+          questionId: q._id.toString(),
+          partLabel: "a",
+          expectedSourceFingerprint: pending.sourceFingerprint,
+          reasonCode: "unclear",
+        },
+      })
+        .then(() => ({ ok: true, type: "reject" }))
+        .catch((e) => ({ ok: false, type: "reject", code: e.code })),
+      createReplacementRationaleCandidate({
+        actorId: user._id,
+        rejectedCandidateId: String(pending._id),
+        body: {
+          questionId: q._id.toString(),
+          partLabel: "a",
+          expectedSourceFingerprint: pending.sourceFingerprint,
+          idempotencyKey: "rep-conc-rejr-bbbbbbbb",
+        },
+        llmCall: slowLlm,
+      })
+        .then((r) => ({ ok: true, type: "replace", replayed: r.replayed }))
+        .catch((e) => ({ ok: false, type: "replace", code: e.code, status: e.status })),
+    ]);
+
+    const a1 = await ExamQuestionRationaleCandidate.findById(pending._id).lean();
+    const total = await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id });
+    const attempt2 = await ExamQuestionRationaleCandidate.countDocuments({
+      questionId: q._id,
+      attemptNumber: 2,
+    });
+    expect(a1.status).toBe("rejected");
+    expect(a1.active).toBe(false);
+    expect(total).toBeLessThanOrEqual(2);
+    expect(attempt2).toBeLessThanOrEqual(1);
+    expect(providerStarts).toBeLessThanOrEqual(1);
+    expect(settled.every((s) => s.ok || s.code)).toBe(true);
+    const replaceResult = settled.find((s) => s.type === "replace");
+    if (!replaceResult.ok) {
+      expect(replaceResult.code).toBe("CANDIDATE_NOT_REJECTED");
+      expect(attempt2).toBe(0);
+      expect(providerStarts).toBe(0);
+    } else {
+      expect(attempt2).toBe(1);
+      expect(total).toBe(2);
+    }
   });
 });

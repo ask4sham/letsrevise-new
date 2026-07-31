@@ -41,6 +41,9 @@ const {
   isValidObjectId,
   normalizePartLabel,
 } = require("./examQuestionRationaleCandidateLineageService");
+const {
+  isMongoAttemptTwoIndexCollision,
+} = require("./examQuestionRationaleCandidateAttemptTwoIndex");
 
 const FINGERPRINT_RE = /^[a-f0-9]{64}$/i;
 const ALLOWED_REPLACEMENT_BODY_KEYS = new Set([
@@ -297,20 +300,38 @@ async function createReplacementRationaleCandidate({
     });
   } catch (err) {
     if (err && err.code === 11000) {
+      // Actor+idempotency unique collision: safe same-key replay when it is Attempt 2 for this lineage.
       const racedIdem = await findExistingIdempotent(actorId, req.idempotencyKey);
-      if (
-        racedIdem &&
-        String(racedIdem.questionId) === req.questionId &&
-        racedIdem.partLabel === req.partLabel &&
-        racedIdem.sourceFingerprint === sourceFingerprint &&
-        Number(racedIdem.attemptNumber) === 2
-      ) {
-        return { dto: toCandidateDto(racedIdem), replayed: true };
+      if (racedIdem) {
+        if (
+          String(racedIdem.questionId) === req.questionId &&
+          racedIdem.partLabel === req.partLabel &&
+          racedIdem.sourceFingerprint === sourceFingerprint &&
+          Number(racedIdem.attemptNumber) === 2 &&
+          String(racedIdem.generationGroupKey) === generationGroupKey
+        ) {
+          return { dto: toCandidateDto(racedIdem), replayed: true };
+        }
+        throw new CandidateServiceError(
+          409,
+          "IDEMPOTENCY_KEY_REUSED",
+          "idempotencyKey was already used for a different source request"
+        );
       }
-      const attemptTwo = await findAttemptTwoForGenerationGroup(generationGroupKey);
-      if (attemptTwo) {
-        throwAttemptTwoExists(attemptTwo);
+
+      // Attempt-2 unique index collision only — do not treat unrelated 11000 as Attempt-2 races.
+      if (isMongoAttemptTwoIndexCollision(err)) {
+        const attemptTwo = await findAttemptTwoForGenerationGroup(generationGroupKey);
+        if (attemptTwo) {
+          throwAttemptTwoExists(attemptTwo);
+        }
+        throw new CandidateServiceError(
+          409,
+          "ATTEMPT_2_ALREADY_EXISTS",
+          "A replacement candidate already exists for this lineage"
+        );
       }
+
       const again = await recoverActiveSourceIfStale(req.questionId, req.partLabel, sourceFingerprint, new Date());
       if (again.blocking) {
         throw new CandidateServiceError(
@@ -320,7 +341,18 @@ async function createReplacementRationaleCandidate({
           { candidate: toCandidateDto(again.blocking) }
         );
       }
-      throw new CandidateServiceError(409, "DUPLICATE_RESERVATION", "Could not reserve replacement candidate");
+
+      // Visible Attempt 2 without Attempt-2-index metadata is still authoritative for this lineage.
+      const existingAttemptTwoAfterRace = await findAttemptTwoForGenerationGroup(generationGroupKey);
+      if (existingAttemptTwoAfterRace) {
+        throwAttemptTwoExists(existingAttemptTwoAfterRace);
+      }
+
+      throw new CandidateServiceError(
+        500,
+        "UNEXPECTED_DUPLICATE_KEY",
+        "Unexpected duplicate-key conflict while reserving replacement candidate"
+      );
     }
     throw err;
   }
