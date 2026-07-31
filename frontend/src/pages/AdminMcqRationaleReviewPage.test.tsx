@@ -1,11 +1,12 @@
 /**
- * Frontend tests: V2.3B1 read-only MCQ rationale review page.
+ * Frontend tests: V2.3B1 review page + V2.3B2a Generate candidate.
  */
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import AdminMcqRationaleReviewPage from "./AdminMcqRationaleReviewPage";
 import AdminMcqRationaleInventoryPage from "./AdminMcqRationaleInventoryPage";
+import * as candidatesApi from "../api/mcqRationaleCandidates";
 
 jest.mock("../hooks/useCurrentUser", () => ({
   useCurrentUser: () => ({ user: { userType: "admin" } }),
@@ -21,6 +22,50 @@ jest.mock("../api/mcqRationaleInventory", () => ({
   fetchMcqRationaleInventory: (...args: unknown[]) => mockFetchInventory(...args),
 }));
 
+const mockCreateCandidate = jest.fn();
+let mockIdempotencySeq = 0;
+jest.mock("../api/mcqRationaleCandidates", () => ({
+  createMcqRationaleCandidate: (...args: unknown[]) => mockCreateCandidate(...args),
+  createMcqRationaleCandidateIdempotencyKey: () => {
+    mockIdempotencySeq += 1;
+    return `cand_test_key_${mockIdempotencySeq}_xxxxxxxx`;
+  },
+  readMcqRationaleCandidateError: (err: unknown) => {
+    const ax = err as {
+      message?: string;
+      code?: string;
+      response?: {
+        status?: number;
+        data?: { error?: string; code?: string; candidate?: unknown };
+      };
+    };
+    const status = ax.response?.status;
+    const hasResponse = ax.response != null;
+    const networkUncertain =
+      !hasResponse ||
+      ax.code === "ERR_NETWORK" ||
+      ax.code === "ECONNABORTED" ||
+      /network error/i.test(String(ax.message || ""));
+    const code =
+      (ax.response?.data?.code && String(ax.response.data.code)) ||
+      (networkUncertain
+        ? "NETWORK_UNCERTAIN"
+        : status === 401 || status === 403
+          ? "ACCESS_DENIED"
+          : "SERVER_ERROR");
+    return {
+      status,
+      code,
+      message: String(ax.response?.data?.error || ax.message || "Candidate generation failed"),
+      candidate:
+        ax.response?.data?.candidate && typeof ax.response.data.candidate === "object"
+          ? ax.response.data.candidate
+          : null,
+      networkUncertain,
+    };
+  },
+}));
+
 function renderReview(path = "/admin/exam-question-rationale-inventory/qid123/a/review") {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -34,6 +79,8 @@ function renderReview(path = "/admin/exam-question-rationale-inventory/qid123/a/
     </MemoryRouter>
   );
 }
+
+const fingerprint = "b".repeat(64);
 
 const baseContext = {
   questionId: "qid123",
@@ -62,7 +109,7 @@ const baseContext = {
   currentRationale: null,
   rationaleBucket: "missing" as const,
   potentiallyEligibleForBackfill: true,
-  currentSourceFingerprint: "b".repeat(64),
+  currentSourceFingerprint: fingerprint,
   sourceUpdatedAt: new Date().toISOString(),
   imageContextAvailable: false,
   imageContextRequired: false,
@@ -80,12 +127,43 @@ const baseContext = {
   readOnly: true as const,
 };
 
+const eligibleContext = {
+  ...baseContext,
+  generationFeatureEnabled: true,
+  canGenerate: true,
+  canGenerateReason: "",
+  imageContextRequired: false,
+};
+
+const pendingCandidate = {
+  candidateId: "c1",
+  questionId: "qid123",
+  partLabel: "a",
+  status: "pending",
+  attemptNumber: 1,
+  sourceFingerprint: fingerprint,
+  sourceUpdatedAt: null,
+  sourceSnapshot: {},
+  explanation: "Light is needed for photosynthesis.",
+  promptVersion: "v1",
+  model: "gpt-4o-mini",
+  generatedAt: new Date().toISOString(),
+  completedAt: new Date().toISOString(),
+  validationIssueCodes: [] as string[],
+  failureCode: "",
+};
+
 const SHARED_MEDIA_WARNING =
   /This Composite Exam Question has shared media attached, but no trusted description is available\. Candidate generation remains blocked\./;
+
+const OUT_OF_SCOPE =
+  /regenerate|reject|approve|save|publish|backfill|apply rationale|replace rationale|edit exam question/i;
 
 describe("AdminMcqRationaleReviewPage", () => {
   beforeEach(() => {
     mockFetchReview.mockReset();
+    mockCreateCandidate.mockReset();
+    mockIdempotencySeq = 0;
     mockFetchReview.mockResolvedValue(baseContext);
   });
 
@@ -107,7 +185,347 @@ describe("AdminMcqRationaleReviewPage", () => {
       /Candidate generation is currently disabled/
     );
     expect(screen.getByTestId("mcq-rationale-review-back")).toBeInTheDocument();
-    expect(screen.getByTestId("mcq-rationale-review-readonly-notice")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-readonly-notice")).toHaveTextContent(
+      /Candidate generation is available only when enabled/
+    );
+    expect(screen.getByTestId("mcq-rationale-review-readonly-notice")).toHaveTextContent(
+      /Generated candidates do not change the Exam Question/
+    );
+  });
+
+  test("A: feature disabled — no Generate candidate; explanation remains", async () => {
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-feature-disabled")).toBeInTheDocument();
+  });
+
+  test("B: eligible draft — Generate candidate appears once and is enabled", async () => {
+    mockFetchReview.mockResolvedValue(eligibleContext);
+    renderReview();
+    const btn = await screen.findByRole("button", { name: /^Generate candidate$/i });
+    expect(btn).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: /^Generate candidate$/i })).toHaveLength(1);
+  });
+
+  test("C: shared media blocked — no Generate; warning once", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...eligibleContext,
+      imageContextRequired: true,
+      canGenerate: false,
+      canGenerateReason: "IMAGE_CONTEXT_REQUIRED",
+      mediaContext: {
+        referencePresent: true,
+        scope: "question_shared",
+        trustedContextAvailable: false,
+      },
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.getAllByText(SHARED_MEDIA_WARNING)).toHaveLength(1);
+  });
+
+  test("D: published/status blocked — no Generate; reason remains", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...baseContext,
+      generationFeatureEnabled: true,
+      questionStatus: "published",
+      canGenerate: false,
+      canGenerateReason: "PUBLISHED_NOT_ENABLED",
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-published-disabled");
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("E/G/H: one click posts correct body, loading label, then shows candidate", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        canGenerate: false,
+        canGenerateReason: "ACTIVE_CANDIDATE_EXISTS",
+        latestCandidate: pendingCandidate,
+      });
+    mockCreateCandidate.mockResolvedValue({ candidate: pendingCandidate, replayed: false });
+
+    renderReview();
+    const btn = await screen.findByRole("button", { name: /^Generate candidate$/i });
+
+    fireEvent.click(btn);
+    expect(await screen.findByRole("button", { name: /Generating candidate…/i })).toBeDisabled();
+
+    await waitFor(() => {
+      expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+    });
+    expect(mockCreateCandidate).toHaveBeenCalledWith({
+      questionId: "qid123",
+      partLabel: "a",
+      idempotencyKey: expect.stringMatching(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/),
+      expectedSourceFingerprint: fingerprint,
+    });
+
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("pending");
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+    expect(mockFetchReview).toHaveBeenCalledTimes(2);
+  });
+
+  test("F: double click — only one in-flight POST", async () => {
+    let resolveCreate: (v: unknown) => void = () => undefined;
+    mockFetchReview.mockResolvedValue(eligibleContext);
+    mockCreateCandidate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        })
+    );
+
+    renderReview();
+    const btn = await screen.findByRole("button", { name: /^Generate candidate$/i });
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+
+    await waitFor(() => expect(mockCreateCandidate).toHaveBeenCalledTimes(1));
+
+    resolveCreate({ candidate: pendingCandidate, replayed: false });
+    mockFetchReview.mockResolvedValue({
+      ...eligibleContext,
+      canGenerate: false,
+      canGenerateReason: "ACTIVE_CANDIDATE_EXISTS",
+      latestCandidate: pendingCandidate,
+    });
+    await screen.findByTestId("mcq-rationale-review-candidate-status");
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("I: idempotent replay treated as success; same candidate; no duplicate POST", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        canGenerate: false,
+        canGenerateReason: "ACTIVE_CANDIDATE_EXISTS",
+        latestCandidate: pendingCandidate,
+      });
+    mockCreateCandidate.mockResolvedValue({ candidate: pendingCandidate, replayed: true });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-replayed")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("pending");
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("J: network uncertainty — safe error; manual retry reuses same key", async () => {
+    mockFetchReview.mockResolvedValue(eligibleContext);
+    mockCreateCandidate
+      .mockRejectedValueOnce({ message: "Network Error", code: "ERR_NETWORK" })
+      .mockResolvedValueOnce({ candidate: pendingCandidate, replayed: true });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(
+      /may not have completed/i
+    );
+
+    mockFetchReview.mockResolvedValue({
+      ...eligibleContext,
+      canGenerate: false,
+      canGenerateReason: "ACTIVE_CANDIDATE_EXISTS",
+      latestCandidate: pendingCandidate,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Generate candidate$/i }));
+    await waitFor(() => expect(mockCreateCandidate).toHaveBeenCalledTimes(2));
+
+    const key1 = mockCreateCandidate.mock.calls[0][0].idempotencyKey;
+    const key2 = mockCreateCandidate.mock.calls[1][0].idempotencyKey;
+    expect(key1).toBe(key2);
+  });
+
+  test("K: confirmed failed terminal — later eligible retry uses a new key", async () => {
+    const failedCandidate = {
+      ...pendingCandidate,
+      candidateId: "c-fail",
+      status: "failed",
+      explanation: "",
+      failureCode: "LLM_ERROR",
+    };
+
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        canGenerate: true,
+        latestCandidate: failedCandidate,
+      })
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        canGenerate: false,
+        canGenerateReason: "ACTIVE_CANDIDATE_EXISTS",
+        latestCandidate: pendingCandidate,
+      });
+
+    mockCreateCandidate
+      .mockRejectedValueOnce({
+        response: {
+          status: 503,
+          data: { error: "Rationale generation failed", code: "LLM_ERROR", candidate: failedCandidate },
+        },
+      })
+      .mockResolvedValueOnce({ candidate: pendingCandidate, replayed: false });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-failure-code")).toHaveTextContent("LLM_ERROR");
+    expect(await screen.findByRole("button", { name: /^Generate candidate$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Generate candidate$/i }));
+    await waitFor(() => expect(mockCreateCandidate).toHaveBeenCalledTimes(2));
+
+    const key1 = mockCreateCandidate.mock.calls[0][0].idempotencyKey;
+    const key2 = mockCreateCandidate.mock.calls[1][0].idempotencyKey;
+    expect(key1).not.toBe(key2);
+  });
+
+  test("L: stale source — no automatic retry; context refreshes; explanation shown", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        currentSourceFingerprint: "c".repeat(64),
+      });
+    mockCreateCandidate.mockRejectedValue({
+      response: {
+        status: 409,
+        data: { error: "Source fingerprint does not match", code: "STALE_SOURCE_FINGERPRINT" },
+      },
+    });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(
+      /source changed/i
+    );
+    await waitFor(() => expect(mockFetchReview).toHaveBeenCalledTimes(2));
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("M: active candidate — context refreshes; no second generation", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        canGenerate: false,
+        canGenerateReason: "ACTIVE_CANDIDATE_EXISTS",
+        latestCandidate: pendingCandidate,
+      });
+    mockCreateCandidate.mockRejectedValue({
+      response: {
+        status: 409,
+        data: {
+          error: "An active candidate already exists",
+          code: "ACTIVE_CANDIDATE_EXISTS",
+          candidate: pendingCandidate,
+        },
+      },
+    });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("pending");
+    expect(screen.getByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(/already exists/i);
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("N: rate/daily cap — bounded error; no automatic retry", async () => {
+    mockFetchReview.mockResolvedValue(eligibleContext);
+    mockCreateCandidate.mockRejectedValue({
+      response: {
+        status: 429,
+        data: { error: "Daily cap", code: "ACTOR_DAILY_CAP" },
+      },
+    });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(
+      /daily candidate generation limit/i
+    );
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("O: permission failure — safe error", async () => {
+    mockFetchReview.mockResolvedValue(eligibleContext);
+    mockCreateCandidate.mockRejectedValue({
+      response: {
+        status: 403,
+        data: { error: "Forbidden", code: "ACCESS_DENIED" },
+      },
+    });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(
+      /do not have permission/i
+    );
+  });
+
+  test("P: shared-media endpoint rejection keeps diagnostic authoritative", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        imageContextRequired: true,
+        canGenerate: false,
+        canGenerateReason: "IMAGE_CONTEXT_REQUIRED",
+        mediaContext: {
+          referencePresent: true,
+          scope: "question_shared",
+          trustedContextAvailable: false,
+        },
+      });
+    mockCreateCandidate.mockRejectedValue({
+      response: {
+        status: 422,
+        data: { error: "Image context required", code: "IMAGE_CONTEXT_REQUIRED" },
+      },
+    });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-shared-media-warning")).toBeInTheDocument();
+    expect(screen.getAllByText(SHARED_MEDIA_WARNING)).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("Q/R: no out-of-scope controls; only candidate-generation POST mocked", async () => {
+    mockFetchReview.mockResolvedValue(eligibleContext);
+    renderReview();
+    await screen.findByRole("button", { name: /^Generate candidate$/i });
+
+    expect(screen.queryByRole("button", { name: OUT_OF_SCOPE })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: OUT_OF_SCOPE })).not.toBeInTheDocument();
+    expect(document.querySelector("[contenteditable='true']")).toBeNull();
+
+    // Mutation API surface from this page's modules: createMcqRationaleCandidate only.
+    expect(typeof candidatesApi.createMcqRationaleCandidate).toBe("function");
+    expect((candidatesApi as { rejectMcqRationaleCandidate?: unknown }).rejectMcqRationaleCandidate).toBeUndefined();
+    expect((candidatesApi as { approveMcqRationaleCandidate?: unknown }).approveMcqRationaleCandidate).toBeUndefined();
+    expect((candidatesApi as { regenerateMcqRationaleCandidate?: unknown }).regenerateMcqRationaleCandidate).toBeUndefined();
   });
 
   test("candidate explanation, pending status, stale warning", async () => {
@@ -115,21 +533,8 @@ describe("AdminMcqRationaleReviewPage", () => {
       ...baseContext,
       candidateIsStale: true,
       latestCandidate: {
-        candidateId: "c1",
-        questionId: "qid123",
-        partLabel: "a",
-        status: "pending",
-        attemptNumber: 1,
+        ...pendingCandidate,
         sourceFingerprint: "a".repeat(64),
-        sourceUpdatedAt: null,
-        sourceSnapshot: {},
-        explanation: "Light is needed for photosynthesis.",
-        promptVersion: "v1",
-        model: "gpt-4o-mini",
-        generatedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        validationIssueCodes: [],
-        failureCode: "",
       },
     });
     renderReview();
@@ -150,19 +555,10 @@ describe("AdminMcqRationaleReviewPage", () => {
         trustedContextAvailable: false,
       },
       latestCandidate: {
+        ...pendingCandidate,
         candidateId: "c2",
-        questionId: "qid123",
-        partLabel: "a",
         status: "failed",
-        attemptNumber: 1,
-        sourceFingerprint: "b".repeat(64),
-        sourceUpdatedAt: null,
-        sourceSnapshot: {},
         explanation: "",
-        promptVersion: "v1",
-        model: "gpt-4o-mini",
-        generatedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
         validationIssueCodes: ["TOO_SHORT"],
         failureCode: "LLM_ERROR",
       },
@@ -349,12 +745,12 @@ describe("AdminMcqRationaleReviewPage", () => {
     });
   });
 
-  test("absence of mutation controls and editable fields", async () => {
+  test("absence of mutation controls when feature disabled", async () => {
     renderReview();
     await screen.findByTestId("mcq-rationale-review-body");
     expect(screen.queryByRole("button", { name: /generate|approve|reject|regenerate|save|publish|backfill/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /generate|approve|reject|regenerate|save/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /approve|reject|regenerate|save/i })).not.toBeInTheDocument();
   });
 });
 

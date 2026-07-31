@@ -1,14 +1,28 @@
 /**
- * Admin — MCQ Rationale Review (V2.3B1).
- * Strictly read-only: no generate / reject / regenerate / approve / save controls.
+ * Admin — MCQ Rationale Review (V2.3B1 + V2.3B2a Generate).
+ * May create one Candidate record when enabled. Cannot reject, regenerate, approve or save rationales.
+ * Generated candidates do not change the Exam Question.
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import {
+  createMcqRationaleCandidate,
+  createMcqRationaleCandidateIdempotencyKey,
+  readMcqRationaleCandidateError,
+} from "../api/mcqRationaleCandidates";
 import {
   fetchMcqRationaleReviewContext,
   type McqRationaleReviewContext,
 } from "../api/mcqRationaleReviewContext";
+
+type IdempotencySlot = {
+  questionId: string;
+  partLabel: string;
+  fingerprint: string;
+  key: string;
+  terminal: boolean;
+};
 
 function canGenerateReasonLabel(code: string): string {
   switch (code) {
@@ -29,6 +43,50 @@ function canGenerateReasonLabel(code: string): string {
   }
 }
 
+function generationActionMessage(code: string): string {
+  switch (code) {
+    case "FEATURE_DISABLED":
+      return "Candidate generation is currently disabled.";
+    case "PUBLISHED_NOT_ENABLED":
+      return "Published-question candidate generation is not enabled.";
+    case "STATUS_NOT_ALLOWED":
+      return "This question status is not eligible for candidate generation.";
+    case "IMAGE_CONTEXT_REQUIRED":
+      return "Trusted image context is required before a candidate can be generated.";
+    case "STALE_SOURCE_FINGERPRINT":
+      return "The question source changed since this page was loaded. Review the updated source before generating again.";
+    case "ACTIVE_CANDIDATE_EXISTS":
+      return "An active candidate already exists for this part. Generation was not started again.";
+    case "GENERATION_LEASE_EXPIRED":
+    case "GENERATION_RESERVATION_LOST":
+    case "DUPLICATE_RESERVATION":
+      return "Generation could not complete because another reservation is active or the lease expired. Refresh and review the latest candidate status.";
+    case "RATE_LIMITED":
+      return "Too many generation requests. Please wait a minute and try again.";
+    case "ACTOR_DAILY_CAP":
+      return "Your daily candidate generation limit has been reached. Try again tomorrow.";
+    case "GLOBAL_DAILY_CAP":
+      return "The shared daily candidate generation limit has been reached. Try again tomorrow.";
+    case "LLM_TIMEOUT":
+      return "The generation provider timed out. You can retry when generation is available again.";
+    case "LLM_ERROR":
+    case "LLM_EMPTY":
+    case "LLM_NOT_CONFIGURED":
+      return "Candidate generation failed at the provider. You can retry when generation is available again.";
+    case "LLM_BAD_JSON":
+    case "VALIDATION_FAILED":
+      return "The provider returned an unusable rationale. You can retry when generation is available again.";
+    case "ACCESS_DENIED":
+    case "UNAUTHORIZED":
+      return "You do not have permission to generate a candidate.";
+    case "NETWORK_UNCERTAIN":
+      return "The request may not have completed. You can retry safely using the same attempt.";
+    case "SERVER_ERROR":
+    default:
+      return "Candidate generation failed. Please try again later.";
+  }
+}
+
 export default function AdminMcqRationaleReviewPage() {
   const navigate = useNavigate();
   const { questionId: rawQuestionId, partLabel: rawPartLabel } = useParams<{
@@ -40,6 +98,14 @@ export default function AdminMcqRationaleReviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionCode, setActionCode] = useState<string | null>(null);
+  const [replayedNote, setReplayedNote] = useState(false);
+
+  const inFlightRef = useRef(false);
+  const idemRef = useRef<IdempotencySlot | null>(null);
+  const routeRef = useRef({ questionId: "", partLabel: "" });
 
   useEffect(() => {
     const isAdmin = user?.userType === "admin";
@@ -49,6 +115,23 @@ export default function AdminMcqRationaleReviewPage() {
     }
   }, [user, navigate]);
 
+  const resolveRouteIds = useCallback(() => {
+    const questionId = (rawQuestionId || "").trim();
+    let partLabel = "";
+    try {
+      partLabel = decodeURIComponent(rawPartLabel || "").trim();
+    } catch {
+      partLabel = "";
+    }
+    return { questionId, partLabel };
+  }, [rawQuestionId, rawPartLabel]);
+
+  const refreshContext = useCallback(async (questionId: string, partLabel: string) => {
+    const res = await fetchMcqRationaleReviewContext(questionId, partLabel);
+    setData(res);
+    return res;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -57,14 +140,15 @@ export default function AdminMcqRationaleReviewPage() {
       setError(null);
       setErrorCode(null);
       setData(null);
+      setActionError(null);
+      setActionCode(null);
+      setReplayedNote(false);
+      setGenerating(false);
+      inFlightRef.current = false;
+      idemRef.current = null;
 
-      const questionId = (rawQuestionId || "").trim();
-      let partLabel = "";
-      try {
-        partLabel = decodeURIComponent(rawPartLabel || "").trim();
-      } catch {
-        partLabel = "";
-      }
+      const { questionId, partLabel } = resolveRouteIds();
+      routeRef.current = { questionId, partLabel };
 
       if (!questionId || !partLabel) {
         setError("This review link is missing a valid question or part label.");
@@ -104,7 +188,93 @@ export default function AdminMcqRationaleReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [rawQuestionId, rawPartLabel]);
+  }, [resolveRouteIds]);
+
+  useEffect(() => {
+    if (!data) return;
+    const cur = idemRef.current;
+    if (
+      cur &&
+      (cur.questionId !== data.questionId ||
+        cur.partLabel !== data.partLabel ||
+        cur.fingerprint !== data.currentSourceFingerprint)
+    ) {
+      idemRef.current = null;
+    }
+  }, [data]);
+
+  function acquireIdempotencyKey(ctx: McqRationaleReviewContext): string {
+    const cur = idemRef.current;
+    if (
+      cur &&
+      !cur.terminal &&
+      cur.questionId === ctx.questionId &&
+      cur.partLabel === ctx.partLabel &&
+      cur.fingerprint === ctx.currentSourceFingerprint
+    ) {
+      return cur.key;
+    }
+    const key = createMcqRationaleCandidateIdempotencyKey();
+    idemRef.current = {
+      questionId: ctx.questionId,
+      partLabel: ctx.partLabel,
+      fingerprint: ctx.currentSourceFingerprint,
+      key,
+      terminal: false,
+    };
+    return key;
+  }
+
+  async function handleGenerate() {
+    if (inFlightRef.current || generating || !data) return;
+    if (!data.generationFeatureEnabled || !data.canGenerate || data.imageContextRequired) return;
+
+    inFlightRef.current = true;
+    setGenerating(true);
+    setActionError(null);
+    setActionCode(null);
+    setReplayedNote(false);
+
+    const idempotencyKey = acquireIdempotencyKey(data);
+    const { questionId, partLabel } = routeRef.current;
+
+    try {
+      const result = await createMcqRationaleCandidate({
+        questionId,
+        partLabel,
+        idempotencyKey,
+        expectedSourceFingerprint: data.currentSourceFingerprint,
+      });
+
+      if (idemRef.current && idemRef.current.key === idempotencyKey) {
+        idemRef.current.terminal = true;
+      }
+
+      setReplayedNote(Boolean(result.replayed));
+      await refreshContext(questionId, partLabel);
+    } catch (e: unknown) {
+      const parsed = readMcqRationaleCandidateError(e);
+
+      if (parsed.networkUncertain) {
+        setActionCode(parsed.code);
+        setActionError(generationActionMessage("NETWORK_UNCERTAIN"));
+      } else {
+        if (idemRef.current && idemRef.current.key === idempotencyKey) {
+          idemRef.current.terminal = true;
+        }
+        setActionCode(parsed.code);
+        setActionError(generationActionMessage(parsed.code));
+        try {
+          await refreshContext(questionId, partLabel);
+        } catch {
+          // Keep the action error; load errors are secondary.
+        }
+      }
+    } finally {
+      inFlightRef.current = false;
+      setGenerating(false);
+    }
+  }
 
   return (
     <div data-testid="mcq-rationale-review-page" style={{ maxWidth: 920, margin: "0 auto", padding: "24px 16px 48px" }}>
@@ -134,8 +304,9 @@ export default function AdminMcqRationaleReviewPage() {
           lineHeight: 1.5,
         }}
       >
-        <strong>Read-only review.</strong> This page cannot generate, reject, regenerate, approve or save
-        rationales.
+        <strong>Review workflow.</strong> Candidate generation is available only when enabled. This page cannot
+        reject, regenerate, approve or save rationales.
+        <div style={{ marginTop: 6 }}>Generated candidates do not change the Exam Question.</div>
       </div>
 
       {loading ? (
@@ -165,7 +336,16 @@ export default function AdminMcqRationaleReviewPage() {
         </div>
       ) : null}
 
-      {!loading && data ? <ReviewBody data={data} /> : null}
+      {!loading && data ? (
+        <ReviewBody
+          data={data}
+          generating={generating}
+          actionError={actionError}
+          actionCode={actionCode}
+          replayedNote={replayedNote}
+          onGenerate={handleGenerate}
+        />
+      ) : null}
     </div>
   );
 }
@@ -176,9 +356,28 @@ const SHARED_MEDIA_TRUSTED_MESSAGE = "Trusted context is available for the share
 const LEGACY_IMAGE_CONTEXT_MESSAGE =
   "Trusted image context text is required before generation can be considered.";
 
-function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
+function ReviewBody({
+  data,
+  generating,
+  actionError,
+  actionCode,
+  replayedNote,
+  onGenerate,
+}: {
+  data: McqRationaleReviewContext;
+  generating: boolean;
+  actionError: string | null;
+  actionCode: string | null;
+  replayedNote: boolean;
+  onGenerate: () => void;
+}) {
   const tax = data.taxonomy;
   const candidate = data.latestCandidate;
+  const showGenerate =
+    data.generationFeatureEnabled === true &&
+    data.canGenerate === true &&
+    data.imageContextRequired !== true;
+
   // New wording only for a complete, internally consistent blocked shared-media diagnostic.
   const showSharedMediaBlocked =
     Boolean(data.imageContextRequired) &&
@@ -324,6 +523,11 @@ function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
                 This candidate is stale: the Question Bank source fingerprint has changed since it was generated.
               </div>
             ) : null}
+            {replayedNote ? (
+              <p data-testid="mcq-rationale-review-replayed" style={{ ...bodyText, color: "#475569", fontSize: 13 }}>
+                Showing the existing candidate for this attempt (idempotent replay).
+              </p>
+            ) : null}
             <p data-testid="mcq-rationale-review-candidate-explanation" style={{ ...bodyText, whiteSpace: "pre-wrap" }}>
               {candidate.explanation?.trim() ? candidate.explanation : "—"}
             </p>
@@ -380,11 +584,46 @@ function ReviewBody({ data }: { data: McqRationaleReviewContext }) {
             {canGenerateReasonLabel(data.canGenerateReason)}
           </p>
         ) : null}
-        {data.generationFeatureEnabled && data.canGenerate ? (
-          <p data-testid="mcq-rationale-review-can-generate-future" style={{ ...bodyText, color: "#475569" }}>
-            This draft part would be eligible for candidate generation in a later phase. Generation is not available on
-            this page.
-          </p>
+
+        {actionError ? (
+          <div
+            data-testid="mcq-rationale-review-generate-error"
+            role="alert"
+            style={{
+              ...noticeBox,
+              border: "1px solid #fecaca",
+              background: "#fef2f2",
+              color: "#991b1b",
+            }}
+          >
+            <div>{actionError}</div>
+            {actionCode ? (
+              <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>Code: {actionCode}</div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showGenerate ? (
+          <div style={{ marginTop: 4 }}>
+            <button
+              type="button"
+              data-testid="mcq-rationale-review-generate"
+              onClick={onGenerate}
+              disabled={generating}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #1d4ed8",
+                background: generating ? "#93c5fd" : "#2563eb",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: generating ? "not-allowed" : "pointer",
+              }}
+            >
+              {generating ? "Generating candidate…" : "Generate candidate"}
+            </button>
+          </div>
         ) : null}
       </section>
     </div>
