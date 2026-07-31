@@ -1,5 +1,5 @@
 /**
- * Frontend tests: V2.3B1 review page + V2.3B2a Generate candidate.
+ * Frontend tests: V2.3B1 review page + V2.3B2a Generate + V2.3B2b1 Reject.
  */
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -23,9 +23,11 @@ jest.mock("../api/mcqRationaleInventory", () => ({
 }));
 
 const mockCreateCandidate = jest.fn();
+const mockRejectCandidate = jest.fn();
 let mockIdempotencySeq = 0;
 jest.mock("../api/mcqRationaleCandidates", () => ({
   createMcqRationaleCandidate: (...args: unknown[]) => mockCreateCandidate(...args),
+  rejectMcqRationaleCandidate: (...args: unknown[]) => mockRejectCandidate(...args),
   createMcqRationaleCandidateIdempotencyKey: () => {
     mockIdempotencySeq += 1;
     return `cand_test_key_${mockIdempotencySeq}_xxxxxxxx`;
@@ -56,7 +58,7 @@ jest.mock("../api/mcqRationaleCandidates", () => ({
     return {
       status,
       code,
-      message: String(ax.response?.data?.error || ax.message || "Candidate generation failed"),
+      message: String(ax.response?.data?.error || ax.message || "Candidate request failed"),
       candidate:
         ax.response?.data?.candidate && typeof ax.response.data.candidate === "object"
           ? ax.response.data.candidate
@@ -122,6 +124,9 @@ const baseContext = {
   publishedGenerationEnabled: false,
   canGenerate: true,
   canGenerateReason: "",
+  rejectionFeatureEnabled: false,
+  canReject: false,
+  rejectDisabledReason: "FEATURE_DISABLED",
   latestCandidate: null,
   candidateIsStale: false,
   readOnly: true as const,
@@ -157,12 +162,13 @@ const SHARED_MEDIA_WARNING =
   /This Composite Exam Question has shared media attached, but no trusted description is available\. Candidate generation remains blocked\./;
 
 const OUT_OF_SCOPE =
-  /regenerate|reject|approve|save|publish|backfill|apply rationale|replace rationale|edit exam question/i;
+  /^(Generate replacement candidate|Regenerate|Approve|Save|Publish|Backfill|Apply rationale|Replace rationale)$/i;
 
 describe("AdminMcqRationaleReviewPage", () => {
   beforeEach(() => {
     mockFetchReview.mockReset();
     mockCreateCandidate.mockReset();
+    mockRejectCandidate.mockReset();
     mockIdempotencySeq = 0;
     mockFetchReview.mockResolvedValue(baseContext);
   });
@@ -186,10 +192,10 @@ describe("AdminMcqRationaleReviewPage", () => {
     );
     expect(screen.getByTestId("mcq-rationale-review-back")).toBeInTheDocument();
     expect(screen.getByTestId("mcq-rationale-review-readonly-notice")).toHaveTextContent(
-      /Candidate generation is available only when enabled/
+      /Candidate generation and rejection are available only when enabled/
     );
     expect(screen.getByTestId("mcq-rationale-review-readonly-notice")).toHaveTextContent(
-      /Generated candidates do not change the Exam Question/
+      /Candidate actions do not change the Exam Question/
     );
   });
 
@@ -511,7 +517,7 @@ describe("AdminMcqRationaleReviewPage", () => {
     expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
   });
 
-  test("Q/R: no out-of-scope controls; only candidate-generation POST mocked", async () => {
+  test("Q/R: no out-of-scope controls; create + reject APIs only", async () => {
     mockFetchReview.mockResolvedValue(eligibleContext);
     renderReview();
     await screen.findByRole("button", { name: /^Generate candidate$/i });
@@ -520,10 +526,14 @@ describe("AdminMcqRationaleReviewPage", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: OUT_OF_SCOPE })).not.toBeInTheDocument();
     expect(document.querySelector("[contenteditable='true']")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Regenerate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Save$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Publish$/i })).not.toBeInTheDocument();
 
-    // Mutation API surface from this page's modules: createMcqRationaleCandidate only.
     expect(typeof candidatesApi.createMcqRationaleCandidate).toBe("function");
-    expect((candidatesApi as { rejectMcqRationaleCandidate?: unknown }).rejectMcqRationaleCandidate).toBeUndefined();
+    expect(typeof candidatesApi.rejectMcqRationaleCandidate).toBe("function");
     expect((candidatesApi as { approveMcqRationaleCandidate?: unknown }).approveMcqRationaleCandidate).toBeUndefined();
     expect((candidatesApi as { regenerateMcqRationaleCandidate?: unknown }).regenerateMcqRationaleCandidate).toBeUndefined();
   });
@@ -748,9 +758,351 @@ describe("AdminMcqRationaleReviewPage", () => {
   test("absence of mutation controls when feature disabled", async () => {
     renderReview();
     await screen.findByTestId("mcq-rationale-review-body");
-    expect(screen.queryByRole("button", { name: /generate|approve|reject|regenerate|save|publish|backfill/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Regenerate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Save$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Publish$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /approve|reject|regenerate|save/i })).not.toBeInTheDocument();
+  });
+});
+
+const rejectEligibleContext = {
+  ...baseContext,
+  generationFeatureEnabled: false,
+  canGenerate: false,
+  canGenerateReason: "ACTIVE_CANDIDATE_EXISTS",
+  rejectionFeatureEnabled: true,
+  canReject: true,
+  rejectDisabledReason: null,
+  latestCandidate: pendingCandidate,
+  candidateIsStale: false,
+};
+
+const rejectedCandidate = {
+  ...pendingCandidate,
+  status: "rejected",
+  rejectedAt: new Date("2026-07-21T12:00:00.000Z").toISOString(),
+  rejectionReasonCode: "too_generic",
+};
+
+describe("AdminMcqRationaleReviewPage V2.3B2b1 Reject", () => {
+  beforeEach(() => {
+    mockFetchReview.mockReset();
+    mockCreateCandidate.mockReset();
+    mockRejectCandidate.mockReset();
+    mockIdempotencySeq = 0;
+    mockFetchReview.mockResolvedValue(rejectEligibleContext);
+  });
+
+  test("feature disabled → no Reject button; modest notice when pending", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      rejectionFeatureEnabled: false,
+      canReject: false,
+      rejectDisabledReason: "FEATURE_DISABLED",
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-reject-feature-disabled")).toHaveTextContent(
+      /Candidate rejection is currently disabled/
+    );
+    expect(mockRejectCandidate).not.toHaveBeenCalled();
+  });
+
+  test("pending + eligible → Reject candidate appears once", async () => {
+    renderReview();
+    const btn = await screen.findByRole("button", { name: /^Reject candidate$/i });
+    expect(btn).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: /^Reject candidate$/i })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Regenerate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Save$/i })).not.toBeInTheDocument();
+  });
+
+  test("non-pending → no Reject", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      canReject: false,
+      rejectDisabledReason: "NOT_PENDING",
+      latestCandidate: { ...pendingCandidate, status: "failed" },
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-candidate-status");
+    expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("stale Candidate → no Reject", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      canReject: false,
+      rejectDisabledReason: "STALE_SOURCE",
+      candidateIsStale: true,
+      latestCandidate: { ...pendingCandidate, sourceFingerprint: "a".repeat(64) },
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-stale-warning");
+    expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("confirmation opens; reason required; Cancel performs no POST", async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Reject candidate$/i }));
+    expect(await screen.findByTestId("mcq-rationale-review-reject-confirm")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-reject-eq-notice")).toHaveTextContent(
+      /Rejecting this candidate does not change the Exam Question/
+    );
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm rejection$/i }));
+    expect(await screen.findByTestId("mcq-rationale-review-reject-validation")).toHaveTextContent(
+      /Choose a rejection reason/
+    );
+    expect(mockRejectCandidate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("mcq-rationale-review-reject-confirm")).not.toBeInTheDocument();
+    });
+    expect(mockRejectCandidate).not.toHaveBeenCalled();
+  });
+
+  test("optional note bounded; confirm sends exact payload", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(rejectEligibleContext)
+      .mockResolvedValueOnce({
+        ...rejectEligibleContext,
+        canReject: false,
+        rejectDisabledReason: "ALREADY_REJECTED",
+        latestCandidate: rejectedCandidate,
+      });
+    mockRejectCandidate.mockResolvedValue({ candidate: rejectedCandidate, replayed: false });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Reject candidate$/i }));
+    fireEvent.change(screen.getByTestId("mcq-rationale-review-reject-reason"), {
+      target: { value: "unsupported_detail" },
+    });
+    fireEvent.change(screen.getByTestId("mcq-rationale-review-reject-note"), {
+      target: { value: "  needs clearer mark scheme link  " },
+    });
+    expect(screen.getByTestId("mcq-rationale-review-reject-note-count")).toHaveTextContent(/34\/300/);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm rejection$/i }));
+    expect(await screen.findByRole("button", { name: /Rejecting candidate…/i })).toBeDisabled();
+
+    await waitFor(() => expect(mockRejectCandidate).toHaveBeenCalledTimes(1));
+    expect(mockRejectCandidate).toHaveBeenCalledWith({
+      candidateId: "c1",
+      questionId: "qid123",
+      partLabel: "a",
+      expectedSourceFingerprint: fingerprint,
+      reasonCode: "unsupported_detail",
+      note: "needs clearer mark scheme link",
+    });
+    expect(mockCreateCandidate).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("REJECTED");
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
+    expect(screen.getByTestId("mcq-rationale-review-rejection-reason")).toHaveTextContent(/Too generic/);
+    expect(screen.getByTestId("mcq-rationale-review-rejected-at")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("rapid multi-click sends one POST", async () => {
+    let resolveReject: (v: unknown) => void = () => undefined;
+    mockRejectCandidate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveReject = resolve;
+        })
+    );
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Reject candidate$/i }));
+    fireEvent.change(screen.getByTestId("mcq-rationale-review-reject-reason"), {
+      target: { value: "inaccurate" },
+    });
+    const confirm = screen.getByRole("button", { name: /^Confirm rejection$/i });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(mockRejectCandidate).toHaveBeenCalledTimes(1));
+    resolveReject({ candidate: rejectedCandidate, replayed: false });
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      canReject: false,
+      latestCandidate: rejectedCandidate,
+    });
+    await screen.findByTestId("mcq-rationale-review-candidate-status");
+    expect(mockRejectCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("replay treated as success", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(rejectEligibleContext)
+      .mockResolvedValueOnce({
+        ...rejectEligibleContext,
+        canReject: false,
+        latestCandidate: rejectedCandidate,
+      });
+    mockRejectCandidate.mockResolvedValue({ candidate: rejectedCandidate, replayed: true });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Reject candidate$/i }));
+    fireEvent.change(screen.getByTestId("mcq-rationale-review-reject-reason"), {
+      target: { value: "too_generic" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm rejection$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-replayed")).toHaveTextContent(/idempotent replay/i);
+    expect(screen.getByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("REJECTED");
+    expect(mockRejectCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("network uncertainty safe; no automatic retry", async () => {
+    mockRejectCandidate.mockRejectedValue({ message: "Network Error", code: "ERR_NETWORK" });
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Reject candidate$/i }));
+    fireEvent.change(screen.getByTestId("mcq-rationale-review-reject-reason"), {
+      target: { value: "unclear" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm rejection$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-reject-error")).toHaveTextContent(
+      /may not have completed/i
+    );
+    expect(mockRejectCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  test("status conflict refreshes context and removes Reject", async () => {
+    mockRejectCandidate.mockRejectedValue({
+      response: {
+        status: 409,
+        data: { error: "Not pending", code: "CANDIDATE_NOT_PENDING" },
+      },
+    });
+    mockFetchReview
+      .mockResolvedValueOnce(rejectEligibleContext)
+      .mockResolvedValueOnce({
+        ...rejectEligibleContext,
+        canReject: false,
+        rejectDisabledReason: "NOT_PENDING",
+        latestCandidate: { ...pendingCandidate, status: "failed" },
+      });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Reject candidate$/i }));
+    fireEvent.change(screen.getByTestId("mcq-rationale-review-reject-reason"), {
+      target: { value: "other" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm rejection$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-reject-error")).toHaveTextContent(/no longer pending/i);
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+    });
+    expect(mockFetchReview).toHaveBeenCalledTimes(2);
+  });
+
+  test("permission failure safe", async () => {
+    mockRejectCandidate.mockRejectedValue({
+      response: { status: 403, data: { error: "Forbidden", code: "ACCESS_DENIED" } },
+    });
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Reject candidate$/i }));
+    fireEvent.change(screen.getByTestId("mcq-rationale-review-reject-reason"), {
+      target: { value: "other" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm rejection$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-reject-error")).toHaveTextContent(
+      /do not have permission/i
+    );
+  });
+
+  test("rejected + generation flag false → no Generate; replacement message; explanation kept", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      generationFeatureEnabled: false,
+      canGenerate: false,
+      canGenerateReason: "REPLACEMENT_GENERATION_NOT_ENABLED",
+      canReject: false,
+      rejectDisabledReason: "ALREADY_REJECTED",
+      latestCandidate: rejectedCandidate,
+    });
+    renderReview();
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("REJECTED");
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
+    expect(screen.getByTestId("mcq-rationale-review-rejection-reason")).toHaveTextContent(/Too generic/);
+    expect(screen.getByTestId("mcq-rationale-review-rejected-at")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-replacement-disabled")).toHaveTextContent(
+      /Replacement generation is not available yet/
+    );
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Regenerate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Save$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Publish$/i })).not.toBeInTheDocument();
+    expect(mockCreateCandidate).not.toHaveBeenCalled();
+    expect(mockRejectCandidate).not.toHaveBeenCalled();
+  });
+
+  test("rejected + generation flag true → still no Generate; bounded message", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      generationFeatureEnabled: true,
+      canGenerate: false,
+      canGenerateReason: "REPLACEMENT_GENERATION_NOT_ENABLED",
+      canReject: false,
+      rejectDisabledReason: "ALREADY_REJECTED",
+      latestCandidate: rejectedCandidate,
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-replacement-disabled");
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
+    expect(mockCreateCandidate).not.toHaveBeenCalled();
+  });
+
+  test("direct create error REPLACEMENT_GENERATION_NOT_ENABLED refreshes context safely", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        canGenerate: false,
+        canGenerateReason: "REPLACEMENT_GENERATION_NOT_ENABLED",
+        rejectionFeatureEnabled: true,
+        canReject: false,
+        rejectDisabledReason: "ALREADY_REJECTED",
+        latestCandidate: rejectedCandidate,
+      });
+    mockCreateCandidate.mockRejectedValue({
+      response: {
+        status: 409,
+        data: {
+          error: "This candidate was rejected. Replacement generation is not available yet.",
+          code: "REPLACEMENT_GENERATION_NOT_ENABLED",
+        },
+      },
+    });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(
+      /Replacement generation is not available yet/
+    );
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("REJECTED");
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+    expect(mockFetchReview).toHaveBeenCalledTimes(2);
   });
 });
 

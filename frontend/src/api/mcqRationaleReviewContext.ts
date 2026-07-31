@@ -1,6 +1,7 @@
 /**
- * V2.3B1 MCQ rationale review-context API client (GET only).
- * Candidate creation lives in mcqRationaleCandidates.ts. No reject / approve / regenerate / save methods here.
+ * V2.3B1/B2 MCQ rationale review-context API client (GET only).
+ * Candidate create/reject live in mcqRationaleCandidates.ts.
+ * No approve / regenerate / save / ExamQuestion mutation methods here.
  */
 import api from "../services/api";
 
@@ -37,6 +38,10 @@ export type McqRationaleSafeCandidate = {
   completedAt: string | null;
   validationIssueCodes: string[];
   failureCode: string;
+  /** Present after rejection (ISO string). */
+  rejectedAt?: string | null;
+  /** Bounded reason code after rejection. */
+  rejectionReasonCode?: string | null;
 };
 
 /** Bounded media diagnostic — no URLs, mediaIds, filenames, or tokens. */
@@ -72,6 +77,10 @@ export type McqRationaleReviewContext = {
   publishedGenerationEnabled: boolean;
   canGenerate: boolean;
   canGenerateReason: string;
+  /** V2.3B2b1 — reject endpoint / canReject gated by FEATURE_MCQ_RATIONALE_CANDIDATE_REJECT_V23B2B. */
+  rejectionFeatureEnabled?: boolean;
+  canReject?: boolean;
+  rejectDisabledReason?: string | null;
   latestCandidate: McqRationaleSafeCandidate | null;
   candidateIsStale: boolean;
   readOnly: true;

@@ -20,6 +20,11 @@ function isMcqRationaleBackfillPublishedAllowed() {
   return isTruthyEnv("MCQ_RATIONALE_BACKFILL_ALLOW_PUBLISHED");
 }
 
+/** When false (default): reject endpoint and canReject are disabled. Independent of generation. */
+function isMcqRationaleCandidateRejectV23b2bEnabled() {
+  return isTruthyEnv("FEATURE_MCQ_RATIONALE_CANDIDATE_REJECT_V23B2B");
+}
+
 function getMcqRationaleBackfillActorDailyCap() {
   const n = Number(process.env.MCQ_RATIONALE_BACKFILL_ACTOR_DAILY_CAP);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 10;
@@ -55,6 +60,7 @@ module.exports = {
   isTruthyEnv,
   isMcqRationaleBackfillV23aEnabled,
   isMcqRationaleBackfillPublishedAllowed,
+  isMcqRationaleCandidateRejectV23b2bEnabled,
   getMcqRationaleBackfillActorDailyCap,
   getMcqRationaleBackfillGlobalDailyCap,
   getMcqRationaleGenerationLeaseMs,

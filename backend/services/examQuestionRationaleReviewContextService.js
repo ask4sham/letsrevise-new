@@ -14,12 +14,14 @@ const {
 const {
   isMcqRationaleBackfillV23aEnabled,
   isMcqRationaleBackfillPublishedAllowed,
+  isMcqRationaleCandidateRejectV23b2bEnabled,
 } = require("../config/mcqRationaleBackfillFlags");
 const {
   CandidateServiceError,
   resolveImageContext,
   buildSourceSnapshot,
   toCandidateDto,
+  findRejectedCandidateForLineage,
   findExactMcqPart,
   isCompositeQuestion,
 } = require("./examQuestionRationaleCandidateService");
@@ -188,6 +190,7 @@ async function getRationaleReviewContext({ query }) {
 
   const generationFeatureEnabled = isMcqRationaleBackfillV23aEnabled();
   const publishedGenerationEnabled = isMcqRationaleBackfillPublishedAllowed();
+  const rejectionFeatureEnabled = isMcqRationaleCandidateRejectV23b2bEnabled();
 
   const questionStatus = String(question.status || "").toLowerCase();
   let canGenerate = false;
@@ -212,9 +215,41 @@ async function getRationaleReviewContext({ query }) {
       canGenerate = false;
       canGenerateReason = "ACTIVE_CANDIDATE_EXISTS";
     } else {
-      canGenerate = true;
-      canGenerateReason = "";
+      // Shared rejected-lineage detector (independent of active). Blocks until B2b2.
+      const rejectedLineage = await findRejectedCandidateForLineage({
+        questionId: req.questionId,
+        partLabel: req.partLabel,
+        sourceFingerprint: currentSourceFingerprint,
+      });
+      if (rejectedLineage) {
+        canGenerate = false;
+        canGenerateReason = "REPLACEMENT_GENERATION_NOT_ENABLED";
+      } else {
+        canGenerate = true;
+        canGenerateReason = "";
+      }
     }
+  }
+
+  let canReject = false;
+  let rejectDisabledReason = null;
+  if (!rejectionFeatureEnabled) {
+    rejectDisabledReason = "FEATURE_DISABLED";
+  } else if (!latestDoc) {
+    rejectDisabledReason = "NO_CANDIDATE";
+  } else if (String(latestDoc.questionId) !== req.questionId || latestDoc.partLabel !== req.partLabel) {
+    rejectDisabledReason = "ASSOCIATION_MISMATCH";
+  } else if (candidateIsStale) {
+    rejectDisabledReason = "STALE_SOURCE";
+  } else if (String(latestDoc.status) === "rejected") {
+    rejectDisabledReason = "ALREADY_REJECTED";
+  } else if (String(latestDoc.status) !== "pending") {
+    rejectDisabledReason = "NOT_PENDING";
+  } else if (latestDoc.active !== true) {
+    rejectDisabledReason = "NOT_ACTIVE";
+  } else {
+    canReject = true;
+    rejectDisabledReason = null;
   }
 
   const options = (classification.options || []).map((text, index) => ({
@@ -262,6 +297,9 @@ async function getRationaleReviewContext({ query }) {
     publishedGenerationEnabled,
     canGenerate,
     canGenerateReason,
+    rejectionFeatureEnabled,
+    canReject,
+    rejectDisabledReason,
     latestCandidate,
     candidateIsStale,
     readOnly: true,
