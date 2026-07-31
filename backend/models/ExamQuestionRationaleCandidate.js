@@ -118,6 +118,15 @@ const ExamQuestionRationaleCandidateSchema = new mongoose.Schema(
         message: "validationIssueCodes exceed max count",
       },
     },
+    /** V2.3B2b1 rejection audit — set only by atomic reject path. */
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    rejectedAt: { type: Date, default: null },
+    rejectionReasonCode: { type: String, trim: true, maxlength: 40, default: "" },
+    rejectionNote: { type: String, trim: true, maxlength: 300, default: "" },
   },
   { timestamps: true, strict: true }
 );

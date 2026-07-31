@@ -282,6 +282,11 @@ function buildSourceSnapshot(question, part, classification, imageContextText) {
 
 function toCandidateDto(doc) {
   const o = doc.toObject ? doc.toObject() : doc;
+  const rejectedAt = o.rejectedAt ? new Date(o.rejectedAt).toISOString() : null;
+  const rejectionReasonCode =
+    typeof o.rejectionReasonCode === "string" && o.rejectionReasonCode.trim()
+      ? String(o.rejectionReasonCode).trim()
+      : "";
   return {
     candidateId: String(o._id),
     questionId: String(o.questionId),
@@ -298,6 +303,8 @@ function toCandidateDto(doc) {
     completedAt: o.completedAt ? new Date(o.completedAt).toISOString() : null,
     validationIssueCodes: Array.isArray(o.validationIssueCodes) ? o.validationIssueCodes : [],
     failureCode: o.failureCode || "",
+    rejectedAt,
+    rejectionReasonCode: rejectionReasonCode || undefined,
   };
 }
 

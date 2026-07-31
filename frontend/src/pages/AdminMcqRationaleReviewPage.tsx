@@ -1,7 +1,7 @@
 /**
- * Admin — MCQ Rationale Review (V2.3B1 + V2.3B2a Generate).
- * May create one Candidate record when enabled. Cannot reject, regenerate, approve or save rationales.
- * Generated candidates do not change the Exam Question.
+ * Admin — MCQ Rationale Review (V2.3B1 + V2.3B2a Generate + V2.3B2b1 Reject).
+ * May create or reject one Candidate when enabled. Cannot regenerate, approve or save rationales.
+ * Candidate actions do not change the Exam Question.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -10,7 +10,14 @@ import {
   createMcqRationaleCandidate,
   createMcqRationaleCandidateIdempotencyKey,
   readMcqRationaleCandidateError,
+  rejectMcqRationaleCandidate,
 } from "../api/mcqRationaleCandidates";
+import {
+  MAX_REJECTION_NOTE_LENGTH,
+  REJECTION_REASON_OPTIONS,
+  rejectionReasonLabel,
+  type RejectionReasonCode,
+} from "../api/mcqRationaleRejectionReasons";
 import {
   fetchMcqRationaleReviewContext,
   type McqRationaleReviewContext,
@@ -87,6 +94,49 @@ function generationActionMessage(code: string): string {
   }
 }
 
+function rejectionActionMessage(code: string): string {
+  switch (code) {
+    case "FEATURE_DISABLED":
+      return "Candidate rejection is currently disabled.";
+    case "ACCESS_DENIED":
+    case "UNAUTHORIZED":
+      return "You do not have permission to reject a candidate.";
+    case "CANDIDATE_NOT_FOUND":
+    case "INVALID_CANDIDATE_ID":
+      return "That candidate could not be found.";
+    case "CANDIDATE_ASSOCIATION_MISMATCH":
+    case "ASSOCIATION_MISMATCH":
+      return "This candidate does not belong to the current question or part.";
+    case "SOURCE_FINGERPRINT_MISMATCH":
+    case "STALE_SOURCE":
+    case "STALE_SOURCE_FINGERPRINT":
+      return "The candidate source no longer matches. Review the updated source before rejecting.";
+    case "CANDIDATE_NOT_PENDING":
+    case "NOT_PENDING":
+      return "This candidate is no longer pending and cannot be rejected.";
+    case "CANDIDATE_NOT_ACTIVE":
+    case "NOT_ACTIVE":
+      return "This candidate is not active and cannot be rejected.";
+    case "CANDIDATE_ALREADY_REJECTED":
+    case "ALREADY_REJECTED":
+      return "This candidate was already rejected with a different decision and was not changed.";
+    case "INVALID_REJECTION_REASON":
+      return "Choose a valid rejection reason.";
+    case "REJECTION_NOTE_TOO_LONG":
+      return `Rejection note must be at most ${MAX_REJECTION_NOTE_LENGTH} characters.`;
+    case "NETWORK_UNCERTAIN":
+      return "The rejection request may not have completed. You can retry safely with the same reason.";
+    case "SERVER_ERROR":
+    default:
+      return "Candidate rejection failed. Please try again later.";
+  }
+}
+
+function displayCandidateStatus(status: string): string {
+  const raw = String(status || "");
+  return raw.toLowerCase() === "rejected" ? "REJECTED" : raw;
+}
+
 export default function AdminMcqRationaleReviewPage() {
   const navigate = useNavigate();
   const { questionId: rawQuestionId, partLabel: rawPartLabel } = useParams<{
@@ -99,11 +149,18 @@ export default function AdminMcqRationaleReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState<RejectionReasonCode | "">("");
+  const [rejectNote, setRejectNote] = useState("");
+  const [rejectValidationError, setRejectValidationError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionCode, setActionCode] = useState<string | null>(null);
+  const [actionKind, setActionKind] = useState<"generate" | "reject" | null>(null);
   const [replayedNote, setReplayedNote] = useState(false);
 
-  const inFlightRef = useRef(false);
+  const generateInFlightRef = useRef(false);
+  const rejectInFlightRef = useRef(false);
   const idemRef = useRef<IdempotencySlot | null>(null);
   const routeRef = useRef({ questionId: "", partLabel: "" });
 
@@ -142,9 +199,16 @@ export default function AdminMcqRationaleReviewPage() {
       setData(null);
       setActionError(null);
       setActionCode(null);
+      setActionKind(null);
       setReplayedNote(false);
       setGenerating(false);
-      inFlightRef.current = false;
+      setRejecting(false);
+      setRejectConfirmOpen(false);
+      setRejectReason("");
+      setRejectNote("");
+      setRejectValidationError(null);
+      generateInFlightRef.current = false;
+      rejectInFlightRef.current = false;
       idemRef.current = null;
 
       const { questionId, partLabel } = resolveRouteIds();
@@ -226,13 +290,14 @@ export default function AdminMcqRationaleReviewPage() {
   }
 
   async function handleGenerate() {
-    if (inFlightRef.current || generating || !data) return;
+    if (generateInFlightRef.current || generating || rejecting || !data) return;
     if (!data.generationFeatureEnabled || !data.canGenerate || data.imageContextRequired) return;
 
-    inFlightRef.current = true;
+    generateInFlightRef.current = true;
     setGenerating(true);
     setActionError(null);
     setActionCode(null);
+    setActionKind("generate");
     setReplayedNote(false);
 
     const idempotencyKey = acquireIdempotencyKey(data);
@@ -271,8 +336,94 @@ export default function AdminMcqRationaleReviewPage() {
         }
       }
     } finally {
-      inFlightRef.current = false;
+      generateInFlightRef.current = false;
       setGenerating(false);
+    }
+  }
+
+  function openRejectConfirm() {
+    if (rejectInFlightRef.current || rejecting || generating || !data) return;
+    if (data.rejectionFeatureEnabled !== true || data.canReject !== true) return;
+    setRejectConfirmOpen(true);
+    setRejectReason("");
+    setRejectNote("");
+    setRejectValidationError(null);
+    setActionError(null);
+    setActionCode(null);
+    setActionKind(null);
+    setReplayedNote(false);
+  }
+
+  function cancelRejectConfirm() {
+    if (rejectInFlightRef.current || rejecting) return;
+    setRejectConfirmOpen(false);
+    setRejectReason("");
+    setRejectNote("");
+    setRejectValidationError(null);
+  }
+
+  async function handleConfirmReject() {
+    if (rejectInFlightRef.current || rejecting || generating || !data) return;
+    if (data.rejectionFeatureEnabled !== true || data.canReject !== true) return;
+    const candidate = data.latestCandidate;
+    if (!candidate) return;
+
+    if (!rejectReason) {
+      setRejectValidationError("Choose a rejection reason.");
+      return;
+    }
+    const trimmedNote = rejectNote.trim();
+    if (trimmedNote.length > MAX_REJECTION_NOTE_LENGTH) {
+      setRejectValidationError(`Note must be at most ${MAX_REJECTION_NOTE_LENGTH} characters.`);
+      return;
+    }
+
+    rejectInFlightRef.current = true;
+    setRejecting(true);
+    setRejectValidationError(null);
+    setActionError(null);
+    setActionCode(null);
+    setActionKind("reject");
+    setReplayedNote(false);
+
+    const { questionId, partLabel } = routeRef.current;
+
+    try {
+      const result = await rejectMcqRationaleCandidate({
+        candidateId: candidate.candidateId,
+        questionId,
+        partLabel,
+        expectedSourceFingerprint: candidate.sourceFingerprint,
+        reasonCode: rejectReason,
+        ...(trimmedNote ? { note: trimmedNote } : {}),
+      });
+
+      setReplayedNote(Boolean(result.replayed));
+      setRejectConfirmOpen(false);
+      setRejectReason("");
+      setRejectNote("");
+      await refreshContext(questionId, partLabel);
+    } catch (e: unknown) {
+      const parsed = readMcqRationaleCandidateError(e);
+
+      if (parsed.networkUncertain) {
+        setActionCode(parsed.code);
+        setActionError(rejectionActionMessage("NETWORK_UNCERTAIN"));
+      } else {
+        setActionCode(parsed.code);
+        setActionError(rejectionActionMessage(parsed.code));
+        try {
+          const refreshed = await refreshContext(questionId, partLabel);
+          if (refreshed.canReject !== true) {
+            setRejectConfirmOpen(false);
+          }
+        } catch {
+          // Keep the action error; load errors are secondary.
+        }
+      }
+    } finally {
+      rejectInFlightRef.current = false;
+      setRejecting(false);
     }
   }
 
@@ -304,9 +455,9 @@ export default function AdminMcqRationaleReviewPage() {
           lineHeight: 1.5,
         }}
       >
-        <strong>Review workflow.</strong> Candidate generation is available only when enabled. This page cannot
-        reject, regenerate, approve or save rationales.
-        <div style={{ marginTop: 6 }}>Generated candidates do not change the Exam Question.</div>
+        <strong>Review workflow.</strong> Candidate generation and rejection are available only when enabled. This
+        page cannot regenerate, approve or save rationales.
+        <div style={{ marginTop: 6 }}>Candidate actions do not change the Exam Question.</div>
       </div>
 
       {loading ? (
@@ -340,10 +491,27 @@ export default function AdminMcqRationaleReviewPage() {
         <ReviewBody
           data={data}
           generating={generating}
+          rejecting={rejecting}
+          rejectConfirmOpen={rejectConfirmOpen}
+          rejectReason={rejectReason}
+          rejectNote={rejectNote}
+          rejectValidationError={rejectValidationError}
           actionError={actionError}
           actionCode={actionCode}
+          actionKind={actionKind}
           replayedNote={replayedNote}
           onGenerate={handleGenerate}
+          onOpenReject={openRejectConfirm}
+          onCancelReject={cancelRejectConfirm}
+          onConfirmReject={handleConfirmReject}
+          onRejectReasonChange={(v) => {
+            setRejectReason(v);
+            setRejectValidationError(null);
+          }}
+          onRejectNoteChange={(v) => {
+            setRejectNote(v);
+            setRejectValidationError(null);
+          }}
         />
       ) : null}
     </div>
@@ -359,17 +527,39 @@ const LEGACY_IMAGE_CONTEXT_MESSAGE =
 function ReviewBody({
   data,
   generating,
+  rejecting,
+  rejectConfirmOpen,
+  rejectReason,
+  rejectNote,
+  rejectValidationError,
   actionError,
   actionCode,
+  actionKind,
   replayedNote,
   onGenerate,
+  onOpenReject,
+  onCancelReject,
+  onConfirmReject,
+  onRejectReasonChange,
+  onRejectNoteChange,
 }: {
   data: McqRationaleReviewContext;
   generating: boolean;
+  rejecting: boolean;
+  rejectConfirmOpen: boolean;
+  rejectReason: RejectionReasonCode | "";
+  rejectNote: string;
+  rejectValidationError: string | null;
   actionError: string | null;
   actionCode: string | null;
+  actionKind: "generate" | "reject" | null;
   replayedNote: boolean;
   onGenerate: () => void;
+  onOpenReject: () => void;
+  onCancelReject: () => void;
+  onConfirmReject: () => void;
+  onRejectReasonChange: (value: RejectionReasonCode | "") => void;
+  onRejectNoteChange: (value: string) => void;
 }) {
   const tax = data.taxonomy;
   const candidate = data.latestCandidate;
@@ -377,6 +567,14 @@ function ReviewBody({
     data.generationFeatureEnabled === true &&
     data.canGenerate === true &&
     data.imageContextRequired !== true;
+
+  const rejectionFeatureEnabled = data.rejectionFeatureEnabled === true;
+  const canReject = data.canReject === true;
+  const showReject = rejectionFeatureEnabled && canReject && !rejecting;
+  const showRejectDisabledNotice =
+    !rejectionFeatureEnabled &&
+    Boolean(candidate) &&
+    String(candidate?.status || "").toLowerCase() === "pending";
 
   // New wording only for a complete, internally consistent blocked shared-media diagnostic.
   const showSharedMediaBlocked =
@@ -392,6 +590,8 @@ function ReviewBody({
   // Whenever image context is required, always show exactly one explanation.
   // Malformed/inconsistent mediaContext must fall back to the legacy warning.
   const showLegacyImageWarning = Boolean(data.imageContextRequired) && !showSharedMediaBlocked;
+
+  const isRejected = String(candidate?.status || "").toLowerCase() === "rejected";
 
   return (
     <div data-testid="mcq-rationale-review-body" style={{ display: "grid", gap: 18 }}>
@@ -503,7 +703,7 @@ function ReviewBody({
             <p style={bodyText}>
               Status:{" "}
               <span data-testid="mcq-rationale-review-candidate-status" style={badge}>
-                {candidate.status}
+                {displayCandidateStatus(candidate.status)}
               </span>{" "}
               · Attempt {candidate.attemptNumber}
             </p>
@@ -525,15 +725,32 @@ function ReviewBody({
             ) : null}
             {replayedNote ? (
               <p data-testid="mcq-rationale-review-replayed" style={{ ...bodyText, color: "#475569", fontSize: 13 }}>
-                Showing the existing candidate for this attempt (idempotent replay).
+                {actionKind === "reject"
+                  ? "Showing the existing rejected candidate (idempotent replay)."
+                  : "Showing the existing candidate for this attempt (idempotent replay)."}
               </p>
             ) : null}
             <p data-testid="mcq-rationale-review-candidate-explanation" style={{ ...bodyText, whiteSpace: "pre-wrap" }}>
               {candidate.explanation?.trim() ? candidate.explanation : "—"}
             </p>
-            <p style={{ ...bodyText, fontSize: 12, color: "#64748b" }}>
-              Generated {formatTs(candidate.generatedAt)} · Completed {formatTs(candidate.completedAt)}
-            </p>
+            {isRejected ? (
+              <div data-testid="mcq-rationale-review-rejection-meta" style={{ display: "grid", gap: 4 }}>
+                <p style={{ ...bodyText, fontSize: 13 }}>
+                  Rejection reason:{" "}
+                  <span data-testid="mcq-rationale-review-rejection-reason">
+                    {rejectionReasonLabel(candidate.rejectionReasonCode)}
+                  </span>
+                </p>
+                <p style={{ ...bodyText, fontSize: 12, color: "#64748b" }}>
+                  Rejected{" "}
+                  <span data-testid="mcq-rationale-review-rejected-at">{formatTs(candidate.rejectedAt ?? null)}</span>
+                </p>
+              </div>
+            ) : (
+              <p style={{ ...bodyText, fontSize: 12, color: "#64748b" }}>
+                Generated {formatTs(candidate.generatedAt)} · Completed {formatTs(candidate.completedAt)}
+              </p>
+            )}
             {candidate.failureCode ? (
               <p data-testid="mcq-rationale-review-failure-code" style={{ ...bodyText, color: "#b91c1c" }}>
                 Failure code: {candidate.failureCode}
@@ -543,6 +760,147 @@ function ReviewBody({
               <p data-testid="mcq-rationale-review-validation-codes" style={{ ...bodyText, color: "#b91c1c" }}>
                 Validation: {candidate.validationIssueCodes.join(", ")}
               </p>
+            ) : null}
+
+            {showRejectDisabledNotice ? (
+              <p data-testid="mcq-rationale-review-reject-feature-disabled" style={noticeBox}>
+                Candidate rejection is currently disabled.
+              </p>
+            ) : null}
+
+            {showReject && !rejectConfirmOpen ? (
+              <div style={{ marginTop: 4 }}>
+                <button
+                  type="button"
+                  data-testid="mcq-rationale-review-reject"
+                  onClick={onOpenReject}
+                  disabled={rejecting || generating}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #b91c1c",
+                    background: "#fff",
+                    color: "#b91c1c",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: rejecting || generating ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Reject candidate
+                </button>
+              </div>
+            ) : null}
+
+            {rejectConfirmOpen ? (
+              <div
+                data-testid="mcq-rationale-review-reject-confirm"
+                role="region"
+                aria-labelledby="reject-confirm-heading"
+                style={{
+                  marginTop: 8,
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #fecaca",
+                  background: "#fff7f7",
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                <h3 id="reject-confirm-heading" style={{ margin: 0, fontSize: 15, color: "#7f1d1d" }}>
+                  Confirm rejection
+                </h3>
+                <p data-testid="mcq-rationale-review-reject-eq-notice" style={{ ...bodyText, fontSize: 13 }}>
+                  Rejecting this candidate does not change the Exam Question.
+                </p>
+                <label style={{ display: "grid", gap: 4, fontSize: 13, color: "#334155" }}>
+                  <span>
+                    Reason <span aria-hidden="true">*</span>
+                  </span>
+                  <select
+                    data-testid="mcq-rationale-review-reject-reason"
+                    value={rejectReason}
+                    onChange={(e) => onRejectReasonChange(e.target.value as RejectionReasonCode | "")}
+                    disabled={rejecting}
+                    required
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
+                  >
+                    <option value="">Select a reason…</option>
+                    {REJECTION_REASON_OPTIONS.map((opt) => (
+                      <option key={opt.code} value={opt.code}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ display: "grid", gap: 4, fontSize: 13, color: "#334155" }}>
+                  <span>Note (optional)</span>
+                  <textarea
+                    data-testid="mcq-rationale-review-reject-note"
+                    value={rejectNote}
+                    onChange={(e) => onRejectNoteChange(e.target.value)}
+                    disabled={rejecting}
+                    maxLength={MAX_REJECTION_NOTE_LENGTH}
+                    rows={3}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      resize: "vertical",
+                    }}
+                  />
+                  <span data-testid="mcq-rationale-review-reject-note-count" style={{ fontSize: 12, color: "#64748b" }}>
+                    {rejectNote.length}/{MAX_REJECTION_NOTE_LENGTH}
+                  </span>
+                </label>
+                {rejectValidationError ? (
+                  <p data-testid="mcq-rationale-review-reject-validation" style={{ ...bodyText, color: "#b91c1c" }}>
+                    {rejectValidationError}
+                  </p>
+                ) : null}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <button
+                    type="button"
+                    data-testid="mcq-rationale-review-reject-cancel"
+                    onClick={onCancelReject}
+                    disabled={rejecting}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #cbd5e1",
+                      background: "#fff",
+                      color: "#334155",
+                      fontSize: 14,
+                      cursor: rejecting ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="mcq-rationale-review-reject-confirm-btn"
+                    onClick={onConfirmReject}
+                    disabled={rejecting}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #b91c1c",
+                      background: rejecting ? "#fca5a5" : "#dc2626",
+                      color: "#fff",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: rejecting ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {rejecting ? "Rejecting candidate…" : "Confirm rejection"}
+                  </button>
+                </div>
+              </div>
             ) : null}
           </div>
         )}
@@ -587,7 +945,9 @@ function ReviewBody({
 
         {actionError ? (
           <div
-            data-testid="mcq-rationale-review-generate-error"
+            data-testid={
+              actionKind === "reject" ? "mcq-rationale-review-reject-error" : "mcq-rationale-review-generate-error"
+            }
             role="alert"
             style={{
               ...noticeBox,
@@ -609,7 +969,7 @@ function ReviewBody({
               type="button"
               data-testid="mcq-rationale-review-generate"
               onClick={onGenerate}
-              disabled={generating}
+              disabled={generating || rejecting}
               style={{
                 padding: "10px 14px",
                 borderRadius: 8,
@@ -618,7 +978,7 @@ function ReviewBody({
                 color: "#fff",
                 fontSize: 14,
                 fontWeight: 600,
-                cursor: generating ? "not-allowed" : "pointer",
+                cursor: generating || rejecting ? "not-allowed" : "pointer",
               }}
             >
               {generating ? "Generating candidate…" : "Generate candidate"}
