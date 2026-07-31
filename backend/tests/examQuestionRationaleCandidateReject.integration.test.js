@@ -534,5 +534,287 @@ describe("V2.3B2b1 review-context canReject", () => {
     expect(rejected.body.rejectDisabledReason).toBe("ALREADY_REJECTED");
     expect(rejected.body.latestCandidate.rejectionReasonCode).toBe("unclear");
     expect(rejected.body.latestCandidate.rejectedAt).toBeTruthy();
+    expect(rejected.body.canGenerate).toBe(false);
+    expect(rejected.body.canGenerateReason).toBe("REPLACEMENT_GENERATION_NOT_ENABLED");
+  });
+});
+
+describe("V2.3B2b1 rejected-lineage generation lock", () => {
+  async function rejectViaApi(token, user, q, cand) {
+    const res = await rejectCandidate(token, cand._id.toString(), {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      expectedSourceFingerprint: cand.sourceFingerprint,
+      reasonCode: "too_generic",
+      note: "lineage lock",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.candidate.status).toBe("rejected");
+    return res;
+  }
+
+  test("A/B: review context blocks generate for rejected lineage (V23A off and on)", async () => {
+    const { token, user } = await loginAs("rej-lineage-ctx@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedPendingCandidate(user._id, q);
+    await rejectViaApi(token, user, q, cand);
+
+    delete process.env.FEATURE_MCQ_RATIONALE_BACKFILL_V23A;
+    const off = await request(app)
+      .get("/api/admin/exam-question-rationale-review-context")
+      .set("Authorization", `Bearer ${token}`)
+      .query({ questionId: q._id.toString(), partLabel: "a" });
+    expect(off.status).toBe(200);
+    expect(off.body.generationFeatureEnabled).toBe(false);
+    expect(off.body.canGenerate).toBe(false);
+    expect(off.body.canGenerateReason).toBe("REPLACEMENT_GENERATION_NOT_ENABLED");
+    expect(off.body.canReject).toBe(false);
+    expect(off.body.rejectDisabledReason).toBe("ALREADY_REJECTED");
+    expect(off.body.latestCandidate.status).toBe("rejected");
+
+    process.env.FEATURE_MCQ_RATIONALE_BACKFILL_V23A = "true";
+    const on = await request(app)
+      .get("/api/admin/exam-question-rationale-review-context")
+      .set("Authorization", `Bearer ${token}`)
+      .query({ questionId: q._id.toString(), partLabel: "a" });
+    expect(on.body.generationFeatureEnabled).toBe(true);
+    expect(on.body.canGenerate).toBe(false);
+    expect(on.body.canGenerateReason).toBe("REPLACEMENT_GENERATION_NOT_ENABLED");
+    expect(on.body.latestCandidate.status).toBe("rejected");
+    expect(on.body.latestCandidate.explanation).toBe(GOOD_EXPLANATION);
+  });
+
+  test("C/I: fresh create after rejection — conflict, no insert, no LLM, EQ unchanged", async () => {
+    process.env.FEATURE_MCQ_RATIONALE_BACKFILL_V23A = "true";
+    const { token, user } = await loginAs("rej-lineage-create@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const eqBefore = JSON.parse(JSON.stringify(await ExamQuestion.findById(q._id).lean()));
+    const cand = await seedPendingCandidate(user._id, q, {
+      idempotencyKey: "lineage-orig-idem-aaaaaaaa",
+    });
+    const snapBefore = JSON.parse(JSON.stringify(cand.sourceSnapshot));
+    const rejectedAtBefore = new Date("2026-07-01T00:00:00.000Z");
+    await rejectViaApi(token, user, q, cand);
+    await ExamQuestionRationaleCandidate.findByIdAndUpdate(cand._id, {
+      rejectedAt: rejectedAtBefore,
+      rejectionReasonCode: "too_generic",
+      rejectionNote: "lineage lock",
+    });
+    const storedBefore = await ExamQuestionRationaleCandidate.findById(cand._id).lean();
+    callOpenAiJson.mockClear();
+
+    const createRes = await request(app)
+      .post("/api/admin/exam-question-rationale-candidates")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: "lineage-fresh-idem-bbbbbbbb",
+        expectedSourceFingerprint: cand.sourceFingerprint,
+      });
+    expect(createRes.status).toBe(409);
+    expect(createRes.body.code).toBe("REPLACEMENT_GENERATION_NOT_ENABLED");
+    expect(createRes.body.candidate).toBeUndefined();
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(1);
+    const stored = await ExamQuestionRationaleCandidate.findById(cand._id).lean();
+    expect(stored.status).toBe("rejected");
+    expect(stored.active).toBe(false);
+    expect(stored.attemptNumber).toBe(1);
+    expect(stored.generationGroupKey).toBe(storedBefore.generationGroupKey);
+    expect(stored.explanation).toBe(GOOD_EXPLANATION);
+    expect(JSON.parse(JSON.stringify(stored.sourceSnapshot))).toEqual(snapBefore);
+    expect(stored.sourceFingerprint).toBe(cand.sourceFingerprint);
+    expect(stored.rejectionReasonCode).toBe("too_generic");
+    expect(stored.rejectionNote).toBe("lineage lock");
+    expect(new Date(stored.rejectedAt).toISOString()).toBe(rejectedAtBefore.toISOString());
+
+    const eqAfter = await ExamQuestion.findById(q._id).lean();
+    expect(JSON.parse(JSON.stringify(eqAfter))).toEqual(eqBefore);
+  });
+
+  test("D: original idempotency replay after rejection — no new Candidate, no LLM", async () => {
+    process.env.FEATURE_MCQ_RATIONALE_BACKFILL_V23A = "true";
+    const { token, user } = await loginAs("rej-lineage-idem@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const idem = "lineage-replay-idem-cccccccc";
+    const cand = await seedPendingCandidate(user._id, q, { idempotencyKey: idem });
+    await rejectViaApi(token, user, q, cand);
+    callOpenAiJson.mockClear();
+
+    const replay = await request(app)
+      .post("/api/admin/exam-question-rationale-candidates")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: idem,
+        expectedSourceFingerprint: cand.sourceFingerprint,
+      });
+    expect(replay.status).toBe(200);
+    expect(replay.body.replayed).toBe(true);
+    expect(replay.body.candidate.candidateId).toBe(cand._id.toString());
+    expect(replay.body.candidate.status).toBe("rejected");
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(1);
+    const stored = await ExamQuestionRationaleCandidate.findById(cand._id).lean();
+    expect(stored.status).toBe("rejected");
+    expect(stored.active).toBe(false);
+  });
+
+  test("E: race — create while pending gets ACTIVE; reject-then-create gets REPLACEMENT", async () => {
+    process.env.FEATURE_MCQ_RATIONALE_BACKFILL_V23A = "true";
+    const { token, user } = await loginAs("rej-lineage-race@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedPendingCandidate(user._id, q);
+    callOpenAiJson.mockClear();
+
+    const createWhilePending = await request(app)
+      .post("/api/admin/exam-question-rationale-candidates")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: "lineage-race-while-pending-dd",
+        expectedSourceFingerprint: cand.sourceFingerprint,
+      });
+    expect(createWhilePending.status).toBe(409);
+    expect(createWhilePending.body.code).toBe("ACTIVE_CANDIDATE_EXISTS");
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(1);
+
+    await rejectViaApi(token, user, q, cand);
+    callOpenAiJson.mockClear();
+
+    const createAfterReject = await request(app)
+      .post("/api/admin/exam-question-rationale-candidates")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: "lineage-race-after-reject-ee",
+        expectedSourceFingerprint: cand.sourceFingerprint,
+      });
+    expect(createAfterReject.status).toBe(409);
+    expect(createAfterReject.body.code).toBe("REPLACEMENT_GENERATION_NOT_ENABLED");
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(1);
+
+    // Concurrent reject + create after re-seed pending
+    const q2 = await createEligibleDraft(user._id, { question: "Composite race 2" });
+    const cand2 = await seedPendingCandidate(user._id, q2, {
+      idempotencyKey: "lineage-race-concurrent-ffff",
+    });
+    callOpenAiJson.mockClear();
+    const [rejectRes, createRes] = await Promise.all([
+      rejectCandidate(token, cand2._id.toString(), {
+        questionId: q2._id.toString(),
+        partLabel: "a",
+        expectedSourceFingerprint: cand2.sourceFingerprint,
+        reasonCode: "unclear",
+      }),
+      request(app)
+        .post("/api/admin/exam-question-rationale-candidates")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          questionId: q2._id.toString(),
+          partLabel: "a",
+          idempotencyKey: "lineage-race-concurrent-create",
+          expectedSourceFingerprint: cand2.sourceFingerprint,
+        }),
+    ]);
+    expect([200, 409]).toContain(rejectRes.status);
+    expect([409]).toContain(createRes.status);
+    expect(["ACTIVE_CANDIDATE_EXISTS", "REPLACEMENT_GENERATION_NOT_ENABLED"]).toContain(createRes.body.code);
+    expect(callOpenAiJson).not.toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q2._id })).toBe(1);
+    const final2 = await ExamQuestionRationaleCandidate.findById(cand2._id).lean();
+    expect(final2.attemptNumber).toBe(1);
+    expect(["rejected", "pending"]).toContain(final2.status);
+    if (rejectRes.status === 200) {
+      expect(final2.status).toBe("rejected");
+      expect(final2.active).toBe(false);
+    }
+  });
+
+  test("F: rejected fingerprint F does not block new lineage F2", async () => {
+    process.env.FEATURE_MCQ_RATIONALE_BACKFILL_V23A = "true";
+    const { token, user } = await loginAs("rej-lineage-f2@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedPendingCandidate(user._id, q);
+    const fpF = cand.sourceFingerprint;
+    await rejectViaApi(token, user, q, cand);
+
+    q.parts[0].questionText = "Which factor is essential after edit? (a)";
+    await q.save();
+    const qReloaded = await ExamQuestion.findById(q._id);
+    const fpF2 = fingerprintForQuestion(qReloaded);
+    expect(fpF2).not.toBe(fpF);
+
+    const ctx = await request(app)
+      .get("/api/admin/exam-question-rationale-review-context")
+      .set("Authorization", `Bearer ${token}`)
+      .query({ questionId: q._id.toString(), partLabel: "a" });
+    expect(ctx.body.currentSourceFingerprint).toBe(fpF2);
+    expect(ctx.body.candidateIsStale).toBe(true);
+    expect(ctx.body.canGenerate).toBe(true);
+    expect(ctx.body.canGenerateReason).toBe("");
+
+    callOpenAiJson.mockClear();
+    const createRes = await request(app)
+      .post("/api/admin/exam-question-rationale-candidates")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: "lineage-f2-create-gggggggg",
+        expectedSourceFingerprint: fpF2,
+      });
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.candidate.attemptNumber).toBe(1);
+    expect(createRes.body.candidate.sourceFingerprint).toBe(fpF2);
+    expect(callOpenAiJson).toHaveBeenCalled();
+    expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(2);
+    const old = await ExamQuestionRationaleCandidate.findById(cand._id).lean();
+    expect(old.status).toBe("rejected");
+    expect(old.active).toBe(false);
+    expect(old.attemptNumber).toBe(1);
+  });
+
+  test("G: failed Candidate is not treated as rejected lineage", async () => {
+    process.env.FEATURE_MCQ_RATIONALE_BACKFILL_V23A = "true";
+    const { token, user } = await loginAs("rej-lineage-failed@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const fp = fingerprintForQuestion(q);
+    await seedPendingCandidate(user._id, q, {
+      status: "failed",
+      active: false,
+      failureCode: "LLM_ERROR",
+      explanation: "",
+      idempotencyKey: "lineage-failed-hhhhhhhh",
+    });
+
+    const ctx = await request(app)
+      .get("/api/admin/exam-question-rationale-review-context")
+      .set("Authorization", `Bearer ${token}`)
+      .query({ questionId: q._id.toString(), partLabel: "a" });
+    expect(ctx.body.latestCandidate.status).toBe("failed");
+    expect(ctx.body.canGenerate).toBe(true);
+    expect(ctx.body.canGenerateReason).not.toBe("REPLACEMENT_GENERATION_NOT_ENABLED");
+
+    callOpenAiJson.mockClear();
+    const createRes = await request(app)
+      .post("/api/admin/exam-question-rationale-candidates")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        questionId: q._id.toString(),
+        partLabel: "a",
+        idempotencyKey: "lineage-failed-retry-iiiiiiii",
+        expectedSourceFingerprint: fp,
+      });
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.candidate.attemptNumber).toBe(1);
+    expect(callOpenAiJson).toHaveBeenCalled();
   });
 });

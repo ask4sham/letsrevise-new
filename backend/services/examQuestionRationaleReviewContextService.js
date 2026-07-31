@@ -21,6 +21,7 @@ const {
   resolveImageContext,
   buildSourceSnapshot,
   toCandidateDto,
+  findRejectedCandidateForLineage,
   findExactMcqPart,
   isCompositeQuestion,
 } = require("./examQuestionRationaleCandidateService");
@@ -214,8 +215,19 @@ async function getRationaleReviewContext({ query }) {
       canGenerate = false;
       canGenerateReason = "ACTIVE_CANDIDATE_EXISTS";
     } else {
-      canGenerate = true;
-      canGenerateReason = "";
+      // Shared rejected-lineage detector (independent of active). Blocks until B2b2.
+      const rejectedLineage = await findRejectedCandidateForLineage({
+        questionId: req.questionId,
+        partLabel: req.partLabel,
+        sourceFingerprint: currentSourceFingerprint,
+      });
+      if (rejectedLineage) {
+        canGenerate = false;
+        canGenerateReason = "REPLACEMENT_GENERATION_NOT_ENABLED";
+      } else {
+        canGenerate = true;
+        canGenerateReason = "";
+      }
     }
   }
 

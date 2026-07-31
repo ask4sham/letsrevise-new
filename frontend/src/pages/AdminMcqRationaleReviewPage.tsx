@@ -45,6 +45,8 @@ function canGenerateReasonLabel(code: string): string {
       return "Trusted image context text is required before generation can be considered.";
     case "ACTIVE_CANDIDATE_EXISTS":
       return "An active candidate already exists for this part.";
+    case "REPLACEMENT_GENERATION_NOT_ENABLED":
+      return "This candidate was rejected. Replacement generation is not available yet.";
     default:
       return code ? `Generation is not available (${code}).` : "";
   }
@@ -64,6 +66,8 @@ function generationActionMessage(code: string): string {
       return "The question source changed since this page was loaded. Review the updated source before generating again.";
     case "ACTIVE_CANDIDATE_EXISTS":
       return "An active candidate already exists for this part. Generation was not started again.";
+    case "REPLACEMENT_GENERATION_NOT_ENABLED":
+      return "This candidate was rejected. Replacement generation is not available yet.";
     case "GENERATION_LEASE_EXPIRED":
     case "GENERATION_RESERVATION_LOST":
     case "DUPLICATE_RESERVATION":
@@ -935,9 +939,15 @@ function ReviewBody({
             {LEGACY_IMAGE_CONTEXT_MESSAGE}
           </p>
         ) : null}
+        {data.canGenerateReason === "REPLACEMENT_GENERATION_NOT_ENABLED" ? (
+          <p data-testid="mcq-rationale-review-replacement-disabled" style={noticeBox}>
+            {canGenerateReasonLabel("REPLACEMENT_GENERATION_NOT_ENABLED")}
+          </p>
+        ) : null}
         {data.canGenerateReason &&
         data.canGenerateReason !== "PUBLISHED_NOT_ENABLED" &&
-        data.canGenerateReason !== "IMAGE_CONTEXT_REQUIRED" ? (
+        data.canGenerateReason !== "IMAGE_CONTEXT_REQUIRED" &&
+        data.canGenerateReason !== "REPLACEMENT_GENERATION_NOT_ENABLED" ? (
           <p data-testid="mcq-rationale-review-can-generate-reason" style={{ ...bodyText, color: "#475569" }}>
             {canGenerateReasonLabel(data.canGenerateReason)}
           </p>

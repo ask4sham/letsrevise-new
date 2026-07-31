@@ -1024,6 +1024,86 @@ describe("AdminMcqRationaleReviewPage V2.3B2b1 Reject", () => {
       /do not have permission/i
     );
   });
+
+  test("rejected + generation flag false → no Generate; replacement message; explanation kept", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      generationFeatureEnabled: false,
+      canGenerate: false,
+      canGenerateReason: "REPLACEMENT_GENERATION_NOT_ENABLED",
+      canReject: false,
+      rejectDisabledReason: "ALREADY_REJECTED",
+      latestCandidate: rejectedCandidate,
+    });
+    renderReview();
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("REJECTED");
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
+    expect(screen.getByTestId("mcq-rationale-review-rejection-reason")).toHaveTextContent(/Too generic/);
+    expect(screen.getByTestId("mcq-rationale-review-rejected-at")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-replacement-disabled")).toHaveTextContent(
+      /Replacement generation is not available yet/
+    );
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Reject candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Regenerate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Save$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Publish$/i })).not.toBeInTheDocument();
+    expect(mockCreateCandidate).not.toHaveBeenCalled();
+    expect(mockRejectCandidate).not.toHaveBeenCalled();
+  });
+
+  test("rejected + generation flag true → still no Generate; bounded message", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...rejectEligibleContext,
+      generationFeatureEnabled: true,
+      canGenerate: false,
+      canGenerateReason: "REPLACEMENT_GENERATION_NOT_ENABLED",
+      canReject: false,
+      rejectDisabledReason: "ALREADY_REJECTED",
+      latestCandidate: rejectedCandidate,
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-replacement-disabled");
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
+    expect(mockCreateCandidate).not.toHaveBeenCalled();
+  });
+
+  test("direct create error REPLACEMENT_GENERATION_NOT_ENABLED refreshes context safely", async () => {
+    mockFetchReview
+      .mockResolvedValueOnce(eligibleContext)
+      .mockResolvedValueOnce({
+        ...eligibleContext,
+        canGenerate: false,
+        canGenerateReason: "REPLACEMENT_GENERATION_NOT_ENABLED",
+        rejectionFeatureEnabled: true,
+        canReject: false,
+        rejectDisabledReason: "ALREADY_REJECTED",
+        latestCandidate: rejectedCandidate,
+      });
+    mockCreateCandidate.mockRejectedValue({
+      response: {
+        status: 409,
+        data: {
+          error: "This candidate was rejected. Replacement generation is not available yet.",
+          code: "REPLACEMENT_GENERATION_NOT_ENABLED",
+        },
+      },
+    });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
+
+    expect(await screen.findByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(
+      /Replacement generation is not available yet/
+    );
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("REJECTED");
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
+    expect(mockFetchReview).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("Inventory Review link rules", () => {

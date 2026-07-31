@@ -316,6 +316,29 @@ async function findExistingIdempotent(actorId, idempotencyKey) {
 }
 
 /**
+ * V2.3B2b1 — rejected source lineage lock (independent of active).
+ * Blocks fresh Attempt 1 generation until B2b2 replacement exists.
+ */
+async function findRejectedCandidateForLineage({ questionId, partLabel, sourceFingerprint }) {
+  return ExamQuestionRationaleCandidate.findOne({
+    questionId,
+    partLabel,
+    sourceFingerprint,
+    status: "rejected",
+  })
+    .select({ _id: 1, status: 1, active: 1, attemptNumber: 1, sourceFingerprint: 1 })
+    .lean();
+}
+
+function throwReplacementGenerationNotEnabled() {
+  throw new CandidateServiceError(
+    409,
+    "REPLACEMENT_GENERATION_NOT_ENABLED",
+    "This candidate was rejected. Replacement generation is not available yet."
+  );
+}
+
+/**
  * Atomically expire a generating reservation whose lease is past.
  * Does not count as a new generation attempt.
  */
@@ -626,6 +649,16 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
 
   await assertNoActiveGeneratingForActor(actorId, now);
 
+  // After active blockers are cleared: reject-lineage lock (B2b1). No Attempt 2 / replacement.
+  const rejectedLineage = await findRejectedCandidateForLineage({
+    questionId: req.questionId,
+    partLabel: req.partLabel,
+    sourceFingerprint,
+  });
+  if (rejectedLineage) {
+    throwReplacementGenerationNotEnabled();
+  }
+
   const generationGroupKey = buildGenerationGroupKey(req.questionId, req.partLabel, sourceFingerprint);
   const modelName = process.env.LLM_MODEL || "gpt-4o-mini";
   const leaseToken = newLeaseToken();
@@ -676,6 +709,14 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
           "An active candidate already exists for this question part and fingerprint",
           { candidate: toCandidateDto(again.blocking) }
         );
+      }
+      const rejectedAfterRace = await findRejectedCandidateForLineage({
+        questionId: req.questionId,
+        partLabel: req.partLabel,
+        sourceFingerprint,
+      });
+      if (rejectedAfterRace) {
+        throwReplacementGenerationNotEnabled();
       }
       throw new CandidateServiceError(409, "DUPLICATE_RESERVATION", "Could not reserve candidate (duplicate key)");
     }
@@ -803,6 +844,7 @@ module.exports = {
   hasResolvableMediaId,
   buildSourceSnapshot,
   toCandidateDto,
+  findRejectedCandidateForLineage,
   findExactMcqPart,
   isCompositeQuestion,
   utcDayBounds,
