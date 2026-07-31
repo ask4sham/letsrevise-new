@@ -723,6 +723,28 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
     throw err;
   }
 
+  return runGenerationForReservedCandidate({
+    candidate,
+    leaseToken,
+    sourceSnapshot,
+    modelName,
+    llmCall,
+    replayed: false,
+  });
+}
+
+/**
+ * Shared provider + validation completion for an already-reserved generating Candidate.
+ * Prompt input is authoritative sourceSnapshot only (no rejection audit fields).
+ */
+async function runGenerationForReservedCandidate({
+  candidate,
+  leaseToken,
+  sourceSnapshot,
+  modelName,
+  llmCall = callOpenAiJson,
+  replayed = false,
+}) {
   let llmCalls = 0;
   try {
     const firstParsed = await withTimeout(
@@ -809,7 +831,7 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
       );
     }
 
-    return { dto: toCandidateDto(pending), replayed: false, llmCalls };
+    return { dto: toCandidateDto(pending), replayed: Boolean(replayed), llmCalls };
   } catch (err) {
     if (err instanceof CandidateServiceError) {
       throw err;
@@ -838,6 +860,7 @@ async function createRationaleCandidate({ actorId, body, llmCall = callOpenAiJso
 module.exports = {
   CandidateServiceError,
   createRationaleCandidate,
+  runGenerationForReservedCandidate,
   parseRequestBody,
   resolveImageContext,
   isResolvableVisualAsset,
@@ -845,6 +868,9 @@ module.exports = {
   buildSourceSnapshot,
   toCandidateDto,
   findRejectedCandidateForLineage,
+  findExistingIdempotent,
+  assertDailyCaps,
+  assertNoActiveGeneratingForActor,
   findExactMcqPart,
   isCompositeQuestion,
   utcDayBounds,
