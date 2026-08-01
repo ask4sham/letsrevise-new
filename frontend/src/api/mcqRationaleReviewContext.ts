@@ -51,6 +51,28 @@ export type McqRationaleMediaContext = {
   trustedContextAvailable: boolean;
 };
 
+/** Bounded lineage history item — no rejectedBy, rejectionNote, lease, or source snapshot. */
+export type McqRationaleCandidateHistoryItem = {
+  candidateId: string;
+  status:
+    | "generating"
+    | "pending"
+    | "failed"
+    | "rejected"
+    | "approved"
+    | "superseded"
+    | "stale"
+    | string;
+  attemptNumber: 1 | 2;
+  explanation?: string;
+  generatedAt?: string | null;
+  completedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectionReasonCode?: string;
+  failureCode?: string;
+  validationIssueCodes?: string[];
+};
+
 export type McqRationaleReviewContext = {
   questionId: string;
   partLabel: string;
@@ -81,6 +103,15 @@ export type McqRationaleReviewContext = {
   rejectionFeatureEnabled?: boolean;
   canReject?: boolean;
   rejectDisabledReason?: string | null;
+  /**
+   * V2.3B2b2b — replacement authority (backend-authoritative).
+   * Optional for deployment skew: absence must never enable the action.
+   */
+  replacementFeatureEnabled?: boolean;
+  canGenerateReplacement?: boolean;
+  canGenerateReplacementReason?: string | null;
+  rejectedAttemptOneId?: string | null;
+  candidateHistory?: McqRationaleCandidateHistoryItem[];
   latestCandidate: McqRationaleSafeCandidate | null;
   candidateIsStale: boolean;
   readOnly: true;
@@ -93,6 +124,22 @@ export type McqRationaleReviewContextError = {
   bucket?: string;
 };
 
+/** Safe defaults when an older backend omits replacement fields (skew safety only). */
+export function withReviewContextDefaults(raw: McqRationaleReviewContext): McqRationaleReviewContext {
+  return {
+    ...raw,
+    replacementFeatureEnabled: raw.replacementFeatureEnabled === true,
+    canGenerateReplacement: raw.canGenerateReplacement === true,
+    canGenerateReplacementReason:
+      raw.canGenerateReplacementReason == null ? null : String(raw.canGenerateReplacementReason),
+    rejectedAttemptOneId:
+      typeof raw.rejectedAttemptOneId === "string" && raw.rejectedAttemptOneId.trim()
+        ? raw.rejectedAttemptOneId.trim()
+        : null,
+    candidateHistory: Array.isArray(raw.candidateHistory) ? raw.candidateHistory : [],
+  };
+}
+
 export async function fetchMcqRationaleReviewContext(
   questionId: string,
   partLabel: string
@@ -100,5 +147,5 @@ export async function fetchMcqRationaleReviewContext(
   const res = await api.get<McqRationaleReviewContext>("/admin/exam-question-rationale-review-context", {
     params: { questionId, partLabel },
   });
-  return res.data;
+  return withReviewContextDefaults(res.data);
 }

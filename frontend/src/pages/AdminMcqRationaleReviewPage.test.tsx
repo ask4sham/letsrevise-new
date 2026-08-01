@@ -24,14 +24,23 @@ jest.mock("../api/mcqRationaleInventory", () => ({
 
 const mockCreateCandidate = jest.fn();
 const mockRejectCandidate = jest.fn();
+const mockGenerateReplacement = jest.fn();
 let mockIdempotencySeq = 0;
 jest.mock("../api/mcqRationaleCandidates", () => ({
   createMcqRationaleCandidate: (...args: unknown[]) => mockCreateCandidate(...args),
   rejectMcqRationaleCandidate: (...args: unknown[]) => mockRejectCandidate(...args),
+  generateReplacementMcqRationaleCandidate: (...args: unknown[]) => mockGenerateReplacement(...args),
   createMcqRationaleCandidateIdempotencyKey: () => {
     mockIdempotencySeq += 1;
     return `cand_test_key_${mockIdempotencySeq}_xxxxxxxx`;
   },
+  createMcqRationaleReplacementIdempotencyKey: (input: {
+    rejectedCandidateId: string;
+    questionId: string;
+    partLabel: string;
+    sourceFingerprint: string;
+  }) =>
+    `mcq-rationale-replacement:${input.rejectedCandidateId}:${input.questionId}:${input.partLabel}:${input.sourceFingerprint}`,
   readMcqRationaleCandidateError: (err: unknown) => {
     const ax = err as {
       message?: string;
@@ -162,13 +171,14 @@ const SHARED_MEDIA_WARNING =
   /This Composite Exam Question has shared media attached, but no trusted description is available\. Candidate generation remains blocked\./;
 
 const OUT_OF_SCOPE =
-  /^(Generate replacement candidate|Regenerate|Approve|Save|Publish|Backfill|Apply rationale|Replace rationale)$/i;
+  /^(Regenerate|Approve|Save|Publish|Backfill|Apply rationale|Replace rationale)$/i;
 
 describe("AdminMcqRationaleReviewPage", () => {
   beforeEach(() => {
     mockFetchReview.mockReset();
     mockCreateCandidate.mockReset();
     mockRejectCandidate.mockReset();
+    mockGenerateReplacement.mockReset();
     mockIdempotencySeq = 0;
     mockFetchReview.mockResolvedValue(baseContext);
   });
@@ -272,7 +282,7 @@ describe("AdminMcqRationaleReviewPage", () => {
       expectedSourceFingerprint: fingerprint,
     });
 
-    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("pending");
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("PENDING");
     expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
     expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
     expect(mockFetchReview).toHaveBeenCalledTimes(2);
@@ -322,7 +332,7 @@ describe("AdminMcqRationaleReviewPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
 
     expect(await screen.findByTestId("mcq-rationale-review-replayed")).toBeInTheDocument();
-    expect(screen.getByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("pending");
+    expect(screen.getByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("PENDING");
     expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
   });
 
@@ -447,7 +457,7 @@ describe("AdminMcqRationaleReviewPage", () => {
     renderReview();
     fireEvent.click(await screen.findByRole("button", { name: /^Generate candidate$/i }));
 
-    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("pending");
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("PENDING");
     expect(screen.getByTestId("mcq-rationale-review-generate-error")).toHaveTextContent(/already exists/i);
     expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
     expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
@@ -534,6 +544,8 @@ describe("AdminMcqRationaleReviewPage", () => {
 
     expect(typeof candidatesApi.createMcqRationaleCandidate).toBe("function");
     expect(typeof candidatesApi.rejectMcqRationaleCandidate).toBe("function");
+    expect(typeof candidatesApi.generateReplacementMcqRationaleCandidate).toBe("function");
+    expect(typeof candidatesApi.createMcqRationaleReplacementIdempotencyKey).toBe("function");
     expect((candidatesApi as { approveMcqRationaleCandidate?: unknown }).approveMcqRationaleCandidate).toBeUndefined();
     expect((candidatesApi as { regenerateMcqRationaleCandidate?: unknown }).regenerateMcqRationaleCandidate).toBeUndefined();
   });
@@ -548,7 +560,7 @@ describe("AdminMcqRationaleReviewPage", () => {
       },
     });
     renderReview();
-    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("pending");
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("PENDING");
     expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(/Light is needed/);
     expect(screen.getByTestId("mcq-rationale-review-stale-warning")).toBeInTheDocument();
   });
@@ -574,7 +586,7 @@ describe("AdminMcqRationaleReviewPage", () => {
       },
     });
     renderReview();
-    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("failed");
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("FAILED");
     expect(screen.getByTestId("mcq-rationale-review-failure-code")).toHaveTextContent("LLM_ERROR");
     expect(screen.getByTestId("mcq-rationale-review-shared-media-warning")).toBeInTheDocument();
     expect(screen.getAllByText(SHARED_MEDIA_WARNING)).toHaveLength(1);
@@ -792,6 +804,7 @@ describe("AdminMcqRationaleReviewPage V2.3B2b1 Reject", () => {
     mockFetchReview.mockReset();
     mockCreateCandidate.mockReset();
     mockRejectCandidate.mockReset();
+    mockGenerateReplacement.mockReset();
     mockIdempotencySeq = 0;
     mockFetchReview.mockResolvedValue(rejectEligibleContext);
   });
@@ -1103,6 +1116,424 @@ describe("AdminMcqRationaleReviewPage V2.3B2b1 Reject", () => {
     expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
     expect(mockCreateCandidate).toHaveBeenCalledTimes(1);
     expect(mockFetchReview).toHaveBeenCalledTimes(2);
+  });
+});
+
+const replacementEligibleContext = {
+  ...baseContext,
+  generationFeatureEnabled: true,
+  canGenerate: false,
+  canGenerateReason: "REPLACEMENT_GENERATION_NOT_ENABLED",
+  rejectionFeatureEnabled: true,
+  canReject: false,
+  rejectDisabledReason: "ALREADY_REJECTED",
+  replacementFeatureEnabled: true,
+  canGenerateReplacement: true,
+  canGenerateReplacementReason: null,
+  rejectedAttemptOneId: "c1",
+  candidateHistory: [
+    {
+      candidateId: "c1",
+      status: "rejected",
+      attemptNumber: 1 as const,
+      explanation: "Light is needed for photosynthesis.",
+      rejectedAt: rejectedCandidate.rejectedAt,
+      rejectionReasonCode: "too_generic",
+    },
+  ],
+  latestCandidate: rejectedCandidate,
+  candidateIsStale: false,
+};
+
+describe("AdminMcqRationaleReviewPage V2.3B2b2b Replacement", () => {
+  beforeEach(() => {
+    mockFetchReview.mockReset();
+    mockCreateCandidate.mockReset();
+    mockRejectCandidate.mockReset();
+    mockGenerateReplacement.mockReset();
+    mockIdempotencySeq = 0;
+    mockFetchReview.mockResolvedValue(replacementEligibleContext);
+  });
+
+  test("absent replacement fields → no replacement button", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      replacementFeatureEnabled: undefined,
+      canGenerateReplacement: undefined,
+      rejectedAttemptOneId: undefined,
+      candidateHistory: undefined,
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("replacement feature false → no button", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      replacementFeatureEnabled: false,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "REPLACEMENT_FEATURE_DISABLED",
+      rejectedAttemptOneId: null,
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("generation on / replacement off → no button", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      replacementFeatureEnabled: false,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "REPLACEMENT_FEATURE_DISABLED",
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("generation off / replacement on → no button", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      generationFeatureEnabled: false,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "FEATURE_DISABLED",
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-replacement-unavailable")).toBeInTheDocument();
+  });
+
+  test("both on and eligible → one replacement button; generic Generate hidden", async () => {
+    renderReview();
+    const btn = await screen.findByRole("button", { name: /^Generate replacement candidate$/i });
+    expect(btn).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: /^Generate replacement candidate$/i })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: OUT_OF_SCOPE })).not.toBeInTheDocument();
+  });
+
+  test("rejected Attempt-1 ID absent → no button", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      rejectedAttemptOneId: null,
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("context loading → no button", async () => {
+    let resolveFetch: (v: unknown) => void = () => undefined;
+    mockFetchReview.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+    renderReview();
+    expect(screen.getByTestId("mcq-rationale-review-loading")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    resolveFetch(replacementEligibleContext);
+    expect(await screen.findByRole("button", { name: /^Generate replacement candidate$/i })).toBeInTheDocument();
+  });
+
+  test("no button when Attempt 2 pending; Previous candidate shown", async () => {
+    const attemptTwoPending = {
+      ...pendingCandidate,
+      candidateId: "c2",
+      attemptNumber: 2,
+      explanation: "Attempt two explanation.",
+    };
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "ATTEMPT_2_ALREADY_EXISTS",
+      latestCandidate: attemptTwoPending,
+      candidateHistory: [
+        {
+          candidateId: "c1",
+          status: "rejected",
+          attemptNumber: 1 as const,
+          explanation: rejectedCandidate.explanation,
+          rejectedAt: rejectedCandidate.rejectedAt,
+          rejectionReasonCode: "too_generic",
+        },
+        {
+          candidateId: "c2",
+          status: "pending",
+          attemptNumber: 2 as const,
+          explanation: "Attempt two explanation.",
+        },
+      ],
+    });
+    renderReview();
+    await screen.findByTestId("mcq-rationale-review-body");
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-previous-candidate")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-previous-rejection-reason")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("PENDING");
+  });
+
+  test("Attempt 2 failed → no retry or generate actions", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "ATTEMPT_LIMIT_REACHED",
+      latestCandidate: {
+        ...pendingCandidate,
+        candidateId: "c2",
+        attemptNumber: 2,
+        status: "failed",
+        failureCode: "LLM_TIMEOUT",
+        explanation: "",
+      },
+      candidateHistory: [
+        {
+          candidateId: "c1",
+          status: "rejected",
+          attemptNumber: 1 as const,
+          explanation: rejectedCandidate.explanation,
+          rejectedAt: rejectedCandidate.rejectedAt,
+          rejectionReasonCode: "too_generic",
+        },
+        {
+          candidateId: "c2",
+          status: "failed",
+          attemptNumber: 2 as const,
+          failureCode: "LLM_TIMEOUT",
+        },
+      ],
+    });
+    renderReview();
+    expect(await screen.findByTestId("mcq-rationale-review-replacement-failed")).toHaveTextContent(
+      /one permitted replacement attempt was not completed/i
+    );
+    expect(screen.queryByRole("button", { name: /^Retry$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Try again$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("confirmation UX exact wording; Cancel sends no request", async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate replacement candidate$/i }));
+    expect(await screen.findByTestId("mcq-rationale-review-replacement-confirm")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-replacement-warning")).toHaveTextContent(
+      "This will generate the one permitted replacement Candidate. It will not change the Exam Question."
+    );
+    expect(screen.getByTestId("mcq-rationale-review-replacement-ai-note")).toHaveTextContent(
+      "This action may make one AI generation request."
+    );
+    expect(screen.getByRole("button", { name: /^Confirm replacement generation$/i })).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-candidate-explanation")).toHaveTextContent(
+      /Light is needed for photosynthesis/
+    );
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: OUT_OF_SCOPE })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
+    expect(mockGenerateReplacement).not.toHaveBeenCalled();
+  });
+
+  test("confirm posts dedicated endpoint payload once; deterministic key", async () => {
+    const attemptTwo = {
+      ...pendingCandidate,
+      candidateId: "c2",
+      attemptNumber: 2,
+      explanation: "Replacement explanation.",
+    };
+    mockGenerateReplacement.mockResolvedValue({ candidate: attemptTwo, replayed: false });
+    mockFetchReview
+      .mockResolvedValueOnce(replacementEligibleContext)
+      .mockResolvedValueOnce({
+        ...replacementEligibleContext,
+        canGenerateReplacement: false,
+        canGenerateReplacementReason: "ATTEMPT_2_ALREADY_EXISTS",
+        rejectedAttemptOneId: "c1",
+        latestCandidate: attemptTwo,
+        candidateHistory: [
+          {
+            candidateId: "c1",
+            status: "rejected",
+            attemptNumber: 1 as const,
+            explanation: rejectedCandidate.explanation,
+            rejectedAt: rejectedCandidate.rejectedAt,
+            rejectionReasonCode: "too_generic",
+          },
+          {
+            candidateId: "c2",
+            status: "pending",
+            attemptNumber: 2 as const,
+            explanation: "Replacement explanation.",
+          },
+        ],
+      });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate replacement candidate$/i }));
+    const confirm = await screen.findByRole("button", { name: /^Confirm replacement generation$/i });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    fireEvent.keyDown(confirm, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => expect(mockGenerateReplacement).toHaveBeenCalledTimes(1));
+    expect(mockGenerateReplacement).toHaveBeenCalledWith({
+      rejectedCandidateId: "c1",
+      questionId: "qid123",
+      partLabel: "a",
+      expectedSourceFingerprint: fingerprint,
+      idempotencyKey: `mcq-rationale-replacement:c1:qid123:a:${fingerprint}`,
+    });
+    const payload = mockGenerateReplacement.mock.calls[0][0];
+    expect(payload).not.toHaveProperty("attemptNumber");
+    expect(payload).not.toHaveProperty("generationGroupKey");
+    expect(mockCreateCandidate).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("mcq-rationale-review-previous-candidate")).toBeInTheDocument();
+    expect(screen.getByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("PENDING");
+    expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Generate candidate$/i })).not.toBeInTheDocument();
+  });
+
+  test("replayed success refreshes context; no Approve/Save", async () => {
+    const attemptTwo = {
+      ...pendingCandidate,
+      candidateId: "c2",
+      attemptNumber: 2,
+      explanation: "Replayed replacement.",
+    };
+    mockGenerateReplacement.mockResolvedValue({ candidate: attemptTwo, replayed: true });
+    mockFetchReview
+      .mockResolvedValueOnce(replacementEligibleContext)
+      .mockResolvedValueOnce({
+        ...replacementEligibleContext,
+        canGenerateReplacement: false,
+        canGenerateReplacementReason: "ATTEMPT_2_ALREADY_EXISTS",
+        latestCandidate: attemptTwo,
+        candidateHistory: [
+          {
+            candidateId: "c1",
+            status: "rejected",
+            attemptNumber: 1 as const,
+            explanation: rejectedCandidate.explanation,
+            rejectedAt: rejectedCandidate.rejectedAt,
+            rejectionReasonCode: "too_generic",
+          },
+          {
+            candidateId: "c2",
+            status: "pending",
+            attemptNumber: 2 as const,
+            explanation: "Replayed replacement.",
+          },
+        ],
+      });
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate replacement candidate$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Confirm replacement generation$/i }));
+    expect(await screen.findByTestId("mcq-rationale-review-replayed")).toHaveTextContent(/idempotent replay/i);
+    expect(screen.queryByRole("button", { name: OUT_OF_SCOPE })).not.toBeInTheDocument();
+    expect(mockFetchReview).toHaveBeenCalledTimes(2);
+  });
+
+  test("network uncertainty refreshes; deliberate retry reuses same key", async () => {
+    mockGenerateReplacement
+      .mockRejectedValueOnce({ message: "Network Error", code: "ERR_NETWORK" })
+      .mockResolvedValueOnce({
+        candidate: { ...pendingCandidate, candidateId: "c2", attemptNumber: 2 },
+        replayed: true,
+      });
+    mockFetchReview
+      .mockResolvedValueOnce(replacementEligibleContext)
+      .mockResolvedValueOnce(replacementEligibleContext)
+      .mockResolvedValueOnce({
+        ...replacementEligibleContext,
+        canGenerateReplacement: false,
+        canGenerateReplacementReason: "ATTEMPT_2_ALREADY_EXISTS",
+        latestCandidate: { ...pendingCandidate, candidateId: "c2", attemptNumber: 2 },
+        candidateHistory: [
+          {
+            candidateId: "c1",
+            status: "rejected",
+            attemptNumber: 1 as const,
+            explanation: rejectedCandidate.explanation,
+            rejectedAt: rejectedCandidate.rejectedAt,
+            rejectionReasonCode: "too_generic",
+          },
+          { candidateId: "c2", status: "pending", attemptNumber: 2 as const, explanation: "ok" },
+        ],
+      });
+
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate replacement candidate$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Confirm replacement generation$/i }));
+    expect(await screen.findByTestId("mcq-rationale-review-replacement-error")).toHaveTextContent(
+      /may have completed/i
+    );
+    // Confirm panel stays open for a deliberate retry with the same deterministic key.
+    fireEvent.click(await screen.findByRole("button", { name: /^Confirm replacement generation$/i }));
+    await waitFor(() => expect(mockGenerateReplacement).toHaveBeenCalledTimes(2));
+    expect(mockGenerateReplacement.mock.calls[0][0].idempotencyKey).toBe(
+      mockGenerateReplacement.mock.calls[1][0].idempotencyKey
+    );
+  });
+
+  test("source-changed error refreshes and removes control", async () => {
+    mockGenerateReplacement.mockRejectedValue({
+      response: { status: 409, data: { code: "SOURCE_CHANGED", error: "changed" } },
+    });
+    mockFetchReview
+      .mockResolvedValueOnce(replacementEligibleContext)
+      .mockResolvedValueOnce({
+        ...replacementEligibleContext,
+        canGenerateReplacement: false,
+        canGenerateReplacementReason: "SOURCE_CHANGED",
+        rejectedAttemptOneId: null,
+        candidateIsStale: true,
+      });
+    renderReview();
+    fireEvent.click(await screen.findByRole("button", { name: /^Generate replacement candidate$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Confirm replacement generation$/i }));
+    expect(await screen.findByTestId("mcq-rationale-review-replacement-error")).toHaveTextContent(
+      /question changed/i
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /^Generate replacement candidate$/i })).not.toBeInTheDocument()
+    );
+  });
+
+  test("Attempt 2 generating display; no controls", async () => {
+    mockFetchReview.mockResolvedValue({
+      ...replacementEligibleContext,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "ATTEMPT_2_ALREADY_EXISTS",
+      latestCandidate: {
+        ...pendingCandidate,
+        candidateId: "c2",
+        attemptNumber: 2,
+        status: "generating",
+        explanation: "",
+      },
+      candidateHistory: [
+        {
+          candidateId: "c1",
+          status: "rejected",
+          attemptNumber: 1 as const,
+          explanation: rejectedCandidate.explanation,
+          rejectedAt: rejectedCandidate.rejectedAt,
+          rejectionReasonCode: "too_generic",
+        },
+        { candidateId: "c2", status: "generating", attemptNumber: 2 as const },
+      ],
+    });
+    renderReview();
+    expect(await screen.findByTestId("mcq-rationale-review-candidate-status")).toHaveTextContent("GENERATING");
+    expect(screen.getByTestId("mcq-rationale-review-replacement-generating")).toHaveTextContent(
+      /in progress/i
+    );
+    expect(screen.queryByRole("button", { name: /generate/i })).not.toBeInTheDocument();
   });
 });
 

@@ -15,6 +15,7 @@ const {
   isMcqRationaleBackfillV23aEnabled,
   isMcqRationaleBackfillPublishedAllowed,
   isMcqRationaleCandidateRejectV23b2bEnabled,
+  isMcqRationaleReplacementV23b2b2Enabled,
 } = require("../config/mcqRationaleBackfillFlags");
 const {
   CandidateServiceError,
@@ -25,6 +26,11 @@ const {
   findExactMcqPart,
   isCompositeQuestion,
 } = require("./examQuestionRationaleCandidateService");
+const {
+  findRejectedAttemptOneForLineage,
+  findAttemptTwoForGenerationGroup,
+  buildGenerationGroupKey,
+} = require("./examQuestionRationaleCandidateLineageService");
 
 const ALLOWED_QUERY_KEYS = new Set(["questionId", "partLabel"]);
 const MAX_PART_LABEL = 32;
@@ -100,6 +106,258 @@ async function findActiveBlockingCandidate(questionId, partLabel) {
   })
     .select({ _id: 1, status: 1 })
     .lean();
+}
+
+/**
+ * Bounded lineage history for the current fingerprint/group only (max 2).
+ * Privacy: no rejectedBy, rejectionNote, lease, idempotency, generatedBy, sourceSnapshot.
+ */
+function toCandidateHistoryItem(doc) {
+  if (!doc) return null;
+  const rejectionReasonCode =
+    typeof doc.rejectionReasonCode === "string" && doc.rejectionReasonCode.trim()
+      ? String(doc.rejectionReasonCode).trim()
+      : undefined;
+  return {
+    candidateId: String(doc._id),
+    status: String(doc.status || ""),
+    attemptNumber: Number(doc.attemptNumber) === 2 ? 2 : 1,
+    explanation: typeof doc.explanation === "string" ? doc.explanation : "",
+    generatedAt: doc.generatedAt ? new Date(doc.generatedAt).toISOString() : null,
+    completedAt: doc.completedAt ? new Date(doc.completedAt).toISOString() : null,
+    rejectedAt: doc.rejectedAt ? new Date(doc.rejectedAt).toISOString() : null,
+    rejectionReasonCode,
+    failureCode: typeof doc.failureCode === "string" && doc.failureCode ? String(doc.failureCode) : undefined,
+    validationIssueCodes: Array.isArray(doc.validationIssueCodes)
+      ? doc.validationIssueCodes.map(String).slice(0, 20)
+      : undefined,
+  };
+}
+
+async function findLineageCandidateHistory({ questionId, partLabel, sourceFingerprint, generationGroupKey }) {
+  const rows = await ExamQuestionRationaleCandidate.find({
+    questionId,
+    partLabel,
+    sourceFingerprint,
+    generationGroupKey,
+    attemptNumber: { $in: [1, 2] },
+  })
+    .sort({ attemptNumber: 1, generatedAt: 1 })
+    .limit(8)
+    .lean();
+
+  // Prefer one Attempt 1 (latest rejected/failed/pending if multiple) and one Attempt 2.
+  const attempt1 = [...rows].reverse().find((r) => Number(r.attemptNumber) === 1) || null;
+  const attempt2 = rows.find((r) => Number(r.attemptNumber) === 2) || null;
+  const ordered = [];
+  if (attempt1) ordered.push(attempt1);
+  if (attempt2) ordered.push(attempt2);
+  return ordered.map(toCandidateHistoryItem).filter(Boolean);
+}
+
+/**
+ * Read-only replacement eligibility for review UI. Never reserves or calls a provider.
+ */
+async function evaluateReplacementEligibilityForReview({
+  questionId,
+  partLabel,
+  currentSourceFingerprint,
+  questionStatus,
+  publishedGenerationEnabled,
+  classification,
+  imageContextRequired,
+}) {
+  const replacementFeatureEnabled = isMcqRationaleReplacementV23b2b2Enabled();
+  const generationFeatureEnabled = isMcqRationaleBackfillV23aEnabled();
+
+  if (!replacementFeatureEnabled) {
+    return {
+      replacementFeatureEnabled: false,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "REPLACEMENT_FEATURE_DISABLED",
+      rejectedAttemptOneId: null,
+      generationGroupKey: buildGenerationGroupKey(questionId, partLabel, currentSourceFingerprint),
+    };
+  }
+
+  const generationGroupKey = buildGenerationGroupKey(questionId, partLabel, currentSourceFingerprint);
+  const rejectedDoc = await findRejectedAttemptOneForLineage({
+    questionId,
+    partLabel,
+    sourceFingerprint: currentSourceFingerprint,
+  });
+  const rejectedAttemptOneId = rejectedDoc ? String(rejectedDoc._id) : null;
+
+  if (!generationFeatureEnabled) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "FEATURE_DISABLED",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+
+  if (questionStatus === "published" && !publishedGenerationEnabled) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "PUBLISHED_NOT_ENABLED",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+  if (questionStatus !== "draft" && questionStatus !== "published") {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "NOT_ELIGIBLE",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+
+  if (classification.structureReason) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "PART_MALFORMED",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+
+  if (imageContextRequired) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "IMAGE_CONTEXT_REQUIRED",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+
+  if (!rejectedDoc) {
+    // Rejected Attempt 1 on a prior fingerprint for this part → source changed (no stale action id).
+    const priorRejected = await ExamQuestionRationaleCandidate.findOne({
+      questionId,
+      partLabel,
+      status: "rejected",
+      active: false,
+      attemptNumber: 1,
+    })
+      .select({ _id: 1, sourceFingerprint: 1 })
+      .lean();
+    const priorFp = String(priorRejected?.sourceFingerprint || "")
+      .trim()
+      .toLowerCase();
+    const authFp = String(currentSourceFingerprint || "")
+      .trim()
+      .toLowerCase();
+    if (priorRejected && priorFp && priorFp !== authFp) {
+      return {
+        replacementFeatureEnabled: true,
+        canGenerateReplacement: false,
+        canGenerateReplacementReason: "SOURCE_CHANGED",
+        rejectedAttemptOneId: null,
+        generationGroupKey,
+      };
+    }
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "NO_REJECTED_ATTEMPT_ONE",
+      rejectedAttemptOneId: null,
+      generationGroupKey,
+    };
+  }
+
+  if (String(rejectedDoc.status) !== "rejected") {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "CANDIDATE_NOT_REJECTED",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+  if (rejectedDoc.active === true) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "CANDIDATE_STILL_ACTIVE",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+  if (Number(rejectedDoc.attemptNumber) !== 1) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "ATTEMPT_1_REQUIRED",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+
+  const rejectedFp = String(rejectedDoc.sourceFingerprint || "")
+    .trim()
+    .toLowerCase();
+  const authFp = String(currentSourceFingerprint || "")
+    .trim()
+    .toLowerCase();
+  if (!rejectedFp || rejectedFp !== authFp) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "SOURCE_CHANGED",
+      rejectedAttemptOneId: null,
+      generationGroupKey,
+    };
+  }
+
+  if (String(rejectedDoc.generationGroupKey || "") !== generationGroupKey) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "SOURCE_CHANGED",
+      rejectedAttemptOneId: null,
+      generationGroupKey,
+    };
+  }
+
+  const attemptTwo = await findAttemptTwoForGenerationGroup(generationGroupKey);
+  if (attemptTwo) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason:
+        String(attemptTwo.status) === "failed" ? "ATTEMPT_LIMIT_REACHED" : "ATTEMPT_2_ALREADY_EXISTS",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+
+  const blocking = await findActiveBlockingCandidate(questionId, partLabel);
+  if (blocking) {
+    return {
+      replacementFeatureEnabled: true,
+      canGenerateReplacement: false,
+      canGenerateReplacementReason: "ACTIVE_CANDIDATE_EXISTS",
+      rejectedAttemptOneId,
+      generationGroupKey,
+    };
+  }
+
+  // Replacement regenerates for the same source lineage; structural validity already checked.
+  // Do not require potentiallyEligibleForBackfill (fingerprint change blocks substantive edits).
+  return {
+    replacementFeatureEnabled: true,
+    canGenerateReplacement: true,
+    canGenerateReplacementReason: null,
+    rejectedAttemptOneId,
+    generationGroupKey,
+  };
 }
 
 /**
@@ -252,6 +510,23 @@ async function getRationaleReviewContext({ query }) {
     rejectDisabledReason = null;
   }
 
+  const replacementEval = await evaluateReplacementEligibilityForReview({
+    questionId: req.questionId,
+    partLabel: req.partLabel,
+    currentSourceFingerprint,
+    questionStatus,
+    publishedGenerationEnabled,
+    classification,
+    imageContextRequired,
+  });
+
+  const candidateHistory = await findLineageCandidateHistory({
+    questionId: req.questionId,
+    partLabel: req.partLabel,
+    sourceFingerprint: currentSourceFingerprint,
+    generationGroupKey: replacementEval.generationGroupKey,
+  });
+
   const options = (classification.options || []).map((text, index) => ({
     index,
     text: String(text),
@@ -300,6 +575,11 @@ async function getRationaleReviewContext({ query }) {
     rejectionFeatureEnabled,
     canReject,
     rejectDisabledReason,
+    replacementFeatureEnabled: Boolean(replacementEval.replacementFeatureEnabled),
+    canGenerateReplacement: Boolean(replacementEval.canGenerateReplacement),
+    canGenerateReplacementReason: replacementEval.canGenerateReplacementReason,
+    rejectedAttemptOneId: replacementEval.rejectedAttemptOneId,
+    candidateHistory,
     latestCandidate,
     candidateIsStale,
     readOnly: true,
@@ -311,4 +591,7 @@ module.exports = {
   parseReviewQuery,
   ALLOWED_QUERY_KEYS,
   CandidateServiceError,
+  evaluateReplacementEligibilityForReview,
+  toCandidateHistoryItem,
+  findLineageCandidateHistory,
 };

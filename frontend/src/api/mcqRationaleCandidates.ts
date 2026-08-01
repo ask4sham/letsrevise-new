@@ -1,6 +1,6 @@
 /**
- * V2.3B2a/B2b1 — MCQ rationale candidate API client.
- * Create + reject only. No approve / regenerate / save / ExamQuestion mutation methods.
+ * V2.3B2a/B2b1/B2b2b — MCQ rationale candidate API client.
+ * Create + reject + one dedicated replacement. No approve / save / ExamQuestion mutation methods.
  */
 import api from "../services/api";
 import type { McqRationaleSafeCandidate } from "./mcqRationaleReviewContext";
@@ -8,6 +8,9 @@ import type { RejectionReasonCode } from "./mcqRationaleRejectionReasons";
 
 export type McqRationaleCandidate = McqRationaleSafeCandidate;
 export type { RejectionReasonCode };
+
+const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
+const REPLACEMENT_IDEM_PREFIX = "mcq-rationale-replacement";
 
 export type CreateMcqRationaleCandidateRequest = {
   questionId: string;
@@ -35,6 +38,19 @@ export type RejectMcqRationaleCandidateResponse = {
   replayed: boolean;
 };
 
+export type GenerateReplacementMcqRationaleCandidateRequest = {
+  rejectedCandidateId: string;
+  questionId: string;
+  partLabel: string;
+  expectedSourceFingerprint: string;
+  idempotencyKey: string;
+};
+
+export type GenerateReplacementMcqRationaleCandidateResponse = {
+  candidate: McqRationaleSafeCandidate;
+  replayed: boolean;
+};
+
 export type McqRationaleCandidateApiError = {
   status?: number;
   code: string;
@@ -49,6 +65,56 @@ export function createMcqRationaleCandidateIdempotencyKey(): string {
     return crypto.randomUUID();
   }
   return `cand_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Deterministic FNV-style hex digest (no personal data; stable across refresh). */
+function stableHexDigest(material: string, hexChars = 32): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  let h3 = 0x811c9dc5 ^ 0x9e3779b9;
+  let h4 = 0x01000193 ^ 0x85ebca6b;
+  for (let i = 0; i < material.length; i++) {
+    const c = material.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ c, 0x811c9dc5);
+    h3 = Math.imul(h3 ^ (c + i), 0x01000193);
+    h4 = Math.imul(h4 ^ (c * (i + 1)), 0x85ebca6b);
+  }
+  const hex =
+    (h1 >>> 0).toString(16).padStart(8, "0") +
+    (h2 >>> 0).toString(16).padStart(8, "0") +
+    (h3 >>> 0).toString(16).padStart(8, "0") +
+    (h4 >>> 0).toString(16).padStart(8, "0");
+  return hex.slice(0, hexChars);
+}
+
+/**
+ * Source-bound replacement idempotency key (deterministic; never random per click).
+ * Shape: mcq-rationale-replacement:<candidateId>:<questionId>:<partLabel>:<fingerprint>
+ * Hashed when length/charset would exceed backend IDEMPOTENCY_KEY_RE (max 128).
+ */
+export function createMcqRationaleReplacementIdempotencyKey(input: {
+  rejectedCandidateId: string;
+  questionId: string;
+  partLabel: string;
+  sourceFingerprint: string;
+}): string {
+  const candidateId = String(input.rejectedCandidateId || "").trim();
+  const questionId = String(input.questionId || "").trim();
+  const partLabel = String(input.partLabel || "").trim();
+  const fingerprint = String(input.sourceFingerprint || "")
+    .trim()
+    .toLowerCase();
+  const raw = `${REPLACEMENT_IDEM_PREFIX}:${candidateId}:${questionId}:${partLabel}:${fingerprint}`;
+  if (raw.length <= 128 && IDEMPOTENCY_KEY_RE.test(raw)) {
+    return raw;
+  }
+  const digest = stableHexDigest(raw, 32);
+  const hashed = `${REPLACEMENT_IDEM_PREFIX}:${digest}`;
+  if (!IDEMPOTENCY_KEY_RE.test(hashed)) {
+    return `mcqrep_${digest}`.slice(0, 128);
+  }
+  return hashed;
 }
 
 export async function createMcqRationaleCandidate(
@@ -82,6 +148,25 @@ export async function rejectMcqRationaleCandidate(
   }
   const res = await api.post<RejectMcqRationaleCandidateResponse>(
     `/admin/exam-question-rationale-candidates/${encodeURIComponent(candidateId)}/reject`,
+    payload
+  );
+  return res.data;
+}
+
+/**
+ * Dedicated Attempt-2 replacement endpoint. Never use the generic create route for replacement.
+ */
+export async function generateReplacementMcqRationaleCandidate(
+  body: GenerateReplacementMcqRationaleCandidateRequest
+): Promise<GenerateReplacementMcqRationaleCandidateResponse> {
+  const payload = {
+    questionId: body.questionId,
+    partLabel: body.partLabel,
+    expectedSourceFingerprint: body.expectedSourceFingerprint,
+    idempotencyKey: body.idempotencyKey,
+  };
+  const res = await api.post<GenerateReplacementMcqRationaleCandidateResponse>(
+    `/admin/exam-question-rationale-candidates/${encodeURIComponent(body.rejectedCandidateId)}/replacement`,
     payload
   );
   return res.data;

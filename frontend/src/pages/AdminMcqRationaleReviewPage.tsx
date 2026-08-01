@@ -1,7 +1,7 @@
 /**
- * Admin — MCQ Rationale Review (V2.3B1 + V2.3B2a Generate + V2.3B2b1 Reject).
- * May create or reject one Candidate when enabled. Cannot regenerate, approve or save rationales.
- * Candidate actions do not change the Exam Question.
+ * Admin — MCQ Rationale Review (V2.3B1 + V2.3B2a Generate + V2.3B2b1 Reject + V2.3B2b2b Replacement).
+ * May create, reject, or generate one replacement Candidate when backend-authorised.
+ * Cannot approve or save rationales. Candidate actions do not change the Exam Question.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -9,6 +9,8 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
   createMcqRationaleCandidate,
   createMcqRationaleCandidateIdempotencyKey,
+  createMcqRationaleReplacementIdempotencyKey,
+  generateReplacementMcqRationaleCandidate,
   readMcqRationaleCandidateError,
   rejectMcqRationaleCandidate,
 } from "../api/mcqRationaleCandidates";
@@ -20,6 +22,7 @@ import {
 } from "../api/mcqRationaleRejectionReasons";
 import {
   fetchMcqRationaleReviewContext,
+  type McqRationaleCandidateHistoryItem,
   type McqRationaleReviewContext,
 } from "../api/mcqRationaleReviewContext";
 
@@ -136,9 +139,111 @@ function rejectionActionMessage(code: string): string {
   }
 }
 
+function replacementActionMessage(code: string): string {
+  switch (code) {
+    case "FEATURE_DISABLED":
+      return "Candidate generation is currently disabled.";
+    case "REPLACEMENT_FEATURE_DISABLED":
+    case "REPLACEMENT_GENERATION_NOT_ENABLED":
+      return "Replacement candidate generation is currently disabled.";
+    case "ACCESS_DENIED":
+    case "UNAUTHORIZED":
+      return "You do not have permission to generate a replacement candidate.";
+    case "INVALID_CANDIDATE_ID":
+    case "CANDIDATE_NOT_FOUND":
+      return "The rejected candidate could not be found.";
+    case "CANDIDATE_ASSOCIATION_MISMATCH":
+    case "ASSOCIATION_MISMATCH":
+      return "The candidate no longer matches this question part.";
+    case "CANDIDATE_NOT_REJECTED":
+      return "A replacement can be generated only after Attempt 1 has been rejected.";
+    case "CANDIDATE_STILL_ACTIVE":
+      return "The original candidate is still active.";
+    case "ATTEMPT_1_REQUIRED":
+      return "Only a rejected Attempt 1 can be replaced.";
+    case "SOURCE_CHANGED":
+    case "SOURCE_FINGERPRINT_MISMATCH":
+    case "STALE_SOURCE_FINGERPRINT":
+      return "The question changed after this candidate was generated. Replacement is no longer available for this version.";
+    case "ATTEMPT_2_ALREADY_EXISTS":
+    case "ATTEMPT_LIMIT_REACHED":
+      return "The one permitted replacement Candidate already exists.";
+    case "ACTIVE_CANDIDATE_EXISTS":
+      return "Another candidate is already active for this question part.";
+    case "IMAGE_CONTEXT_REQUIRED":
+      return "Replacement generation is blocked because trusted image context is unavailable.";
+    case "PUBLISHED_NOT_ENABLED":
+      return "Replacement generation is disabled for published questions.";
+    case "RATE_LIMITED":
+    case "DAILY_CAP_REACHED":
+    case "ACTOR_DAILY_CAP":
+    case "GLOBAL_DAILY_CAP":
+      return "The generation limit has been reached. Try again later.";
+    case "LEASE_CONFLICT":
+    case "GENERATION_LEASE_EXPIRED":
+    case "GENERATION_RESERVATION_LOST":
+    case "DUPLICATE_RESERVATION":
+      return "Candidate generation is already in progress.";
+    case "PROVIDER_TIMEOUT":
+    case "LLM_TIMEOUT":
+      return "The AI service did not respond in time.";
+    case "PROVIDER_FAILURE":
+    case "LLM_ERROR":
+    case "LLM_EMPTY":
+    case "LLM_NOT_CONFIGURED":
+    case "LLM_BAD_JSON":
+      return "The replacement Candidate could not be generated.";
+    case "VALIDATION_FAILED":
+      return "The generated replacement did not pass validation.";
+    case "UNEXPECTED_DUPLICATE_KEY":
+    case "SERVER_ERROR":
+      return "The replacement Candidate could not be generated safely.";
+    case "NETWORK_UNCERTAIN":
+      return "The replacement request may have completed. Refreshing the current status…";
+    default:
+      return "The replacement Candidate could not be generated safely.";
+  }
+}
+
+function replacementDisabledReasonLabel(code: string | null | undefined): string {
+  if (!code) return "Replacement candidate generation is not available.";
+  switch (code) {
+    case "FEATURE_DISABLED":
+      return "Candidate generation is currently disabled.";
+    case "REPLACEMENT_FEATURE_DISABLED":
+    case "REPLACEMENT_GENERATION_NOT_ENABLED":
+      return "Replacement candidate generation is currently disabled.";
+    case "SOURCE_CHANGED":
+      return "The question changed after this candidate was generated. Replacement is no longer available for this version.";
+    case "ATTEMPT_2_ALREADY_EXISTS":
+    case "ATTEMPT_LIMIT_REACHED":
+      return "The one permitted replacement Candidate already exists.";
+    case "IMAGE_CONTEXT_REQUIRED":
+      return "Replacement generation is blocked because trusted image context is unavailable.";
+    case "PUBLISHED_NOT_ENABLED":
+      return "Replacement generation is disabled for published questions.";
+    case "ACTIVE_CANDIDATE_EXISTS":
+      return "Another candidate is already active for this question part.";
+    case "NO_REJECTED_ATTEMPT_ONE":
+      return "A rejected Attempt 1 is required before a replacement can be generated.";
+    default:
+      return replacementActionMessage(code);
+  }
+}
+
+function failureDisplayMessage(failureCode: string | undefined): string {
+  if (!failureCode) return "The one permitted replacement attempt was not completed.";
+  return `${replacementActionMessage(failureCode)} The one permitted replacement attempt was not completed.`;
+}
+
 function displayCandidateStatus(status: string): string {
   const raw = String(status || "");
-  return raw.toLowerCase() === "rejected" ? "REJECTED" : raw;
+  const lower = raw.toLowerCase();
+  if (lower === "rejected") return "REJECTED";
+  if (lower === "generating") return "GENERATING";
+  if (lower === "pending") return "PENDING";
+  if (lower === "failed") return "FAILED";
+  return raw;
 }
 
 export default function AdminMcqRationaleReviewPage() {
@@ -154,17 +259,20 @@ export default function AdminMcqRationaleReviewPage() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [replacing, setReplacing] = useState(false);
   const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [replacementConfirmOpen, setReplacementConfirmOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState<RejectionReasonCode | "">("");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectValidationError, setRejectValidationError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionCode, setActionCode] = useState<string | null>(null);
-  const [actionKind, setActionKind] = useState<"generate" | "reject" | null>(null);
+  const [actionKind, setActionKind] = useState<"generate" | "reject" | "replacement" | null>(null);
   const [replayedNote, setReplayedNote] = useState(false);
 
   const generateInFlightRef = useRef(false);
   const rejectInFlightRef = useRef(false);
+  const replacementInFlightRef = useRef(false);
   const idemRef = useRef<IdempotencySlot | null>(null);
   const routeRef = useRef({ questionId: "", partLabel: "" });
 
@@ -207,12 +315,15 @@ export default function AdminMcqRationaleReviewPage() {
       setReplayedNote(false);
       setGenerating(false);
       setRejecting(false);
+      setReplacing(false);
       setRejectConfirmOpen(false);
+      setReplacementConfirmOpen(false);
       setRejectReason("");
       setRejectNote("");
       setRejectValidationError(null);
       generateInFlightRef.current = false;
       rejectInFlightRef.current = false;
+      replacementInFlightRef.current = false;
       idemRef.current = null;
 
       const { questionId, partLabel } = resolveRouteIds();
@@ -294,7 +405,7 @@ export default function AdminMcqRationaleReviewPage() {
   }
 
   async function handleGenerate() {
-    if (generateInFlightRef.current || generating || rejecting || !data) return;
+    if (generateInFlightRef.current || generating || rejecting || replacing || !data) return;
     if (!data.generationFeatureEnabled || !data.canGenerate || data.imageContextRequired) return;
 
     generateInFlightRef.current = true;
@@ -346,7 +457,7 @@ export default function AdminMcqRationaleReviewPage() {
   }
 
   function openRejectConfirm() {
-    if (rejectInFlightRef.current || rejecting || generating || !data) return;
+    if (rejectInFlightRef.current || rejecting || generating || replacing || !data) return;
     if (data.rejectionFeatureEnabled !== true || data.canReject !== true) return;
     setRejectConfirmOpen(true);
     setRejectReason("");
@@ -358,6 +469,104 @@ export default function AdminMcqRationaleReviewPage() {
     setReplayedNote(false);
   }
 
+  function openReplacementConfirm() {
+    if (replacementInFlightRef.current || replacing || generating || rejecting || !data) return;
+    if (
+      data.replacementFeatureEnabled !== true ||
+      data.canGenerateReplacement !== true ||
+      !data.rejectedAttemptOneId
+    ) {
+      return;
+    }
+    setReplacementConfirmOpen(true);
+    setActionError(null);
+    setActionCode(null);
+    setActionKind(null);
+    setReplayedNote(false);
+  }
+
+  function cancelReplacementConfirm() {
+    if (replacementInFlightRef.current || replacing) return;
+    setReplacementConfirmOpen(false);
+  }
+
+  async function handleConfirmReplacement() {
+    if (replacementInFlightRef.current || replacing || generating || rejecting || !data) return;
+    if (
+      data.replacementFeatureEnabled !== true ||
+      data.canGenerateReplacement !== true ||
+      !data.rejectedAttemptOneId ||
+      !data.questionId ||
+      !data.partLabel ||
+      !data.currentSourceFingerprint
+    ) {
+      return;
+    }
+
+    replacementInFlightRef.current = true;
+    setReplacing(true);
+    setActionError(null);
+    setActionCode(null);
+    setActionKind("replacement");
+    setReplayedNote(false);
+
+    const { questionId, partLabel } = routeRef.current;
+    const rejectedCandidateId = data.rejectedAttemptOneId;
+    const idempotencyKey = createMcqRationaleReplacementIdempotencyKey({
+      rejectedCandidateId,
+      questionId,
+      partLabel,
+      sourceFingerprint: data.currentSourceFingerprint,
+    });
+
+    try {
+      const result = await generateReplacementMcqRationaleCandidate({
+        rejectedCandidateId,
+        questionId,
+        partLabel,
+        expectedSourceFingerprint: data.currentSourceFingerprint,
+        idempotencyKey,
+      });
+
+      setReplayedNote(Boolean(result.replayed));
+      setReplacementConfirmOpen(false);
+      await refreshContext(questionId, partLabel);
+    } catch (e: unknown) {
+      const parsed = readMcqRationaleCandidateError(e);
+
+      if (parsed.networkUncertain) {
+        setActionCode(parsed.code);
+        setActionError(replacementActionMessage("NETWORK_UNCERTAIN"));
+        try {
+          const refreshed = await refreshContext(questionId, partLabel);
+          const attemptTwo = (refreshed.candidateHistory || []).find((h) => Number(h.attemptNumber) === 2);
+          if (attemptTwo || Number(refreshed.latestCandidate?.attemptNumber) === 2) {
+            setReplacementConfirmOpen(false);
+            setActionError(null);
+            setActionCode(null);
+            setReplayedNote(false);
+          }
+        } catch {
+          // Keep uncertainty message; deliberate retry may reuse the same key.
+        }
+      } else {
+        setActionCode(parsed.code);
+        setActionError(replacementActionMessage(parsed.code));
+        try {
+          const refreshed = await refreshContext(questionId, partLabel);
+          if (refreshed.canGenerateReplacement !== true) {
+            setReplacementConfirmOpen(false);
+          }
+        } catch {
+          // Keep the action error; load errors are secondary.
+        }
+      }
+    } finally {
+      replacementInFlightRef.current = false;
+      setReplacing(false);
+    }
+  }
+
   function cancelRejectConfirm() {
     if (rejectInFlightRef.current || rejecting) return;
     setRejectConfirmOpen(false);
@@ -367,7 +576,7 @@ export default function AdminMcqRationaleReviewPage() {
   }
 
   async function handleConfirmReject() {
-    if (rejectInFlightRef.current || rejecting || generating || !data) return;
+    if (rejectInFlightRef.current || rejecting || generating || replacing || !data) return;
     if (data.rejectionFeatureEnabled !== true || data.canReject !== true) return;
     const candidate = data.latestCandidate;
     if (!candidate) return;
@@ -496,7 +705,9 @@ export default function AdminMcqRationaleReviewPage() {
           data={data}
           generating={generating}
           rejecting={rejecting}
+          replacing={replacing}
           rejectConfirmOpen={rejectConfirmOpen}
+          replacementConfirmOpen={replacementConfirmOpen}
           rejectReason={rejectReason}
           rejectNote={rejectNote}
           rejectValidationError={rejectValidationError}
@@ -508,6 +719,9 @@ export default function AdminMcqRationaleReviewPage() {
           onOpenReject={openRejectConfirm}
           onCancelReject={cancelRejectConfirm}
           onConfirmReject={handleConfirmReject}
+          onOpenReplacement={openReplacementConfirm}
+          onCancelReplacement={cancelReplacementConfirm}
+          onConfirmReplacement={handleConfirmReplacement}
           onRejectReasonChange={(v) => {
             setRejectReason(v);
             setRejectValidationError(null);
@@ -532,7 +746,9 @@ function ReviewBody({
   data,
   generating,
   rejecting,
+  replacing,
   rejectConfirmOpen,
+  replacementConfirmOpen,
   rejectReason,
   rejectNote,
   rejectValidationError,
@@ -544,33 +760,60 @@ function ReviewBody({
   onOpenReject,
   onCancelReject,
   onConfirmReject,
+  onOpenReplacement,
+  onCancelReplacement,
+  onConfirmReplacement,
   onRejectReasonChange,
   onRejectNoteChange,
 }: {
   data: McqRationaleReviewContext;
   generating: boolean;
   rejecting: boolean;
+  replacing: boolean;
   rejectConfirmOpen: boolean;
+  replacementConfirmOpen: boolean;
   rejectReason: RejectionReasonCode | "";
   rejectNote: string;
   rejectValidationError: string | null;
   actionError: string | null;
   actionCode: string | null;
-  actionKind: "generate" | "reject" | null;
+  actionKind: "generate" | "reject" | "replacement" | null;
   replayedNote: boolean;
   onGenerate: () => void;
   onOpenReject: () => void;
   onCancelReject: () => void;
   onConfirmReject: () => void;
+  onOpenReplacement: () => void;
+  onCancelReplacement: () => void;
+  onConfirmReplacement: () => void;
   onRejectReasonChange: (value: RejectionReasonCode | "") => void;
   onRejectNoteChange: (value: string) => void;
 }) {
   const tax = data.taxonomy;
   const candidate = data.latestCandidate;
+  const history = Array.isArray(data.candidateHistory) ? data.candidateHistory : [];
   const showGenerate =
     data.generationFeatureEnabled === true &&
     data.canGenerate === true &&
     data.imageContextRequired !== true;
+
+  const showReplacement =
+    data.replacementFeatureEnabled === true &&
+    data.canGenerateReplacement === true &&
+    Boolean(data.rejectedAttemptOneId) &&
+    !replacing;
+
+  const showReplacementUnavailableNotice =
+    !showReplacement &&
+    !replacementConfirmOpen &&
+    Boolean(data.rejectedAttemptOneId || String(candidate?.status || "").toLowerCase() === "rejected") &&
+    data.canGenerateReplacement !== true &&
+    Boolean(data.canGenerateReplacementReason);
+
+  const previousAttemptOne: McqRationaleCandidateHistoryItem | null =
+    Number(candidate?.attemptNumber) === 2
+      ? history.find((h) => Number(h.attemptNumber) === 1) || null
+      : null;
 
   const rejectionFeatureEnabled = data.rejectionFeatureEnabled === true;
   const canReject = data.canReject === true;
@@ -596,6 +839,11 @@ function ReviewBody({
   const showLegacyImageWarning = Boolean(data.imageContextRequired) && !showSharedMediaBlocked;
 
   const isRejected = String(candidate?.status || "").toLowerCase() === "rejected";
+  const candidateStatusLower = String(candidate?.status || "").toLowerCase();
+  const isAttemptTwo = Number(candidate?.attemptNumber) === 2;
+  const isGeneratingAttemptTwo = isAttemptTwo && candidateStatusLower === "generating";
+  const isFailedAttemptTwo = isAttemptTwo && candidateStatusLower === "failed";
+  const busy = generating || rejecting || replacing;
 
   return (
     <div data-testid="mcq-rationale-review-body" style={{ display: "grid", gap: 18 }}>
@@ -731,7 +979,14 @@ function ReviewBody({
               <p data-testid="mcq-rationale-review-replayed" style={{ ...bodyText, color: "#475569", fontSize: 13 }}>
                 {actionKind === "reject"
                   ? "Showing the existing rejected candidate (idempotent replay)."
-                  : "Showing the existing candidate for this attempt (idempotent replay)."}
+                  : actionKind === "replacement"
+                    ? "Showing the existing replacement candidate (idempotent replay)."
+                    : "Showing the existing candidate for this attempt (idempotent replay)."}
+              </p>
+            ) : null}
+            {isGeneratingAttemptTwo ? (
+              <p data-testid="mcq-rationale-review-replacement-generating" style={noticeBox}>
+                Replacement candidate generation is in progress.
               </p>
             ) : null}
             <p data-testid="mcq-rationale-review-candidate-explanation" style={{ ...bodyText, whiteSpace: "pre-wrap" }}>
@@ -755,7 +1010,12 @@ function ReviewBody({
                 Generated {formatTs(candidate.generatedAt)} · Completed {formatTs(candidate.completedAt)}
               </p>
             )}
-            {candidate.failureCode ? (
+            {isFailedAttemptTwo ? (
+              <p data-testid="mcq-rationale-review-replacement-failed" style={{ ...bodyText, color: "#b91c1c" }}>
+                {failureDisplayMessage(candidate.failureCode)}
+              </p>
+            ) : null}
+            {candidate.failureCode && !isFailedAttemptTwo ? (
               <p data-testid="mcq-rationale-review-failure-code" style={{ ...bodyText, color: "#b91c1c" }}>
                 Failure code: {candidate.failureCode}
               </p>
@@ -764,6 +1024,47 @@ function ReviewBody({
               <p data-testid="mcq-rationale-review-validation-codes" style={{ ...bodyText, color: "#b91c1c" }}>
                 Validation: {candidate.validationIssueCodes.join(", ")}
               </p>
+            ) : null}
+
+            {previousAttemptOne ? (
+              <div
+                data-testid="mcq-rationale-review-previous-candidate"
+                style={{
+                  marginTop: 8,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  display: "grid",
+                  gap: 6,
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: 14, color: "#0f172a" }}>Previous candidate</h3>
+                <p style={{ ...bodyText, fontSize: 13 }}>
+                  Status:{" "}
+                  <span data-testid="mcq-rationale-review-previous-status" style={badge}>
+                    {displayCandidateStatus(previousAttemptOne.status)}
+                  </span>{" "}
+                  · Attempt {previousAttemptOne.attemptNumber}
+                </p>
+                <p
+                  data-testid="mcq-rationale-review-previous-explanation"
+                  style={{ ...bodyText, whiteSpace: "pre-wrap", fontSize: 13 }}
+                >
+                  {previousAttemptOne.explanation?.trim() ? previousAttemptOne.explanation : "—"}
+                </p>
+                <p style={{ ...bodyText, fontSize: 12, color: "#64748b" }}>
+                  Rejection reason:{" "}
+                  <span data-testid="mcq-rationale-review-previous-rejection-reason">
+                    {rejectionReasonLabel(previousAttemptOne.rejectionReasonCode)}
+                  </span>
+                  {" · "}
+                  Rejected{" "}
+                  <span data-testid="mcq-rationale-review-previous-rejected-at">
+                    {formatTs(previousAttemptOne.rejectedAt ?? null)}
+                  </span>
+                </p>
+              </div>
             ) : null}
 
             {showRejectDisabledNotice ? (
@@ -778,7 +1079,7 @@ function ReviewBody({
                   type="button"
                   data-testid="mcq-rationale-review-reject"
                   onClick={onOpenReject}
-                  disabled={rejecting || generating}
+                  disabled={busy}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 8,
@@ -787,7 +1088,7 @@ function ReviewBody({
                     color: "#b91c1c",
                     fontSize: 14,
                     fontWeight: 600,
-                    cursor: rejecting || generating ? "not-allowed" : "pointer",
+                    cursor: busy ? "not-allowed" : "pointer",
                   }}
                 >
                   Reject candidate
@@ -872,7 +1173,7 @@ function ReviewBody({
                     type="button"
                     data-testid="mcq-rationale-review-reject-cancel"
                     onClick={onCancelReject}
-                    disabled={rejecting}
+                    disabled={busy}
                     style={{
                       padding: "8px 12px",
                       borderRadius: 8,
@@ -880,7 +1181,7 @@ function ReviewBody({
                       background: "#fff",
                       color: "#334155",
                       fontSize: 14,
-                      cursor: rejecting ? "not-allowed" : "pointer",
+                      cursor: busy ? "not-allowed" : "pointer",
                     }}
                   >
                     Cancel
@@ -889,7 +1190,7 @@ function ReviewBody({
                     type="button"
                     data-testid="mcq-rationale-review-reject-confirm-btn"
                     onClick={onConfirmReject}
-                    disabled={rejecting}
+                    disabled={busy}
                     style={{
                       padding: "8px 12px",
                       borderRadius: 8,
@@ -898,7 +1199,7 @@ function ReviewBody({
                       color: "#fff",
                       fontSize: 14,
                       fontWeight: 600,
-                      cursor: rejecting ? "not-allowed" : "pointer",
+                      cursor: busy ? "not-allowed" : "pointer",
                     }}
                   >
                     {rejecting ? "Rejecting candidate…" : "Confirm rejection"}
@@ -939,9 +1240,14 @@ function ReviewBody({
             {LEGACY_IMAGE_CONTEXT_MESSAGE}
           </p>
         ) : null}
-        {data.canGenerateReason === "REPLACEMENT_GENERATION_NOT_ENABLED" ? (
+        {data.canGenerateReason === "REPLACEMENT_GENERATION_NOT_ENABLED" && !showReplacement && !showReplacementUnavailableNotice ? (
           <p data-testid="mcq-rationale-review-replacement-disabled" style={noticeBox}>
             {canGenerateReasonLabel("REPLACEMENT_GENERATION_NOT_ENABLED")}
+          </p>
+        ) : null}
+        {showReplacementUnavailableNotice ? (
+          <p data-testid="mcq-rationale-review-replacement-unavailable" style={noticeBox}>
+            {replacementDisabledReasonLabel(data.canGenerateReplacementReason)}
           </p>
         ) : null}
         {data.canGenerateReason &&
@@ -956,7 +1262,11 @@ function ReviewBody({
         {actionError ? (
           <div
             data-testid={
-              actionKind === "reject" ? "mcq-rationale-review-reject-error" : "mcq-rationale-review-generate-error"
+              actionKind === "reject"
+                ? "mcq-rationale-review-reject-error"
+                : actionKind === "replacement"
+                  ? "mcq-rationale-review-replacement-error"
+                  : "mcq-rationale-review-generate-error"
             }
             role="alert"
             style={{
@@ -979,7 +1289,7 @@ function ReviewBody({
               type="button"
               data-testid="mcq-rationale-review-generate"
               onClick={onGenerate}
-              disabled={generating || rejecting}
+              disabled={busy}
               style={{
                 padding: "10px 14px",
                 borderRadius: 8,
@@ -988,11 +1298,98 @@ function ReviewBody({
                 color: "#fff",
                 fontSize: 14,
                 fontWeight: 600,
-                cursor: generating || rejecting ? "not-allowed" : "pointer",
+                cursor: busy ? "not-allowed" : "pointer",
               }}
             >
               {generating ? "Generating candidate…" : "Generate candidate"}
             </button>
+          </div>
+        ) : null}
+
+        {showReplacement && !replacementConfirmOpen ? (
+          <div style={{ marginTop: 4 }}>
+            <button
+              type="button"
+              data-testid="mcq-rationale-review-replacement"
+              onClick={onOpenReplacement}
+              disabled={busy}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #1d4ed8",
+                background: "#fff",
+                color: "#1d4ed8",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              Generate replacement candidate
+            </button>
+          </div>
+        ) : null}
+
+        {replacementConfirmOpen ? (
+          <div
+            data-testid="mcq-rationale-review-replacement-confirm"
+            role="region"
+            aria-labelledby="replacement-confirm-heading"
+            style={{
+              marginTop: 8,
+              padding: "12px 14px",
+              borderRadius: 8,
+              border: "1px solid #bfdbfe",
+              background: "#eff6ff",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <h3 id="replacement-confirm-heading" style={{ margin: 0, fontSize: 15, color: "#1e3a8a" }}>
+              Confirm replacement generation
+            </h3>
+            <p data-testid="mcq-rationale-review-replacement-warning" style={{ ...bodyText, fontSize: 13 }}>
+              This will generate the one permitted replacement Candidate. It will not change the Exam Question.
+            </p>
+            <p data-testid="mcq-rationale-review-replacement-ai-note" style={{ ...bodyText, fontSize: 13, color: "#475569" }}>
+              This action may make one AI generation request.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <button
+                type="button"
+                data-testid="mcq-rationale-review-replacement-cancel"
+                onClick={onCancelReplacement}
+                disabled={replacing}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  background: "#fff",
+                  color: "#334155",
+                  fontSize: 14,
+                  cursor: replacing ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="mcq-rationale-review-replacement-confirm-btn"
+                onClick={onConfirmReplacement}
+                disabled={replacing}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #1d4ed8",
+                  background: replacing ? "#93c5fd" : "#2563eb",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: replacing ? "not-allowed" : "pointer",
+                }}
+              >
+                {replacing ? "Generating replacement candidate…" : "Confirm replacement generation"}
+              </button>
+            </div>
           </div>
         ) : null}
       </section>
