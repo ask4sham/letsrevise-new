@@ -25,6 +25,15 @@ function isMcqRationaleCandidateRejectV23b2bEnabled() {
   return isTruthyEnv("FEATURE_MCQ_RATIONALE_CANDIDATE_REJECT_V23B2B");
 }
 
+/**
+ * When false (default): Attempt-2 replacement endpoint is disabled.
+ * Requires FEATURE_MCQ_RATIONALE_BACKFILL_V23A as well for provider generation.
+ * Does not enable generic Attempt 1 create for rejected lineages.
+ */
+function isMcqRationaleReplacementV23b2b2Enabled() {
+  return isTruthyEnv("FEATURE_MCQ_RATIONALE_REPLACEMENT_V23B2B2");
+}
+
 function getMcqRationaleBackfillActorDailyCap() {
   const n = Number(process.env.MCQ_RATIONALE_BACKFILL_ACTOR_DAILY_CAP);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 10;
@@ -61,6 +70,7 @@ module.exports = {
   isMcqRationaleBackfillV23aEnabled,
   isMcqRationaleBackfillPublishedAllowed,
   isMcqRationaleCandidateRejectV23b2bEnabled,
+  isMcqRationaleReplacementV23b2b2Enabled,
   getMcqRationaleBackfillActorDailyCap,
   getMcqRationaleBackfillGlobalDailyCap,
   getMcqRationaleGenerationLeaseMs,

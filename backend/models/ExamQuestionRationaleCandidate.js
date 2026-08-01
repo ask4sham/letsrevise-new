@@ -160,6 +160,16 @@ ExamQuestionRationaleCandidateSchema.index(
   { name: "ix_stale_generating_lookup" }
 );
 
+/** V2.3B2b2a — at most one Attempt 2 per generation group (failed Attempt 1 retries stay allowed). */
+ExamQuestionRationaleCandidateSchema.index(
+  { generationGroupKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { attemptNumber: 2 },
+    name: "uq_attempt2_generation_group",
+  }
+);
+
 module.exports =
   mongoose.models.ExamQuestionRationaleCandidate ||
   mongoose.model("ExamQuestionRationaleCandidate", ExamQuestionRationaleCandidateSchema);
