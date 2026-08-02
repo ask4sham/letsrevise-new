@@ -614,11 +614,13 @@ router.get("/revision-alerts", auth, checkAdmin, (req, res) => {
   }
 });
 
-// Mount placeholder admin AI generation jobs router (no routes yet)
-router.use("/ai-generation-jobs", adminAiGenerationJobs);
-
-// Mount public (non-admin) AI generation jobs router for visibility parity (no routes yet)
+// Public user router alias MUST be mounted before the admin catch-all, or
+// `/ai-generation-jobs/public` is swallowed by admin `/:id` after checkAdmin.
+// Auth + ownership are enforced inside aiGenerationJobs (not admin-all).
 router.use("/ai-generation-jobs/public", aiGenerationJobs);
+
+// AI generation jobs — admin oversight (auth + admin only; mirrors /api/admin/jobs)
+router.use("/ai-generation-jobs", auth, checkAdmin, adminAiGenerationJobs);
 
 /* =========================================
    GET /api/admin/user-types   ✅ new (helps UI dropdown include parent)
