@@ -123,7 +123,8 @@ const uploadStorageType = isSupabaseStorageEnabled() ? "supabase" : isR2Enabled(
 app.get("/api/uploads/__ping", (req, res) =>
   res.json({ ok: true, route: "uploads", hasVideo: true, storage: uploadStorageType })
 );
-app.post("/api/uploads/video", uploadsRouter.videoUploadRoute);
+// Same secured chain as router.post("/video") — auth → role → limiter → Multer
+app.post("/api/uploads/video", ...uploadsRouter.videoUploadRoute);
 app.use("/api/uploads", uploadsRouter);
 
 // ✅ Register routes that are needed for tests (add any others as needed)
