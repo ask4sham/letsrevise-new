@@ -313,7 +313,23 @@ async function createReplacementRationaleCandidate({
     const lateSameKey = await replayIfSameKeyIdempotent(actorId, req.idempotencyKey, lineageCtx, now);
     if (lateSameKey) return lateSameKey;
   }
-  await assertNoActiveGeneratingForActor(actorId, now);
+  try {
+    await assertNoActiveGeneratingForActor(actorId, now);
+  } catch (err) {
+    // Narrow TOCTOU recovery: peer may have reserved the same-key Attempt 2 after the pre-check.
+    if (!err || err.code !== "ACTOR_GENERATION_IN_PROGRESS") {
+      throw err;
+    }
+    const freshNow = new Date();
+    const lateSameKey = await replayIfSameKeyIdempotent(
+      actorId,
+      req.idempotencyKey,
+      lineageCtx,
+      freshNow
+    );
+    if (lateSameKey) return lateSameKey;
+    throw err;
+  }
 
   // Re-check Attempt 2 immediately before reservation (race with concurrent replacement).
   const racedAttemptTwo = await findAttemptTwoForGenerationGroup(generationGroupKey);
