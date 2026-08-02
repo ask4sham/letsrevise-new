@@ -29,9 +29,8 @@ function createAlwaysOnUploadLimiter(opts) {
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many uploads" },
+    // Custom key: authenticated user id (never from body); IP only if identity absent.
     keyGenerator: (req) => uploadUserKey(prefix, req),
-    // Custom keyGenerator already handles missing user via IP; skip v7 IPv6 helper requirement.
-    validate: { keyGeneratorIpFallback: false },
   });
 }
 
