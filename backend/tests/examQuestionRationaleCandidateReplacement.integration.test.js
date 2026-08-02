@@ -188,6 +188,16 @@ function enableReplacementFlags() {
   process.env.FEATURE_MCQ_RATIONALE_REPLACEMENT_V23B2B2 = "true";
 }
 
+/** Event-driven barrier — prefer over arbitrary sleeps for concurrency cases. */
+async function waitUntil(predicate, { timeoutMs = 5000, intervalMs = 5, label = "condition" } = {}) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await predicate()) return;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error(`waitUntil timed out after ${timeoutMs}ms waiting for ${label}`);
+}
+
 function replaceCandidate(token, candidateId, body) {
   return request(app)
     .post(`/api/admin/exam-question-rationale-candidates/${candidateId}/replacement`)
@@ -840,7 +850,7 @@ describe("V2.3B2b2a substantive rationale, failed replay, true concurrency", () 
       body,
       llmCall: slowLlm,
     }).then((r) => ({ ok: true, replayed: r.replayed })).catch((e) => ({ ok: false, code: e.code }));
-    // Yield so first reservation can start before second join.
+    // Yield so first reservation can start before second join — still overlapping.
     await new Promise((r) => setImmediate(r));
     const p2 = createReplacementRationaleCandidate({
       actorId: user._id,
@@ -848,7 +858,9 @@ describe("V2.3B2b2a substantive rationale, failed replay, true concurrency", () 
       body,
       llmCall: slowLlm,
     }).then((r) => ({ ok: true, replayed: r.replayed })).catch((e) => ({ ok: false, code: e.code }));
-    await new Promise((r) => setTimeout(r, 30));
+    // Event-driven: hold the gate until the first workflow has entered the provider,
+    // proving both calls overlapped while Attempt 2 was still generating.
+    await waitUntil(() => providerStarts >= 1, { label: "first provider workflow start" });
     releaseProvider();
     const settled = await Promise.all([p1, p2]);
 

@@ -111,6 +111,50 @@ function throwAttemptTwoExists(existing) {
 }
 
 /**
+ * Same actor + idempotency key + Attempt-2 lineage — safe to idempotent-replay.
+ * Different-key Attempt 2 / active blockers must still 409.
+ */
+function isSameKeyAttemptTwoLineage(doc, ctx) {
+  if (!doc) return false;
+  return (
+    String(doc.generatedBy) === String(ctx.actorId) &&
+    doc.idempotencyKey === ctx.idempotencyKey &&
+    String(doc.questionId) === ctx.questionId &&
+    doc.partLabel === ctx.partLabel &&
+    doc.sourceFingerprint === ctx.sourceFingerprint &&
+    Number(doc.attemptNumber) === 2 &&
+    String(doc.generationGroupKey) === ctx.generationGroupKey
+  );
+}
+
+async function replaySameKeyCandidate(existingIdem, now) {
+  if (existingIdem.status === "generating" && existingIdem.active && isLeaseExpired(existingIdem, now)) {
+    const expired =
+      (await expireStaleGeneratingCandidate(existingIdem._id, now)) ||
+      (await ExamQuestionRationaleCandidate.findById(existingIdem._id));
+    return { dto: toCandidateDto(expired), replayed: true };
+  }
+  return { dto: toCandidateDto(existingIdem), replayed: true };
+}
+
+/**
+ * Re-check actor+idempotency after a null early lookup (concurrent creator won).
+ * Returns replay result, throws IDEMPOTENCY_KEY_REUSED on mismatched lineage, or null if absent.
+ */
+async function replayIfSameKeyIdempotent(actorId, idempotencyKey, lineageCtx, now) {
+  const existingIdem = await findExistingIdempotent(actorId, idempotencyKey);
+  if (!existingIdem) return null;
+  if (!isSameKeyAttemptTwoLineage(existingIdem, { actorId, idempotencyKey, ...lineageCtx })) {
+    throw new CandidateServiceError(
+      409,
+      "IDEMPOTENCY_KEY_REUSED",
+      "idempotencyKey was already used for a different source request"
+    );
+  }
+  return replaySameKeyCandidate(existingIdem, now);
+}
+
+/**
  * @param {{ actorId: string, rejectedCandidateId: string, body: object, llmCall?: Function, now?: Date }} args
  */
 async function createReplacementRationaleCandidate({
@@ -218,34 +262,33 @@ async function createReplacementRationaleCandidate({
     expectedSourceFingerprint: req.expectedSourceFingerprint,
   });
 
+  const lineageCtx = {
+    questionId: req.questionId,
+    partLabel: req.partLabel,
+    sourceFingerprint,
+    generationGroupKey,
+  };
+
   const existingIdem = await findExistingIdempotent(actorId, req.idempotencyKey);
   if (existingIdem) {
-    if (
-      String(existingIdem.questionId) !== req.questionId ||
-      existingIdem.partLabel !== req.partLabel ||
-      existingIdem.sourceFingerprint !== sourceFingerprint ||
-      Number(existingIdem.attemptNumber) !== 2 ||
-      String(existingIdem.generationGroupKey) !== generationGroupKey
-    ) {
+    if (!isSameKeyAttemptTwoLineage(existingIdem, { actorId, idempotencyKey: req.idempotencyKey, ...lineageCtx })) {
       throw new CandidateServiceError(
         409,
         "IDEMPOTENCY_KEY_REUSED",
         "idempotencyKey was already used for a different source request"
       );
     }
-
-    if (existingIdem.status === "generating" && existingIdem.active && isLeaseExpired(existingIdem, now)) {
-      const expired =
-        (await expireStaleGeneratingCandidate(existingIdem._id, now)) ||
-        (await ExamQuestionRationaleCandidate.findById(existingIdem._id));
-      return { dto: toCandidateDto(expired), replayed: true };
-    }
-
-    return { dto: toCandidateDto(existingIdem), replayed: true };
+    return replaySameKeyCandidate(existingIdem, now);
   }
 
   const existingAttemptTwo = await findAttemptTwoForGenerationGroup(generationGroupKey);
   if (existingAttemptTwo) {
+    // Concurrent same-key: creator already reserved Attempt 2 after our null idempotency lookup.
+    if (isSameKeyAttemptTwoLineage(existingAttemptTwo, { actorId, idempotencyKey: req.idempotencyKey, ...lineageCtx })) {
+      return replaySameKeyCandidate(existingAttemptTwo, now);
+    }
+    const lateSameKey = await replayIfSameKeyIdempotent(actorId, req.idempotencyKey, lineageCtx, now);
+    if (lateSameKey) return lateSameKey;
     throwAttemptTwoExists(existingAttemptTwo);
   }
 
@@ -253,6 +296,11 @@ async function createReplacementRationaleCandidate({
 
   const recovery = await recoverActiveSourceIfStale(req.questionId, req.partLabel, sourceFingerprint, now);
   if (recovery.blocking) {
+    if (isSameKeyAttemptTwoLineage(recovery.blocking, { actorId, idempotencyKey: req.idempotencyKey, ...lineageCtx })) {
+      return replaySameKeyCandidate(recovery.blocking, now);
+    }
+    const lateSameKey = await replayIfSameKeyIdempotent(actorId, req.idempotencyKey, lineageCtx, now);
+    if (lateSameKey) return lateSameKey;
     throw new CandidateServiceError(
       409,
       "ACTIVE_CANDIDATE_EXISTS",
@@ -261,11 +309,20 @@ async function createReplacementRationaleCandidate({
     );
   }
 
+  {
+    const lateSameKey = await replayIfSameKeyIdempotent(actorId, req.idempotencyKey, lineageCtx, now);
+    if (lateSameKey) return lateSameKey;
+  }
   await assertNoActiveGeneratingForActor(actorId, now);
 
   // Re-check Attempt 2 immediately before reservation (race with concurrent replacement).
   const racedAttemptTwo = await findAttemptTwoForGenerationGroup(generationGroupKey);
   if (racedAttemptTwo) {
+    if (isSameKeyAttemptTwoLineage(racedAttemptTwo, { actorId, idempotencyKey: req.idempotencyKey, ...lineageCtx })) {
+      return replaySameKeyCandidate(racedAttemptTwo, now);
+    }
+    const lateSameKey = await replayIfSameKeyIdempotent(actorId, req.idempotencyKey, lineageCtx, now);
+    if (lateSameKey) return lateSameKey;
     throwAttemptTwoExists(racedAttemptTwo);
   }
 
@@ -303,14 +360,8 @@ async function createReplacementRationaleCandidate({
       // Actor+idempotency unique collision: safe same-key replay when it is Attempt 2 for this lineage.
       const racedIdem = await findExistingIdempotent(actorId, req.idempotencyKey);
       if (racedIdem) {
-        if (
-          String(racedIdem.questionId) === req.questionId &&
-          racedIdem.partLabel === req.partLabel &&
-          racedIdem.sourceFingerprint === sourceFingerprint &&
-          Number(racedIdem.attemptNumber) === 2 &&
-          String(racedIdem.generationGroupKey) === generationGroupKey
-        ) {
-          return { dto: toCandidateDto(racedIdem), replayed: true };
+        if (isSameKeyAttemptTwoLineage(racedIdem, { actorId, idempotencyKey: req.idempotencyKey, ...lineageCtx })) {
+          return replaySameKeyCandidate(racedIdem, now);
         }
         throw new CandidateServiceError(
           409,
@@ -323,6 +374,9 @@ async function createReplacementRationaleCandidate({
       if (isMongoAttemptTwoIndexCollision(err)) {
         const attemptTwo = await findAttemptTwoForGenerationGroup(generationGroupKey);
         if (attemptTwo) {
+          if (isSameKeyAttemptTwoLineage(attemptTwo, { actorId, idempotencyKey: req.idempotencyKey, ...lineageCtx })) {
+            return replaySameKeyCandidate(attemptTwo, now);
+          }
           throwAttemptTwoExists(attemptTwo);
         }
         throw new CandidateServiceError(
@@ -334,6 +388,9 @@ async function createReplacementRationaleCandidate({
 
       const again = await recoverActiveSourceIfStale(req.questionId, req.partLabel, sourceFingerprint, new Date());
       if (again.blocking) {
+        if (isSameKeyAttemptTwoLineage(again.blocking, { actorId, idempotencyKey: req.idempotencyKey, ...lineageCtx })) {
+          return replaySameKeyCandidate(again.blocking, now);
+        }
         throw new CandidateServiceError(
           409,
           "ACTIVE_CANDIDATE_EXISTS",
@@ -345,6 +402,15 @@ async function createReplacementRationaleCandidate({
       // Visible Attempt 2 without Attempt-2-index metadata is still authoritative for this lineage.
       const existingAttemptTwoAfterRace = await findAttemptTwoForGenerationGroup(generationGroupKey);
       if (existingAttemptTwoAfterRace) {
+        if (
+          isSameKeyAttemptTwoLineage(existingAttemptTwoAfterRace, {
+            actorId,
+            idempotencyKey: req.idempotencyKey,
+            ...lineageCtx,
+          })
+        ) {
+          return replaySameKeyCandidate(existingAttemptTwoAfterRace, now);
+        }
         throwAttemptTwoExists(existingAttemptTwoAfterRace);
       }
 
