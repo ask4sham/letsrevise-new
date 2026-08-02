@@ -1,7 +1,7 @@
 // Shared Express middleware index:
 // - Central export point for auth, subscription, and AI job-related middleware.
-// - `requireAiJobAccess` is currently a no-op placeholder; enforcement for
-//   AI generation jobs will be added incrementally in later phases.
+// - `requireAiJobAccess` is deprecated (re-exports auth). Prefer `auth` +
+//   mount-level `checkAdmin` for AI-generation-job routes.
 
 const auth = require("./auth");
 const requireActiveSubscription = require("./requireActiveSubscription");
