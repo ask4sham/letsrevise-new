@@ -7,30 +7,29 @@ on:
       - 'scripts/**'
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   validate:
+    name: validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm ci
-      - name: Install backend dependencies
-        working-directory: backend
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - name: Install (root)
         run: npm ci
-      - name: Run unit tests
+      - name: Run curriculum contract tests
         run: npm test
-        env:
-          NODE_OPTIONS: --max-old-space-size=8192
-      - name: Backend content-access tests (Phase 9)
-        run: |
-          npm run test:backend:list
-          node -e "const {execSync}=require('child_process'); const out=execSync('npm run -s test:backend:list',{encoding:'utf8'}); if(!out.trim()) { console.error('No backend tests discovered'); process.exit(1); } console.log('Discovered backend tests OK');"
-          npm run test:backend
-        env:
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'test-secret-for-ci-phase9' }}
-          NODE_OPTIONS: --max-old-space-size=8192
       - name: Slotgen stub rejects invalid job
         run: "! echo '{}' | npm run slotgen:stub"
       - name: Slotgen stub accepts valid job

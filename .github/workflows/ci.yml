@@ -5,10 +5,18 @@ on:
   push:
     branches: [main, master]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   taxonomy-validate:
     name: Taxonomy Validation (fast fail)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       CI: true
 
@@ -31,13 +39,59 @@ jobs:
         working-directory: backend
         run: npm run validate:taxonomies
 
-  backend:
-    name: Backend (tests + taxonomy validation)
+  security:
+    name: Security (focused)
     needs: taxonomy-validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       CI: true
-      # Full Jest suite loads app.js for integration tests; coverage doubles heap use on CI runners.
+      NODE_ENV: test
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'test-secret-for-ci' }}
+      OPENAI_API_KEY: sk-test-ci-dummy
+      NODE_OPTIONS: --max-old-space-size=4096
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Install (root)
+        run: npm ci
+
+      - name: Install (backend)
+        working-directory: backend
+        run: npm ci
+
+      - name: Focused security suites
+        run: >
+          npx jest -c jest.backend.config.js --runInBand --forceExit
+          backend/tests/uploads.auth-and-limits.integration.test.js
+          backend/tests/aiGenerationJobs.auth.integration.test.js
+          backend/tests/appComposition.middlewareOrder.integration.test.js
+          backend/tests/serverStartup.barrier.integration.test.js
+          backend/tests/accessControl.integration.test.js
+          backend/tests/examQuestionRationaleCandidateReplacement.integration.test.js
+
+  backend:
+    name: Backend (full suite)
+    needs: taxonomy-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: true
+      NODE_ENV: test
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'test-secret-for-ci' }}
+      OPENAI_API_KEY: sk-test-ci-dummy
+      # Full Jest suite + in-memory Mongo; coverage not enabled here.
       NODE_OPTIONS: --max-old-space-size=8192
 
     steps:
@@ -49,24 +103,25 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Install (root)
+        run: npm ci
 
       - name: Install (backend)
         working-directory: backend
         run: npm ci
 
-      - name: Validate taxonomies
-        working-directory: backend
-        run: npm run validate:taxonomies
-
-      - name: Test (backend unit)
-        working-directory: backend
-        run: npm run test:unit -- --forceExit
+      - name: Test (backend full suite)
+        run: npm run test:backend
 
   frontend:
     name: Frontend (build)
     needs: taxonomy-validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       CI: true
       NODE_OPTIONS: --max-old-space-size=4096
