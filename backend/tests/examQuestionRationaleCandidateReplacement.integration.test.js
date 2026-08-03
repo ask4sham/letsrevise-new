@@ -188,6 +188,16 @@ function enableReplacementFlags() {
   process.env.FEATURE_MCQ_RATIONALE_REPLACEMENT_V23B2B2 = "true";
 }
 
+/** Event-driven barrier — prefer over arbitrary sleeps for concurrency cases. */
+async function waitUntil(predicate, { timeoutMs = 5000, intervalMs = 5, label = "condition" } = {}) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await predicate()) return;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error(`waitUntil timed out after ${timeoutMs}ms waiting for ${label}`);
+}
+
 function replaceCandidate(token, candidateId, body) {
   return request(app)
     .post(`/api/admin/exam-question-rationale-candidates/${candidateId}/replacement`)
@@ -840,7 +850,7 @@ describe("V2.3B2b2a substantive rationale, failed replay, true concurrency", () 
       body,
       llmCall: slowLlm,
     }).then((r) => ({ ok: true, replayed: r.replayed })).catch((e) => ({ ok: false, code: e.code }));
-    // Yield so first reservation can start before second join.
+    // Yield so first reservation can start before second join — still overlapping.
     await new Promise((r) => setImmediate(r));
     const p2 = createReplacementRationaleCandidate({
       actorId: user._id,
@@ -848,7 +858,9 @@ describe("V2.3B2b2a substantive rationale, failed replay, true concurrency", () 
       body,
       llmCall: slowLlm,
     }).then((r) => ({ ok: true, replayed: r.replayed })).catch((e) => ({ ok: false, code: e.code }));
-    await new Promise((r) => setTimeout(r, 30));
+    // Event-driven: hold the gate until the first workflow has entered the provider,
+    // proving both calls overlapped while Attempt 2 was still generating.
+    await waitUntil(() => providerStarts >= 1, { label: "first provider workflow start" });
     releaseProvider();
     const settled = await Promise.all([p1, p2]);
 
@@ -858,6 +870,217 @@ describe("V2.3B2b2a substantive rationale, failed replay, true concurrency", () 
     expect(providerStarts).toBe(1);
     expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(2);
     expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(1);
+  });
+
+  test("actor-generation TOCTOU catch — same-key recovers to replay; provider once", async () => {
+    enableReplacementFlags();
+    const { user } = await loginAs("rep-actor-toctou@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const eqBefore = JSON.parse(JSON.stringify(await ExamQuestion.findById(q._id).lean()));
+    const cand = await seedRejectedAttemptOne(user._id, q);
+    const key = "rep-actor-toctou-aaaaaaaa";
+    let providerStarts = 0;
+    let releaseProvider;
+    const providerGate = new Promise((resolve) => {
+      releaseProvider = resolve;
+    });
+    const slowLlm = async () => {
+      providerStarts += 1;
+      await providerGate;
+      return { explanation: GOOD_EXPLANATION };
+    };
+    const body = {
+      questionId: q._id.toString(),
+      partLabel: "a",
+      expectedSourceFingerprint: cand.sourceFingerprint,
+      idempotencyKey: key,
+    };
+
+    const p1 = createReplacementRationaleCandidate({
+      actorId: user._id,
+      rejectedCandidateId: String(cand._id),
+      body,
+      llmCall: slowLlm,
+    });
+    await waitUntil(() => providerStarts >= 1, { label: "p1 provider start before TOCTOU probe" });
+
+    // Force the second request past early/pre-assert same-key lookups and Attempt-2/active
+    // blockers so it hits assertNoActiveGeneratingForActor, then the new catch recovers.
+    const originalFindOne = ExamQuestionRationaleCandidate.findOne.bind(ExamQuestionRationaleCandidate);
+    let idemMisses = 0;
+    const findNone = () =>
+      originalFindOne({ _id: new mongoose.Types.ObjectId("000000000000000000000000") });
+    const spy = jest.spyOn(ExamQuestionRationaleCandidate, "findOne").mockImplementation(function (filter, ...rest) {
+      const f = filter || {};
+      const isIdemLookup =
+        f.idempotencyKey === key && f.generatedBy != null && f.status == null && f.attemptNumber == null;
+      const isAttemptTwo = f.attemptNumber === 2 && f.generationGroupKey != null;
+      const isActiveSource =
+        f.active === true && f.sourceFingerprint != null && f.status == null && f.generatedBy == null;
+      const isActorGenerating = f.status === "generating" && f.active === true && f.generatedBy != null;
+
+      if (isIdemLookup) {
+        idemMisses += 1;
+        if (idemMisses <= 2) return findNone();
+        return originalFindOne(filter, ...rest);
+      }
+      if ((isAttemptTwo || isActiveSource) && idemMisses < 2) {
+        return findNone();
+      }
+      if (isActorGenerating || isAttemptTwo || isActiveSource || isIdemLookup) {
+        return originalFindOne(filter, ...rest);
+      }
+      return originalFindOne(filter, ...rest);
+    });
+
+    try {
+      const result = await createReplacementRationaleCandidate({
+        actorId: user._id,
+        rejectedCandidateId: String(cand._id),
+        body,
+        llmCall: slowLlm,
+      });
+      expect(result.replayed).toBe(true);
+      expect(result.dto.attemptNumber).toBe(2);
+      expect(result.dto.candidateId).toBeTruthy();
+      expect(idemMisses).toBeGreaterThanOrEqual(3);
+      expect(providerStarts).toBe(1);
+      expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(1);
+      const a2 = await ExamQuestionRationaleCandidate.findById(result.dto.candidateId).lean();
+      expect(a2.idempotencyKey).toBe(key);
+      expect(String(a2.generatedBy)).toBe(String(user._id));
+      const eqAfter = await ExamQuestion.findById(q._id).lean();
+      expect(JSON.parse(JSON.stringify(eqAfter))).toEqual(eqBefore);
+    } finally {
+      spy.mockRestore();
+      releaseProvider();
+      await p1;
+    }
+  });
+
+  test("actor-generation TOCTOU catch — different key rethrows original conflict", async () => {
+    enableReplacementFlags();
+    const { user } = await loginAs("rep-actor-toctou-diff@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedRejectedAttemptOne(user._id, q);
+    const keyA = "rep-actor-toctou-key-aaaa";
+    const keyB = "rep-actor-toctou-key-bbbb";
+    let providerStarts = 0;
+    let releaseProvider;
+    const providerGate = new Promise((resolve) => {
+      releaseProvider = resolve;
+    });
+    const slowLlm = async () => {
+      providerStarts += 1;
+      await providerGate;
+      return { explanation: GOOD_EXPLANATION };
+    };
+
+    const p1 = createReplacementRationaleCandidate({
+      actorId: user._id,
+      rejectedCandidateId: String(cand._id),
+      body: {
+        questionId: q._id.toString(),
+        partLabel: "a",
+        expectedSourceFingerprint: cand.sourceFingerprint,
+        idempotencyKey: keyA,
+      },
+      llmCall: slowLlm,
+    });
+    await waitUntil(() => providerStarts >= 1, { label: "p1 provider start before different-key probe" });
+
+    const originalFindOne = ExamQuestionRationaleCandidate.findOne.bind(ExamQuestionRationaleCandidate);
+    let idemMisses = 0;
+    const findNone = () =>
+      originalFindOne({ _id: new mongoose.Types.ObjectId("000000000000000000000000") });
+    const spy = jest.spyOn(ExamQuestionRationaleCandidate, "findOne").mockImplementation(function (filter, ...rest) {
+      const f = filter || {};
+      const isIdemLookup =
+        f.idempotencyKey === keyB && f.generatedBy != null && f.status == null && f.attemptNumber == null;
+      const isAttemptTwo = f.attemptNumber === 2 && f.generationGroupKey != null;
+      const isActiveSource =
+        f.active === true && f.sourceFingerprint != null && f.status == null && f.generatedBy == null;
+      const isActorGenerating = f.status === "generating" && f.active === true && f.generatedBy != null;
+
+      if (isIdemLookup) {
+        idemMisses += 1;
+        if (idemMisses <= 2) return findNone();
+        return originalFindOne(filter, ...rest);
+      }
+      if ((isAttemptTwo || isActiveSource) && idemMisses < 2) {
+        return findNone();
+      }
+      if (isActorGenerating) return originalFindOne(filter, ...rest);
+      return originalFindOne(filter, ...rest);
+    });
+
+    try {
+      let caught;
+      try {
+        await createReplacementRationaleCandidate({
+          actorId: user._id,
+          rejectedCandidateId: String(cand._id),
+          body: {
+            questionId: q._id.toString(),
+            partLabel: "a",
+            expectedSourceFingerprint: cand.sourceFingerprint,
+            idempotencyKey: keyB,
+          },
+          llmCall: slowLlm,
+        });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeTruthy();
+      expect(caught.code).toBe("ACTOR_GENERATION_IN_PROGRESS");
+      expect(caught.status).toBe(409);
+      expect(caught.message).toBe("Another candidate generation is already in progress for this user");
+      expect(providerStarts).toBe(1);
+      expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(1);
+    } finally {
+      spy.mockRestore();
+      releaseProvider();
+      await p1;
+    }
+  });
+
+  test("actor-generation assert — unrelated errors are not converted to replay", async () => {
+    enableReplacementFlags();
+    const { user } = await loginAs("rep-actor-toctou-err@test.com", "admin");
+    const q = await createEligibleDraft(user._id);
+    const cand = await seedRejectedAttemptOne(user._id, q);
+    const originalFindOne = ExamQuestionRationaleCandidate.findOne.bind(ExamQuestionRationaleCandidate);
+    const spy = jest.spyOn(ExamQuestionRationaleCandidate, "findOne").mockImplementation(function (filter, ...rest) {
+      const f = filter || {};
+      if (f.status === "generating" && f.active === true && f.generatedBy != null) {
+        throw Object.assign(new Error("SYNTHETIC_DB_FAILURE"), { code: "SYNTHETIC_DB_FAILURE" });
+      }
+      return originalFindOne(filter, ...rest);
+    });
+    try {
+      let caught;
+      try {
+        await createReplacementRationaleCandidate({
+          actorId: user._id,
+          rejectedCandidateId: String(cand._id),
+          body: {
+            questionId: q._id.toString(),
+            partLabel: "a",
+            expectedSourceFingerprint: cand.sourceFingerprint,
+            idempotencyKey: "rep-actor-toctou-err-aaaa",
+          },
+          llmCall: async () => ({ explanation: GOOD_EXPLANATION }),
+        });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeTruthy();
+      expect(caught.code).toBe("SYNTHETIC_DB_FAILURE");
+      expect(caught.message).toBe("SYNTHETIC_DB_FAILURE");
+      expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   test("true concurrent different keys / different actors — one Attempt 2; one provider", async () => {
