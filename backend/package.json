@@ -100,7 +100,6 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.7.2",
-    "morgan": "^1.10.0",
     "multer": "^2.2.0",
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.15.2",
@@ -108,8 +107,7 @@
     "rate-limiter-flexible": "^3.0.0",
     "resend": "^6.6.0",
     "sharp": "^0.35.3",
-    "swagger-ui-express": "^5.0.0",
-    "yaml": "^2.7.0"
+    "swagger-ui-express": "^5.0.0"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
