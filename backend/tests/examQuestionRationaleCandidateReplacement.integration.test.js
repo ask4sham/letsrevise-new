@@ -1137,9 +1137,17 @@ describe("V2.3B2b2a substantive rationale, failed replay, true concurrency", () 
     const losers = settled.filter((s) => !s.ok);
     expect(winners.length).toBe(1);
     expect(losers.length).toBe(2);
-    expect(losers.every((s) => ["ATTEMPT_2_ALREADY_EXISTS", "ATTEMPT_LIMIT_REACHED", "ACTIVE_CANDIDATE_EXISTS"].includes(s.code))).toBe(
-      true
-    );
+    // Same-actor different-key losers may hit ACTOR_GENERATION_IN_PROGRESS (409) before Attempt-2
+    // collision surfaces — intentional product contract; see adjacent TOCTOU different-key test.
+    const acceptedLoserCodes = new Set([
+      "ATTEMPT_2_ALREADY_EXISTS",
+      "ATTEMPT_LIMIT_REACHED",
+      "ACTIVE_CANDIDATE_EXISTS",
+      "ACTOR_GENERATION_IN_PROGRESS",
+    ]);
+    const loserCodes = losers.map((s) => s.code);
+    const unexpectedLoserCodes = loserCodes.filter((code) => !acceptedLoserCodes.has(code));
+    expect(unexpectedLoserCodes).toEqual([]);
     expect(providerStarts).toBe(1);
     expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id })).toBe(2);
     expect(await ExamQuestionRationaleCandidate.countDocuments({ questionId: q._id, attemptNumber: 2 })).toBe(1);
