@@ -554,48 +554,80 @@ function sanitisePageInput(p, isUpdate = false) {
         if (type === "interactiveSequence") {
           const title = typeof b?.title === "string" ? b.title.trim().slice(0, 240) : "";
           const intro = typeof b?.intro === "string" ? b.intro.trim().slice(0, 4000) : "";
+          const isProgressive = b?.presentationMode === "progressiveReveal";
+          const stepCap = isProgressive ? 8 : 40;
           const rawSeq = Array.isArray(b?.sequenceSteps)
             ? b.sequenceSteps
             : Array.isArray(b?.steps)
               ? b.steps
               : [];
+
+          const sanitizeSourceIds = (arr, max = 30) => {
+            if (!Array.isArray(arr)) return undefined;
+            const ids = arr
+              .map((id) => (typeof id === "string" ? id.trim() : ""))
+              .filter(Boolean)
+              .slice(0, max);
+            return ids.length ? ids : undefined;
+          };
+
           const sequenceSteps = rawSeq
-            .slice(0, 40)
+            .slice(0, stepCap)
             .map((s) => {
               if (!s || typeof s !== "object") {
-                return { title: "", description: "", imageUrl: "", caption: "" };
+                return isProgressive
+                  ? { title: "", description: "", imageUrl: "" }
+                  : { title: "", description: "", imageUrl: "", caption: "" };
               }
               const sid = typeof s.id === "string" && s.id.trim() ? s.id.trim().slice(0, 64) : "";
               const row = {
                 title: typeof s.title === "string" ? s.title.trim().slice(0, 200) : "",
-                description: typeof s.description === "string" ? s.description.trim().slice(0, 8000) : "",
+                description:
+                  typeof s.description === "string" ? s.description.trim().slice(0, 8000) : "",
                 imageUrl: typeof s.imageUrl === "string" ? s.imageUrl.trim().slice(0, 2000) : "",
-                caption: typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "",
               };
-              if (typeof s.testQuestion === "string" && s.testQuestion.trim()) {
-                row.testQuestion = s.testQuestion.trim().slice(0, 500);
+              if (!isProgressive) {
+                row.caption = typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "";
+                if (typeof s.testQuestion === "string" && s.testQuestion.trim()) {
+                  row.testQuestion = s.testQuestion.trim().slice(0, 500);
+                }
+                if (typeof s.testExplanation === "string" && s.testExplanation.trim()) {
+                  row.testExplanation = s.testExplanation.trim().slice(0, 4000);
+                }
               }
-              if (typeof s.testExplanation === "string" && s.testExplanation.trim()) {
-                row.testExplanation = s.testExplanation.trim().slice(0, 4000);
-              }
+              const stepSourceIds = sanitizeSourceIds(s.sourceIds);
+              if (stepSourceIds) row.sourceIds = stepSourceIds;
               return sid ? { id: sid, ...row } : row;
             })
-            .filter(
-              (s) =>
+            .filter((s) => {
+              if (isProgressive) {
+                return s.title || s.description || s.imageUrl;
+              }
+              return (
                 s.title ||
                 s.description ||
                 s.imageUrl ||
                 s.caption ||
                 s.testQuestion ||
                 s.testExplanation
-            );
+              );
+            });
+
           const seqOut = {
             type: "interactiveSequence",
             title,
             intro,
             sequenceSteps,
           };
+          const blockId = typeof b?.id === "string" && b.id.trim() ? b.id.trim().slice(0, 128) : "";
+          if (blockId) seqOut.id = blockId;
           if (typeof b?.role === "string" && b.role.trim()) seqOut.role = b.role.trim();
+          const blockSourceIds = sanitizeSourceIds(b?.sourceIds);
+          if (blockSourceIds) seqOut.sourceIds = blockSourceIds;
+          if (isProgressive) {
+            seqOut.presentationMode = "progressiveReveal";
+            seqOut.enableTestMe = false;
+          }
           return seqOut;
         }
         if (type === "interactiveDiagram") {
@@ -975,6 +1007,96 @@ function sanitisePageInput(p, isUpdate = false) {
 function sanitisePagesInput(pages, isUpdate = false) {
   if (!Array.isArray(pages)) return [];
   return pages.map((p) => sanitisePageInput(p, isUpdate));
+}
+
+const PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS = new Set([
+  "caption",
+  "testQuestion",
+  "testExplanation",
+  "note",
+  "teacherBrief",
+  "modelAnswer",
+  "expectedResponse",
+  "teacherGuidance",
+]);
+
+const TEACHER_KEY_MARKER_RE = /teacher-key\s*:/i;
+const TEACHER_KEY_KEY_RE = /teacher-key/i;
+
+function progressiveRevealKeyContainsTeacherKey(key) {
+  return typeof key === "string" && TEACHER_KEY_KEY_RE.test(key);
+}
+
+function progressiveRevealValueContainsTeacherKey(value) {
+  return typeof value === "string" && TEACHER_KEY_MARKER_RE.test(value);
+}
+
+function stripProgressiveRevealStepForStudent(step) {
+  if (!step || typeof step !== "object" || Array.isArray(step)) return step;
+  const out = {};
+  for (const [key, value] of Object.entries(step)) {
+    if (PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS.has(key)) continue;
+    if (progressiveRevealKeyContainsTeacherKey(key)) continue;
+    if (progressiveRevealValueContainsTeacherKey(value)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function stripProgressiveRevealBlockForStudent(block) {
+  if (
+    !block ||
+    block.type !== "interactiveSequence" ||
+    block.presentationMode !== "progressiveReveal"
+  ) {
+    return block;
+  }
+
+  const out = {};
+  for (const [key, value] of Object.entries(block)) {
+    if (PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS.has(key)) continue;
+    if (progressiveRevealKeyContainsTeacherKey(key)) continue;
+    if (progressiveRevealValueContainsTeacherKey(value)) continue;
+
+    if (key === "metadata" && value && typeof value === "object" && !Array.isArray(value)) {
+      const meta = {};
+      for (const [metaKey, metaValue] of Object.entries(value)) {
+        if (metaKey === "teacherBrief") continue;
+        if (PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS.has(metaKey)) continue;
+        if (progressiveRevealKeyContainsTeacherKey(metaKey)) continue;
+        if (progressiveRevealValueContainsTeacherKey(metaValue)) continue;
+        meta[metaKey] = metaValue;
+      }
+      if (Object.keys(meta).length > 0) out.metadata = meta;
+      continue;
+    }
+
+    if (key === "sequenceSteps" && Array.isArray(value)) {
+      out.sequenceSteps = value.map(stripProgressiveRevealStepForStudent);
+      continue;
+    }
+
+    out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Student delivery shaping for progressiveReveal interactiveSequence blocks.
+ * Omits teacher-only keys reintroduced by Mongoose defaults without mutating the source doc.
+ * @param {Object} lesson - Lesson doc or plain object.
+ * @returns {Object} Shallow lesson copy with progressive blocks sanitised.
+ */
+function shapeProgressiveRevealBlocksForStudentLesson(lesson) {
+  if (!lesson || !Array.isArray(lesson.pages)) return lesson;
+  const pages = lesson.pages.map((page) => {
+    if (!page || !Array.isArray(page.blocks)) return page;
+    return {
+      ...page,
+      blocks: page.blocks.map(stripProgressiveRevealBlockForStudent),
+    };
+  });
+  return { ...lesson, pages };
 }
 
 /**
@@ -3995,18 +4117,24 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
       ? { allowed: !!req.accessDecision.allowed, reason: req.accessDecision.reason }
       : { allowed: true, reason: "UNKNOWN" };
 
-    if (decision?.reason === "FREE_PREVIEW") {
-      const payload = toLessonPreviewPayload(lesson);
-      return res.json({ ...payload, accessDecision });
-    }
     const isOwner = String(lesson.teacherId) === String(req.user._id);
     const isSharedReviewer = decision?.reason === "SHARED_REVIEW";
     const isSharedTeacher = decision?.reason === "SHARED_TEACH";
     const isPrivilegedViewer = isAdmin(req.user) || isOwner || isSharedReviewer || isSharedTeacher;
-    const lessonForResponse =
-      !isPrivilegedViewer && req.user?.userType === "student"
-        ? stripCheckpointAutoMarkFromLesson(lesson)
-        : lesson;
+
+    let lessonForResponse = lesson;
+    if (!isPrivilegedViewer) {
+      lessonForResponse = shapeProgressiveRevealBlocksForStudentLesson(lessonForResponse);
+    }
+
+    if (decision?.reason === "FREE_PREVIEW") {
+      const payload = toLessonPreviewPayload(lessonForResponse);
+      return res.json({ ...payload, accessDecision });
+    }
+
+    if (!isPrivilegedViewer && req.user?.userType === "student") {
+      lessonForResponse = stripCheckpointAutoMarkFromLesson(lessonForResponse);
+    }
     const payload = toLessonFullPayload(lessonForResponse);
     payload.readiness = computeLessonReadiness(lesson);
     if (isSharedReviewer || isSharedTeacher) {
@@ -5866,3 +5994,5 @@ module.exports = router;
 module.exports.createLessonHandler = createLessonHandler;
 module.exports.mergePagesOnUpdate = mergePagesOnUpdate;
 module.exports.sanitisePagesInput = sanitisePagesInput;
+module.exports.shapeProgressiveRevealBlocksForStudentLesson =
+  shapeProgressiveRevealBlocksForStudentLesson;

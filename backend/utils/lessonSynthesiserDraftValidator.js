@@ -15,6 +15,7 @@ const ALLOWED_BLOCK_TYPES = Object.freeze([
   "selfCheck",
   "pageQuiz",
   "diagram",
+  "interactiveSequence",
 ]);
 
 const BANK_COUNTS = Object.freeze({
@@ -31,6 +32,209 @@ const BANNED_STEMS = Object.freeze([
 ]);
 
 const OPTION_FILLER_RE = /\bOption\s*[1-4]\b/i;
+const TEACHER_KEY_RE = /teacher-key\s*:/i;
+
+function containsTeacherKeyMarker(value) {
+  if (typeof value === "string") return TEACHER_KEY_RE.test(value);
+  if (Array.isArray(value)) return value.some(containsTeacherKeyMarker);
+  if (value && typeof value === "object") {
+    return Object.values(value).some(containsTeacherKeyMarker);
+  }
+  return false;
+}
+
+function validateProgressiveRevealSequenceBlock(block, path, errors) {
+  if (block.presentationMode !== "progressiveReveal") {
+    errors.push(
+      err(
+        "SYNTHESISER_SEQUENCE_MODE_INVALID",
+        `${path}.presentationMode`,
+        'presentationMode must be "progressiveReveal".'
+      )
+    );
+  }
+
+  if (block.enableTestMe !== false) {
+    errors.push(
+      err(
+        "SYNTHESISER_SEQUENCE_TEST_ME_INVALID",
+        `${path}.enableTestMe`,
+        "enableTestMe must be false."
+      )
+    );
+  }
+
+  const forbiddenTop = [
+    "caption",
+    "testQuestion",
+    "testExplanation",
+    "note",
+    "teacherBrief",
+    "modelAnswer",
+    "expectedResponse",
+    "teacherGuidance",
+  ];
+  for (const key of forbiddenTop) {
+    if (
+      Object.prototype.hasOwnProperty.call(block, key) &&
+      block[key] != null &&
+      String(block[key]).trim()
+    ) {
+      errors.push(
+        err(
+          "SYNTHESISER_SEQUENCE_FORBIDDEN_FIELD",
+          `${path}.${key}`,
+          `Forbidden field "${key}".`
+        )
+      );
+    }
+  }
+
+  if (block.metadata && String(block.metadata.teacherBrief || "").trim()) {
+    errors.push(
+      err(
+        "SYNTHESISER_SEQUENCE_FORBIDDEN_FIELD",
+        `${path}.metadata.teacherBrief`,
+        "Forbidden metadata.teacherBrief."
+      )
+    );
+  }
+
+  if (containsTeacherKeyMarker(block)) {
+    errors.push(
+      err(
+        "SYNTHESISER_SEQUENCE_FORBIDDEN_FIELD",
+        path,
+        "teacher-key marker is forbidden."
+      )
+    );
+  }
+
+  const steps = Array.isArray(block.sequenceSteps) ? block.sequenceSteps : [];
+  if (steps.length < 1 || steps.length > 8) {
+    errors.push(
+      err(
+        "SYNTHESISER_SEQUENCE_STEP_COUNT",
+        `${path}.sequenceSteps`,
+        "sequenceSteps must have between 1 and 8 items."
+      )
+    );
+  }
+
+  const seenIds = new Set();
+  const seenDescriptions = new Set();
+  const forbiddenStep = [
+    "caption",
+    "testQuestion",
+    "testExplanation",
+    "modelAnswer",
+    "expectedResponse",
+    "teacherGuidance",
+  ];
+
+  steps.forEach((step, si) => {
+    const stepPath = `${path}.sequenceSteps[${si}]`;
+    const sid = String(step?.id ?? "").trim();
+    if (!sid) {
+      errors.push(
+        err("SYNTHESISER_SEQUENCE_STEP_ID", `${stepPath}.id`, "Step id is required.")
+      );
+    } else if (seenIds.has(sid)) {
+      errors.push(
+        err(
+          "SYNTHESISER_SEQUENCE_STEP_ID_DUPLICATE",
+          `${stepPath}.id`,
+          "Step ids must be unique."
+        )
+      );
+    } else {
+      seenIds.add(sid);
+    }
+
+    if (!String(step?.title ?? "").trim()) {
+      errors.push(
+        err(
+          "SYNTHESISER_SEQUENCE_STEP_TITLE",
+          `${stepPath}.title`,
+          "Step title is required."
+        )
+      );
+    }
+
+    const description = String(step?.description ?? "").trim();
+    if (!description) {
+      errors.push(
+        err(
+          "SYNTHESISER_SEQUENCE_STEP_DESCRIPTION",
+          `${stepPath}.description`,
+          "Step description is required."
+        )
+      );
+    } else {
+      const normalised = description.toLowerCase().replace(/\s+/g, " ");
+      if (seenDescriptions.has(normalised)) {
+        errors.push(
+          err(
+            "SYNTHESISER_SEQUENCE_STEP_DUPLICATE",
+            stepPath,
+            "Duplicate normalised step descriptions are forbidden."
+          )
+        );
+      }
+      seenDescriptions.add(normalised);
+    }
+
+    for (const key of forbiddenStep) {
+      if (step?.[key] != null && String(step[key]).trim()) {
+        errors.push(
+          err(
+            "SYNTHESISER_SEQUENCE_FORBIDDEN_FIELD",
+            `${stepPath}.${key}`,
+            `Forbidden field "${key}".`
+          )
+        );
+      }
+    }
+
+    if (Array.isArray(step?.sourceIds)) {
+      step.sourceIds.forEach((id, ii) => {
+        if (typeof id !== "string" || !id.trim()) {
+          errors.push(
+            err(
+              "SYNTHESISER_SEQUENCE_SOURCE_ID",
+              `${stepPath}.sourceIds[${ii}]`,
+              "sourceIds must be non-empty strings."
+            )
+          );
+        }
+      });
+    }
+
+    if (containsTeacherKeyMarker(step)) {
+      errors.push(
+        err(
+          "SYNTHESISER_SEQUENCE_FORBIDDEN_FIELD",
+          stepPath,
+          "teacher-key marker is forbidden."
+        )
+      );
+    }
+  });
+
+  if (Array.isArray(block.sourceIds)) {
+    block.sourceIds.forEach((id, ii) => {
+      if (typeof id !== "string" || !id.trim()) {
+        errors.push(
+          err(
+            "SYNTHESISER_SEQUENCE_SOURCE_ID",
+            `${path}.sourceIds[${ii}]`,
+            "sourceIds must be non-empty strings."
+          )
+        );
+      }
+    });
+  }
+}
 
 function okResult() {
   return { ok: true, errors: [] };
@@ -355,6 +559,11 @@ function validateLessonSynthesiserDraftEnvelope(envelope) {
     }
 
     validateTeacherBriefLeak(block, path, errors);
+
+    if (type === "interactiveSequence") {
+      validateProgressiveRevealSequenceBlock(block, path, errors);
+      continue;
+    }
 
     if (type === "selfCheck" || type === "checkpoint" || type === "pageQuiz") {
       bankSeen[type] += 1;

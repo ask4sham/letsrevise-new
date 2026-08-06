@@ -42,6 +42,51 @@ export function blockLooksLikeInteractiveSequence(block: Record<string, unknown>
   return buildSequenceStepsFromGeneratorScript(intro, content).length > 0;
 }
 
+function sanitizeStringArray(value: unknown, max = 30): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const ids = value
+    .map((id) => String(id ?? "").trim())
+    .filter(Boolean)
+    .slice(0, max);
+  return ids.length ? ids : undefined;
+}
+
+function preserveInteractiveSequenceBlockFields(
+  block: Record<string, unknown>,
+  out: Record<string, unknown>
+): void {
+  const blockId = String(block.id ?? "").trim();
+  if (blockId) out.id = blockId;
+
+  const presentationMode = String(block.presentationMode ?? "").trim();
+  if (presentationMode === "progressiveReveal") {
+    out.presentationMode = "progressiveReveal";
+  }
+
+  if (block.enableTestMe === false) out.enableTestMe = false;
+  else if (block.enableTestMe === true) out.enableTestMe = true;
+
+  const sourceIds = sanitizeStringArray(block.sourceIds);
+  if (sourceIds) out.sourceIds = sourceIds;
+}
+
+function mergePreservedStepFields(
+  hydrated: InteractiveSequenceStepEditorRow[],
+  rawSeq: unknown[]
+): Array<InteractiveSequenceStepEditorRow & { sourceIds?: string[] }> {
+  return hydrated.map((row, index) => {
+    const prev = rawSeq[index];
+    if (!prev || typeof prev !== "object") return row;
+    const p = prev as Record<string, unknown>;
+    const next: InteractiveSequenceStepEditorRow & { sourceIds?: string[] } = { ...row };
+    const sid = String(p.id ?? "").trim();
+    if (sid) next.id = sid;
+    const stepSourceIds = sanitizeStringArray(p.sourceIds);
+    if (stepSourceIds) next.sourceIds = stepSourceIds;
+    return next;
+  });
+}
+
 /** Normalize one block for the editor (type, steps[], legacy `steps` alias). */
 export function normalizeInteractiveSequenceBlockForEditor(
   block: Record<string, unknown>
@@ -54,9 +99,10 @@ export function normalizeInteractiveSequenceBlockForEditor(
       ? block.steps
       : [];
 
-  const sequenceSteps = hydrateInteractiveSequenceStepsForEditor(intro, content, rawSeq).map(
+  const hydrated = hydrateInteractiveSequenceStepsForEditor(intro, content, rawSeq).map(
     cleanStepRowDescription
   );
+  const sequenceSteps = mergePreservedStepFields(hydrated, rawSeq);
 
   const out: Record<string, unknown> = {
     ...block,
@@ -65,6 +111,7 @@ export function normalizeInteractiveSequenceBlockForEditor(
     content,
     sequenceSteps,
   };
+  preserveInteractiveSequenceBlockFields(block, out);
   const note = String(block.note ?? "").trim();
   if (note) out.note = note;
   else delete out.note;
