@@ -392,17 +392,25 @@ export function LessonStudentBlockRenderer({
     if (!isStudentVisibleInteractiveSequenceBlock(block as StudentLessonPageBlock)) {
       return null;
     }
-    const raw = (block as StudentLessonPageBlock).sequenceSteps ?? (block as { steps?: InteractiveSequenceStepPersisted[] }).steps;
+    const seqBlock = block as StudentLessonPageBlock;
+    const isProgressive = seqBlock.presentationMode === "progressiveReveal";
+    const raw = seqBlock.sequenceSteps ?? (block as { steps?: InteractiveSequenceStepPersisted[] }).steps;
     const arr = Array.isArray(raw) ? raw : [];
     const steps: InteractiveSequenceStep[] = arr.map((s: InteractiveSequenceStepPersisted) => {
       const sid = typeof s.id === "string" ? String(s.id).trim() : "";
-      const tq = s.testQuestion != null ? String(s.testQuestion).trim() : "";
-      const te = s.testExplanation != null ? String(s.testExplanation).trim() : "";
-      return {
+      const base = {
         ...(sid ? { id: sid.slice(0, 64) } : {}),
         title: String(s?.title ?? ""),
         description: String(s?.description ?? ""),
         imageUrl: String(s?.imageUrl ?? ""),
+      };
+      if (isProgressive) {
+        return { ...base, caption: "" };
+      }
+      const tq = s.testQuestion != null ? String(s.testQuestion).trim() : "";
+      const te = s.testExplanation != null ? String(s.testExplanation).trim() : "";
+      return {
+        ...base,
         caption: String(s?.caption ?? ""),
         ...(tq ? { testQuestion: tq } : {}),
         ...(te ? { testExplanation: te } : {}),
@@ -418,6 +426,8 @@ export function LessonStudentBlockRenderer({
         lessonTitle={lessonTitleForAi}
         level={levelForAi}
         subject={subjectForAi}
+        presentationMode={seqBlock.presentationMode}
+        enableTestMe={seqBlock.enableTestMe}
         viewMode="student"
       />
     );

@@ -9,6 +9,8 @@ const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const bcrypt = require("bcryptjs");
 
+const hashedPassword = bcrypt.hashSync("password123", 10);
+
 describe("GET /api/lessons/:id content access (Phase 9)", () => {
   jest.setTimeout(15000);
 
@@ -21,7 +23,6 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
   let tokenUTrialing;
   let tokenUPastDue;
   let tokenUExpired;
-  const hashedPassword = bcrypt.hashSync("password123", 10);
 
   beforeAll(async () => {
     const teacher = await User.create({
@@ -234,6 +235,327 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     expect(res.status).toBe(402);
     expect(res.body.error).toBe("Subscription required");
     expect(res.body.reason).toBe("NOT_ENTITLED");
+  });
+});
+
+const PROGRESSIVE_PROHIBITED_KEYS = [
+  "caption",
+  "testQuestion",
+  "testExplanation",
+  "note",
+  "teacherBrief",
+  "modelAnswer",
+  "expectedResponse",
+  "teacherGuidance",
+];
+
+const TEACHER_KEY_RE = /teacher-key\s*:/i;
+const TEACHER_KEY_KEY_RE = /teacher-key/i;
+
+function findProgressiveBlock(pages) {
+  return (pages || [])
+    .flatMap((page) => page.blocks || [])
+    .find((block) => block.type === "interactiveSequence" && block.presentationMode === "progressiveReveal");
+}
+
+function findCarouselBlock(pages) {
+  return (pages || [])
+    .flatMap((page) => page.blocks || [])
+    .find((block) => block.type === "interactiveSequence" && !block.presentationMode);
+}
+
+function collectProgressiveProhibitedHits(value, path = "", hits = []) {
+  if (value == null) return hits;
+  if (typeof value === "string") {
+    if (TEACHER_KEY_RE.test(value)) hits.push(`${path}:value`);
+    return hits;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      collectProgressiveProhibitedHits(item, `${path}[${index}]`, hits)
+    );
+    return hits;
+  }
+  if (typeof value !== "object") return hits;
+
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = path ? `${path}.${key}` : key;
+    if (TEACHER_KEY_KEY_RE.test(key)) hits.push(childPath);
+    if (PROGRESSIVE_PROHIBITED_KEYS.includes(key)) hits.push(childPath);
+    if (key === "metadata" && child && typeof child === "object" && child.teacherBrief !== undefined) {
+      hits.push(`${childPath}.teacherBrief`);
+    }
+    collectProgressiveProhibitedHits(child, childPath, hits);
+  }
+  return hits;
+}
+
+describe("GET /api/lessons/:id progressiveReveal learner payload shaping", () => {
+  jest.setTimeout(20000);
+
+  let teacherId;
+  let lessonFullId;
+  let lessonPreviewId;
+  let lessonTeacherKeyId;
+  let tokenStudent;
+  let tokenParent;
+  let tokenTeacher;
+  let tokenPreviewStudent;
+
+  const progressiveBlock = {
+    type: "interactiveSequence",
+    id: "block-prog-route",
+    role: "sequence",
+    title: "Process",
+    intro: "Follow each step.",
+    presentationMode: "progressiveReveal",
+    enableTestMe: false,
+    sourceIds: ["spec:topic:point-1"],
+    sequenceSteps: [
+      {
+        id: "step-1",
+        title: "Step 1",
+        description: "First teaching step.",
+        imageUrl: "",
+        sourceIds: ["spec:topic:point-1"],
+      },
+    ],
+  };
+
+  const carouselBlock = {
+    type: "interactiveSequence",
+    title: "Carousel",
+    intro: "Intro",
+    sequenceSteps: [
+      {
+        id: "c1",
+        title: "One",
+        description: "Desc",
+        imageUrl: "",
+        caption: "Key idea",
+      },
+    ],
+  };
+
+  beforeAll(async () => {
+    const teacher = await User.create({
+      firstName: "Progressive",
+      lastName: "Teacher",
+      email: "progressive-route-teacher@test.com",
+      password: hashedPassword,
+      userType: "teacher",
+    });
+    teacherId = teacher._id;
+
+    const fullLesson = await Lesson.create({
+      title: "Progressive full lesson",
+      description: "Full lesson with progressive block",
+      content: "Content",
+      teacherId,
+      teacherName: "Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Cells",
+      status: "published",
+      isPublished: true,
+      isFreePreview: false,
+      pages: [
+        {
+          pageId: "p1",
+          title: "Page 1",
+          order: 0,
+          blocks: [progressiveBlock, carouselBlock],
+        },
+      ],
+      quiz: { questions: [] },
+      flashcards: [],
+    });
+    lessonFullId = fullLesson._id;
+
+    const previewLesson = await Lesson.create({
+      title: "Progressive preview lesson",
+      description: "Preview lesson with progressive block",
+      content: "Content",
+      teacherId,
+      teacherName: "Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Cells",
+      status: "published",
+      isPublished: true,
+      isFreePreview: true,
+      pages: [
+        {
+          pageId: "p1",
+          title: "Preview Page",
+          order: 0,
+          blocks: [progressiveBlock],
+        },
+        {
+          pageId: "p2",
+          title: "Locked Page",
+          order: 1,
+          blocks: [],
+        },
+      ],
+      quiz: { questions: [] },
+      flashcards: [],
+    });
+    lessonPreviewId = previewLesson._id;
+
+    const teacherKeyLesson = await Lesson.create({
+      title: "Teacher-key lesson",
+      description: "Mixed-case teacher-key markers",
+      content: "Content",
+      teacherId,
+      teacherName: "Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Cells",
+      status: "published",
+      isPublished: true,
+      isFreePreview: false,
+      pages: [
+        {
+          pageId: "p1",
+          title: "Page 1",
+          order: 0,
+          blocks: [progressiveBlock],
+        },
+      ],
+      quiz: { questions: [] },
+      flashcards: [],
+    });
+    lessonTeacherKeyId = teacherKeyLesson._id;
+    await Lesson.collection.updateOne(
+      { _id: lessonTeacherKeyId },
+      {
+        $set: {
+          "pages.0.blocks.0.note": "Teacher-Key: route leak",
+          "pages.0.blocks.0.metadata": { "nested-Teacher-KEY-marker": "TEACHER-KEY : hidden" },
+        },
+      }
+    );
+
+    const future = new Date(Date.now() + 86400000);
+    await User.create({
+      firstName: "Progressive",
+      lastName: "Student",
+      email: "progressive-route-student@test.com",
+      password: hashedPassword,
+      userType: "student",
+      subscriptionV2: { status: "active", expiresAt: future },
+      purchasedLessons: [],
+    });
+    await User.create({
+      firstName: "Preview",
+      lastName: "Student",
+      email: "progressive-route-preview-student@test.com",
+      password: hashedPassword,
+      userType: "student",
+      subscriptionV2: null,
+      purchasedLessons: [],
+    });
+    await User.create({
+      firstName: "Progressive",
+      lastName: "Parent",
+      email: "progressive-route-parent@test.com",
+      password: hashedPassword,
+      userType: "parent",
+      subscriptionV2: { status: "active", expiresAt: future },
+      purchasedLessons: [],
+    });
+
+    const login = (email) =>
+      request(app)
+        .post("/api/auth/login")
+        .send({ email, password: "password123" })
+        .then((res) => res.body.token);
+
+    tokenStudent = await login("progressive-route-student@test.com");
+    tokenPreviewStudent = await login("progressive-route-preview-student@test.com");
+    tokenParent = await login("progressive-route-parent@test.com");
+    tokenTeacher = await login("progressive-route-teacher@test.com");
+  });
+
+  test("authenticated student full payload shapes progressive block and omits prohibited keys", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonFullId}`)
+      .set("Authorization", `Bearer ${tokenStudent}`);
+    expect(res.status).toBe(200);
+    expect(res.body.pages).toHaveLength(1);
+
+    const progressive = findProgressiveBlock(res.body.pages);
+    expect(progressive).toBeDefined();
+    expect(progressive.id).toBe("block-prog-route");
+    expect(progressive.presentationMode).toBe("progressiveReveal");
+    expect(progressive.sequenceSteps[0].id).toBe("step-1");
+    expect(progressive.sequenceSteps[0].title).toBe("Step 1");
+    expect(collectProgressiveProhibitedHits(progressive)).toEqual([]);
+  });
+
+  test("parent full payload shapes progressive block and omits prohibited keys", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonFullId}`)
+      .set("Authorization", `Bearer ${tokenParent}`);
+    expect(res.status).toBe(200);
+    expect(res.body.pages).toHaveLength(1);
+
+    const progressive = findProgressiveBlock(res.body.pages);
+    expect(progressive).toBeDefined();
+    expect(collectProgressiveProhibitedHits(progressive)).toEqual([]);
+  });
+
+  test("non-privileged FREE_PREVIEW shapes progressive block on preview page only", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonPreviewId}`)
+      .set("Authorization", `Bearer ${tokenPreviewStudent}`);
+    expect(res.status).toBe(200);
+    expect(res.body.accessDecision?.reason).toBe("FREE_PREVIEW");
+    expect(res.body.pages).toHaveLength(1);
+    expect(res.body.flashcards).toEqual([]);
+    expect(res.body.quiz).toBeUndefined();
+
+    const progressive = findProgressiveBlock(res.body.pages);
+    expect(progressive).toBeDefined();
+    expect(collectProgressiveProhibitedHits(progressive)).toEqual([]);
+  });
+
+  test("privileged teacher owner receives unshaped progressive block", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonFullId}`)
+      .set("Authorization", `Bearer ${tokenTeacher}`);
+    expect(res.status).toBe(200);
+    expect(res.body.accessDecision?.reason).toBe("OWNER");
+
+    const progressive = findProgressiveBlock(res.body.pages);
+    expect(progressive).toBeDefined();
+    expect(Object.prototype.hasOwnProperty.call(progressive, "caption")).toBe(true);
+    expect(progressive.sequenceSteps[0]).toHaveProperty("caption");
+  });
+
+  test("legacy carousel caption remains available on non-privileged full payload", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonFullId}`)
+      .set("Authorization", `Bearer ${tokenStudent}`);
+    expect(res.status).toBe(200);
+
+    const carousel = findCarouselBlock(res.body.pages);
+    expect(carousel).toBeDefined();
+    expect(carousel.sequenceSteps[0].caption).toBe("Key idea");
+  });
+
+  test("mixed-case teacher-key markers are absent from non-privileged progressive payload", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonTeacherKeyId}`)
+      .set("Authorization", `Bearer ${tokenParent}`);
+    expect(res.status).toBe(200);
+
+    const progressive = findProgressiveBlock(res.body.pages);
+    expect(progressive).toBeDefined();
+    expect(collectProgressiveProhibitedHits(progressive)).toEqual([]);
+    expect(JSON.stringify(progressive).match(TEACHER_KEY_RE)).toBeNull();
+    expect(JSON.stringify(progressive).match(TEACHER_KEY_KEY_RE)).toBeNull();
   });
 });
 

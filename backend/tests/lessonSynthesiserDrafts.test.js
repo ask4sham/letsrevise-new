@@ -14,6 +14,44 @@ const Lesson = require("../models/Lesson");
 const {
   getLessonSynthesiserPr10DraftFixture,
 } = require("./fixtures/lessonSynthesiserPr10Draft.fixture");
+const {
+  validateLessonSynthesiserDraftEnvelope,
+} = require("../utils/lessonSynthesiserDraftValidator");
+
+function progressiveSequenceBlock(overrides = {}) {
+  return {
+    id: "block-sequence-test",
+    type: "interactiveSequence",
+    role: "sequence",
+    title: "Process steps",
+    intro: "Follow the process.",
+    presentationMode: "progressiveReveal",
+    enableTestMe: false,
+    sourceIds: ["edexcel-igcse-biology:reproduction/gametes-fertilisation:ck1"],
+    sequenceSteps: [
+      {
+        id: "step-1",
+        title: "Step 1",
+        description: "First teaching step.",
+        imageUrl: "",
+        sourceIds: ["edexcel-igcse-biology:reproduction/gametes-fertilisation:ck1"],
+      },
+      {
+        id: "step-2",
+        title: "Step 2",
+        description: "Second teaching step.",
+        imageUrl: "",
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function payloadWithProgressiveBlock(blockOverrides = {}) {
+  const payload = getLessonSynthesiserPr10DraftFixture();
+  payload.draft.pages[0].blocks.push(progressiveSequenceBlock(blockOverrides));
+  return payload;
+}
 
 const TOKEN = process.env.LETSREVISE_LESSON_SYNTHESISER_TOKEN;
 const hashedPassword = bcrypt.hashSync("password123", 10);
@@ -350,6 +388,112 @@ describe("Lesson Synthesiser draft receiver", () => {
     const lesson = await Lesson.findById(res.body.lessonId).lean();
     expect(lesson.level).toBe("GCSE");
     expect(lesson.board).toBe("AQA");
+  });
+
+  test("accepts valid progressiveReveal interactiveSequence import and preserves fields", async () => {
+    const payload = payloadWithProgressiveBlock();
+    const res = await request(app)
+      .post("/api/lesson-synthesiser/drafts")
+      .set(authHeader())
+      .send(payload);
+    expect(res.status).toBe(201);
+
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    const seq = lesson.pages
+      .flatMap((p) => p.blocks || [])
+      .find((b) => b.type === "interactiveSequence");
+    expect(seq).toBeTruthy();
+    expect(seq.presentationMode).toBe("progressiveReveal");
+    expect(seq.enableTestMe).toBe(false);
+    expect(seq.id).toBe("block-sequence-test");
+    expect(seq.sequenceSteps).toHaveLength(2);
+    expect(String(seq.sequenceSteps[0].caption || "").trim()).toBe("");
+  });
+
+  test("accepts one-step progressiveReveal import at renderer-contract level", async () => {
+    const payload = payloadWithProgressiveBlock({
+      sequenceSteps: [
+        {
+          id: "step-only",
+          title: "Only step",
+          description: "Single step activity.",
+          imageUrl: "",
+        },
+      ],
+    });
+    const validation = validateLessonSynthesiserDraftEnvelope(payload);
+    expect(validation.ok).toBe(true);
+  });
+
+  test("rejects progressiveReveal import when enableTestMe is true", () => {
+    const validation = validateLessonSynthesiserDraftEnvelope(
+      payloadWithProgressiveBlock({ enableTestMe: true })
+    );
+    expect(validation.ok).toBe(false);
+    expect(validation.errors.some((e) => e.code === "SYNTHESISER_SEQUENCE_TEST_ME_INVALID")).toBe(
+      true
+    );
+  });
+
+  test("rejects progressiveReveal import with prohibited teacher-only fields", () => {
+    const fields = ["caption", "testQuestion", "testExplanation", "note", "teacherBrief"];
+    for (const field of fields) {
+      const validation = validateLessonSynthesiserDraftEnvelope(
+        payloadWithProgressiveBlock({ [field]: "secret teacher data" })
+      );
+      expect(validation.ok).toBe(false);
+      expect(validation.errors.some((e) => e.code === "SYNTHESISER_SEQUENCE_FORBIDDEN_FIELD")).toBe(
+        true
+      );
+    }
+  });
+
+  test("rejects progressiveReveal import with duplicate step ids and descriptions", () => {
+    const dupId = validateLessonSynthesiserDraftEnvelope(
+      payloadWithProgressiveBlock({
+        sequenceSteps: [
+          { id: "dup", title: "A", description: "One.", imageUrl: "" },
+          { id: "dup", title: "B", description: "Two.", imageUrl: "" },
+        ],
+      })
+    );
+    expect(dupId.ok).toBe(false);
+
+    const dupDesc = validateLessonSynthesiserDraftEnvelope(
+      payloadWithProgressiveBlock({
+        sequenceSteps: [
+          { id: "s1", title: "A", description: "Same text.", imageUrl: "" },
+          { id: "s2", title: "B", description: "Same   text.", imageUrl: "" },
+        ],
+      })
+    );
+    expect(dupDesc.ok).toBe(false);
+  });
+
+  test("rejects progressiveReveal import with invalid step counts and empty fields", () => {
+    const zero = validateLessonSynthesiserDraftEnvelope(
+      payloadWithProgressiveBlock({ sequenceSteps: [] })
+    );
+    expect(zero.ok).toBe(false);
+
+    const tooMany = validateLessonSynthesiserDraftEnvelope(
+      payloadWithProgressiveBlock({
+        sequenceSteps: Array.from({ length: 9 }, (_, i) => ({
+          id: `step-${i}`,
+          title: `Step ${i}`,
+          description: `Description ${i}`,
+          imageUrl: "",
+        })),
+      })
+    );
+    expect(tooMany.ok).toBe(false);
+
+    const emptyTitle = validateLessonSynthesiserDraftEnvelope(
+      payloadWithProgressiveBlock({
+        sequenceSteps: [{ id: "s1", title: "", description: "Text.", imageUrl: "" }],
+      })
+    );
+    expect(emptyTitle.ok).toBe(false);
   });
 });
 

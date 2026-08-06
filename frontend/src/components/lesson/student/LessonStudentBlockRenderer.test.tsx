@@ -42,8 +42,21 @@ jest.mock("../DragDropMatchBlock", () => ({
 }));
 
 jest.mock("../InteractiveSequenceBlock", () => ({
-  InteractiveSequenceBlock: ({ hideBlockTitle }: { hideBlockTitle?: boolean }) => (
-    <div data-testid="interactive-sequence" data-hide-title={hideBlockTitle ? "1" : "0"} />
+  InteractiveSequenceBlock: ({
+    hideBlockTitle,
+    presentationMode,
+    enableTestMe,
+  }: {
+    hideBlockTitle?: boolean;
+    presentationMode?: string;
+    enableTestMe?: boolean;
+  }) => (
+    <div
+      data-testid="interactive-sequence"
+      data-hide-title={hideBlockTitle ? "1" : "0"}
+      data-presentation-mode={presentationMode ?? ""}
+      data-enable-test-me={enableTestMe === false ? "0" : "1"}
+    />
   ),
 }));
 
@@ -242,6 +255,30 @@ describe("LessonStudentBlockRenderer", () => {
     );
     expect(screen.getByRole("heading", { level: 2, name: /14 — STEP-BY-STEP PROCESS/i })).toBeInTheDocument();
     expect(screen.getByTestId("interactive-sequence")).toHaveAttribute("data-hide-title", "1");
+  });
+
+  it("passes presentationMode and enableTestMe for progressive interactiveSequence blocks", () => {
+    render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        block={{
+          type: "interactiveSequence",
+          presentationMode: "progressiveReveal",
+          enableTestMe: false,
+          sequenceSteps: [
+            {
+              id: "s1",
+              title: "Glucose uptake",
+              description: "Glucose enters the cell through transport proteins.",
+              imageUrl: "",
+            },
+          ],
+        }}
+      />
+    );
+    const el = screen.getByTestId("interactive-sequence");
+    expect(el).toHaveAttribute("data-presentation-mode", "progressiveReveal");
+    expect(el).toHaveAttribute("data-enable-test-me", "0");
   });
 
   it("suppresses duplicate drag-drop inner title when outer heading is present", () => {

@@ -63,9 +63,50 @@ function adaptQuizQuestion(q, pageId) {
   };
 }
 
+function adaptInteractiveSequenceBlock(block) {
+  const sequenceSteps = (Array.isArray(block.sequenceSteps) ? block.sequenceSteps : []).map(
+    (s) => {
+      const row = {
+        id: asString(s?.id),
+        title: asString(s?.title),
+        description: asString(s?.description),
+        imageUrl: s?.imageUrl != null ? asString(s.imageUrl) : "",
+      };
+      if (Array.isArray(s?.sourceIds) && s.sourceIds.length) {
+        row.sourceIds = s.sourceIds.map((id) => asString(id)).filter(Boolean);
+      }
+      return row;
+    }
+  );
+
+  const out = {
+    id: asString(block.id),
+    type: "interactiveSequence",
+    role: asString(block.role || "sequence"),
+    title: asString(block.title),
+    intro: asString(block.intro),
+    presentationMode: "progressiveReveal",
+    enableTestMe: false,
+    sequenceSteps,
+  };
+
+  if (Array.isArray(block.sourceIds) && block.sourceIds.length) {
+    out.sourceIds = block.sourceIds.map((id) => asString(id)).filter(Boolean);
+  }
+
+  Object.keys(out).forEach((k) => {
+    if (out[k] === undefined || out[k] === "") delete out[k];
+  });
+  if (!out.id) delete out.id;
+  return out;
+}
+
 function adaptBlock(block) {
   if (!block || typeof block !== "object") return block;
   const type = block.type;
+  if (type === "interactiveSequence") {
+    return adaptInteractiveSequenceBlock(block);
+  }
   const out = {
     type,
     content: asString(block.content),
@@ -135,6 +176,7 @@ const ALLOWED = new Set([
   "selfCheck",
   "pageQuiz",
   "diagram",
+  "interactiveSequence",
 ]);
 
 /**
