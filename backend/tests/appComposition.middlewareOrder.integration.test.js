@@ -40,6 +40,7 @@ const EXPECTED_API_MOUNTS = [
   "/api/events",
   "/api/admin",
   "/api/ops",
+  "/api/autopilot0",
   "/api/ai-generation-jobs",
   "/api/content-tree",
   "/api/visuals",

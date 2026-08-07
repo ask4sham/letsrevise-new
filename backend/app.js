@@ -429,6 +429,7 @@ app.use("/api/pricing", require("./routes/pricing"));
 app.use("/api/events", require("./routes/events"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/ops", require("./routes/ops"));
+app.use("/api/autopilot0", require("./routes/autopilot0"));
 app.use("/api/ai-generation-jobs", require("./routes/aiGenerationJobs"));
 app.use("/api/content-tree", require("./routes/content-tree"));
 app.use("/api/visuals", require("./routes/visuals"));
