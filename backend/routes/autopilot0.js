@@ -2,12 +2,14 @@
  * Autopilot 0 — L0 observe-only routes.
  * GET /api/autopilot0/brief — admin-only system brief (read-only).
  * GET /api/autopilot0/revision-intelligence — admin-only revision intelligence (read-only).
+ * GET /api/autopilot0/question-intelligence — admin-only question intelligence (read-only).
  */
 const express = require("express");
 const auth = require("../middleware/auth");
 const requireAdmin = require("../middleware/requireAdmin");
 const { buildSystemBrief } = require("../services/autopilot0/systemBriefService");
 const { buildRevisionIntelligence } = require("../services/autopilot0/revisionIntelligenceService");
+const { buildQuestionIntelligence } = require("../services/autopilot0/questionIntelligenceService");
 const { sendInternalError } = require("../utils/safeErrorResponse");
 
 const router = express.Router();
@@ -49,6 +51,37 @@ router.get("/revision-intelligence", auth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: err.message });
     }
     return sendInternalError("autopilot0/revision-intelligence", err, res);
+  }
+});
+
+router.get("/question-intelligence", auth, requireAdmin, async (req, res) => {
+  try {
+    if (req.query.tier !== undefined) {
+      return res.status(400).json({
+        error: "tier is not supported in question-intelligence V1; cohort scope is SPEC_ONLY",
+      });
+    }
+
+    const specKey = (req.query.specKey || "").trim();
+    if (!specKey) {
+      return res.status(400).json({ error: "specKey is required" });
+    }
+
+    let limit = 20;
+    if (req.query.limit !== undefined) {
+      const parsed = parseInt(String(req.query.limit), 10);
+      if (!Number.isNaN(parsed)) {
+        limit = Math.min(50, Math.max(1, parsed));
+      }
+    }
+
+    const report = await buildQuestionIntelligence({ specKey, limit });
+    return res.json(report);
+  } catch (err) {
+    if (err.code === "INVALID_SPEC_KEY") {
+      return res.status(400).json({ error: err.message });
+    }
+    return sendInternalError("autopilot0/question-intelligence", err, res);
   }
 });
 
