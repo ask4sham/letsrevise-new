@@ -201,6 +201,31 @@ code {
   .teacher-dashboard-main { order: 1; }
   .teacher-dashboard-left { order: 2; }
   .teacher-dashboard-right { order: 3; }
+  .teacher-dashboard-left,
+  .teacher-dashboard-right {
+    position: static;
+    top: auto;
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* Teacher dashboard: sticky left/right rails on desktop (pairs with stack at max-width: 900px).
+   Tall left nav uses bounded max-height + internal scroll (same pattern as LessonViewPage rails). */
+@media (min-width: 901px) {
+  .teacher-dashboard-left,
+  .teacher-dashboard-right {
+    position: -webkit-sticky;
+    position: sticky;
+    top: var(--lesson-view-rail-sticky-top);
+    align-self: start;
+    height: fit-content;
+    max-height: calc(100vh - var(--lesson-view-rail-sticky-top) - 16px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
 }
 
 /* --------------------------------------------------------------------------
