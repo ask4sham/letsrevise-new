@@ -7,6 +7,7 @@ const {
   buildActionReadinessIntelligence,
   DB_OPERATION_COUNT: A08_DB_OPERATION_COUNT,
 } = require("./actionReadinessIntelligenceService");
+const { BLOCKER_RULES } = require("../../contracts/autopilotSafetyPolicy.v1");
 
 const VERSION = "autopilot0-execution-contract-intelligence-v1";
 const LEVEL = "L0";
@@ -20,41 +21,8 @@ const NOT_AN_ACTION_ADVISORIES = Object.freeze([
   "INSUFFICIENT_EVIDENCE",
 ]);
 
-const BLOCKER_RULES = Object.freeze({
-  NO_STUDENT_SCOPE: {
-    dimension: "targetingReadiness",
-    capability: "TARGET_SCOPE_RESOLVER",
-  },
-  NO_AUTOPILOT_ACTION_AUDIT: {
-    dimension: "auditReadiness",
-    capability: "AUTOPILOT_ACTION_AUDIT",
-  },
-  NO_IDEMPOTENCY: {
-    dimension: "idempotencyReadiness",
-    capability: "ACTION_IDEMPOTENCY_CONTRACT",
-  },
-  NO_AUTOMATED_ROLLBACK: {
-    dimension: "rollbackReadiness",
-    capability: "AUTOMATED_ROLLBACK_CONTRACT",
-  },
-  ASSESSMENT_ADJACENT: {
-    capability: "ASSESSMENT_EXECUTION_GUARD",
-  },
-  CONTENT_MUTATION_RISK: {
-    dimension: "approvalReadiness",
-    capability: "IMMUTABLE_APPROVAL_SNAPSHOT",
-  },
-  ASSESSMENT_SEMANTICS_RISK: {
-    dimension: "approvalReadiness",
-    capability: "ASSESSMENT_CHANGE_APPROVAL",
-  },
-  HUMAN_REVIEW_REQUIRED: {
-    dimension: "approvalReadiness",
-    capability: "HUMAN_APPROVAL_WORKFLOW",
-  },
-});
-
-const L4_POLICY_CLASSES = Object.freeze([
+/** A0.9 legacy response adapter — not the canonical S1 7-class union. */
+const A09_L4_RESPONSE_CLASSES = Object.freeze([
   "AUTOMATIC_CURRICULUM_PUBLISHING",
   "AUTOMATIC_QUESTION_PUBLISHING",
   "DESTRUCTIVE_PRODUCTION_DELETION",
@@ -62,6 +30,9 @@ const L4_POLICY_CLASSES = Object.freeze([
   "AUTH_BILLING_OR_ROLE_MUTATION",
   "LOWERING_SAFEGUARDS",
 ]);
+
+/** @deprecated Use A09_L4_RESPONSE_CLASSES — kept for existing test/export parity. */
+const L4_POLICY_CLASSES = A09_L4_RESPONSE_CLASSES;
 
 const EXECUTION_STATE_VOCABULARY = Object.freeze([
   "PROPOSED",
@@ -201,7 +172,7 @@ async function buildExecutionContractIntelligence(opts = {}) {
       l2PreparationEnabled: false,
       recommendedFutureL2Pilot: RECOMMENDED_FUTURE_L2_PILOT,
       executionStateVocabulary: [...EXECUTION_STATE_VOCABULARY],
-      l4Classes: [...L4_POLICY_CLASSES],
+      l4Classes: [...A09_L4_RESPONSE_CLASSES],
       infrastructurePatterns: {
         auditPatterns: [...INFRASTRUCTURE_PATTERNS.auditPatterns],
         idempotencyPatterns: [...INFRASTRUCTURE_PATTERNS.idempotencyPatterns],
@@ -219,6 +190,7 @@ module.exports = {
   DB_OPERATION_COUNT,
   NOT_AN_ACTION_ADVISORIES,
   BLOCKER_RULES,
+  A09_L4_RESPONSE_CLASSES,
   L4_POLICY_CLASSES,
   EXECUTION_STATE_VOCABULARY,
   INFRASTRUCTURE_PATTERNS,

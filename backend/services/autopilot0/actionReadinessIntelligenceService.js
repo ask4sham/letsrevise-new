@@ -7,6 +7,10 @@ const {
   buildGroundedNextActionIntelligence,
   DB_OPERATION_COUNT: A07_DB_OPERATION_COUNT,
 } = require("./groundedNextActionIntelligenceService");
+const {
+  ADVISORY_READINESS_POLICY,
+  STUDENT_IMPACTING_BLOCKERS,
+} = require("../../contracts/autopilotSafetyPolicy.v1");
 
 const VERSION = "autopilot0-action-readiness-intelligence-v1";
 const LEVEL = "L0";
@@ -14,63 +18,8 @@ const LEVEL = "L0";
 /** Documented DB operation count — delegated entirely to A0.7 (no additional queries). */
 const DB_OPERATION_COUNT = A07_DB_OPERATION_COUNT;
 
-const STUDENT_IMPACTING_BLOCKERS = Object.freeze([
-  "NO_STUDENT_SCOPE",
-  "NO_AUTOPILOT_ACTION_AUDIT",
-  "NO_IDEMPOTENCY",
-  "NO_AUTOMATED_ROLLBACK",
-  "STUDENT_IMPACTING",
-]);
-
-const ADVISORY_READINESS_POLICY = Object.freeze({
-  CONTINUE_CURRENT_PATH: {
-    minimumPermissionLevel: "L0",
-    readinessClassification: "NOT_AN_ACTION",
-    blockingRequirements: [],
-  },
-  NO_FURTHER_WEAKNESS_OBSERVED: {
-    minimumPermissionLevel: "L0",
-    readinessClassification: "NOT_AN_ACTION",
-    blockingRequirements: [],
-  },
-  INSUFFICIENT_EVIDENCE: {
-    minimumPermissionLevel: "L0",
-    readinessClassification: "NOT_AN_ACTION",
-    blockingRequirements: [],
-  },
-  CONSIDER_RETEACH: {
-    minimumPermissionLevel: "L2",
-    readinessClassification: "REQUIRES_L2_PREPARATION",
-    blockingRequirements: [...STUDENT_IMPACTING_BLOCKERS],
-  },
-  CONSIDER_MORE_PRACTICE: {
-    minimumPermissionLevel: "L2",
-    readinessClassification: "REQUIRES_L2_PREPARATION",
-    blockingRequirements: [...STUDENT_IMPACTING_BLOCKERS],
-  },
-  CONSIDER_EXAM_PRACTICE: {
-    minimumPermissionLevel: "L2",
-    readinessClassification: "REQUIRES_L2_PREPARATION",
-    blockingRequirements: [...STUDENT_IMPACTING_BLOCKERS, "ASSESSMENT_ADJACENT"],
-  },
-  CONSIDER_FLASHCARD_REVISION: {
-    minimumPermissionLevel: "L2",
-    readinessClassification: "REQUIRES_L2_PREPARATION",
-    blockingRequirements: [...STUDENT_IMPACTING_BLOCKERS],
-  },
-  CONSIDER_QUESTION_REVIEW: {
-    minimumPermissionLevel: "L3",
-    readinessClassification: "REQUIRES_HUMAN_APPROVAL",
-    blockingRequirements: [
-      "CONTENT_MUTATION_RISK",
-      "ASSESSMENT_SEMANTICS_RISK",
-      "HUMAN_REVIEW_REQUIRED",
-    ],
-  },
-});
-
-/** Policy-only L4 classes — no current A0.7 advisory maps directly to these. */
-const L4_POLICY_CLASSES = Object.freeze([
+/** A0.8 legacy response adapter — not the canonical S1 7-class union. */
+const A08_L4_RESPONSE_CLASSES = Object.freeze([
   "AUTOMATIC_DESTRUCTIVE_PRODUCTION_DELETION",
   "AUTOMATIC_CURRICULUM_PUBLISHING",
   "AUTOMATIC_MARKS_OR_GRADES",
@@ -78,6 +27,9 @@ const L4_POLICY_CLASSES = Object.freeze([
   "AUTH_BILLING_OR_ROLE_MUTATION",
   "IRREVERSIBLE_DESTRUCTIVE_MUTATION",
 ]);
+
+/** @deprecated Use A08_L4_RESPONSE_CLASSES — kept for existing test/export parity. */
+const L4_POLICY_CLASSES = A08_L4_RESPONSE_CLASSES;
 
 function classifyAdvisoryReadiness(advisoryAction) {
   const policy = ADVISORY_READINESS_POLICY[advisoryAction];
@@ -153,7 +105,7 @@ async function buildActionReadinessIntelligence(opts = {}) {
     policy: {
       currentAutopilotLevel: "L0",
       l1ExecutionEnabled: false,
-      l4Classes: [...L4_POLICY_CLASSES],
+      l4Classes: [...A08_L4_RESPONSE_CLASSES],
     },
     summary,
   };
@@ -164,6 +116,7 @@ module.exports = {
   LEVEL,
   DB_OPERATION_COUNT,
   ADVISORY_READINESS_POLICY,
+  A08_L4_RESPONSE_CLASSES,
   L4_POLICY_CLASSES,
   STUDENT_IMPACTING_BLOCKERS,
   classifyAdvisoryReadiness,
