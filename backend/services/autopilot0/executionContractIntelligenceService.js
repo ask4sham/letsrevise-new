@@ -8,6 +8,9 @@ const {
   DB_OPERATION_COUNT: A08_DB_OPERATION_COUNT,
 } = require("./actionReadinessIntelligenceService");
 const { BLOCKER_RULES } = require("../../contracts/autopilotSafetyPolicy.v1");
+const { normalizeSpecKey } = require("../../config/featureFlags");
+const adminTaxonomyService = require("../adminTaxonomyService");
+const { buildTopicAliasMap, resolveCanonicalTopicKey } = require("./revisionIntelligenceService");
 
 const VERSION = "autopilot0-execution-contract-intelligence-v1";
 const LEVEL = "L0";
@@ -150,6 +153,32 @@ function computeExecutionContractSummary(topicExecutionReadiness) {
   return { futurePilotEligibleCount };
 }
 
+async function resolveRequestedCanonicalTopicKey(specKey, topicKey) {
+  const normalizedSpecKey = normalizeSpecKey(specKey);
+  if (!normalizedSpecKey) {
+    const err = new Error("specKey is required");
+    err.code = "INVALID_SPEC_KEY";
+    throw err;
+  }
+
+  const taxonomy = await adminTaxonomyService.getMergedTaxonomyBySpecKey(normalizedSpecKey);
+  if (!taxonomy) {
+    const err = new Error(`Unknown specKey: ${normalizedSpecKey}`);
+    err.code = "INVALID_SPEC_KEY";
+    throw err;
+  }
+
+  const { aliasToCanonical } = buildTopicAliasMap(normalizedSpecKey, taxonomy);
+  const canonicalTopicKey = resolveCanonicalTopicKey(normalizedSpecKey, topicKey, aliasToCanonical);
+  if (!canonicalTopicKey) {
+    const err = new Error(`Unknown topicKey for specKey "${normalizedSpecKey}": ${topicKey}`);
+    err.code = "INVALID_TOPIC_KEY";
+    throw err;
+  }
+
+  return canonicalTopicKey;
+}
+
 /**
  * @param {{ specKey: string, limit?: number, now?: Date|string|number }} opts
  */
@@ -184,6 +213,66 @@ async function buildExecutionContractIntelligence(opts = {}) {
   };
 }
 
+/**
+ * Read-only exact-topic A0.9 observer result for one canonical topic.
+ * @param {{ specKey: string, topicKey: string, now?: Date|string|number }} opts
+ */
+async function buildExecutionContractIntelligenceForTopic(opts = {}) {
+  const specKey = opts?.specKey != null ? String(opts.specKey).trim() : "";
+  if (!specKey) {
+    const err = new Error("specKey is required");
+    err.code = "INVALID_SPEC_KEY";
+    throw err;
+  }
+
+  const topicKey = opts?.topicKey != null ? String(opts.topicKey).trim() : "";
+  if (!topicKey) {
+    const err = new Error("topicKey is required");
+    err.code = "INVALID_TOPIC_KEY";
+    throw err;
+  }
+
+  const report = await buildExecutionContractIntelligence({
+    specKey,
+    topicKey,
+    now: opts.now,
+  });
+
+  const rows = report.topicExecutionReadiness || [];
+  if (rows.length === 0) {
+    const err = new Error("Exact-topic observer produced no evidence row");
+    err.code = "EXACT_TOPIC_EVIDENCE_MISSING";
+    throw err;
+  }
+  if (rows.length > 1) {
+    const err = new Error("Exact-topic observer produced ambiguous evidence rows");
+    err.code = "EXACT_TOPIC_EVIDENCE_AMBIGUOUS";
+    throw err;
+  }
+
+  const row = rows[0];
+  if (!row?.topicKey) {
+    const err = new Error("Exact-topic observer produced malformed evidence row");
+    err.code = "EXACT_TOPIC_EVIDENCE_MALFORMED";
+    throw err;
+  }
+
+  const canonicalTopicKey = await resolveRequestedCanonicalTopicKey(specKey, topicKey);
+  if (row.topicKey !== canonicalTopicKey) {
+    const err = new Error("Exact-topic observer returned evidence for a different topic");
+    err.code = "EXACT_TOPIC_EVIDENCE_MISMATCH";
+    throw err;
+  }
+
+  return {
+    version: report.version,
+    level: report.level,
+    generatedAt: report.generatedAt,
+    cohort: report.cohort,
+    topicExecutionReadiness: row,
+  };
+}
+
 module.exports = {
   VERSION,
   LEVEL,
@@ -200,4 +289,5 @@ module.exports = {
   mapTopicExecutionReadinessRow,
   computeExecutionContractSummary,
   buildExecutionContractIntelligence,
+  buildExecutionContractIntelligenceForTopic,
 };

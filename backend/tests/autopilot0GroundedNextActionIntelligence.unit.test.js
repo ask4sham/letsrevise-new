@@ -532,3 +532,152 @@ describe("buildGroundedNextActionIntelligence integration", () => {
     expect(report.topicAdvisories[0].advisoryAction).toBe("CONSIDER_QUESTION_REVIEW");
   });
 });
+
+describe("exact-topic mode", () => {
+  const taxonomyTwoTopics = {
+    units: [
+      {
+        unit: "Cell biology",
+        unitKey: "cell-biology",
+        topics: [
+          { key: "cell-structure", topic: "Cell structure" },
+          { key: "cell-division", topic: "Cell division" },
+        ],
+      },
+    ],
+  };
+  const CELL_DIVISION = `${SPEC}:cell-division`;
+
+  function mockTwoTopicDecliningEvidence() {
+    LearningEvidenceEvent.aggregate.mockResolvedValue(
+      pairedStudentRows({ studentCount: 10, earlierMastery: 40, recentMastery: 20, attemptsPerWindow: 5 })
+    );
+    mockContentAggregates({ lesson: 1, quiz: 3, exam: 2, flash: 1 });
+    ExamQuestion.find.mockReturnValue({
+      select: () => ({
+        lean: () =>
+          Promise.resolve([
+            {
+              _id: new mongoose.Types.ObjectId(),
+              topicKey: CELL_DIVISION,
+              questionMode: "simple",
+              markScheme: "",
+            },
+          ]),
+      }),
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    adminTaxonomyService.getMergedTaxonomyBySpecKey.mockResolvedValue(taxonomyTwoTopics);
+    mockA04Empty();
+  });
+
+  test("bulk mode unchanged when topicKey is not supplied", async () => {
+    mockTwoTopicDecliningEvidence();
+    const report = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      now: FIXED_NOW,
+      limit: 1,
+    });
+    expect(report.topicAdvisories).toHaveLength(1);
+    expect(report.topicAdvisories[0].topicKey).toBe(CELL_DIVISION);
+    expect(report.topicAdvisories[0].advisoryAction).toBe("CONSIDER_QUESTION_REVIEW");
+  });
+
+  test("exact topic returns named topic when bulk limit=1 would exclude it", async () => {
+    mockTwoTopicDecliningEvidence();
+    const report = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: FIXED_NOW,
+      limit: 1,
+    });
+    expect(report.topicAdvisories).toHaveLength(1);
+    expect(report.topicAdvisories[0].topicKey).toBe(CANONICAL);
+    expect(report.topicAdvisories[0].advisoryAction).toBe("CONSIDER_RETEACH");
+  });
+
+  test("exact topic is available regardless of supplied limit", async () => {
+    mockTwoTopicDecliningEvidence();
+    const withLimit = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: FIXED_NOW,
+      limit: 1,
+    });
+    const withoutLimit = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: FIXED_NOW,
+    });
+    expect(withLimit.topicAdvisories).toEqual(withoutLimit.topicAdvisories);
+    expect(withLimit.topicAdvisories[0].topicKey).toBe(CANONICAL);
+  });
+
+  test("valid taxonomy topic with no outcomes and no review returns INSUFFICIENT_EVIDENCE", async () => {
+    LearningEvidenceEvent.aggregate.mockResolvedValue([]);
+    const report = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      topicKey: CELL_DIVISION,
+      now: FIXED_NOW,
+    });
+    expect(report.topicAdvisories).toHaveLength(1);
+    expect(report.topicAdvisories[0].topicKey).toBe(CELL_DIVISION);
+    expect(report.topicAdvisories[0].observedOutcome).toBeNull();
+    expect(report.topicAdvisories[0].questionReviewRecommended).toBe(false);
+    expect(report.topicAdvisories[0].advisoryAction).toBe("INSUFFICIENT_EVIDENCE");
+  });
+
+  test("invalid topic for spec throws INVALID_TOPIC_KEY", async () => {
+    LearningEvidenceEvent.aggregate.mockResolvedValue([]);
+    await expect(
+      buildGroundedNextActionIntelligence({
+        specKey: SPEC,
+        topicKey: `${SPEC}:not-a-real-topic`,
+        now: FIXED_NOW,
+      })
+    ).rejects.toMatchObject({ code: "INVALID_TOPIC_KEY" });
+  });
+
+  test("exact topic resolves canonical alias input", async () => {
+    mockTwoTopicDecliningEvidence();
+    const report = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      topicKey: "cell-structure",
+      now: FIXED_NOW,
+    });
+    expect(report.topicAdvisories[0].topicKey).toBe(CANONICAL);
+    expect(report.topicAdvisories[0].advisoryAction).toBe("CONSIDER_RETEACH");
+  });
+
+  test("exact row semantic fields equal bulk row when topic appears in both", async () => {
+    mockTwoTopicDecliningEvidence();
+    const bulk = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      now: FIXED_NOW,
+      limit: 50,
+    });
+    const exact = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: FIXED_NOW,
+    });
+    const bulkRow = bulk.topicAdvisories.find((row) => row.topicKey === CANONICAL);
+    expect(bulkRow).toBeDefined();
+    expect(exact.topicAdvisories[0]).toEqual(bulkRow);
+  });
+
+  test("generatedAt parity with fixed now between bulk and exact", async () => {
+    mockTwoTopicDecliningEvidence();
+    const bulk = await buildGroundedNextActionIntelligence({ specKey: SPEC, now: FIXED_NOW, limit: 50 });
+    const exact = await buildGroundedNextActionIntelligence({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: FIXED_NOW,
+    });
+    expect(exact.generatedAt).toBe(bulk.generatedAt);
+    expect(exact.generatedAt).toBe(FIXED_NOW.toISOString());
+  });
+});

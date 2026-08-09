@@ -17,6 +17,9 @@ jest.mock("../services/autopilot0/actionReadinessIntelligenceService", () => ({
   buildActionReadinessIntelligence: jest.fn(),
   DB_OPERATION_COUNT: 10,
 }));
+jest.mock("../services/adminTaxonomyService", () => ({
+  getMergedTaxonomyBySpecKey: jest.fn(),
+}));
 
 const {
   VERSION,
@@ -29,12 +32,24 @@ const {
   mapTopicExecutionReadinessRow,
   computeExecutionContractSummary,
   buildExecutionContractIntelligence,
+  buildExecutionContractIntelligenceForTopic,
 } = require("../services/autopilot0/executionContractIntelligenceService");
 const { buildActionReadinessIntelligence } = require("../services/autopilot0/actionReadinessIntelligenceService");
+const adminTaxonomyService = require("../services/adminTaxonomyService");
 
 const SPEC = "aqa-gcse-biology";
 const CANONICAL = `${SPEC}:cell-structure`;
 const GENERATED_AT = "2026-06-01T12:00:00.000Z";
+
+const FOR_TOPIC_TAXONOMY = {
+  units: [
+    {
+      unit: "Cell biology",
+      unitKey: "cell-biology",
+      topics: [{ key: "cell-structure", topic: "Cell structure" }],
+    },
+  ],
+};
 
 const COHORT = {
   specKey: SPEC,
@@ -313,5 +328,160 @@ describe("buildExecutionContractIntelligence", () => {
     await expect(buildExecutionContractIntelligence({ specKey: "bad" })).rejects.toMatchObject({
       code: "INVALID_SPEC_KEY",
     });
+  });
+});
+
+describe("buildExecutionContractIntelligenceForTopic", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    adminTaxonomyService.getMergedTaxonomyBySpecKey.mockResolvedValue(FOR_TOPIC_TAXONOMY);
+  });
+
+  test("export exists", () => {
+    expect(typeof buildExecutionContractIntelligenceForTopic).toBe("function");
+  });
+
+  test("missing topicKey fails closed", async () => {
+    await expect(buildExecutionContractIntelligenceForTopic({ specKey: SPEC })).rejects.toMatchObject({
+      code: "INVALID_TOPIC_KEY",
+    });
+  });
+
+  test("returns bounded exact-topic shape", async () => {
+    const readinessInput = {
+      topicKey: CANONICAL,
+      advisoryAction: "CONSIDER_FLASHCARD_REVISION",
+      observedOutcome: "WEAK_AND_STABLE",
+      minimumPermissionLevel: "L2",
+      readinessClassification: "REQUIRES_L2_PREPARATION",
+      blockingRequirements: STUDENT_IMPACTING_BLOCKERS,
+    };
+    buildActionReadinessIntelligence.mockResolvedValue(makeA08Report([readinessInput]));
+
+    const report = await buildExecutionContractIntelligenceForTopic({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: new Date(GENERATED_AT),
+    });
+
+    expect(buildActionReadinessIntelligence).toHaveBeenCalledWith({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: new Date(GENERATED_AT),
+    });
+    expect(report.version).toBe(VERSION);
+    expect(report.level).toBe("L0");
+    expect(report.generatedAt).toBe(GENERATED_AT);
+    expect(report.cohort).toEqual(COHORT);
+    expect(Array.isArray(report.topicExecutionReadiness)).toBe(false);
+    expect(report.topicExecutionReadiness.topicKey).toBe(CANONICAL);
+    expect(report).not.toHaveProperty("summary");
+    expect(report).not.toHaveProperty("policy");
+  });
+
+  test("exact row preserves A0.9 mapped evidence fields", async () => {
+    const readinessInput = {
+      topicKey: CANONICAL,
+      advisoryAction: "CONSIDER_FLASHCARD_REVISION",
+      observedOutcome: "WEAK_AND_STABLE",
+      minimumPermissionLevel: "L2",
+      readinessClassification: "REQUIRES_L2_PREPARATION",
+      blockingRequirements: STUDENT_IMPACTING_BLOCKERS,
+    };
+    buildActionReadinessIntelligence.mockResolvedValue(makeA08Report([readinessInput]));
+
+    const bulk = await buildExecutionContractIntelligence({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: new Date(GENERATED_AT),
+    });
+    const exact = await buildExecutionContractIntelligenceForTopic({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+      now: new Date(GENERATED_AT),
+    });
+
+    expect(exact.topicExecutionReadiness).toEqual(bulk.topicExecutionReadiness[0]);
+    expect(exact.topicExecutionReadiness.advisoryAction).toBe("CONSIDER_FLASHCARD_REVISION");
+    expect(exact.topicExecutionReadiness.readinessClassification).toBe("REQUIRES_L2_PREPARATION");
+    expect(exact.topicExecutionReadiness.minimumPermissionLevel).toBe("L2");
+    expect(exact.topicExecutionReadiness.executionContract.auditReadiness).toBe("MISSING");
+    expect(exact.topicExecutionReadiness.missingCapabilities.length).toBeGreaterThan(0);
+  });
+
+  test("INSUFFICIENT_EVIDENCE remains an observer result, not a thrown error", async () => {
+    buildActionReadinessIntelligence.mockResolvedValue(
+      makeA08Report([
+        readinessRow({
+          advisoryAction: "INSUFFICIENT_EVIDENCE",
+          observedOutcome: null,
+          readinessClassification: "NOT_AN_ACTION",
+          minimumPermissionLevel: "L0",
+          blockingRequirements: [],
+        }),
+      ])
+    );
+
+    const report = await buildExecutionContractIntelligenceForTopic({
+      specKey: SPEC,
+      topicKey: CANONICAL,
+    });
+
+    expect(report.topicExecutionReadiness.advisoryAction).toBe("INSUFFICIENT_EVIDENCE");
+    expect(report.topicExecutionReadiness.executionContract.auditReadiness).toBe("NOT_APPLICABLE");
+  });
+
+  test("fails closed when pipeline returns zero rows", async () => {
+    buildActionReadinessIntelligence.mockResolvedValue(makeA08Report([]));
+
+    await expect(
+      buildExecutionContractIntelligenceForTopic({ specKey: SPEC, topicKey: CANONICAL })
+    ).rejects.toMatchObject({ code: "EXACT_TOPIC_EVIDENCE_MISSING" });
+  });
+
+  test("fails closed when pipeline returns multiple rows", async () => {
+    buildActionReadinessIntelligence.mockResolvedValue(
+      makeA08Report([
+        readinessRow({ advisoryAction: "CONSIDER_RETEACH" }),
+        readinessRow({ advisoryAction: "CONSIDER_MORE_PRACTICE" }),
+      ])
+    );
+
+    await expect(
+      buildExecutionContractIntelligenceForTopic({ specKey: SPEC, topicKey: CANONICAL })
+    ).rejects.toMatchObject({ code: "EXACT_TOPIC_EVIDENCE_AMBIGUOUS" });
+  });
+
+  test("fails closed when pipeline returns a different topic row", async () => {
+    buildActionReadinessIntelligence.mockResolvedValue(
+      makeA08Report([
+        {
+          ...readinessRow({ advisoryAction: "CONSIDER_RETEACH" }),
+          topicKey: `${SPEC}:cell-division`,
+        },
+      ])
+    );
+
+    await expect(
+      buildExecutionContractIntelligenceForTopic({ specKey: SPEC, topicKey: CANONICAL })
+    ).rejects.toMatchObject({ code: "EXACT_TOPIC_EVIDENCE_MISMATCH" });
+  });
+
+  test("alias topicKey request succeeds with canonical returned row", async () => {
+    buildActionReadinessIntelligence.mockResolvedValue(
+      makeA08Report([readinessRow({ advisoryAction: "CONSIDER_RETEACH" })])
+    );
+
+    const report = await buildExecutionContractIntelligenceForTopic({
+      specKey: SPEC,
+      topicKey: "cell-structure",
+    });
+
+    expect(report.topicExecutionReadiness.topicKey).toBe(CANONICAL);
+  });
+
+  test("does not integrate with proposal services", () => {
+    expect(serviceSource).not.toMatch(/proposalService/);
+    expect(serviceSource).not.toMatch(/AutopilotActionProposal/);
   });
 });

@@ -13,7 +13,7 @@ const { assertValidSpecKey } = require("../../utils/specTopicValidation");
 const { normalizeSpecKey } = require("../../config/featureFlags");
 const { buildTopicKey, queryCandidates } = require("../../utils/topicKey");
 const { isTopicGroup } = require("../../utils/topicTaxonomy");
-const { buildTopicAliasMap } = require("./revisionIntelligenceService");
+const { buildTopicAliasMap, resolveCanonicalTopicKey } = require("./revisionIntelligenceService");
 const { computeTopicOutcome } = require("./revisionOutcomeIntelligenceService");
 const {
   computeWindowCutoffs,
@@ -288,7 +288,7 @@ function computeAdvisorySummary(advisories) {
 }
 
 /**
- * @param {{ specKey: string, limit?: number, now?: Date|string|number }} opts
+ * @param {{ specKey: string, topicKey?: string, limit?: number, now?: Date|string|number }} opts
  */
 async function buildGroundedNextActionIntelligence(opts = {}) {
   const specKey = normalizeSpecKey(opts.specKey);
@@ -299,6 +299,12 @@ async function buildGroundedNextActionIntelligence(opts = {}) {
   }
 
   assertValidSpecKey(specKey);
+
+  const requestedTopicKey =
+    opts.topicKey != null && String(opts.topicKey).trim() !== ""
+      ? String(opts.topicKey).trim()
+      : null;
+  const isExactTopicMode = requestedTopicKey != null;
 
   const limit = Math.min(50, Math.max(1, opts.limit ?? 20));
   const cutoffs = computeWindowCutoffs(opts.now ?? new Date());
@@ -313,6 +319,16 @@ async function buildGroundedNextActionIntelligence(opts = {}) {
   const { aliasToCanonical } = buildTopicAliasMap(specKey, taxonomy);
   const topicCandidates = buildTopicCandidateMap(specKey, taxonomy);
 
+  let canonicalTopicKey = null;
+  if (isExactTopicMode) {
+    canonicalTopicKey = resolveCanonicalTopicKey(specKey, requestedTopicKey, aliasToCanonical);
+    if (!canonicalTopicKey || !topicCandidates.has(canonicalTopicKey)) {
+      const err = new Error(`Unknown topicKey for specKey "${specKey}": ${requestedTopicKey}`);
+      err.code = "INVALID_TOPIC_KEY";
+      throw err;
+    }
+  }
+
   const [rawRows, reviewCandidateTopics] = await Promise.all([
     aggregateLearningEvidenceCounts(specKey, cutoffs),
     buildReviewCandidateTopicSet(specKey, taxonomy),
@@ -320,8 +336,11 @@ async function buildGroundedNextActionIntelligence(opts = {}) {
 
   const outcomesByTopic = computeEligibleA06Outcomes(specKey, taxonomy, rawRows, aliasToCanonical);
 
-  const topicKeys = new Set([...outcomesByTopic.keys(), ...reviewCandidateTopics]);
-  if (topicKeys.size === 0) {
+  const topicKeys = isExactTopicMode
+    ? new Set([canonicalTopicKey])
+    : new Set([...outcomesByTopic.keys(), ...reviewCandidateTopics]);
+
+  if (!isExactTopicMode && topicKeys.size === 0) {
     return {
       version: VERSION,
       level: LEVEL,
@@ -363,7 +382,9 @@ async function buildGroundedNextActionIntelligence(opts = {}) {
     });
   }
 
-  const topicAdvisories = sortTopicAdvisories(advisories).slice(0, limit);
+  const topicAdvisories = isExactTopicMode
+    ? advisories
+    : sortTopicAdvisories(advisories).slice(0, limit);
   const summary = computeAdvisorySummary(topicAdvisories);
 
   return {
