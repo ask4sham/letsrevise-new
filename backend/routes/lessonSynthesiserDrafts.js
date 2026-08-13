@@ -14,6 +14,7 @@ const {
 const {
   adaptSynthesiserDraftToLessonCreate,
 } = require("../utils/lessonSynthesiserDraftAdapter");
+const { groundLessonQuizBeforePersist } = require("../utils/groundLessonQuizBeforePersist");
 const Lesson = require("../models/Lesson");
 const User = require("../models/User");
 
@@ -89,6 +90,8 @@ router.post("/drafts", lessonSynthesiserAuth, async (req, res) => {
       ownerTeacherId: owner._id,
       teacherName,
     });
+
+    groundLessonQuizBeforePersist(createDoc);
 
     // Force draft / unpublished immediately before save (defence in depth).
     createDoc.status = "draft";

@@ -45,12 +45,12 @@ function isWeakFormulaicStem(stem) {
   return WEAK_FORMULAIC_STEM_PATTERNS.some((re) => re.test(raw));
 }
 
-function shortQ(prompt, answer, purpose) {
-  return { prompt, answer, purpose, kind: "short" };
+function shortQ(prompt, answer, purpose, topicScope = "any") {
+  return { prompt, answer, purpose, kind: "short", topicScope };
 }
 
-function mcqQ(prompt, correct, distractors, purpose) {
-  return { prompt, correct, distractors, purpose, kind: "mcq" };
+function mcqQ(prompt, correct, distractors, purpose, topicScope = "any") {
+  return { prompt, correct, distractors, purpose, kind: "mcq", topicScope };
 }
 
 const PACK_GAMETES_FERTILISATION = {
@@ -320,30 +320,53 @@ const PACK_SEXUAL_ASEXUAL = {
   ],
 };
 
-const PACK_MITOSIS_MEIOSIS = {
-  id: "mitosis-meiosis",
+const PACK_MITOSIS = {
+  id: "mitosis",
   match(n) {
-    return /\bmitosis\b/.test(n) || /\bmeiosis\b/.test(n) || /\bcell division\b/.test(n);
+    return (/\bmitosis\b/.test(n) || /\bcell cycle\b/.test(n)) && !/\bmeiosis\b/.test(n);
   },
   short: [
-    shortQ("State one key difference between mitosis and meiosis.", "Mitosis keeps chromosome number; meiosis halves it (and forms gametes).", "comparison"),
-    shortQ("Why is mitosis important for growth?", "It produces genetically identical diploid cells for growth and repair.", "explain"),
-    shortQ("A student says meiosis produces identical body cells for growth. Explain why this is incorrect.", "Meiosis produces haploid gametes; mitosis produces identical body cells.", "misconception"),
-    shortQ("What is the chromosome number outcome of meiosis?", "Haploid daughter cells (half the original number).", "recall"),
-    shortQ("Define mitosis.", "Cell division that produces two genetically identical diploid daughter cells.", "definition"),
-    shortQ("Explain why meiosis is needed for sexual reproduction.", "It halves chromosome number so fertilisation restores the diploid number.", "exam_style"),
-    shortQ("Suggest what would happen if body cells only divided by meiosis.", "Chromosome number would keep falling; tissues would not maintain diploid cells.", "application"),
-    shortQ("Put in order for gamete production: DNA replication, meiosis, haploid gametes.", "DNA replication → meiosis → haploid gametes.", "sequence"),
+    shortQ("Why is mitosis important for growth?", "It produces genetically identical diploid cells for growth and repair.", "explain", "mitosis"),
+    shortQ("Define mitosis.", "Cell division that produces two genetically identical diploid daughter cells.", "definition", "mitosis"),
+    shortQ("Why are daughter cells genetically identical after mitosis?", "Chromosomes are duplicated then divided equally between the two daughter cells.", "explain", "mitosis"),
+    shortQ("Why are chromosomes copied before mitosis?", "So each daughter cell receives a full set of identical genetic information.", "explain", "mitosis"),
+    shortQ("What happens during interphase before mitosis?", "The cell grows and DNA/chromosomes replicate.", "recall", "mitosis"),
+    shortQ("State the role of cytokinesis.", "Division of the cytoplasm to form two separate daughter cells.", "definition", "mitosis"),
+    shortQ("A student says mitosis produces gametes. Explain why this is incorrect.", "Mitosis produces genetically identical body cells; meiosis produces gametes.", "misconception", "both"),
+    shortQ("State one key difference between mitosis and meiosis.", "Mitosis keeps chromosome number; meiosis halves it (and forms gametes).", "comparison", "both"),
   ],
   mcq: [
-    mcqQ("Which division halves the chromosome number?", "Meiosis", ["Mitosis", "Binary fission only", "Budding only"], "recall"),
-    mcqQ("Which statement is incorrect?", "Meiosis produces two identical diploid body cells for growth", ["Mitosis produces identical diploid cells", "Meiosis produces haploid gametes", "Fertilisation restores diploid number"], "misconception"),
-    mcqQ("How do mitosis and meiosis differ?", "Meiosis halves chromosome number; mitosis keeps it", ["Both always halve chromosome number", "Both never copy DNA", "Mitosis only happens in gametes"], "comparison"),
-    mcqQ("Why is mitosis used for repair?", "It makes genetically identical cells to replace damaged ones", ["It halves chromosomes every time", "It fuses gametes", "It removes all DNA"], "explain"),
-    mcqQ("If meiosis failed to occur before fertilisation, what is most likely?", "Zygotes would have too many chromosomes", ["No DNA would exist", "Only clones could form by fertilisation", "Mitosis would stop forever"], "application"),
-    mcqQ("Which sequence is correct for sexual reproduction?", "Meiosis → gametes → fertilisation", ["Fertilisation → meiosis → identical clones only", "Mitosis → zygote → gametes by budding", "Meiosis → diploid body clone → no fertilisation"], "sequence"),
-    mcqQ("What is meiosis?", "Division producing haploid gametes", ["Division producing only identical diploid clones", "Fusion of sperm and egg", "Growth without cell division"], "definition"),
-    mcqQ("Which answer earns a mark for explaining meiosis?", "It halves chromosome number so fertilisation does not double it each generation", ["Just writing the word meiosis", "Saying cells get bigger only", "Naming mitosis with no link"], "exam_style"),
+    mcqQ("Why are daughter cells genetically identical after mitosis?", "Chromosomes duplicate then separate equally", ["Gametes fuse at fertilisation", "Meiosis halves chromosome number", "DNA is destroyed before division"], "explain", "mitosis"),
+    mcqQ("Why is mitosis important for growth?", "It produces genetically identical cells", ["It halves chromosome number", "It forms haploid gametes", "It only happens in gametes"], "explain", "mitosis"),
+    mcqQ("Why are chromosomes copied before mitosis?", "So each daughter cell gets a full identical set", ["To halve chromosome number", "To form a zygote", "To produce variation"], "explain", "mitosis"),
+    mcqQ("How many genetically identical daughter cells does mitosis produce?", "Two", ["One", "Four", "None"], "recall", "mitosis"),
+    mcqQ("Why is mitosis used for repair?", "It makes genetically identical cells to replace damaged ones", ["It halves chromosomes every time", "It fuses gametes", "It removes all DNA"], "explain", "mitosis"),
+    mcqQ("Which statement is incorrect?", "Mitosis halves chromosome number to form gametes", ["Mitosis produces identical diploid cells", "Mitosis is used for growth", "Mitosis is used for repair"], "misconception", "mitosis"),
+    mcqQ("How do mitosis and meiosis differ?", "Meiosis halves chromosome number; mitosis keeps it", ["Both always halve chromosome number", "Both never copy DNA", "Mitosis only happens in gametes"], "comparison", "both"),
+  ],
+};
+
+const PACK_MEIOSIS = {
+  id: "meiosis",
+  match(n) {
+    return /\bmeiosis\b/.test(n);
+  },
+  short: [
+    shortQ("What is the chromosome number outcome of meiosis?", "Haploid daughter cells (half the original number).", "recall", "meiosis"),
+    shortQ("Explain why meiosis is needed for sexual reproduction.", "It halves chromosome number so fertilisation restores the diploid number.", "exam_style", "meiosis"),
+    shortQ("Why must gametes be haploid before fertilisation?", "So fusion produces a diploid zygote with the species' normal chromosome number, not a doubled set.", "explain", "meiosis"),
+    shortQ("Put in order for gamete production: DNA replication, meiosis, haploid gametes.", "DNA replication → meiosis → haploid gametes.", "sequence", "meiosis"),
+    shortQ("Suggest what would happen if body cells only divided by meiosis.", "Chromosome number would keep falling; tissues would not maintain diploid cells.", "application", "meiosis"),
+    shortQ("A student says meiosis produces identical body cells for growth. Explain why this is incorrect.", "Meiosis produces haploid gametes; mitosis produces identical body cells.", "misconception", "both"),
+  ],
+  mcq: [
+    mcqQ("Which division halves the chromosome number?", "Meiosis", ["Mitosis", "Binary fission only", "Budding only"], "recall", "meiosis"),
+    mcqQ("Why must gametes be haploid before fertilisation?", "So fertilisation restores the diploid number without doubling each generation", ["So mitosis can produce clones", "So DNA is destroyed", "So variation never occurs"], "explain", "meiosis"),
+    mcqQ("If meiosis failed to occur before fertilisation, what is most likely?", "Zygotes would have too many chromosomes", ["No DNA would exist", "Only clones could form by fertilisation", "Mitosis would stop forever"], "application", "meiosis"),
+    mcqQ("Which sequence is correct for sexual reproduction?", "Meiosis → gametes → fertilisation", ["Fertilisation → meiosis → identical clones only", "Mitosis → zygote → gametes by budding", "Meiosis → diploid body clone → no fertilisation"], "sequence", "meiosis"),
+    mcqQ("What is meiosis?", "Division producing haploid gametes", ["Division producing only identical diploid clones", "Fusion of sperm and egg", "Growth without cell division"], "definition", "meiosis"),
+    mcqQ("Which answer earns a mark for explaining meiosis?", "It halves chromosome number so fertilisation does not double it each generation", ["Just writing the word meiosis", "Saying cells get bigger only", "Naming mitosis with no link"], "exam_style", "meiosis"),
+    mcqQ("Which statement is incorrect?", "Meiosis produces two identical diploid body cells for growth", ["Mitosis produces identical diploid cells", "Meiosis produces haploid gametes", "Fertilisation restores diploid number"], "misconception", "both"),
   ],
 };
 
@@ -383,7 +406,8 @@ const PACK_PLANT_TRANSPORT = {
 const TOPIC_PACKS = [
   PACK_GAMETES_FERTILISATION,
   PACK_SEXUAL_ASEXUAL,
-  PACK_MITOSIS_MEIOSIS,
+  PACK_MEIOSIS,
+  PACK_MITOSIS,
   PACK_PLANT_TRANSPORT,
 ];
 
