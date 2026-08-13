@@ -225,6 +225,16 @@ function resolveGroundingProfileKey(topicKey, topicLabel) {
   return slug || null;
 }
 
+/**
+ * True only for topics with explicit forbidden/allowed grounding profiles (mitosis, meiosis, etc.).
+ * Generic slugs like "cell-structure" or "homeostasis" are not grounded in V1.
+ */
+function hasExplicitGroundingProfile(topicKey, topicLabel) {
+  const slug = resolveGroundingProfileKey(topicKey, topicLabel);
+  if (!slug) return false;
+  return Boolean(PROFILE_FORBIDDEN[slug] || PROFILE_ALLOWED[slug]);
+}
+
 /** Block types that are assessment/quiz banks — never instructional teaching. */
 const EXCLUDED_TEACHING_BLOCK_TYPES = new Set([
   'checkpoint',
@@ -416,10 +426,15 @@ function filterQuizQuestionsByTopicGrounding(questions, ctx = {}) {
   }
 
   const profileKey = resolveGroundingProfileKey(groundingCtx.topicKey, groundingCtx.topic);
+  const groundingRemovalResults = new Set([
+    GROUNDING_RESULT.REJECT_CROSS_TOPIC,
+    GROUNDING_RESULT.REJECT_UNSUPPORTED,
+  ]);
   const groundingLimited =
     Boolean(profileKey) &&
+    hasExplicitGroundingProfile(groundingCtx.topicKey, groundingCtx.topic) &&
     out.length < (questions || []).length &&
-    removed.some((r) => r.classification?.result === GROUNDING_RESULT.REJECT_CROSS_TOPIC);
+    removed.some((r) => groundingRemovalResults.has(r.classification?.result));
 
   return { questions: out, removed, groundingLimited, profileKey };
 }
@@ -486,6 +501,7 @@ module.exports = {
   parseTopicKeyShort,
   parseSpecKey,
   resolveGroundingProfileKey,
+  hasExplicitGroundingProfile,
   extractLessonTeachingText,
   shouldExcludeBlockFromTeachingHaystack,
   classifyQuizQuestion,

@@ -32,6 +32,7 @@ const {
   buildGroundingContext,
   stemAllowedForTopicScope,
   resolveGroundingProfileKey,
+  hasExplicitGroundingProfile,
   GROUNDING_RESULT,
 } = require("./quizTopicGrounding");
 
@@ -629,7 +630,7 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
   const mcqGroundingOpts = {
     topicKey: groundingOpts.topicKey,
     teachingText: groundingCtx.teachingText,
-    packOnly: Boolean(resolveGroundingProfileKey(groundingOpts.topicKey, topic)),
+    packOnly: hasExplicitGroundingProfile(groundingOpts.topicKey, topic),
   };
   const bank = [];
   const seen = new Set();
