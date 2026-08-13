@@ -6026,11 +6026,15 @@ router.post("/generate-and-save", auth, async (req, res) => {
         const varietyOnly =
           (countCheck.issues || []).length > 0 &&
           (countCheck.issues || []).every(isVarietyIssue);
+        const isQuizGroundingPoolIssue = (issue) => {
+          const s = String(issue);
+          return s.startsWith("quiz_pool_too_low") || s.startsWith("revision_pool_too_low");
+        };
         const quizGroundingCountOnly =
           quizTopicGroundingLimited &&
           (countCheck.issues || []).length > 0 &&
           (countCheck.issues || []).every(
-            (i) => String(i).startsWith("quiz_pool_too_low") || isVarietyIssue(i)
+            (i) => isQuizGroundingPoolIssue(i) || isVarietyIssue(i)
           );
         if (quizGroundingCountOnly && !varietyOnly) {
           if (process.env.NODE_ENV !== "production") {

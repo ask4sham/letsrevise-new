@@ -7,6 +7,7 @@ const {
   extractLessonTeachingText,
   filterQuizQuestionsByTopicGrounding,
   resolveGroundingProfileKey,
+  hasExplicitGroundingProfile,
   stemAllowedForTopicScope,
 } = require("../utils/quizTopicGrounding");
 const { resolveTopicPack } = require("../utils/activityQuestionStemPacks");
@@ -84,6 +85,15 @@ describe("quizTopicGrounding", () => {
     expect(resolveGroundingProfileKey(MITOSIS_EDEXCEL, "Mitosis and the cell cycle")).toBe(
       "mitosis-cell-cycle"
     );
+  });
+
+  test("hasExplicitGroundingProfile is true only for profiled topics", () => {
+    expect(hasExplicitGroundingProfile(MITOSIS_TOPIC_KEY, "Mitosis and the cell cycle")).toBe(true);
+    expect(hasExplicitGroundingProfile(MEIOSIS_TOPIC_KEY, "Meiosis")).toBe(true);
+    expect(hasExplicitGroundingProfile("aqa-gcse-biology:cell-structure", "Cell structure")).toBe(
+      false
+    );
+    expect(hasExplicitGroundingProfile("aqa-gcse-biology:homeostasis", "Homeostasis")).toBe(false);
   });
 
   describe("Mitosis lesson MUST accept", () => {
