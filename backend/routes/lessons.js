@@ -903,7 +903,6 @@ function sanitisePageInput(p, isUpdate = false) {
       : [];
     if (!q) return true;
     if (opts.length === 0) return true;
-    if (opts.every((o) => /^\[?option\s*\d+\]?$/i.test(o))) return true;
     if (
       /^which statement is correct\??$/i.test(q) &&
       opts.every((o) => /^\[?option\s*\d+\]?$/i.test(o))
