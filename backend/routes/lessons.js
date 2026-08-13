@@ -56,6 +56,10 @@ const {
   rehydrateLessonPagesMarkSchemeFromDb,
 } = require("../utils/lessonDbSafe");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
+const {
+  groundLessonQuizBeforePersist,
+  isSynthesiserLessonProvenance,
+} = require("../utils/groundLessonQuizBeforePersist");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 const { sendInternalError } = require("../utils/safeErrorResponse");
@@ -1389,6 +1393,7 @@ async function createLessonHandler(req, res) {
       pages,
       quiz,
       autoGenerateFromBanks,
+      metadata,
     } = req.body || {};
 
     description = normalizeLessonDescription(description);
@@ -1511,6 +1516,14 @@ async function createLessonHandler(req, res) {
         quizData.questions = [];
       }
       lessonData.quiz = quizData;
+    }
+
+    if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+      lessonData.metadata = metadata;
+    }
+
+    if (isSynthesiserLessonProvenance(lessonData)) {
+      groundLessonQuizBeforePersist(lessonData);
     }
 
     // ✅ ADDED: Auto-attach curated hero visual for AQA GCSE Biology with debug logging

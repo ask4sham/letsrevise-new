@@ -26,6 +26,14 @@ const {
   genericShortExtras,
   genericMcqExtras,
 } = require("./activityQuestionStemPacks");
+const {
+  classifyQuizQuestion,
+  filterQuizQuestionsByTopicGrounding,
+  buildGroundingContext,
+  stemAllowedForTopicScope,
+  resolveGroundingProfileKey,
+  GROUNDING_RESULT,
+} = require("./quizTopicGrounding");
 
 function titleCase(s) {
   return String(s || "")
@@ -115,17 +123,21 @@ function pushUniqueQuestion(out, usedStems, q) {
  * Purpose-tagged short stems for self-check (and checkpoint explain items).
  * Prefer topic-specific GCSE/IGCSE packs; fall back to exam-style generics (no weak templates).
  */
-function purposeShortCandidates(topic, vocab, usedStems, purposesWanted) {
+function purposeShortCandidates(topic, vocab, usedStems, purposesWanted, groundingOpts = {}) {
   const pack = resolveTopicPack(topic);
   const generic = genericShortCatalog(topic);
   const wanted = purposesWanted?.length ? purposesWanted : Object.keys(generic);
   const out = [];
+
+  const packStemOk = (s) =>
+    stemAllowedForTopicScope(s, groundingOpts.topicKey, topic, groundingOpts.teachingText || "");
 
   if (pack) {
     for (const purpose of wanted) {
       const hit = (pack.short || []).find(
         (s) =>
           s.purpose === purpose &&
+          packStemOk(s) &&
           stemIsUsable(s.prompt, usedStems) &&
           !out.some((x) => normalizeStem(x.prompt) === normalizeStem(s.prompt))
       );
@@ -135,6 +147,7 @@ function purposeShortCandidates(topic, vocab, usedStems, purposesWanted) {
     }
     for (const s of pack.short || []) {
       if (out.length >= 10) break;
+      if (!packStemOk(s)) continue;
       pushUniqueQuestion(out, usedStems, makeShortQuestion(s.prompt, s.answer, s.purpose));
     }
   }
@@ -155,17 +168,21 @@ function purposeShortCandidates(topic, vocab, usedStems, purposesWanted) {
 /**
  * Purpose-tagged MCQ stems for checkpoint / quiz.
  */
-function purposeMcqCandidates(topic, vocab, usedStems, purposesWanted) {
+function purposeMcqCandidates(topic, vocab, usedStems, purposesWanted, groundingOpts = {}) {
   const pack = resolveTopicPack(topic);
   const generic = genericMcqCatalog(topic, vocab);
   const wanted = purposesWanted?.length ? purposesWanted : Object.keys(generic);
   const out = [];
+
+  const packStemOk = (s) =>
+    stemAllowedForTopicScope(s, groundingOpts.topicKey, topic, groundingOpts.teachingText || "");
 
   if (pack) {
     for (const purpose of wanted) {
       const hit = (pack.mcq || []).find(
         (s) =>
           s.purpose === purpose &&
+          packStemOk(s) &&
           stemIsUsable(s.prompt, usedStems) &&
           !out.some((x) => normalizeStem(x.prompt) === normalizeStem(s.prompt))
       );
@@ -179,12 +196,17 @@ function purposeMcqCandidates(topic, vocab, usedStems, purposesWanted) {
     }
     for (const s of pack.mcq || []) {
       if (out.length >= 12) break;
+      if (!packStemOk(s)) continue;
       pushUniqueQuestion(
         out,
         usedStems,
         makeMcqQuestion(s.prompt, s.correct, s.distractors, s.purpose)
       );
     }
+  }
+
+  if (groundingOpts.packOnly) {
+    return out;
   }
 
   for (const purpose of wanted) {
@@ -595,7 +617,20 @@ function expandBlockQuestions(block, minCount, maxCount, requiredGroups, generat
   return qs.length >= minCount && qs.length <= maxCount && missingPurposes(qs, requiredGroups).length === 0;
 }
 
-function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, minCount) {
+function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, minCount, groundingOpts = {}) {
+  const groundingCtx = buildGroundingContext({
+    topicKey: groundingOpts.topicKey,
+    specKey: groundingOpts.specKey,
+    topic,
+    pages: groundingOpts.pages || pages,
+    vocabulary: vocab,
+    objectives: groundingOpts.objectives,
+  });
+  const mcqGroundingOpts = {
+    topicKey: groundingOpts.topicKey,
+    teachingText: groundingCtx.teachingText,
+    packOnly: Boolean(resolveGroundingProfileKey(groundingOpts.topicKey, topic)),
+  };
   const bank = [];
   const seen = new Set();
   const seenOpenings = new Set();
@@ -622,12 +657,13 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     ["comparison", "explain", "exam_style", "evaluate"],
   ];
 
-  const push = (q) => {
+  const push = (q, { skipUsedAcross = false } = {}) => {
     if (!q || q.questionType !== "mcq") return false;
     const key = normalizeStem(q.prompt);
-    if (!key || seen.has(key) || usedAcrossActivities.has(key)) return false;
+    if (!key || seen.has(key)) return false;
+    if (!skipUsedAcross && usedAcrossActivities.has(key)) return false;
     const open = key.split(/\s+/).slice(0, 4).join(" ");
-    if (open && seenOpenings.has(open)) return false;
+    if (!skipUsedAcross && open && seenOpenings.has(open)) return false;
     if (
       isGenericPlaceholderStem(q.prompt) ||
       isFormulaicRepairStem(q.prompt) ||
@@ -637,6 +673,21 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     }
     if (!Array.isArray(q.options) || q.options.length < 2) return false;
     if (!String(q.correctAnswer || "").trim()) return false;
+
+    const classification = classifyQuizQuestion(
+      {
+        question: q.prompt,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+        tags: q.tags,
+        sourceQuestionId: q.sourceQuestionId,
+        sourceType: q.sourceType,
+      },
+      groundingCtx
+    );
+    if (classification.result !== GROUNDING_RESULT.PASS) return false;
+
     seen.add(key);
     if (open) seenOpenings.add(open);
     const purpose = q.purpose || inferQuestionPurpose(q);
@@ -668,7 +719,7 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
       correctAnswer: String(raw.correctAnswer || "").trim(),
       explanation: String(raw.explanation || "").trim(),
       purpose: raw.purpose || raw.skill,
-    });
+    }, { skipUsedAcross: true });
   }
 
   // Do NOT harvest page-block MCQs into quiz — that clones checkpoint/self-check purposes.
@@ -684,18 +735,27 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     "exam_style",
     "evaluate",
   ];
-  const mcqs = purposeMcqCandidates(topic, vocab, new Set([...usedAcrossActivities, ...seen]), purposeOrder);
+  const mcqs = purposeMcqCandidates(
+    topic,
+    vocab,
+    new Set([...usedAcrossActivities, ...seen]),
+    purposeOrder,
+    mcqGroundingOpts
+  );
   for (const q of mcqs) {
-    if (bank.length >= Math.max(minCount, 5) && missingPurposes(
-      bank.map((b) => ({ purpose: b.purpose, prompt: b.question })),
-      requiredGroups
-    ).length === 0) {
+    if (
+      bank.length >= minCount &&
+      missingPurposes(
+        bank.map((b) => ({ purpose: b.purpose, prompt: b.question })),
+        requiredGroups
+      ).length === 0
+    ) {
       break;
     }
     push(q);
   }
 
-  // Targeted fill for missing purposes
+  // Targeted fill for missing purposes — stop when no grounded candidate remains.
   let n = 0;
   while (
     (bank.length < minCount ||
@@ -715,7 +775,8 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
       topic,
       vocab.map((v, i) => `${v} aspect ${n}`),
       new Set([...usedAcrossActivities, ...seen]),
-      focus
+      focus,
+      mcqGroundingOpts
     );
     let added = false;
     for (const q of more) {
@@ -727,9 +788,14 @@ function buildQuizBank(pages, existingQuiz, topic, vocab, usedAcrossActivities, 
     if (!added) break;
   }
 
+  const filtered = filterQuizQuestionsByTopicGrounding(bank, groundingCtx);
+
   return {
     timeSeconds: existingQuiz?.timeSeconds || 600,
-    questions: bank.slice(0, Math.max(minCount, bank.length)),
+    questions: filtered.questions,
+    groundingLimited:
+      filtered.groundingLimited || filtered.questions.length < minCount,
+    groundingRemovedCount: filtered.removed.length,
   };
 }
 
@@ -924,12 +990,27 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
     }
   }
 
-  const quiz = buildQuizBank(pages, lessonLike?.quiz, topic, vocab, reserved, MIN_QUIZ_POOL);
+  const quiz = buildQuizBank(
+    pages,
+    lessonLike?.quiz,
+    topic,
+    vocab,
+    reserved,
+    MIN_QUIZ_POOL,
+    {
+      topicKey: opts.topicKey,
+      specKey: opts.specKey,
+      pages,
+      objectives: opts.objectives,
+    }
+  );
   changes.push({
     kind: "quiz",
-    ok: quiz.questions.length >= MIN_QUIZ_POOL,
+    ok: quiz.questions.length > 0,
     count: quiz.questions.length,
     purposes: quiz.questions.map((q) => q.purpose),
+    groundingLimited: quiz.groundingLimited === true,
+    groundingRemovedCount: quiz.groundingRemovedCount || 0,
   });
 
   const draft = { pages, quiz };
@@ -941,6 +1022,7 @@ function repairLessonActivityQuestionCounts(lessonLike, opts = {}) {
     repaired: true,
     changes,
     validation,
+    quizTopicGroundingLimited: quiz.groundingLimited === true,
   };
 }
 
