@@ -82,6 +82,8 @@ describe("Student-teacher link", () => {
         teacherId: teacherId.toString(),
       });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBe(true);
+    expect(res.body.attemptId).toBeDefined();
+    expect(res.body.isCorrect).toBe(true);
   });
 });
