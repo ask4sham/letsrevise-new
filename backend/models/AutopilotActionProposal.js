@@ -16,6 +16,15 @@ const {
   FORBIDDEN_TARGET_SNAPSHOT_FIELDS,
   isReservedFutureState,
 } = require("../contracts/autopilotSafetyPolicy.v1");
+const {
+  PROVENANCE_VERSION,
+  SOURCE_SYSTEM,
+  SOURCE_OBSERVER,
+  SUPPORTED_SOURCE_OBSERVER_VERSIONS,
+  SUPPORTED_SOURCE_POLICY_VERSIONS,
+  canonicaliseEvidenceSnapshot,
+  deriveEvidenceSnapshotHash,
+} = require("../contracts/autopilotProposalProvenance.v1");
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -134,6 +143,125 @@ ProposedPayloadSchema.pre("init", function rejectForbiddenPayloadInit(_doc, obj)
   rejectForbiddenPayloadKeys(obj);
 });
 
+const ExecutionContractEvidenceSchema = new mongoose.Schema(
+  {
+    auditReadiness: { type: String, required: true, trim: true },
+    idempotencyReadiness: { type: String, required: true, trim: true },
+    rollbackReadiness: { type: String, required: true, trim: true },
+    targetingReadiness: { type: String, required: true, trim: true },
+    approvalReadiness: { type: String, required: true, trim: true },
+    futurePilotEligible: { type: Boolean, required: true },
+    executionRisks: { type: [String], default: [], trim: true },
+  },
+  { _id: false, strict: "throw" }
+);
+
+const SourceEvidenceSchema = new mongoose.Schema(
+  {
+    provenanceVersion: {
+      type: String,
+      required: true,
+      enum: [PROVENANCE_VERSION],
+      trim: true,
+    },
+    sourceSystem: {
+      type: String,
+      required: true,
+      enum: [SOURCE_SYSTEM],
+      trim: true,
+    },
+    sourceObserver: {
+      type: String,
+      required: true,
+      enum: [SOURCE_OBSERVER],
+      trim: true,
+    },
+    sourceObserverVersion: {
+      type: String,
+      required: true,
+      enum: SUPPORTED_SOURCE_OBSERVER_VERSIONS,
+      trim: true,
+    },
+    sourcePolicyVersion: {
+      type: String,
+      required: true,
+      enum: SUPPORTED_SOURCE_POLICY_VERSIONS,
+      trim: true,
+    },
+    sourceGeneratedAt: { type: Date, required: true },
+    sourceSpecKey: { type: String, required: true, trim: true },
+    sourceTopicKey: { type: String, required: true, trim: true },
+    sourceAdvisoryAction: { type: String, required: true, trim: true },
+    readinessClassification: { type: String, required: true, trim: true },
+    minimumPermissionLevel: { type: String, required: true, trim: true },
+    blockingRequirements: { type: [String], required: true, default: [], trim: true },
+    sourceObservedOutcome: { type: String, default: null, trim: true },
+    missingCapabilities: { type: [String], default: undefined, trim: true },
+    executionContract: { type: ExecutionContractEvidenceSchema, default: null },
+  },
+  { _id: false, strict: "throw" }
+);
+
+function sourceEvidenceToPlainObject(value) {
+  if (value == null) {
+    return null;
+  }
+  if (typeof value.toObject === "function") {
+    return value.toObject({ flattenMaps: false });
+  }
+  return value;
+}
+
+function validateProvenanceSiblingPair(doc) {
+  const hasEvidence = doc.sourceEvidence != null;
+  const hasHash =
+    doc.evidenceSnapshotHash != null && String(doc.evidenceSnapshotHash).trim().length > 0;
+
+  if (hasEvidence !== hasHash) {
+    doc.invalidate(
+      "sourceEvidence",
+      "sourceEvidence and evidenceSnapshotHash must be provided together"
+    );
+    return false;
+  }
+
+  if (!hasEvidence) {
+    return true;
+  }
+
+  let canonical;
+  try {
+    canonical = canonicaliseEvidenceSnapshot(sourceEvidenceToPlainObject(doc.sourceEvidence));
+  } catch (err) {
+    doc.invalidate("sourceEvidence", err.message);
+    return false;
+  }
+
+  const expectedHash = deriveEvidenceSnapshotHash(canonical);
+  if (String(doc.evidenceSnapshotHash).trim() !== expectedHash) {
+    doc.invalidate(
+      "evidenceSnapshotHash",
+      "evidenceSnapshotHash must match canonical sourceEvidence digest"
+    );
+    return false;
+  }
+
+  if (doc.specKey && canonical.sourceSpecKey !== doc.specKey) {
+    doc.invalidate("sourceEvidence.sourceSpecKey", "sourceEvidence.specKey must match proposal specKey");
+    return false;
+  }
+
+  if (doc.topicKey && canonical.sourceTopicKey !== doc.topicKey) {
+    doc.invalidate(
+      "sourceEvidence.sourceTopicKey",
+      "sourceEvidence.topicKey must match proposal topicKey"
+    );
+    return false;
+  }
+
+  return true;
+}
+
 const ApprovalSnapshotSchema = new mongoose.Schema(
   {
     targetSnapshot: { type: TargetSnapshotSchema, required: true },
@@ -226,6 +354,17 @@ const AutopilotActionProposalSchema = new mongoose.Schema(
     reviewedAt: { type: Date, default: null },
     rejectionReason: { type: String, default: null, trim: true },
     approvalSnapshot: { type: ApprovalSnapshotSchema, default: null },
+    sourceEvidence: {
+      type: SourceEvidenceSchema,
+      default: null,
+      immutable: true,
+    },
+    evidenceSnapshotHash: {
+      type: String,
+      default: null,
+      immutable: true,
+      trim: true,
+    },
   },
   { timestamps: true }
 );
@@ -239,6 +378,10 @@ AutopilotActionProposalSchema.path("status").validate(function validateNotReserv
 
 function enforceLifecycleShape(doc) {
   let valid = true;
+
+  if (!validateProvenanceSiblingPair(doc)) {
+    valid = false;
+  }
 
   if (doc.status === "PROPOSED") {
     if (doc.approvalSnapshot != null) {
@@ -351,5 +494,8 @@ module.exports.AutopilotActionProposalSchema = AutopilotActionProposalSchema;
 module.exports.TargetSnapshotSchema = TargetSnapshotSchema;
 module.exports.ProposedPayloadSchema = ProposedPayloadSchema;
 module.exports.ApprovalSnapshotSchema = ApprovalSnapshotSchema;
+module.exports.SourceEvidenceSchema = SourceEvidenceSchema;
+module.exports.ExecutionContractEvidenceSchema = ExecutionContractEvidenceSchema;
+module.exports.validateProvenanceSiblingPair = validateProvenanceSiblingPair;
 module.exports.generateActionId = generateActionId;
 module.exports.defaultExpiresAt = defaultExpiresAt;
