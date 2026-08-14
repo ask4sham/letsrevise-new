@@ -1,12 +1,16 @@
 /**
  * Autopilot Safety Foundation — S1.2 admin proposal service.
- * Mutates safety-control-plane records only. No execution.
+ * S1.4B2: server-verified provenance on create path. No execution.
  */
 const mongoose = require("mongoose");
 const {
   POLICY_VERSION,
   PROPOSED_PAYLOAD_ENVELOPE_TYPE,
 } = require("../../contracts/autopilotSafetyPolicy.v1");
+const {
+  deriveEvidenceSnapshotHash,
+  ProvenanceContractError,
+} = require("../../contracts/autopilotProposalProvenance.v1");
 const {
   isProposalsMutationEnabled,
   isApprovalsMutationEnabled,
@@ -17,14 +21,27 @@ const {
   ACTION_TYPE,
   buildTargetSnapshot,
   deriveIdempotencyKey,
-  buildCanonicalAcceptedCreateContent,
+  deriveObservationIdentityHash,
+  buildAdvisorySourceRef,
+  normalizeObservationNote,
   canonicalContentMatches,
 } = require("./idempotencyKey");
+const {
+  verifyObserverProposalProvenance,
+  ProvenanceVerificationError,
+} = require("./provenanceVerification");
 const AutopilotActionProposal = require("../../models/AutopilotActionProposal");
 const AutopilotActionEvent = require("../../models/AutopilotActionEvent");
 const { defaultExpiresAt } = require("../../models/AutopilotActionProposal");
 
 const TERMINAL_STATUSES = new Set(["APPROVED", "REJECTED", "EXPIRED"]);
+
+const INVALID_PROPOSAL_VERIFIER_CODES = new Set([
+  "INVALID_SPEC_KEY",
+  "INVALID_TOPIC_KEY",
+  "OBSERVER_SPEC_IDENTITY_MISMATCH",
+  "EXACT_TOPIC_EVIDENCE_MISMATCH",
+]);
 
 function isDuplicateKeyError(err) {
   return (
@@ -33,6 +50,22 @@ function isDuplicateKeyError(err) {
       err.codeName === "DuplicateKey" ||
       (Array.isArray(err.writeErrors) && err.writeErrors.some((e) => e.code === 11000)))
   );
+}
+
+function mapProvenanceError(err) {
+  if (err instanceof ProvenanceVerificationError) {
+    if (err.code === "NOT_AN_ACTION") {
+      return new AutopilotSafetyError("UNSUPPORTED_ADVISORY", err.message, 422);
+    }
+    if (INVALID_PROPOSAL_VERIFIER_CODES.has(err.code)) {
+      return new AutopilotSafetyError("INVALID_PROPOSAL", err.message, 400);
+    }
+    return new AutopilotSafetyError("OBSERVER_EVIDENCE_UNAVAILABLE", err.message, 503);
+  }
+  if (err instanceof ProvenanceContractError) {
+    return new AutopilotSafetyError("OBSERVER_EVIDENCE_UNAVAILABLE", err.message, 503);
+  }
+  return err;
 }
 
 async function assertTransactionsAvailable() {
@@ -139,28 +172,87 @@ async function resolveIdempotentCreate(input, idempotencyKey) {
   return existing;
 }
 
-function buildProposalDocument(input, idempotencyKey) {
-  const canonical = buildCanonicalAcceptedCreateContent(input);
+async function verifyCreateProvenance(input) {
+  try {
+    return await verifyObserverProposalProvenance({
+      specKey: input.specKey,
+      topicKey: input.topicKey,
+    });
+  } catch (err) {
+    throw mapProvenanceError(err);
+  }
+}
+
+function buildVerifiedCreateBundle(input, provenance) {
+  const { sourceEvidence, evidenceSnapshotHash } = provenance;
+  const canonicalSpecKey = sourceEvidence.sourceSpecKey;
+  const canonicalTopicKey = sourceEvidence.sourceTopicKey;
+  const advisoryAction = sourceEvidence.sourceAdvisoryAction;
+  const observationIdentityHash = deriveObservationIdentityHash(sourceEvidence);
+  const advisorySourceRef = buildAdvisorySourceRef(canonicalTopicKey, observationIdentityHash);
+  const evidenceCutoffAt = new Date(sourceEvidence.sourceGeneratedAt);
   const targetSnapshot = buildTargetSnapshot({
-    specKey: input.specKey,
-    topicKey: input.topicKey,
-    advisoryAction: input.advisoryAction,
-    advisorySourceRef: input.advisorySourceRef,
-    evidenceCutoffAt: input.evidenceCutoffAt,
+    specKey: canonicalSpecKey,
+    topicKey: canonicalTopicKey,
+    advisoryAction,
+    advisorySourceRef,
+    evidenceCutoffAt,
   });
+  const idempotencyKey = deriveIdempotencyKey({
+    specKey: canonicalSpecKey,
+    topicKey: canonicalTopicKey,
+    advisoryAction,
+    observationIdentityHash,
+  });
+
+  return {
+    sourceEvidence,
+    evidenceSnapshotHash,
+    observationIdentityHash,
+    canonicalSpecKey,
+    canonicalTopicKey,
+    advisoryAction,
+    advisorySourceRef,
+    evidenceCutoffAt,
+    targetSnapshot,
+    idempotencyKey,
+    observationNote: normalizeObservationNote(input.observationNote),
+  };
+}
+
+function buildProposalDocument(verifiedCreate) {
+  const {
+    sourceEvidence,
+    evidenceSnapshotHash,
+    canonicalSpecKey,
+    canonicalTopicKey,
+    targetSnapshot,
+    idempotencyKey,
+    observationNote,
+  } = verifiedCreate;
 
   return {
     idempotencyKey,
     actionType: ACTION_TYPE,
     policyVersion: POLICY_VERSION,
-    autopilotObserverVersion: input.autopilotObserverVersion,
-    advisorySource: canonical.advisorySource,
-    specKey: input.specKey,
-    topicKey: input.topicKey,
-    minimumPermissionLevel: input.minimumPermissionLevel,
+    autopilotObserverVersion: sourceEvidence.sourceObserverVersion,
+    advisorySource: {
+      observer: sourceEvidence.sourceObserver,
+      advisoryAction: sourceEvidence.sourceAdvisoryAction,
+      specKey: canonicalSpecKey,
+      topicKey: canonicalTopicKey,
+    },
+    specKey: canonicalSpecKey,
+    topicKey: canonicalTopicKey,
+    minimumPermissionLevel: sourceEvidence.minimumPermissionLevel,
     status: "PROPOSED",
     targetSnapshot,
-    proposedPayload: canonical.proposedPayload,
+    proposedPayload: {
+      envelopeType: PROPOSED_PAYLOAD_ENVELOPE_TYPE,
+      observationNote,
+    },
+    sourceEvidence,
+    evidenceSnapshotHash,
     expiresAt: defaultExpiresAt(),
   };
 }
@@ -176,28 +268,19 @@ async function createProposal(input, actorId) {
 
   await assertTransactionsAvailable();
 
-  const targetSnapshot = buildTargetSnapshot({
-    specKey: input.specKey,
-    topicKey: input.topicKey,
-    advisoryAction: input.advisoryAction,
-    advisorySourceRef: input.advisorySourceRef,
-    evidenceCutoffAt: input.evidenceCutoffAt,
-  });
+  const provenance = await verifyCreateProvenance(input);
+  const verifiedCreate = buildVerifiedCreateBundle(input, provenance);
+  const replayInput = {
+    observationNote: input.observationNote,
+    verifiedSourceEvidence: provenance.sourceEvidence,
+  };
 
-  const idempotencyKey = deriveIdempotencyKey({
-    specKey: input.specKey,
-    topicKey: input.topicKey,
-    advisoryAction: input.advisoryAction,
-    targetSnapshotHash: targetSnapshot.targetSnapshotHash,
-    evidenceCutoffAt: input.evidenceCutoffAt,
-  });
-
-  const replay = await resolveIdempotentCreate(input, idempotencyKey);
+  const replay = await resolveIdempotentCreate(replayInput, verifiedCreate.idempotencyKey);
   if (replay) {
     return { proposal: replay, idempotentReplay: true };
   }
 
-  const doc = buildProposalDocument(input, idempotencyKey);
+  const doc = buildProposalDocument(verifiedCreate);
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
@@ -210,6 +293,7 @@ async function createProposal(input, actorId) {
         note: "proposal created",
         previousStatus: null,
         newStatus: "PROPOSED",
+        evidenceSnapshotHash: verifiedCreate.evidenceSnapshotHash,
       },
     });
     await session.commitTransaction();
@@ -218,11 +302,11 @@ async function createProposal(input, actorId) {
   } catch (err) {
     await session.abortTransaction();
     if (isDuplicateKeyError(err)) {
-      const existing = await findByIdempotencyKey(idempotencyKey);
+      const existing = await findByIdempotencyKey(verifiedCreate.idempotencyKey);
       if (!existing) {
         throw err;
       }
-      const replayAfterRace = await resolveIdempotentCreate(input, idempotencyKey);
+      const replayAfterRace = await resolveIdempotentCreate(replayInput, verifiedCreate.idempotencyKey);
       if (replayAfterRace) {
         return { proposal: replayAfterRace, idempotentReplay: true };
       }
@@ -304,9 +388,28 @@ async function getProposal(actionId, options = {}) {
   return result;
 }
 
+function assertApprovalProvenanceIntegrity(proposal) {
+  if (!proposal.sourceEvidence || !proposal.evidenceSnapshotHash) {
+    return;
+  }
+
+  const plainEvidence =
+    proposal.sourceEvidence && typeof proposal.sourceEvidence.toObject === "function"
+      ? proposal.sourceEvidence.toObject({ flattenMaps: false })
+      : proposal.sourceEvidence;
+  const expectedHash = deriveEvidenceSnapshotHash(plainEvidence);
+  if (String(proposal.evidenceSnapshotHash).trim() !== expectedHash) {
+    throw new AutopilotSafetyError(
+      "PROPOSAL_INTEGRITY_ERROR",
+      "Proposal provenance integrity check failed",
+      500
+    );
+  }
+}
+
 function buildApprovalSnapshot(proposal, actorId) {
   const plain = proposal.toObject({ flattenMaps: false });
-  return {
+  const snapshot = {
     targetSnapshot: plain.targetSnapshot,
     proposedPayload: plain.proposedPayload,
     policyVersion: plain.policyVersion,
@@ -319,6 +422,13 @@ function buildApprovalSnapshot(proposal, actorId) {
     approverRole: "admin",
     expiresAt: plain.expiresAt,
   };
+
+  if (plain.sourceEvidence && plain.evidenceSnapshotHash) {
+    snapshot.sourceEvidence = plain.sourceEvidence;
+    snapshot.evidenceSnapshotHash = plain.evidenceSnapshotHash;
+  }
+
+  return snapshot;
 }
 
 async function approveProposal(actionId, actorId) {
@@ -363,6 +473,7 @@ async function approveProposal(actionId, actorId) {
       );
     }
 
+    assertApprovalProvenanceIntegrity(current);
     const approvalSnapshot = buildApprovalSnapshot(current, actorId);
     const reviewedAt = new Date();
     current.status = "APPROVED";
@@ -513,4 +624,7 @@ module.exports = {
   rejectProposal,
   expireProposal,
   TERMINAL_STATUSES,
+  mapProvenanceError,
+  buildVerifiedCreateBundle,
+  assertApprovalProvenanceIntegrity,
 };

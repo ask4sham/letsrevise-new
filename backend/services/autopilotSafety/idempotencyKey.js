@@ -1,5 +1,6 @@
 /**
  * Autopilot Safety Foundation — S1.2 idempotency identity and canonical comparison.
+ * S1.4B2: observationIdentityHash drives deduplication; evidenceSnapshotHash is audit-only.
  */
 const crypto = require("crypto");
 const {
@@ -9,6 +10,7 @@ const {
   S1_ACTIVE_TARGET_TYPES,
   PROPOSED_PAYLOAD_ENVELOPE_TYPE,
 } = require("../../contracts/autopilotSafetyPolicy.v1");
+const { canonicaliseEvidenceSnapshot } = require("../../contracts/autopilotProposalProvenance.v1");
 
 const ACTION_TYPE = S1_ACTIVE_ACTION_TYPES[0];
 const TARGET_TYPE = S1_ACTIVE_TARGET_TYPES[0];
@@ -46,6 +48,23 @@ function sha256Hex(input) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
+function normalizeObservationNote(value) {
+  if (value == null) {
+    return "";
+  }
+  return String(value).trim().slice(0, 500);
+}
+
+function deriveObservationIdentityHash(sourceEvidence) {
+  const canonical = canonicaliseEvidenceSnapshot(sourceEvidence);
+  const { sourceGeneratedAt, ...identityMaterial } = canonical;
+  return sha256Hex(canonicalJson(identityMaterial));
+}
+
+function buildAdvisorySourceRef(canonicalTopicKey, observationIdentityHash) {
+  return `provenance:v1:${String(canonicalTopicKey).trim()}:${String(observationIdentityHash).trim()}`;
+}
+
 function buildCanonicalTargetSnapshotFields({
   specKey,
   topicKey,
@@ -77,7 +96,20 @@ function buildTargetSnapshot(snapshotFields) {
   };
 }
 
-function deriveIdempotencyKey({
+function deriveIdempotencyKey({ specKey, topicKey, advisoryAction, observationIdentityHash }) {
+  const material = [
+    POLICY_VERSION,
+    ACTION_TYPE,
+    String(specKey).trim(),
+    String(topicKey).trim(),
+    String(advisoryAction).trim(),
+    String(observationIdentityHash).trim(),
+  ].join("|");
+  return sha256Hex(material);
+}
+
+/** @deprecated S1.2 pre-provenance idempotency material — legacy replay only. */
+function deriveIdempotencyKeyS12({
   specKey,
   topicKey,
   advisoryAction,
@@ -98,8 +130,7 @@ function deriveIdempotencyKey({
 }
 
 function buildCanonicalAcceptedCreateContent(input) {
-  const observationNote =
-    input.observationNote == null ? "" : String(input.observationNote).trim().slice(0, 500);
+  const observationNote = normalizeObservationNote(input.observationNote);
   const snapshotFields = buildCanonicalTargetSnapshotFields(input);
   const targetSnapshotHash = computeTargetSnapshotHash(snapshotFields);
 
@@ -137,10 +168,7 @@ function buildCanonicalPersistedProposalContent(proposal) {
     proposal && typeof proposal.toObject === "function"
       ? proposal.toObject({ flattenMaps: false })
       : proposal;
-  const observationNote =
-    plain.proposedPayload?.observationNote == null
-      ? ""
-      : String(plain.proposedPayload.observationNote).trim();
+  const observationNote = normalizeObservationNote(plain.proposedPayload?.observationNote);
 
   return {
     policyVersion: plain.policyVersion,
@@ -180,10 +208,35 @@ function buildCanonicalPersistedProposalContent(proposal) {
   };
 }
 
-function canonicalContentMatches(leftInput, rightProposal) {
+function canonicalContentMatchesS12(leftInput, rightProposal) {
   const left = buildCanonicalAcceptedCreateContent(leftInput);
   const right = buildCanonicalPersistedProposalContent(rightProposal);
   return canonicalJson(left) === canonicalJson(right);
+}
+
+function canonicalReplayMatches(createInput, existingProposal) {
+  const leftNote = normalizeObservationNote(createInput.observationNote);
+  const rightNote = normalizeObservationNote(existingProposal.proposedPayload?.observationNote);
+  if (leftNote !== rightNote) {
+    return false;
+  }
+
+  const leftEvidence = createInput.verifiedSourceEvidence;
+  if (!leftEvidence || !existingProposal.sourceEvidence) {
+    return false;
+  }
+
+  return (
+    deriveObservationIdentityHash(leftEvidence) ===
+    deriveObservationIdentityHash(existingProposal.sourceEvidence)
+  );
+}
+
+function canonicalContentMatches(leftInput, rightProposal) {
+  if (rightProposal?.sourceEvidence) {
+    return canonicalReplayMatches(leftInput, rightProposal);
+  }
+  return canonicalContentMatchesS12(leftInput, rightProposal);
 }
 
 function canonicalPersistedMatches(leftProposal, rightProposal) {
@@ -197,12 +250,18 @@ module.exports = {
   TARGET_TYPE,
   canonicalJson,
   sha256Hex,
+  normalizeObservationNote,
+  deriveObservationIdentityHash,
+  buildAdvisorySourceRef,
   buildCanonicalTargetSnapshotFields,
   computeTargetSnapshotHash,
   buildTargetSnapshot,
   deriveIdempotencyKey,
+  deriveIdempotencyKeyS12,
   buildCanonicalAcceptedCreateContent,
   buildCanonicalPersistedProposalContent,
   canonicalContentMatches,
+  canonicalContentMatchesS12,
+  canonicalReplayMatches,
   canonicalPersistedMatches,
 };

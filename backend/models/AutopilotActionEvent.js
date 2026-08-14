@@ -18,6 +18,7 @@ const EventDetailsSchema = new mongoose.Schema(
     previousStatus: { type: String, default: null, trim: true },
     newStatus: { type: String, default: null, trim: true },
     policyVersion: { type: String, default: POLICY_VERSION, trim: true },
+    evidenceSnapshotHash: { type: String, default: null, trim: true },
   },
   { _id: false, strict: "throw" }
 );
