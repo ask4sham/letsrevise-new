@@ -537,6 +537,82 @@ describe("repairLessonActivityQuestionCounts", () => {
     expect(r.summary.varietyIssueCount).toBe(0);
   });
 
+  test("repair cell structure quiz bank uses generic MCQ fallbacks when pool is empty", () => {
+    const out = repairLessonActivityQuestionCounts(
+      {
+        pages: [
+          {
+            blocks: [
+              {
+                type: "selfCheck",
+                prompt: "Define nucleus.",
+                questionType: "short",
+                correctAnswer: "Control centre",
+                questions: [
+                  {
+                    prompt: "Define nucleus.",
+                    questionType: "short",
+                    correctAnswer: "Control centre",
+                    purpose: "definition",
+                  },
+                  {
+                    prompt: "Misconception about prokaryotes?",
+                    questionType: "short",
+                    correctAnswer: "No nucleus",
+                    purpose: "misconception",
+                  },
+                  {
+                    prompt: "Explain cytoplasm.",
+                    questionType: "short",
+                    correctAnswer: "Reactions occur here",
+                    purpose: "explain",
+                  },
+                ],
+              },
+              {
+                type: "checkpoint",
+                prompt: "Which has chloroplasts?",
+                questionType: "mcq",
+                options: ["Plant", "Animal", "B", "C"],
+                correctAnswer: "Plant",
+                questions: [
+                  {
+                    prompt: "Which has chloroplasts?",
+                    questionType: "mcq",
+                    options: ["Plant", "Animal", "B", "C"],
+                    correctAnswer: "Plant",
+                    purpose: "recall",
+                  },
+                  {
+                    prompt: "Why do plant cells need chloroplasts?",
+                    questionType: "mcq",
+                    options: ["Photosynthesis", "Respiration only", "B", "C"],
+                    correctAnswer: "Photosynthesis",
+                    purpose: "application",
+                  },
+                  {
+                    prompt: "Compare plant and animal cells.",
+                    questionType: "mcq",
+                    options: ["Plant has cell wall", "Same", "B", "C"],
+                    correctAnswer: "Plant has cell wall",
+                    purpose: "comparison",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        quiz: { questions: [] },
+      },
+      {
+        topic: "Cell structure",
+        topicKey: "aqa-gcse-biology:cell-structure",
+        vocabulary: ["nucleus", "cytoplasm", "chloroplast"],
+      }
+    );
+    expect(out.quiz.questions.length).toBeGreaterThanOrEqual(MIN_QUIZ_POOL);
+  });
+
   test("fail closed when repair cannot meet contract (no topic/vocab)", () => {
     const empty = {
       pages: [
