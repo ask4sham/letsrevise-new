@@ -51,14 +51,8 @@ async function loginAs(app, { email, userType }) {
 }
 
 const validCreateBody = {
-  specKey: "aqa_gcse_physics",
-  topicKey: "P4.1.1",
-  advisoryAction: "CONSIDER_FLASHCARD_REVISION",
-  autopilotObserverVersion: "autopilot0-execution-contract-intelligence-v1",
-  observer: "execution-contract-intelligence",
-  advisorySourceRef: "observer-ref-001",
-  evidenceCutoffAt: "2026-08-01T12:00:00.000Z",
-  minimumPermissionLevel: "L2",
+  specKey: "aqa-gcse-biology",
+  topicKey: "aqa-gcse-biology:cell-structure",
   observationNote: "Observation only",
 };
 
@@ -129,7 +123,7 @@ describe("autopilotSafety proposal routes", () => {
     expect(res.body.code).toBe("AUTOPILOT_PROPOSALS_DISABLED");
   });
 
-  test("valid create when proposal gate enabled", async () => {
+  test("valid minimal create when proposal gate enabled", async () => {
     process.env.AUTOPILOT_LEARNING_PROPOSALS_ENABLED = "true";
     proposalService.createProposal.mockResolvedValue({
       proposal: { actionId: "a1", status: "PROPOSED" },
@@ -140,7 +134,19 @@ describe("autopilotSafety proposal routes", () => {
       .set("Authorization", `Bearer ${adminToken}`)
       .send(validCreateBody);
     expect(res.status).toBe(201);
-    expect(proposalService.createProposal).toHaveBeenCalled();
+    expect(proposalService.createProposal).toHaveBeenCalledWith(
+      validCreateBody,
+      expect.anything()
+    );
+  });
+
+  test("deprecated authority field rejected", async () => {
+    const res = await request(app)
+      .post("/api/autopilot-safety/proposals")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ ...validCreateBody, advisoryAction: "CONSIDER_FLASHCARD_REVISION" });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("INVALID_PROPOSAL");
   });
 
   test("client safety-field override rejected", async () => {

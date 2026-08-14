@@ -1,24 +1,14 @@
 /**
  * Autopilot Safety Foundation — S1.2 proposal request validation.
+ * S1.4B2: coordinates-only create contract; provenance is server-verified.
  */
 const {
-  ADVISORY_READINESS_POLICY,
   L4_POLICY_CLASSES,
   L4_POLICY_ALIASES,
   isCanonicalL4Class,
 } = require("../../contracts/autopilotSafetyPolicy.v1");
 
-const CREATE_ALLOWED_FIELDS = new Set([
-  "specKey",
-  "topicKey",
-  "advisoryAction",
-  "autopilotObserverVersion",
-  "observer",
-  "advisorySourceRef",
-  "evidenceCutoffAt",
-  "minimumPermissionLevel",
-  "observationNote",
-]);
+const CREATE_ALLOWED_FIELDS = new Set(["specKey", "topicKey", "observationNote"]);
 
 const SERVER_OWNED_FIELDS = new Set([
   "actionId",
@@ -42,6 +32,8 @@ const SERVER_OWNED_FIELDS = new Set([
   "executionEnabled",
   "proposedPayload",
   "advisorySource",
+  "sourceEvidence",
+  "evidenceSnapshotHash",
 ]);
 
 const FORBIDDEN_FIELD_PATTERNS = [
@@ -134,35 +126,6 @@ function validateCreateRequest(body) {
 
   const specKey = requireNonEmptyString(body.specKey, "specKey");
   const topicKey = requireNonEmptyString(body.topicKey, "topicKey");
-  const advisoryAction = requireNonEmptyString(body.advisoryAction, "advisoryAction");
-  const autopilotObserverVersion = requireNonEmptyString(
-    body.autopilotObserverVersion,
-    "autopilotObserverVersion"
-  );
-  const observer = requireNonEmptyString(body.observer, "observer");
-  const advisorySourceRef = requireNonEmptyString(body.advisorySourceRef, "advisorySourceRef");
-  const minimumPermissionLevel = requireNonEmptyString(
-    body.minimumPermissionLevel,
-    "minimumPermissionLevel"
-  );
-
-  const evidenceCutoffAtRaw = body.evidenceCutoffAt;
-  const evidenceCutoffAt = new Date(evidenceCutoffAtRaw);
-  if (Number.isNaN(evidenceCutoffAt.getTime())) {
-    throw new AutopilotSafetyError("INVALID_PROPOSAL", "evidenceCutoffAt must be a valid date", 400);
-  }
-
-  const policy = ADVISORY_READINESS_POLICY[advisoryAction];
-  if (!policy) {
-    throw new AutopilotSafetyError("INVALID_PROPOSAL", `Unknown advisoryAction: ${advisoryAction}`, 400);
-  }
-  if (policy.minimumPermissionLevel !== minimumPermissionLevel) {
-    throw new AutopilotSafetyError(
-      "INVALID_PROPOSAL",
-      "minimumPermissionLevel does not match advisory policy",
-      400
-    );
-  }
 
   let observationNote = "";
   if (body.observationNote != null) {
@@ -182,12 +145,6 @@ function validateCreateRequest(body) {
   return {
     specKey,
     topicKey,
-    advisoryAction,
-    autopilotObserverVersion,
-    observer,
-    advisorySourceRef,
-    evidenceCutoffAt,
-    minimumPermissionLevel,
     observationNote,
   };
 }

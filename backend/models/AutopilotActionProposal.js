@@ -275,6 +275,8 @@ const ApprovalSnapshotSchema = new mongoose.Schema(
     approverId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     approverRole: { type: String, required: true, trim: true },
     expiresAt: { type: Date, required: true },
+    sourceEvidence: { type: SourceEvidenceSchema, default: null },
+    evidenceSnapshotHash: { type: String, default: null, trim: true },
   },
   { _id: false, strict: "throw" }
 );
