@@ -5,7 +5,10 @@ import {
   buildEndOfLessonQuizPool,
 } from "./lessonQuestionPools";
 import { collectCheckpointMcqsFromPages } from "./revisionPracticeVariants";
-import { isNearDuplicateStem } from "./questionStemSimilarity";
+import { isNearDuplicateStem, normalizeQuestionStem } from "./questionStemSimilarity";
+
+const haploidStem = "Why must human gametes be haploid before fertilisation?";
+const haploidAnswer = "So fusion restores the diploid chromosome number in the zygote";
 
 const checkpointBlock = {
   type: "checkpoint",
@@ -94,5 +97,66 @@ describe("lessonQuestionPools", () => {
         expect(isNearDuplicateStem(q.question, pq.question)).toBe(false);
       }
     }
+  });
+
+  it("excludes untagged lesson.quiz copy when inline pageQuiz already has same stem+answer", () => {
+    const productionPages = [
+      {
+        blocks: [
+          {
+            type: "pageQuiz",
+            questions: [
+              {
+                id: "quiz1",
+                prompt: haploidStem,
+                options: [
+                  haploidAnswer,
+                  "So the zygote can remain haploid after fertilisation",
+                  "So gametes can divide by mitosis only",
+                  "So body cells can fuse without chromosomes",
+                ],
+                correctAnswer: haploidAnswer,
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const storedQuiz = [
+      {
+        id: "quiz1",
+        tags: ["page-quiz"],
+        question: haploidStem,
+        options: [
+          haploidAnswer,
+          "So the zygote can remain haploid after fertilisation",
+          "So gametes can divide by mitosis only",
+          "So body cells can fuse without chromosomes",
+        ],
+        correctAnswer: haploidAnswer,
+      },
+      {
+        id: "pq_p_test_2",
+        question: haploidStem,
+        options: [
+          haploidAnswer,
+          "So the zygote can remain haploid after fertilisation",
+          "So gametes can divide by mitosis only",
+          "So body cells can fuse without chromosomes",
+        ],
+        correctAnswer: haploidAnswer,
+      },
+      {
+        id: "unique_rev",
+        question: "Which nuclear event defines fertilisation in sexual reproduction?",
+        options: ["Fusion of gamete nuclei", "Meiosis only", "Mitosis only", "Binary fission"],
+        correctAnswer: "Fusion of gamete nuclei",
+      },
+    ];
+    const revision = buildRevisionPracticePool(productionPages, storedQuiz);
+    expect(
+      revision.some((q) => normalizeQuestionStem(q.question) === normalizeQuestionStem(haploidStem))
+    ).toBe(false);
+    expect(revision.some((q) => q.id === "unique_rev")).toBe(true);
   });
 });

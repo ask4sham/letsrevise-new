@@ -39,6 +39,10 @@ const { generateLessonPastPapersFromTopic } = require("../services/generateLesso
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
 const { autoGenerateLessonFromBanks } = require("../services/autoGenerateLessonFromBanks");
 const { generateLessonAssets, META_SOURCE } = require("../services/generateLessonAssets");
+const {
+  collectInlineActivityFingerprintsFromPages,
+  mcqFingerprintFromStemAndAnswer,
+} = require("../../lib/questionDeduplicationGuard");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
@@ -5121,6 +5125,15 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
 
     const alreadyExistedCount = ids.filter((id) => existingSourceIds.has(String(id))).length;
 
+    const inlineFingerprints = collectInlineActivityFingerprintsFromPages(lesson.pages || []);
+    for (const q of existingQuiz) {
+      const stem = String(q.question || q.prompt || "").trim();
+      const answer = String(q.correctAnswer || q.answer || "").trim();
+      const fp = mcqFingerprintFromStemAndAnswer(stem, answer);
+      if (fp !== "|") inlineFingerprints.add(fp);
+    }
+
+    let stemDuplicateSkipped = 0;
     const toAttach = [];
     for (const q of bankQuestions) {
       const sid = String(q._id);
@@ -5131,11 +5144,17 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
       const correctAnswer = isShort
         ? (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers[0] ? q.acceptableAnswers[0] : "")
         : (choices[correctIndex] || "");
+      const stemText = String(q.questionText || "").trim();
+      const fp = mcqFingerprintFromStemAndAnswer(stemText, correctAnswer);
+      if (inlineFingerprints.has(fp)) {
+        stemDuplicateSkipped += 1;
+        continue;
+      }
       const meta = q.metadata && typeof q.metadata === "object" ? q.metadata : {};
       toAttach.push({
         id: `pq_${pageId}_${Date.now()}_${toAttach.length}`,
         type: isShort ? "short" : "mcq",
-        question: q.questionText || "",
+        question: stemText,
         options: isShort ? undefined : choices,
         correctAnswer,
         explanation: q.explanation || "",
@@ -5146,9 +5165,10 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
         aiGenerated: meta.aiGenerated === true,
       });
       existingSourceIds.add(sid);
+      if (fp !== "|") inlineFingerprints.add(fp);
     }
 
-    const alreadyExisted = ids.length - toAttach.length;
+    const alreadyExisted = alreadyExistedCount + stemDuplicateSkipped;
     const newQuestions = [...existingQuiz, ...toAttach];
 
     if (!lesson.quiz || typeof lesson.quiz !== "object") {
@@ -5161,7 +5181,7 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
     return res.json({
       ok: true,
       addedCount: toAttach.length,
-      alreadyExisted: alreadyExistedCount,
+      alreadyExisted: alreadyExisted,
       lesson: lesson.toObject ? lesson.toObject() : lesson,
     });
   } catch (err) {
