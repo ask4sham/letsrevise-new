@@ -848,7 +848,7 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
       isLearnTeachingPage(pageMeta)
         ? stripLearnPageTestingBlocks(blocksRaw)
         : elevateExtraImportedCheckpointsToSelfCheck(blocksRaw, lessonMeta)
-    );
+    ) as Record<string, unknown>[];
     return {
       pageId: newPid(),
       title: pageTitle,

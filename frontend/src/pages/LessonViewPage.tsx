@@ -1540,6 +1540,14 @@ function ExamPracticeSection({
 const SHOW_PAGE_KICKER = false;
 
 /** True if block looks like a page kicker/topic line (e.g. "Topic name (GCSE)") — single line, ends with (GCSE)/(A-Level), short. */
+function isKickerCandidateBlock(b: unknown): b is { type: string; content?: string } {
+  return !!b && typeof b === "object" && typeof (b as { type?: unknown }).type === "string";
+}
+
+function isLessonPageBlock(b: unknown): b is LessonPageBlock {
+  return isKickerCandidateBlock(b);
+}
+
 function isKickerLikeBlock(b: { type: string; content?: string }): boolean {
   if (b.type !== "text" && b.type !== "keyIdea") return false;
   const raw = (b.content != null ? String(b.content) : "").trim();
@@ -3771,7 +3779,7 @@ const LessonViewPage: React.FC = () => {
           });
       return scoped.filter((b) => {
         if (b.type === "stretch" && !showDeeperKnowledge) return false;
-        if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return false;
+        if (!SHOW_PAGE_KICKER && isKickerCandidateBlock(b) && isKickerLikeBlock(b)) return false;
         return true;
       });
     };
@@ -3830,8 +3838,10 @@ const LessonViewPage: React.FC = () => {
 
     // Regression guard: when SHOW_PAGE_KICKER is false, no kicker-like block must be rendered
     if (typeof process !== "undefined" && process.env.NODE_ENV === "development" && !SHOW_PAGE_KICKER) {
-      const leaked = blockRenderList.find(({ block: b }) => isKickerLikeBlock(b));
-      if (leaked) {
+      const leaked = blockRenderList.find(
+        ({ block: b }) => isKickerCandidateBlock(b) && isKickerLikeBlock(b)
+      );
+      if (leaked && isKickerCandidateBlock(leaked.block)) {
         console.warn("[LessonViewPage] Regression: kicker-like block would be rendered; filter should have removed it.", {
           type: leaked.block.type,
           contentPreview: safeStr(leaked.block.content, "").slice(0, 60),
@@ -3841,12 +3851,20 @@ const LessonViewPage: React.FC = () => {
     // Dev-only: log when kicker/subtitle source is present (remove after confirming fix)
     if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
       const firstBlock = blocks[0];
-      const kickerLike = firstBlock ? isKickerLikeBlock(firstBlock) : false;
+      const kickerLike =
+        firstBlock && isKickerCandidateBlock(firstBlock) ? isKickerLikeBlock(firstBlock) : false;
       const pageHasSubtitle = !!(currentPage as any).subtitle || !!(currentPage as any).kicker || !!(currentPage as any).summary;
       if (kickerLike || pageHasSubtitle) {
+        const firstBlockPreview = isKickerCandidateBlock(firstBlock)
+          ? {
+              type: firstBlock.type,
+              contentPreview: safeStr(firstBlock.content, "").trim().slice(0, 80),
+              isKickerLike: kickerLike,
+            }
+          : null;
         console.log("[LessonViewPage] page header fields", {
           currentPage: { pageId: currentPage.pageId, title: currentPage.title, subtitle: (currentPage as any).subtitle, kicker: (currentPage as any).kicker, summary: (currentPage as any).summary },
-          firstBlock: firstBlock ? { type: firstBlock.type, contentPreview: safeStr(firstBlock.content, "").trim().slice(0, 80), isKickerLike: kickerLike } : null,
+          firstBlock: firstBlockPreview,
           blocksToRenderCount: blockRenderList.length,
         });
       }
@@ -4684,6 +4702,7 @@ const LessonViewPage: React.FC = () => {
                         />
                       ))
                     : blockRenderList.map(({ block: b, idx }) => {
+                        if (!isLessonPageBlock(b)) return null;
                         const blockKind = resolveLessonDisplayBlockType(b);
                         return (
                         <div key={idx} id={`block-${idx}`}>
