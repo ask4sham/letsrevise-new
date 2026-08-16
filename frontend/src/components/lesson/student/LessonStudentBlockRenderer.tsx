@@ -49,7 +49,8 @@ import {
   mapDragDropPairForBlockRender,
 } from "../../../utils/dragDropMatchDiagram";
 import { normalizeQuizQuestion } from "../../../utils/normalizeQuizQuestion";
-import { concealOpenExamPracticeMarkSchemes } from "../../../utils/formatExamPracticeContent";
+import { concealOpenExamPracticeMarkSchemes, stripDuplicateExamPracticeSections, hasRenderableExamPracticeContent } from "../../../utils/formatExamPracticeContent";
+import { collectInlineActivityFingerprints } from "../../../utils/activityQuestionsFromBlock";
 import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
 import { StudentBlockHeading } from "./StudentBlockHeading";
 import { UploadedDiagramActivityShell } from "./UploadedDiagramActivityShell";
@@ -98,6 +99,8 @@ export type LessonStudentBlockRendererProps = {
    * already holds page-scoped items, render those instead of an empty shell.
    */
   pageQuizFallbackQuestions?: Array<Record<string, unknown>>;
+  /** Blocks rendered earlier on this page ÔÇö used to suppress duplicate exam-practice Q sections. */
+  priorBlocksOnPage?: unknown[];
 };
 
 function withStudentBlockHeading(
@@ -290,6 +293,7 @@ export function LessonStudentBlockRenderer({
   classroomMode = false,
   onQuestionAnswered,
   pageQuizFallbackQuestions,
+  priorBlocksOnPage,
 }: LessonStudentBlockRendererProps): React.ReactElement | null {
   /** Interactive + diagram routing (handles mis-tagged drag-drop). */
   const routed = resolveLessonDisplayBlockType(block as { type?: unknown; pairs?: unknown });
@@ -307,6 +311,11 @@ export function LessonStudentBlockRenderer({
   const roleRaw = String((block as { role?: unknown }).role ?? "").trim().toLowerCase();
   const titleLooksLikePractice = /practice\s*questions/i.test(String(block.title ?? ""));
   if (roleRaw === "exampractice" || titleLooksLikePractice) {
+    const exclude = collectInlineActivityFingerprints([], {
+      priorBlocks: Array.isArray(priorBlocksOnPage) ? priorBlocksOnPage : [],
+    });
+    displayText = stripDuplicateExamPracticeSections(displayText, exclude);
+    if (!hasRenderableExamPracticeContent(displayText)) return null;
     displayText = concealOpenExamPracticeMarkSchemes(displayText);
   }
 

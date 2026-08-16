@@ -390,4 +390,80 @@ describe("JSON lesson page question diversity", () => {
     // Blood-glucose pool has enough distinct stems to clean.
     expect(result.clean).toBe(true);
   });
+
+  test("enumerates pageQuiz questions[] without top-level prompt", () => {
+    const haploid = "Why must human gametes be haploid before fertilisation?";
+    const questions = extractQuestionsFromLessonPages(
+      pagesWith([
+        {
+          type: "pageQuiz",
+          questions: [
+            {
+              id: "quiz1",
+              prompt: haploid,
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "So fusion restores the diploid chromosome number in the zygote",
+            },
+          ],
+        },
+      ])
+    );
+    expect(questions.some((q) => q.role === "pageQuiz" && q.stem === haploid)).toBe(true);
+  });
+
+  test("flags examPractice HTML duplicate against pageQuiz questions[]", () => {
+    const haploid = "Why must human gametes be haploid before fertilisation?";
+    const audit = auditLessonPagesDuplication(
+      pagesWith([
+        {
+          type: "pageQuiz",
+          questions: [
+            {
+              id: "quiz1",
+              prompt: haploid,
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "So fusion restores the diploid chromosome number in the zygote",
+            },
+          ],
+        },
+        {
+          type: "text",
+          role: "examPractice",
+          title: "Practice Questions",
+          content: [
+            "<p><strong>Q1 (1 mark)</strong></p>",
+            `<p>${haploid}</p>`,
+            "<details><summary>Reveal Model Answer</summary>",
+            "<p><strong>Model answer:</strong></p>",
+            "<p>So fusion restores the diploid chromosome number in the zygote</p>",
+            "</details>",
+          ].join("\n"),
+        },
+      ])
+    );
+    expect(audit.clean).toBe(false);
+    expect(
+      audit.issues.some(
+        (i) =>
+          i.kind === "near_duplicate_stem" &&
+          ((i.role === "examPractice" && i.otherRole === "pageQuiz") ||
+            (i.role === "pageQuiz" && i.otherRole === "examPractice"))
+      )
+    ).toBe(true);
+  });
+
+  test("fingerprint normalisation matches frontend contract", () => {
+    const {
+      mcqFingerprintFromStemAndAnswer,
+      normalizeQuestionStemForFingerprint,
+    } = require("../lib/questionDeduplicationGuard");
+    const stem = "Why must human gametes be haploid before fertilisation?";
+    const answer = "So fusion restores the diploid chromosome number in the zygote";
+    expect(normalizeQuestionStemForFingerprint(stem)).toBe(
+      "why must human gametes be haploid before fertilisation"
+    );
+    expect(mcqFingerprintFromStemAndAnswer(stem, answer)).toBe(
+      "why must human gametes be haploid before fertilisation|so fusion restores the diploid chromosome number in the zygote"
+    );
+  });
 });

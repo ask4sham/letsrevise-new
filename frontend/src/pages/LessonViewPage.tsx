@@ -138,7 +138,11 @@ import {
   stripLearnPageTestingBlocks,
   LEARN_TESTING_BLOCK_TYPES,
 } from "../utils/lessonPageGuards";
-import { extractActivityQuestionsFromBlock } from "../utils/activityQuestionsFromBlock";
+import {
+  extractActivityQuestionsFromBlock,
+  collectInlineActivityFingerprints,
+  filterExamPracticeBlocksOnPage,
+} from "../utils/activityQuestionsFromBlock";
 import { KeywordGlossaryProvider } from "../components/lesson/student/keywordGlossaryContext";
 import type { GlossaryFlashcardLite } from "../components/lesson/student/keywordGlossaryFlashcards";
 
@@ -3772,11 +3776,22 @@ const LessonViewPage: React.FC = () => {
       });
     };
 
-    const blocks = filterStudentVisibleBlocks(currentPage);
+    const priorLessonFingerprints = collectInlineActivityFingerprints(
+      orderedPages.slice(0, currentPageIndex)
+    );
+    const blocks = filterExamPracticeBlocksOnPage(
+      filterStudentVisibleBlocks(currentPage),
+      priorLessonFingerprints
+    );
     // Lesson-wide sequence: page 2 continues after page 1 (no restart at 1, no authored 28→9 jumps).
-    const priorVisibleCount = orderedPages
-      .slice(0, currentPageIndex)
-      .reduce((sum, page) => sum + filterStudentVisibleBlocks(page).length, 0);
+    let priorVisibleCount = 0;
+    for (let pi = 0; pi < currentPageIndex; pi++) {
+      const priorFp = collectInlineActivityFingerprints(orderedPages.slice(0, pi));
+      priorVisibleCount += filterExamPracticeBlocksOnPage(
+        filterStudentVisibleBlocks(orderedPages[pi]),
+        priorFp
+      ).length;
+    }
 
     // Inline pageQuiz already renders QuizView — avoid a duplicate footer Quiz Page.
     const hasInlinePageQuiz = blocks.some((b) => resolveLessonDisplayBlockType(b) === "pageQuiz");
@@ -4606,6 +4621,9 @@ const LessonViewPage: React.FC = () => {
                               <LessonStudentBlockRenderer
                                 block={b as any}
                                 blockIndex={idx}
+                                priorBlocksOnPage={blockRenderList
+                                  .slice(0, idx)
+                                  .map((row) => row.block)}
                                 markdownComponents={markdownComponents as any}
                                 stripVideoMarkdown={stripVideoMarkdown}
                                 maybeParseKeywordsFromText={maybeParseKeywordsFromText}
