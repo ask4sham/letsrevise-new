@@ -1,6 +1,6 @@
 /**
- * Autopilot Preparation Programme — P1.2 runtime persistence gate.
- * Narrow default-OFF semantics for durable record writes only.
+ * Autopilot Preparation Programme — P1.2/P1.3 runtime gates.
+ * Narrow default-OFF semantics for durable record writes and reads.
  */
 
 function readStrictEnabledEnv(name) {
@@ -15,7 +15,12 @@ function isPreparationRecordPersistenceEnabled() {
   return readStrictEnabledEnv("AUTOPILOT_LEARNING_PREPARATION_RECORD_PERSISTENCE_ENABLED");
 }
 
+function isPreparationRecordRetrievalEnabled() {
+  return readStrictEnabledEnv("AUTOPILOT_LEARNING_PREPARATION_RECORD_RETRIEVAL_ENABLED");
+}
+
 module.exports = {
   readStrictEnabledEnv,
   isPreparationRecordPersistenceEnabled,
+  isPreparationRecordRetrievalEnabled,
 };
