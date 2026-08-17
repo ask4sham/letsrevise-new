@@ -14,8 +14,18 @@ const {
   AutopilotSafetyError,
 } = require("../services/autopilotSafety/proposalValidation");
 const proposalService = require("../services/autopilotSafety/proposalService");
+const {
+  getPreparationRecord,
+  PreparationRecordRetrievalError,
+} = require("../services/autopilotPreparation/getPreparationRecord");
 
 const router = express.Router();
+
+const PREPARATION_RECORD_RETRIEVAL_HTTP_STATUS = Object.freeze({
+  PREPARATION_RECORD_RETRIEVAL_DISABLED: 503,
+  INVALID_RETRIEVAL_REQUEST: 400,
+  PREPARATION_RECORD_NOT_FOUND: 404,
+});
 
 function getActorId(req) {
   return req.user?._id || req.user?.id || req.user?.userId;
@@ -27,6 +37,14 @@ function handleDomainError(res, err) {
   }
   if (err instanceof proposalService.AutopilotSafetyError) {
     return res.status(err.statusCode).json({ error: err.message, code: err.code });
+  }
+  return null;
+}
+
+function handlePreparationRecordRetrievalError(res, err) {
+  if (err instanceof PreparationRecordRetrievalError) {
+    const statusCode = PREPARATION_RECORD_RETRIEVAL_HTTP_STATUS[err.code] || 500;
+    return res.status(statusCode).json({ error: err.message, code: err.code });
   }
   return null;
 }
@@ -158,6 +176,22 @@ router.post("/proposals/:actionId/expire", auth, requireAdmin, async (req, res) 
       return handled;
     }
     return sendInternalError("autopilot-safety/proposals:expire", err, res);
+  }
+});
+
+router.get("/preparation-records/:actionId", auth, requireAdmin, async (req, res) => {
+  try {
+    const record = await getPreparationRecord(req.params.actionId);
+    return res.json({
+      record,
+      meta: executionMeta(),
+    });
+  } catch (err) {
+    const handled = handlePreparationRecordRetrievalError(res, err);
+    if (handled) {
+      return handled;
+    }
+    return sendInternalError("autopilot-safety/preparation-records:get", err, res);
   }
 });
 
