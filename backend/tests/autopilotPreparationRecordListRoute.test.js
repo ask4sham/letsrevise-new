@@ -11,16 +11,7 @@ const mongoose = require("mongoose");
 const authRoutes = require("../routes/auth");
 const autopilotSafetyRoutes = require("../routes/autopilotSafety");
 const User = require("../models/User");
-const {
-  PreparationRecordRetrievalError,
-} = require("../services/autopilotPreparation/getPreparationRecord");
-
-jest.mock("../services/autopilotPreparation/getPreparationRecord", () => ({
-  getPreparationRecord: jest.fn(),
-  PreparationRecordRetrievalError: jest.requireActual(
-    "../services/autopilotPreparation/getPreparationRecord"
-  ).PreparationRecordRetrievalError,
-}));
+const { PreparationRecordListError } = require("../services/autopilotPreparation/listPreparationRecords");
 
 jest.mock("../services/autopilotPreparation/listPreparationRecords", () => ({
   listPreparationRecords: jest.fn(),
@@ -29,7 +20,6 @@ jest.mock("../services/autopilotPreparation/listPreparationRecords", () => ({
   ).PreparationRecordListError,
 }));
 
-const { getPreparationRecord } = require("../services/autopilotPreparation/getPreparationRecord");
 const { listPreparationRecords } = require("../services/autopilotPreparation/listPreparationRecords");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
@@ -75,27 +65,25 @@ async function loginAs(app, { email, userType }) {
   return token;
 }
 
-function extractPreparationRecordRouteHandlerSource() {
+function extractPreparationRecordListRouteHandlerSource() {
   const routeSrc = fs.readFileSync(
     path.join(__dirname, "..", "routes", "autopilotSafety.js"),
     "utf8"
   );
-  const match = routeSrc.match(
-    /router\.get\("\/preparation-records\/:actionId"[\s\S]*?\n\}\);/
-  );
+  const match = routeSrc.match(/router\.get\("\/preparation-records",[\s\S]*?\n\}\);/);
   expect(match).not.toBeNull();
   return match[0];
 }
 
-describe("autopilot preparation record retrieval route P1.4", () => {
+describe("autopilot preparation record list route P1.5", () => {
   const app = buildApp();
   let adminToken;
   let teacherToken;
 
   beforeAll(async () => {
     const ts = Date.now();
-    adminToken = await loginAs(app, { email: `p14-admin-${ts}@test.com`, userType: "admin" });
-    teacherToken = await loginAs(app, { email: `p14-teacher-${ts}@test.com`, userType: "teacher" });
+    adminToken = await loginAs(app, { email: `p15-admin-${ts}@test.com`, userType: "admin" });
+    teacherToken = await loginAs(app, { email: `p15-teacher-${ts}@test.com`, userType: "teacher" });
   });
 
   beforeEach(() => {
@@ -113,108 +101,113 @@ describe("autopilot preparation record retrieval route P1.4", () => {
   });
 
   test("unauthenticated request rejected with 401", async () => {
-    const res = await request(app).get("/api/autopilot-safety/preparation-records/approved-b2");
+    const res = await request(app).get("/api/autopilot-safety/preparation-records");
     expect(res.status).toBe(401);
-    expect(getPreparationRecord).not.toHaveBeenCalled();
+    expect(listPreparationRecords).not.toHaveBeenCalled();
   });
 
   test("authenticated non-admin rejected with 403", async () => {
     const res = await request(app)
-      .get("/api/autopilot-safety/preparation-records/approved-b2")
+      .get("/api/autopilot-safety/preparation-records")
       .set("Authorization", `Bearer ${teacherToken}`);
     expect(res.status).toBe(403);
-    expect(getPreparationRecord).not.toHaveBeenCalled();
+    expect(listPreparationRecords).not.toHaveBeenCalled();
   });
 
   test("authenticated admin with gate disabled maps PREPARATION_RECORD_RETRIEVAL_DISABLED to 503", async () => {
-    getPreparationRecord.mockRejectedValue(
-      new PreparationRecordRetrievalError(
+    listPreparationRecords.mockRejectedValue(
+      new PreparationRecordListError(
         "PREPARATION_RECORD_RETRIEVAL_DISABLED",
         "Autopilot preparation record retrieval is disabled"
       )
     );
 
     const res = await request(app)
-      .get("/api/autopilot-safety/preparation-records/approved-b2")
+      .get("/api/autopilot-safety/preparation-records")
       .set("Authorization", `Bearer ${adminToken}`);
 
     expect(res.status).toBe(503);
     expect(res.body.code).toBe("PREPARATION_RECORD_RETRIEVAL_DISABLED");
-    expect(getPreparationRecord).toHaveBeenCalledWith("approved-b2");
+    expect(listPreparationRecords).toHaveBeenCalledWith({});
   });
 
-  test("authenticated admin happy path returns transport-normalized record and meta", async () => {
-    getPreparationRecord.mockResolvedValue(validStoredRecord());
-
-    const res = await request(app)
-      .get("/api/autopilot-safety/preparation-records/approved-b2")
-      .set("Authorization", `Bearer ${adminToken}`);
-
-    expect(res.status).toBe(200);
-    expect(getPreparationRecord).toHaveBeenCalledWith("approved-b2");
-    expect(res.body.record.actionId).toBe("approved-b2");
-    expect(res.body.record._id).toBe(RECORD_ID.toHexString());
-    expect(typeof res.body.record.actorId).toBe("string");
-    expect(res.body.record.actorId).toBe(ACTOR_ID.toHexString());
-    expect(res.body.record.createdAt).toBe("2026-08-16T10:00:00.000Z");
-    expect(res.body.meta.executionAuthorized).toBe(false);
-    expect(res.body.meta.executionEnabled).toBe(false);
-  });
-
-  test("unknown actionId maps PREPARATION_RECORD_NOT_FOUND to 404", async () => {
-    getPreparationRecord.mockRejectedValue(
-      new PreparationRecordRetrievalError(
-        "PREPARATION_RECORD_NOT_FOUND",
-        "Preparation record not found",
-        { actionId: "missing" }
-      )
+  test("invalid pagination maps INVALID_LIST_REQUEST to 400", async () => {
+    listPreparationRecords.mockRejectedValue(
+      new PreparationRecordListError("INVALID_LIST_REQUEST", "limit must be a positive integer", {
+        limit: "abc",
+      })
     );
 
     const res = await request(app)
-      .get("/api/autopilot-safety/preparation-records/missing")
-      .set("Authorization", `Bearer ${adminToken}`);
-
-    expect(res.status).toBe(404);
-    expect(res.body.code).toBe("PREPARATION_RECORD_NOT_FOUND");
-  });
-
-  test("whitespace-only path segment maps INVALID_RETRIEVAL_REQUEST to 400", async () => {
-    getPreparationRecord.mockRejectedValue(
-      new PreparationRecordRetrievalError(
-        "INVALID_RETRIEVAL_REQUEST",
-        "actionId is required for preparation record retrieval",
-        { actionId: "   " }
-      )
-    );
-
-    const res = await request(app)
-      .get("/api/autopilot-safety/preparation-records/%20%20")
+      .get("/api/autopilot-safety/preparation-records?limit=abc")
       .set("Authorization", `Bearer ${adminToken}`);
 
     expect(res.status).toBe(400);
-    expect(res.body.code).toBe("INVALID_RETRIEVAL_REQUEST");
-    expect(getPreparationRecord).toHaveBeenCalledTimes(1);
-    expect(String(getPreparationRecord.mock.calls[0][0]).trim()).toBe("");
+    expect(res.body.code).toBe("INVALID_LIST_REQUEST");
   });
 
-  test("collection path invokes list handler not single-record getPreparationRecord", async () => {
+  test("authenticated admin happy path returns records, pagination, and meta", async () => {
+    listPreparationRecords.mockResolvedValue({
+      records: [validStoredRecord()],
+      pagination: { limit: 20, offset: 0, total: 1 },
+    });
+
     const res = await request(app)
       .get("/api/autopilot-safety/preparation-records")
       .set("Authorization", `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
     expect(listPreparationRecords).toHaveBeenCalledWith({});
-    expect(getPreparationRecord).not.toHaveBeenCalled();
+    expect(res.body.records).toHaveLength(1);
+    expect(res.body.records[0].actionId).toBe("approved-b2");
+    expect(res.body.records[0]._id).toBe(RECORD_ID.toHexString());
+    expect(typeof res.body.records[0].actorId).toBe("string");
+    expect(res.body.records[0].actorId).toBe(ACTOR_ID.toHexString());
+    expect(res.body.records[0].createdAt).toBe("2026-08-16T10:00:00.000Z");
+    expect(res.body.pagination).toEqual({ limit: 20, offset: 0, total: 1 });
+    expect(res.body.meta.executionAuthorized).toBe(false);
+    expect(res.body.meta.executionEnabled).toBe(false);
   });
 
-  test("preparation-record route handler stays read-only and service-scoped", () => {
-    const handlerSrc = extractPreparationRecordRouteHandlerSource();
+  test("forwards limit and offset query params to service", async () => {
+    listPreparationRecords.mockResolvedValue({
+      records: [],
+      pagination: { limit: 10, offset: 5, total: 0 },
+    });
 
-    expect(handlerSrc).toMatch(/router\.get\("\/preparation-records\/:actionId"/);
-    expect(handlerSrc).toMatch(/getPreparationRecord\(req\.params\.actionId\)/);
+    const res = await request(app)
+      .get("/api/autopilot-safety/preparation-records?limit=10&offset=5")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(listPreparationRecords).toHaveBeenCalledWith({ limit: "10", offset: "5" });
+  });
+
+  test("empty result returns zero records", async () => {
+    listPreparationRecords.mockResolvedValue({
+      records: [],
+      pagination: { limit: 20, offset: 0, total: 0 },
+    });
+
+    const res = await request(app)
+      .get("/api/autopilot-safety/preparation-records")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.records).toEqual([]);
+    expect(res.body.pagination.total).toBe(0);
+  });
+
+  test("preparation-record list route handler stays read-only and service-scoped", () => {
+    const handlerSrc = extractPreparationRecordListRouteHandlerSource();
+
+    expect(handlerSrc).toMatch(/router\.get\("\/preparation-records"/);
+    expect(handlerSrc).toMatch(/listPreparationRecords\(req\.query/);
     expect(handlerSrc).not.toMatch(/persistPreparationRecord/);
+    expect(handlerSrc).not.toMatch(/getPreparationRecord/);
     expect(handlerSrc).not.toMatch(/proposalService/);
     expect(handlerSrc).not.toMatch(/AutopilotActionProposal/);
+    expect(handlerSrc).not.toMatch(/AutopilotPreparationRecordEvent/);
     expect(handlerSrc).not.toMatch(/router\.post/);
     expect(handlerSrc).not.toMatch(/router\.put/);
     expect(handlerSrc).not.toMatch(/router\.delete/);

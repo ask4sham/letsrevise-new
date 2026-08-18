@@ -18,6 +18,10 @@ const {
   getPreparationRecord,
   PreparationRecordRetrievalError,
 } = require("../services/autopilotPreparation/getPreparationRecord");
+const {
+  listPreparationRecords,
+  PreparationRecordListError,
+} = require("../services/autopilotPreparation/listPreparationRecords");
 
 const router = express.Router();
 
@@ -25,6 +29,11 @@ const PREPARATION_RECORD_RETRIEVAL_HTTP_STATUS = Object.freeze({
   PREPARATION_RECORD_RETRIEVAL_DISABLED: 503,
   INVALID_RETRIEVAL_REQUEST: 400,
   PREPARATION_RECORD_NOT_FOUND: 404,
+});
+
+const PREPARATION_RECORD_LIST_HTTP_STATUS = Object.freeze({
+  PREPARATION_RECORD_RETRIEVAL_DISABLED: 503,
+  INVALID_LIST_REQUEST: 400,
 });
 
 function getActorId(req) {
@@ -44,6 +53,14 @@ function handleDomainError(res, err) {
 function handlePreparationRecordRetrievalError(res, err) {
   if (err instanceof PreparationRecordRetrievalError) {
     const statusCode = PREPARATION_RECORD_RETRIEVAL_HTTP_STATUS[err.code] || 500;
+    return res.status(statusCode).json({ error: err.message, code: err.code });
+  }
+  return null;
+}
+
+function handlePreparationRecordListError(res, err) {
+  if (err instanceof PreparationRecordListError) {
+    const statusCode = PREPARATION_RECORD_LIST_HTTP_STATUS[err.code] || 500;
     return res.status(statusCode).json({ error: err.message, code: err.code });
   }
   return null;
@@ -176,6 +193,22 @@ router.post("/proposals/:actionId/expire", auth, requireAdmin, async (req, res) 
       return handled;
     }
     return sendInternalError("autopilot-safety/proposals:expire", err, res);
+  }
+});
+
+router.get("/preparation-records", auth, requireAdmin, async (req, res) => {
+  try {
+    const result = await listPreparationRecords(req.query || {});
+    return res.json({
+      ...result,
+      meta: executionMeta(),
+    });
+  } catch (err) {
+    const handled = handlePreparationRecordListError(res, err);
+    if (handled) {
+      return handled;
+    }
+    return sendInternalError("autopilot-safety/preparation-records:list", err, res);
   }
 });
 
