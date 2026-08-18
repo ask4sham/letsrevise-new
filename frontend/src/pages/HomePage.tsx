@@ -475,9 +475,9 @@ const HomePage: React.FC = () => {
     if (stage) return null;
 
     const stages = [
-      { key: "gcse", label: "GCSE", note: "Years 10–11" },
-      { key: "a-level", label: "A-Level", note: "Years 12–13" },
-      { key: "ks3", label: "KS3", note: "Years 7–9" },
+      { key: "gcse", label: "GCSE", note: "Biology available now" },
+      { key: "a-level", label: "A-Level", note: "Coming later" },
+      { key: "ks3", label: "KS3", note: "Early access" },
     ];
 
     return (
@@ -501,7 +501,7 @@ const HomePage: React.FC = () => {
               fontSize: "0.98rem",
             }}
           >
-            Pick a stage to explore subjects and continue to options.
+            Explore current Biology resources and see what's coming next.
           </p>
           <div
             style={{
