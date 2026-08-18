@@ -3,335 +3,311 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LetsRevise - Study Resources for All Levels</title>
+    <title>LetsRevise — GCSE Biology Revision</title>
+    <meta name="description" content="Interactive GCSE Biology revision for Pearson Edexcel International GCSE Biology (4BI1) and AQA GCSE Biology (8461). Learn through structured lessons, diagrams, quizzes and exam-style practice.">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
             color: #333;
+            line-height: 1.6;
+            background: #fff;
         }
-        
-        .container {
-            max-width: 1200px;
+
+        .section {
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0 20px;
         }
-        
-        header {
-            text-align: center;
-            padding: 60px 20px;
-            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-            color: white;
-            border-radius: 20px;
-            margin-bottom: 50px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        }
-        
-        h1 {
-            font-size: 3.5em;
-            margin-bottom: 20px;
-            font-weight: 800;
-        }
-        
-        .subtitle {
-            font-size: 1.4em;
-            opacity: 0.9;
-            max-width: 800px;
-            margin: 0 auto 30px;
-        }
-        
-        .levels-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
-            margin: 50px 0;
-        }
-        
-        .level-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        
-        .level-card:hover {
-            transform: translateY(-15px);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-        }
-        
-        .card-header {
-            padding: 40px 30px;
-            color: white;
-            text-align: center;
-        }
-        
-        .a-level-header {
-            background: linear-gradient(135deg, #FF416C, #FF4B2B);
-        }
-        
-        .gcse-header {
-            background: linear-gradient(135deg, #2196F3, #21CBF3);
-        }
-        
-        .ks3-header {
-            background: linear-gradient(135deg, #4CAF50, #8BC34A);
-        }
-        
-        .card-icon {
-            font-size: 3em;
-            margin-bottom: 20px;
-        }
-        
-        .card-title {
-            font-size: 2em;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-        
-        .card-subtitle {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-        
-        .card-content {
-            padding: 30px;
-        }
-        
-        .card-content h3 {
-            color: #444;
-            margin-bottom: 15px;
-            font-size: 1.3em;
-        }
-        
-        .card-content ul {
-            list-style: none;
-            padding: 0;
-        }
-        
-        .card-content li {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: center;
-        }
-        
-        .card-content li:before {
-            content: "✓";
-            color: #4CAF50;
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        
-        .btn {
-            display: inline-block;
-            padding: 15px 35px;
+
+        .hero {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 1.1em;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-            margin-top: 20px;
             text-align: center;
-            width: 100%;
+            padding: 80px 20px 70px;
         }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        .a-level-btn {
-            background: linear-gradient(135deg, #FF416C, #FF4B2B);
-        }
-        
-        .gcse-btn {
-            background: linear-gradient(135deg, #2196F3, #21CBF3);
-        }
-        
-        .ks3-btn {
-            background: linear-gradient(135deg, #4CAF50, #8BC34A);
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin: 60px 0;
-            text-align: center;
-        }
-        
-        .stat-box {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-        }
-        
-        .stat-number {
-            font-size: 2.5em;
+
+        .eyebrow {
+            font-size: 0.95rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.85;
+            margin-bottom: 16px;
             font-weight: 700;
-            color: #2196F3;
-            display: block;
         }
-        
-        .stat-label {
-            color: #666;
-            font-size: 1.1em;
-            margin-top: 10px;
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.25rem);
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 18px;
         }
-        
+
+        .hero-sub {
+            font-size: 1.35rem;
+            font-weight: 600;
+            opacity: 0.95;
+            margin-bottom: 22px;
+        }
+
+        .hero-body {
+            font-size: 1.05rem;
+            max-width: 760px;
+            margin: 0 auto 36px;
+            opacity: 0.92;
+        }
+
+        .cta-row {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+            padding: 16px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.05rem;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            padding: 16px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.05rem;
+            border: 2px solid white;
+        }
+
+        .biology-section {
+            background: #f8f9fa;
+            padding: 70px 20px;
+        }
+
+        .biology-section h2 {
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+            text-align: center;
+            margin-bottom: 14px;
+            font-weight: 700;
+        }
+
+        .biology-intro {
+            text-align: center;
+            color: #555;
+            max-width: 720px;
+            margin: 0 auto 40px;
+            font-size: 1.05rem;
+        }
+
+        .course-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .course-card {
+            background: white;
+            border-radius: 14px;
+            padding: 28px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+            border: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+
+        .status-edexcel { background: #e8f4fd; color: #333; }
+        .status-aqa { background: #ecfdf3; color: #333; }
+
+        .course-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+        }
+
+        .course-card p {
+            color: #555;
+            flex: 1;
+        }
+
+        .course-cta {
+            margin-top: 20px;
+        }
+
+        .course-link {
+            display: inline-block;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.98rem;
+        }
+
+        .link-edexcel { background: #2563eb; }
+        .link-aqa { background: #16a34a; }
+
+        .features-section {
+            padding: 70px 20px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+            border: 1px solid #eee;
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: #555;
+            margin: 0;
+        }
+
+        .future-section {
+            background: #f3f4f6;
+            padding: 56px 20px 64px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .future-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .future-section p {
+            color: #555;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
         footer {
             text-align: center;
-            padding: 40px 20px;
-            margin-top: 60px;
+            padding: 32px 20px;
             color: #666;
-            border-top: 1px solid #ddd;
-        }
-        
-        @media (max-width: 768px) {
-            .levels-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            h1 {
-                font-size: 2.5em;
-            }
-            
-            .stats {
-                grid-template-columns: 1fr;
-            }
+            font-size: 0.95rem;
+            border-top: 1px solid #eee;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📚 LetsRevise</h1>
-            <div class="subtitle">
-                Comprehensive study resources for A-Levels, GCSE, and KS3. Everything you need to ace your exams.
-            </div>
-        </header>
-        
-        <div class="stats">
-            <div class="stat-box">
-                <span class="stat-number">3,500+</span>
-                <span class="stat-label">Revision Topics</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-number">12,000+</span>
-                <span class="stat-label">Practice Questions</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-number">100%</span>
-                <span class="stat-label">Curriculum Aligned</span>
-            </div>
-        </div>
-        
-        <div class="levels-grid">
-            <!-- A-Level Card -->
-            <div class="level-card">
-                <div class="card-header a-level-header">
-                    <div class="card-icon">🎓</div>
-                    <div class="card-title">A-Level</div>
-                    <div class="card-subtitle">Years 12-13 • Advanced Level</div>
-                </div>
-                <div class="card-content">
-                    <h3>Subjects Available:</h3>
-                    <ul>
-                        <li>Biology (AQA, OCR, Edexcel)</li>
-                        <li>Chemistry</li>
-                        <li>Physics</li>
-                        <li>Mathematics</li>
-                        <li>Psychology</li>
-                    </ul>
-                    <p>Comprehensive notes, past papers, and exam techniques for A-Level success.</p>
-                    <a href="/a-level/" class="btn a-level-btn">Explore A-Level Resources →</a>
-                </div>
-            </div>
-            
-            <!-- GCSE Card -->
-            <div class="level-card">
-                <div class="card-header gcse-header">
-                    <div class="card-icon">📝</div>
-                    <div class="card-title">GCSE</div>
-                    <div class="card-subtitle">Years 10-11 • Foundation & Higher</div>
-                </div>
-                <div class="card-content">
-                    <h3>Available Now:</h3>
-                    <ul>
-                        <li>Biology (AQA Foundation & Higher)</li>
-                        <li>Chemistry</li>
-                        <li>Physics</li>
-                        <li>Mathematics</li>
-                        <li>English Literature</li>
-                    </ul>
-                    <p>Complete GCSE revision with exam boards: AQA, Edexcel, OCR.</p>
-                    <a href="/gcse/biology/aqa/foundation/" class="btn gcse-btn">Start GCSE Revision →</a>
-                </div>
-            </div>
-            
-            <!-- KS3 Card -->
-            <div class="level-card">
-                <div class="card-header ks3-header">
-                    <div class="card-icon">🔬</div>
-                    <div class="card-title">KS3</div>
-                    <div class="card-subtitle">Years 7-9 • Key Stage 3</div>
-                </div>
-                <div class="card-content">
-                    <h3>Subjects Covered:</h3>
-                    <ul>
-                        <li>Science (Biology, Chemistry, Physics)</li>
-                        <li>Mathematics</li>
-                        <li>English</li>
-                        <li>Geography</li>
-                        <li>History</li>
-                    </ul>
-                    <p>Foundation building for KS3 students with interactive lessons.</p>
-                    <a href="/ks3/biology/" class="btn ks3-btn">Start KS3 Learning →</a>
-                </div>
-            </div>
-        </div>
-        
-        <div style="text-align: center; margin: 60px 0;">
-            <h2 style="margin-bottom: 30px; color: #444;">How to Use This Platform</h2>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 40px;">
-                <div>
-                    <div style="font-size: 2em; margin-bottom: 15px;">1️⃣</div>
-                    <h3>Choose Your Level</h3>
-                    <p>Select A-Level, GCSE, or KS3 based on your current studies</p>
-                </div>
-                <div>
-                    <div style="font-size: 2em; margin-bottom: 15px;">2️⃣</div>
-                    <h3>Pick Your Subject</h3>
-                    <p>Navigate to your specific subject and exam board</p>
-                </div>
-                <div>
-                    <div style="font-size: 2em; margin-bottom: 15px;">3️⃣</div>
-                    <h3>Start Revising</h3>
-                    <p>Access notes, practice questions, and interactive content</p>
-                </div>
-            </div>
-        </div>
-        
-        <footer>
-            <p>© 2024 LetsRevise. All rights reserved.</p>
-            <p style="margin-top: 15px; font-size: 0.9em;">
-                Educational resources aligned with UK National Curriculum
+    <header class="hero">
+        <div class="section">
+            <p class="eyebrow">Biology-first revision platform</p>
+            <h1>Master Biology, one topic at a time.</h1>
+            <p class="hero-sub">Structured lessons, interactive activities, quizzes and exam-style practice for GCSE Biology.</p>
+            <p class="hero-body">
+                Start with Pearson Edexcel International GCSE Biology (4BI1) and AQA GCSE Biology (8461).
+                Explore curated lessons designed to help you understand the science, practise what you've learned
+                and prepare for exams.
             </p>
-        </footer>
-    </div>
+            <div class="cta-row">
+                <a href="https://letsrevise.com/#/browse-lessons" class="btn-primary">Explore Biology</a>
+                <a href="https://letsrevise.com/#/register" class="btn-secondary">Create free account</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="biology-section">
+        <div class="section">
+            <h2>Biology revision built for learning, not just reading</h2>
+            <p class="biology-intro">
+                LetsRevise takes you from understanding a topic to checking your knowledge and applying it
+                to exam questions — all in one learning journey.
+            </p>
+
+            <div class="course-grid">
+                <article class="course-card">
+                    <span class="status-pill status-edexcel">Curated lessons expanding</span>
+                    <h3>Pearson Edexcel International GCSE Biology (4BI1)</h3>
+                    <p>
+                        Learn Edexcel International GCSE Biology through structured teaching, original diagrams,
+                        interactive activities, retrieval checks, quizzes and exam-style practice. New curated lessons
+                        are being added as we complete the course.
+                    </p>
+                    <div class="course-cta">
+                        <a href="https://letsrevise.com/#/browse-lessons" class="course-link link-edexcel">Explore Edexcel Biology</a>
+                    </div>
+                </article>
+
+                <article class="course-card">
+                    <span class="status-pill status-aqa">Lessons available • coverage expanding</span>
+                    <h3>AQA GCSE Biology (8461)</h3>
+                    <p>
+                        Explore AQA GCSE Biology lessons for Foundation and Higher, with structured teaching,
+                        visual explanations, retrieval practice and exam-focused activities. Additional topics
+                        are being completed.
+                    </p>
+                    <div class="course-cta">
+                        <a href="https://letsrevise.com/#/browse-lessons" class="course-link link-aqa">Explore AQA Biology</a>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="features-section">
+        <div class="section">
+            <div class="feature-grid">
+                <article class="feature-card">
+                    <h3>Learn the science</h3>
+                    <p>Structured lessons break complex Biology into clear, manageable steps.</p>
+                </article>
+                <article class="feature-card">
+                    <h3>Interact and retrieve</h3>
+                    <p>Use diagrams, activities and quick checks to actively test your understanding as you learn.</p>
+                </article>
+                <article class="feature-card">
+                    <h3>Practise for exams</h3>
+                    <p>Apply your knowledge through quizzes, exam-style questions and focused practice.</p>
+                </article>
+                <article class="feature-card">
+                    <h3>Know what to revise next</h3>
+                    <p>Use revision and progress tools to identify what you've learned and where you need more practice.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="future-section">
+        <div class="section">
+            <h2>Biology first. More subjects to follow.</h2>
+            <p>
+                We're building LetsRevise course by course, focusing on depth and learning quality before
+                expanding into more sciences and subjects.
+            </p>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 LetsRevise. GCSE Biology revision for Edexcel International GCSE (4BI1) and AQA (8461).</p>
+    </footer>
 </body>
 </html>
