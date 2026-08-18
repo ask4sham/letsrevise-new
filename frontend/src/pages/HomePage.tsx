@@ -541,7 +541,7 @@ const HomePage: React.FC = () => {
     <>
       <SEO
         title="LetsRevise — GCSE Biology Revision"
-        description="Interactive GCSE Biology revision for Pearson Edexcel International GCSE Biology (4BI1) and AQA GCSE Biology (8461). Learn through structured lessons, diagrams, quizzes and exam-style practice."
+        description="Interactive GCSE Biology revision for Edexcel International GCSE Biology (4BI1) and AQA GCSE Biology (8461). Learn through structured lessons, diagrams, quizzes and exam-style practice."
         keywords="GCSE Biology, Edexcel 4BI1, AQA 8461, Biology revision, interactive lessons, exam practice"
         image="/logo.png"
         type="website"
@@ -604,7 +604,7 @@ const HomePage: React.FC = () => {
                 opacity: 0.92,
               }}
             >
-              Start with Pearson Edexcel International GCSE Biology (4BI1) and AQA
+              Start with Edexcel International GCSE Biology (4BI1) and AQA
               GCSE Biology (8461). Explore curated lessons designed to help you
               understand the science, practise what you&apos;ve learned and prepare
               for exams.
@@ -687,7 +687,7 @@ const HomePage: React.FC = () => {
                   Curated lessons expanding
                 </span>
                 <h3 style={{ fontSize: "1.25rem", marginBottom: "10px" }}>
-                  Pearson Edexcel International GCSE Biology (4BI1)
+                  Edexcel International GCSE Biology (4BI1)
                 </h3>
                 <p style={{ color: "#555", lineHeight: 1.6, flex: 1 }}>
                   Learn Edexcel International GCSE Biology through structured
