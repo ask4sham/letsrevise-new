@@ -49,6 +49,7 @@ interface User {
   earnings: number;
   subscription: string;
   createdAt: string;
+  lastLoginAt: string | null;
   lastActive: string | null;
   stats: any;
   entitlementSummary?: EntitlementSummary;
@@ -118,6 +119,9 @@ function formatLessonDate(iso?: string): string {
 
 const LESSON_TABLE_COLUMNS =
   "minmax(140px,2fr) minmax(120px,1.2fr) minmax(72px,0.7fr) minmax(72px,0.7fr) minmax(72px,0.7fr) minmax(84px,0.75fr) minmax(84px,0.75fr) minmax(88px,0.8fr) minmax(220px,1.6fr)";
+
+const USER_TABLE_COLUMNS =
+  "1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr";
 
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -629,6 +633,14 @@ const AdminDashboardPage: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
+  const formatLastLogin = (iso: string | null | undefined) => {
+    if (!iso) return "Never";
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return "Never";
+    }
+  };
   const formatCurrency = (amount: number) => amount.toLocaleString("en-US") + " SC";
 
   const safeTabButtonStyle = (tab: string): React.CSSProperties => ({
@@ -754,6 +766,20 @@ const AdminDashboardPage: React.FC = () => {
           }}
         >
           Audit log →
+        </Link>
+        <Link
+          to="/admin/login-activity"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#fef3c7",
+            color: "#92400e",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Recent Login Activity →
         </Link>
         </>
         )}
@@ -1325,7 +1351,7 @@ const AdminDashboardPage: React.FC = () => {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr 1fr",
+                  gridTemplateColumns: USER_TABLE_COLUMNS,
                   backgroundColor: "#f8f9fa",
                   padding: "1rem",
                   borderBottom: "1px solid #ddd",
@@ -1338,6 +1364,7 @@ const AdminDashboardPage: React.FC = () => {
                 <div>Status</div>
                 <div>Earnings</div>
                 <div>Access / Pass</div>
+                <div>Last Login</div>
                 <div>Actions</div>
               </div>
 
@@ -1346,7 +1373,7 @@ const AdminDashboardPage: React.FC = () => {
                   key={u.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr 1fr",
+                    gridTemplateColumns: USER_TABLE_COLUMNS,
                     padding: "1rem",
                     borderBottom: "1px solid #ddd",
                     alignItems: "center",
@@ -1454,6 +1481,10 @@ const AdminDashboardPage: React.FC = () => {
                     }}
                   >
                     {u.entitlementSummary?.label ?? "—"}
+                  </div>
+
+                  <div style={{ fontSize: "0.875rem", color: "#374151" }}>
+                    {formatLastLogin(u.lastLoginAt)}
                   </div>
 
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>

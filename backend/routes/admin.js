@@ -440,6 +440,8 @@ router.get("/metrics/top-paywalled-lessons-without-preview", auth, checkAdmin, a
    Admin-only. List recent audit log entries.
    ========================================= */
 const AdminAuditLog = require("../models/AdminAuditLog");
+const LoginEvent = require("../models/LoginEvent");
+
 router.get("/audit-log", auth, checkAdmin, async (req, res) => {
   try {
     const { limit = 50, action } = req.query;
@@ -455,6 +457,38 @@ router.get("/audit-log", auth, checkAdmin, async (req, res) => {
     return res.json({ success: true, logs });
   } catch (err) {
     console.error("GET audit-log error:", err);
+    return sendInternalError("admin", err, res);
+  }
+});
+
+/* =========================================
+   GET /api/admin/login-activity
+   Admin-only. Recent successful login events (limit-only, not paginated history).
+   ========================================= */
+router.get("/login-activity", auth, checkAdmin, async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const lim = Math.min(parseInt(limit, 10) || 50, 200);
+
+    const events = await LoginEvent.find({})
+      .sort({ loggedInAt: -1 })
+      .limit(lim)
+      .lean();
+
+    return res.json({
+      success: true,
+      events: events.map((e) => ({
+        id: e._id,
+        userId: e.userId,
+        emailSnapshot: e.emailSnapshot,
+        firstNameSnapshot: e.firstNameSnapshot,
+        lastNameSnapshot: e.lastNameSnapshot || "",
+        userTypeSnapshot: e.userTypeSnapshot,
+        loggedInAt: e.loggedInAt,
+      })),
+    });
+  } catch (err) {
+    console.error("GET login-activity error:", err);
     return sendInternalError("admin", err, res);
   }
 });
@@ -716,6 +750,7 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
         verificationStatus: u.verificationStatus,
         subscription: u.subscription,
         createdAt: u.createdAt,
+        lastLoginAt: u.lastLoginAt || null,
         lastActive: u.userType === "student" ? u.studentStats?.lastActiveDate : u.updatedAt,
         stats: u.userType === "teacher" ? u.teacherStats : u.studentStats,
         entitlementSummary: getEntitlementSummary(u),

@@ -15,6 +15,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ConfirmEmailChangePage from "./pages/ConfirmEmailChangePage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminAuditLogPage from "./pages/AdminAuditLogPage";
+import AdminLoginActivityPage from "./pages/AdminLoginActivityPage";
 import Dashboard from "./pages/Dashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -867,6 +868,14 @@ function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <AdminAuditLogPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/login-activity"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminLoginActivityPage />
               </ProtectedRoute>
             }
           />
