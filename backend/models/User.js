@@ -88,6 +88,9 @@ const userSchema = new mongoose.Schema(
     emailChangeToken: { type: String, default: null },
     emailChangeExpires: { type: Date, default: null },
 
+    /** Last successful authentication (login). Server-owned; optional for legacy users. */
+    lastLoginAt: { type: Date, default: null },
+
     /**
      * Soft-delete (admin): user row stays so Lesson.teacherId and FK-style refs remain valid.
      * HARD deleteOne() on User is dangerous: lessons use teacherId; a new account with the same email

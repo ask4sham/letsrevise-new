@@ -14,6 +14,7 @@ const { validatePasswordStrength } = require("../utils/passwordStrength");
 const { sendInternalError, IS_PRODUCTION } = require("../utils/safeErrorResponse");
 const { CURRENT_USER_PROJECTION, toCurrentUserDto } = require("../utils/userResponse");
 const { sendResendEmail } = require("../services/resendEmailService");
+const { recordLoginSuccess } = require("../utils/recordLoginSuccess");
 
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -917,6 +918,9 @@ router.post(
           if (process.env.NODE_ENV !== "test") {
             console.log(`[auth/login] success userId=${user._id} userType=${user.userType}`);
           }
+
+          const loggedInAt = new Date();
+          recordLoginSuccess({ user, loggedInAt });
 
           res.json({
             token,
