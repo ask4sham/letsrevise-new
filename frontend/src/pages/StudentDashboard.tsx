@@ -184,13 +184,25 @@ function buildCourseKey(board: string, level: string, tier: string) {
   return `${b}|${lv}|${t}`;
 }
 
-function formatCourseLabel(board: string, level: string, tier: string) {
+function formatCourseLabel(
+  board: string,
+  level: string,
+  tier: string,
+  opts?: { suppressTier?: boolean }
+) {
   const b = normalizeBoardName(board);
   const lv = normalizeLevelLabel(level);
   const t = normalizeTier(tier);
   if (b === "Not set" && lv === "Not set") return "Course not set";
-  const tierLabel =
-    t === "foundation" ? "Foundation" : t === "higher" ? "Higher" : t === "advanced" ? "Advanced" : "";
+  const tierLabel = opts?.suppressTier
+    ? ""
+    : t === "foundation"
+      ? "Foundation"
+      : t === "higher"
+        ? "Higher"
+        : t === "advanced"
+          ? "Advanced"
+          : "";
   const parts = [b !== "Not set" ? b : "", lv !== "Not set" ? lv : "", tierLabel].filter(Boolean);
   return parts.join(" · ") || "Course not set";
 }
@@ -202,6 +214,22 @@ function parseCourseKey(courseKey: string): { board: string; level: string; tier
 
 function normalizeForCompare(s: string) {
   return safeStr(s, "").trim().toLowerCase();
+}
+
+/** Display-only: Edexcel International GCSE Biology (4BI1); suppress Foundation/Higher labelling. */
+function isEdexcelIgcseBiologyDisplay(lesson: {
+  examBoardName?: string;
+  level?: string;
+  subject?: string;
+  topic?: string;
+  title?: string;
+}): boolean {
+  const board = normalizeForCompare(lesson.examBoardName || "");
+  const subject = normalizeForCompare(lesson.subject || "");
+  if (board !== "edexcel" || subject !== "biology") return false;
+  if (normalizeLevelLabel(lesson.level || "") === "IGCSE") return true;
+  const blob = [lesson.topic, lesson.title].map((s) => safeStr(s, "")).join(" ");
+  return /\b4bi1\b/i.test(blob);
 }
 
 /**
@@ -784,7 +812,12 @@ const StudentDashboard: React.FC = () => {
       if (revisionSubject && safeStr(l.subject, "") !== revisionSubject) return;
       const key = buildCourseKey(l.examBoardName, l.level, l.tier);
       if (!map.has(key)) {
-        map.set(key, formatCourseLabel(l.examBoardName, l.level, l.tier));
+        map.set(
+          key,
+          formatCourseLabel(l.examBoardName, l.level, l.tier, {
+            suppressTier: isEdexcelIgcseBiologyDisplay(l),
+          })
+        );
       }
     });
     return Array.from(map.entries())
@@ -1288,7 +1321,9 @@ const StudentDashboard: React.FC = () => {
               {myRevisionLessons.map((lesson) => {
                 const isFreePreview = Boolean(lesson.isFreePreview);
                 const isUnlocked = Boolean(lesson.hasAccess) && !isFreePreview;
-                const courseLine = formatCourseLabel(lesson.examBoardName, lesson.level, lesson.tier);
+                const courseLine = formatCourseLabel(lesson.examBoardName, lesson.level, lesson.tier, {
+                  suppressTier: isEdexcelIgcseBiologyDisplay(lesson),
+                });
                 return (
                   <div
                     key={lesson.id}
@@ -1828,7 +1863,7 @@ const StudentDashboard: React.FC = () => {
                         {lesson.examBoardName}
                       </span>
 
-                      {lesson.tier && (
+                      {lesson.tier && !isEdexcelIgcseBiologyDisplay(lesson) && (
                         <span
                           style={{
                             padding: "4px 10px",
