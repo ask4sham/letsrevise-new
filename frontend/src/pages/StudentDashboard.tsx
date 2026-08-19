@@ -5,11 +5,10 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
-import { getKnowledgeGap, type KnowledgeGapResponse } from "../api/studentKnowledgeGap";
 import { getStudentDashboard, type DashboardResponse } from "../api/studentDashboard";
 import StudentMyClassesSection from "../components/StudentMyClassesSection";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { getApiClientErrorMessage, getAxiosErrorMessage, getErrorMessageFromData } from "../utils/apiErrorMessage";
+import { getAxiosErrorMessage, getErrorMessageFromData } from "../utils/apiErrorMessage";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -232,6 +231,48 @@ function isEdexcelIgcseBiologyDisplay(lesson: {
   return /\b4bi1\b/i.test(blob);
 }
 
+type RevisionFocusView = {
+  summary: string;
+  weakAreas: Array<{
+    topicKey: string;
+    topicName: string;
+    attempted: number;
+    correct: number;
+    total: number;
+    percentage: number;
+  }>;
+};
+
+/** Map MY REVISION course selection to backend specKey (Biology only). */
+function courseSelectionToSpecKey(
+  revisionSubject: string,
+  revisionCourse: string,
+  lessons: StudentLessonCard[]
+): string | null {
+  if (!revisionSubject || !revisionCourse) return null;
+  if (normalizeForCompare(revisionSubject) !== "biology") return null;
+
+  const { board, level, tier } = parseCourseKey(revisionCourse);
+  const boardNorm = normalizeForCompare(board);
+  const levelNorm = normalizeLevelLabel(level);
+
+  if (boardNorm === "aqa" && levelNorm === "GCSE") return "aqa-gcse-biology";
+  if (boardNorm === "edexcel" && levelNorm === "IGCSE") return "edexcel-igcse-biology";
+
+  if (boardNorm === "edexcel" && levelNorm === "GCSE") {
+    const matchesCourse = lessons.some((l) => {
+      if (normalizeForCompare(l.subject) !== "biology") return false;
+      if (normalizeBoardName(l.examBoardName) !== board) return false;
+      if (normalizeLevelLabel(l.level) !== level) return false;
+      if ((normalizeTier(l.tier) || "") !== (tier || "")) return false;
+      return isEdexcelIgcseBiologyDisplay(l);
+    });
+    if (matchesCourse) return "edexcel-igcse-biology";
+  }
+
+  return null;
+}
+
 /**
  * Student stage gating helpers (same as BrowseLessons)
  * Normalized key: "ks3" | "gcse" | "a-level" | ""
@@ -294,83 +335,73 @@ function revisionFocusDisplayCopy(text: string): string {
   );
 }
 
-/** Step 6: Your revision focus — uses dashboardData when available, fallback to knowledge-gap. */
+const REVISION_FOCUS_NO_COURSE_COPY =
+  "Choose a Biology course and complete a few quizzes to start building your Revision Focus.";
+const REVISION_FOCUS_UNAVAILABLE_COPY = "Revision Focus is temporarily unavailable.";
+
+/** Step 6: Your revision focus - course-specific fetch only (no shared dashboardData, no knowledge-gap). */
 function RevisionFocusBlock({
-  dashboardData,
-  dashboardLoading,
+  specKey,
+  revisionFocusData,
+  revisionFocusLoading,
+  revisionFocusError,
 }: {
-  dashboardData: DashboardResponse | null;
-  dashboardLoading: boolean;
+  specKey: string | null;
+  revisionFocusData: RevisionFocusView | null;
+  revisionFocusLoading: boolean;
+  revisionFocusError: string | null;
 }) {
-  const [fallbackData, setFallbackData] = useState<KnowledgeGapResponse | null>(null);
-  const [fallbackError, setFallbackError] = useState<string | null>(null);
+  const shellStyle = {
+    background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+    padding: "14px 20px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+    marginBottom: "16px",
+    border: "1px solid #fcd34d",
+  } as const;
 
-  const data: KnowledgeGapResponse | null = dashboardData?.ok
-    ? {
-        summary: dashboardData.summary?.revisionFocus ?? "Complete quizzes and practice to unlock your personalised revision focus.",
-        weakAreas: (dashboardData.weakTopics ?? []).map((w) => ({
-          topicKey: w.topicKey,
-          topicName: w.topicName ?? w.topicKey,
-          attempted: w.total,
-          correct: w.correct,
-          total: w.total,
-          percentage: w.percentage,
-        })),
-      }
-    : fallbackData;
-
-  useEffect(() => {
-    if (!dashboardLoading && !dashboardData?.ok && fallbackData === null && !fallbackError) {
-      getKnowledgeGap()
-        .then(setFallbackData)
-        .catch((err: unknown) => setFallbackError(getApiClientErrorMessage(err, "Failed to load revision focus")));
-    }
-  }, [dashboardLoading, dashboardData?.ok, fallbackData, fallbackError]);
-
-  const loading = dashboardLoading && !fallbackData;
-
-  if (loading) {
+  if (!specKey) {
     return (
-      <div
-        style={{
-          background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-          padding: "14px 20px",
-          borderRadius: "12px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-          marginBottom: "16px",
-          border: "1px solid #fcd34d",
-        }}
-      >
-        <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 4 }}>Your revision focus</div>
-        <p style={{ margin: 0, color: "#b45309", fontSize: "0.9rem" }}>Loading…</p>
+      <div style={shellStyle}>
+        <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 8 }}>Your revision focus</div>
+        <p style={{ margin: 0, color: "#78350f", fontSize: "0.95rem", lineHeight: 1.5 }}>{REVISION_FOCUS_NO_COURSE_COPY}</p>
       </div>
     );
   }
-  if (fallbackError) return null;
+
+  if (revisionFocusLoading) {
+    return (
+      <div style={shellStyle}>
+        <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 4 }}>Your revision focus</div>
+        <p style={{ margin: 0, color: "#b45309", fontSize: "0.9rem" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (revisionFocusError) {
+    return (
+      <div style={shellStyle}>
+        <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 8 }}>Your revision focus</div>
+        <p style={{ margin: 0, color: "#78350f", fontSize: "0.95rem", lineHeight: 1.5 }}>{revisionFocusError}</p>
+      </div>
+    );
+  }
+
+  const summary =
+    revisionFocusData?.summary ||
+    (!revisionFocusData?.weakAreas?.length
+      ? "We'll highlight your weak topics here after a few quizzes."
+      : "Complete quizzes and practice to unlock your personalised revision focus.");
 
   return (
-    <div
-      style={{
-        background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-        padding: "14px 20px",
-        borderRadius: "12px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-        marginBottom: "16px",
-        border: "1px solid #fcd34d",
-      }}
-    >
+    <div style={shellStyle}>
       <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 8 }}>Your revision focus</div>
       <p style={{ margin: "0 0 10px 0", color: "#78350f", fontSize: "0.95rem", lineHeight: 1.5 }}>
-        {revisionFocusDisplayCopy(
-          data?.summary ||
-            (!data?.weakAreas?.length
-              ? "We'll highlight your weak topics here after a few quizzes."
-              : "Complete quizzes and practice to unlock your personalised revision focus.")
-        )}
+        {revisionFocusDisplayCopy(summary)}
       </p>
-      {data?.weakAreas && data.weakAreas.length > 0 && (
+      {revisionFocusData?.weakAreas && revisionFocusData.weakAreas.length > 0 && (
         <ul style={{ margin: 0, paddingLeft: 20, color: "#92400e", fontSize: "0.9rem", lineHeight: 1.6 }}>
-          {data.weakAreas.map((w) => (
+          {revisionFocusData.weakAreas.map((w) => (
             <li key={w.topicKey}>
               {w.topicName || w.topicKey}: {w.percentage}% ({w.correct}/{w.total})
             </li>
@@ -403,6 +434,10 @@ const StudentDashboard: React.FC = () => {
   const [recError, setRecError] = useState<string | null>(null);
   const [recTopics, setRecTopics] = useState<Array<{ topicKey: string; topic?: string; score: number; wrong: number; highConfidenceWrong: number }>>([]);
   const [recLessons, setRecLessons] = useState<StudentLessonCard[]>([]);
+
+  const [revisionFocusData, setRevisionFocusData] = useState<RevisionFocusView | null>(null);
+  const [revisionFocusLoading, setRevisionFocusLoading] = useState(false);
+  const [revisionFocusError, setRevisionFocusError] = useState<string | null>(null);
 
   const [purchasedLessonMap, setPurchasedLessonMap] = useState<
     Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null }>
@@ -857,6 +892,59 @@ const StudentDashboard: React.FC = () => {
       })
       .slice(0, 3);
   }, [gatedLessons, revisionSubject, revisionCourse, revisionTopic]);
+
+  const revisionFocusSpecKey = useMemo(
+    () => courseSelectionToSpecKey(revisionSubject, revisionCourse, gatedLessons),
+    [revisionSubject, revisionCourse, gatedLessons]
+  );
+
+  useEffect(() => {
+    if (!token || !revisionFocusSpecKey) {
+      setRevisionFocusData(null);
+      setRevisionFocusLoading(false);
+      setRevisionFocusError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setRevisionFocusLoading(true);
+    setRevisionFocusError(null);
+    setRevisionFocusData(null);
+
+    getStudentDashboard({ specKey: revisionFocusSpecKey, days: 14, limit: 6 })
+      .then((dash) => {
+        if (cancelled) return;
+        if (dash?.ok) {
+          setRevisionFocusData({
+            summary: dash.summary?.revisionFocus ?? "We'll highlight your weak topics here after a few quizzes.",
+            weakAreas: (dash.weakTopics ?? []).map((w) => ({
+              topicKey: w.topicKey,
+              topicName: w.topicName ?? w.topicKey,
+              attempted: w.total,
+              correct: w.correct,
+              total: w.total,
+              percentage: w.percentage,
+            })),
+          });
+          setRevisionFocusError(null);
+        } else {
+          setRevisionFocusData(null);
+          setRevisionFocusError(REVISION_FOCUS_UNAVAILABLE_COPY);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRevisionFocusData(null);
+        setRevisionFocusError(REVISION_FOCUS_UNAVAILABLE_COPY);
+      })
+      .finally(() => {
+        if (!cancelled) setRevisionFocusLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, revisionFocusSpecKey]);
 
   const revisionReady = Boolean(revisionSubject && revisionCourse && revisionTopic);
   const learnLesson = myRevisionLessons[0] || null;
@@ -1422,7 +1510,12 @@ const StudentDashboard: React.FC = () => {
         <StudentMyClassesSection />
 
         {/* 3. Revision Focus */}
-        <RevisionFocusBlock dashboardData={dashboardData} dashboardLoading={dashboardLoading} />
+        <RevisionFocusBlock
+          specKey={revisionFocusSpecKey}
+          revisionFocusData={revisionFocusData}
+          revisionFocusLoading={revisionFocusLoading}
+          revisionFocusError={revisionFocusError}
+        />
 
         {/* 4. My Progress | My Work */}
         <div
