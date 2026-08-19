@@ -2128,7 +2128,7 @@ const StudentDashboard: React.FC = () => {
 
         {/* Footer Info */}
         <div style={{ marginTop: "40px", textAlign: "center", color: "#666", fontSize: "0.9rem" }}>
-          <p>Full lesson access is included in your subscription.</p>
+          <p>Some lessons include free previews. Full access depends on your account.</p>
         </div>
       </div>
     </div>
