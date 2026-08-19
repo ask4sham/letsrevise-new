@@ -414,6 +414,7 @@ app.use("/api/teacher/analytics", require("./routes/teacherAnalytics"));
 app.use("/api/teacher/topic-coverage", require("./routes/topicCoverage"));
 app.use("/api/teacher", require("./routes/teacher"));
 app.use("/api/student", require("./routes/student"));
+app.use("/api/catalogue", require("./routes/catalogue"));
 app.use("/api/quiz-assignments", require("./routes/quizAssignments"));
 app.use("/api/quiz-attempts", require("./routes/quizAttempts"));
 app.use("/api/monitoring", require("./routes/monitoring"));
