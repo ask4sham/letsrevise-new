@@ -258,33 +258,6 @@ function buildDescriptionFromLegacy(notes: string, examBoardName: string | null)
 
 const BASE_EXAM_BOARDS = ["AQA", "OCR", "Edexcel", "WJEC", "Not set"] as const;
 
-// Seed "all subjects" list for the dropdown (plus whatever exists in Mongo).
-// Add/remove freely without breaking anything.
-const BASE_SUBJECTS = [
-  "Biology",
-  "Chemistry",
-  "Physics",
-  "Science",
-  "Mathematics",
-  "Further Mathematics",
-  "English Language",
-  "English Literature",
-  "Geography",
-  "History",
-  "Computer Science",
-  "Business",
-  "Economics",
-  "Psychology",
-  "Sociology",
-  "Religious Studies",
-  "Spanish",
-  "French",
-  "German",
-  "Art",
-  "Music",
-  "PE",
-] as const;
-
 /** Display-only: align legacy API placeholder (no behaviour change). */
 function revisionFocusDisplayCopy(text: string): string {
   return text.replace(
@@ -757,13 +730,10 @@ const StudentDashboard: React.FC = () => {
   }, [lessons, isStudent, studentStageKey, advancedMode]);
 
   /**
-   * Subjects dropdown:
-   * - Seed with a broader list (BASE_SUBJECTS)
-   * - Also include whatever subjects exist in gatedLessons
+   * Subjects dropdown: derived from gatedLessons only (published catalogue).
    */
   const subjectOptions = useMemo(() => {
     const set = new Set<string>();
-    (BASE_SUBJECTS as unknown as string[]).forEach((s) => set.add(s));
     gatedLessons.forEach((l) => set.add(safeStr(l.subject, "Not set")));
     set.delete("Not set");
     const arr = Array.from(set).sort((a, b) => a.localeCompare(b));
