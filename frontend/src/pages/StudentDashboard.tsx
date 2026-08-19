@@ -502,15 +502,6 @@ const StudentDashboard: React.FC = () => {
     [catalogueData?.profileStage, user?.stage, user?.level, (user as any)?.stageKey]
   );
 
-  const localBrowseStageKey = useMemo(
-    () => normalizeStageKey(safeStr(localStorage.getItem("selectedStage"), "")),
-    []
-  );
-
-  const hasBrowseStageDrift = Boolean(
-    isStudent && localBrowseStageKey && profileStageKey && localBrowseStageKey !== profileStageKey
-  );
-
   const lockedLevelLabel = useMemo(() => {
     return isStudent && profileStageKey ? stageLabel(profileStageKey) : "";
   }, [isStudent, profileStageKey]);
@@ -1153,21 +1144,6 @@ const StudentDashboard: React.FC = () => {
               {user?.firstName ? `Hi ${user.firstName}` : "Welcome"}
               {lockedLevelLabel ? ` · ${lockedLevelLabel}` : ""}
             </p>
-            {isStudent && (
-              <p style={{ color: "#64748b", margin: "6px 0 0 0", fontSize: "0.9rem" }}>
-                Wrong stage?{" "}
-                <Link to="/complete-profile" style={{ color: "#4f46e5", fontWeight: 700 }}>
-                  Change stage
-                </Link>
-              </p>
-            )}
-            {hasBrowseStageDrift && (
-              <p style={{ color: "#9a3412", margin: "6px 0 0 0", fontSize: "0.85rem", fontWeight: 600 }}>
-                Saved browse stage ({stageLabel(localBrowseStageKey)}) differs from your study stage (
-                {stageLabel(profileStageKey)}). This dashboard uses your study stage.
-              </p>
-            )}
-            
             {advancedMode && (
               <div
                 style={{

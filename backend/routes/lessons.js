@@ -95,6 +95,7 @@ const {
   markCataloguePendingReReview,
   recordCatalogueReReviewAfterEdit,
   getTeacherLibraryStatus,
+  buildApprovedLessonsQuery,
 } = require("../services/approvedLessonsService");
 const { normalizeLessonDescription } = require("../utils/lessonDescriptionLimits");
 const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
@@ -5830,20 +5831,15 @@ router.get("/", auth, async (req, res) => {
 
     const requesterType = (req.user?.userType || "").toString().toLowerCase();
 
-    // Phase 9D: list filtering by role — students only see published; teachers see own; admins see all
-    const query = { status: { $nin: ["archived", "flagged"] } };
-    if (requesterType === "student") {
-      query.status = "published";
-      query.isPublished = true;
-    } else if (requesterType === "teacher") {
-      query.teacherId = req.user._id;
-    }
-    // admin: no extra filter (all non-archived/flagged)
+    let query;
+    let levelIsGCSE = false;
 
-    // ✅ HARD RULE: students are locked to their own level
     if (requesterType === "student") {
+      // Approved catalogue only; explicit level = browse stage override (Browse Lessons).
       const userId = getAuthUserId(req);
-      if (userId) {
+      let effectiveLevel = level ? String(level).trim() : "";
+
+      if (!effectiveLevel && userId) {
         const u = await User.findById(userId)
           .select("Keystage stageKey yearGroup userType")
           .lean();
@@ -5853,80 +5849,81 @@ router.get("/", auth, async (req, res) => {
           normalizeKeyStage(u?.stageKey) ||
           deriveKeyStageFromYearGroup(u?.yearGroup);
 
-        const forcedLevel = keyStageToLessonLevelLabel(ks);
+        effectiveLevel = keyStageToLessonLevelLabel(ks) || "";
+      }
 
-        // If we can determine it, enforce it (normalization-safe)
-        if (forcedLevel) {
-          const re = levelToRegex(forcedLevel);
-          if (re) query.level = re;
-        }
+      levelIsGCSE = String(effectiveLevel || "").toLowerCase().includes("gcse");
+
+      query = buildApprovedLessonsQuery({
+        subject,
+        level: effectiveLevel || undefined,
+        topic,
+        board,
+        tier: tier && levelIsGCSE ? tier : undefined,
+        q,
+        search,
+      });
+
+      if (teacher) {
+        query.teacherName = { $regex: String(teacher), $options: "i" };
       }
     } else {
-      // teacher/admin: allow explicit level filtering (normalization-safe)
+      // Phase 9D: teachers see own; admins see all non-archived/flagged
+      query = { status: { $nin: ["archived", "flagged"] } };
+      if (requesterType === "teacher") {
+        query.teacherId = req.user._id;
+      }
+
       if (level) {
         const re = levelToRegex(level);
         if (re) query.level = re;
       }
-    }
 
-    if (subject) query.subject = subject;
+      if (subject) query.subject = subject;
 
-    if (board !== undefined) {
-      // ✅ "Not set" should match missing/empty/"Not set"
-      if (isNotSetBoard(board)) {
-        query.$and = query.$and || [];
-        query.$and.push({
-          $or: [
-            { board: { $exists: false } },
-            { board: null },
-            { board: "" },
-            { board: { $regex: /^not set$/i } },
-            { board: { $regex: /^none$/i } },
-          ],
-        });
-      } else {
-        // supports exact board match (case-insensitive exact)
-        query.board = { $regex: `^${escapeRegex(String(board).trim())}$`, $options: "i" };
+      if (board !== undefined) {
+        if (isNotSetBoard(board)) {
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { board: { $exists: false } },
+              { board: null },
+              { board: "" },
+              { board: { $regex: /^not set$/i } },
+              { board: { $regex: /^none$/i } },
+            ],
+          });
+        } else {
+          query.board = { $regex: `^${escapeRegex(String(board).trim())}$`, $options: "i" };
+        }
       }
-    }
 
-    if (topic) {
-      query.topic = { $regex: String(topic), $options: "i" };
-    }
+      if (topic) {
+        query.topic = { $regex: String(topic), $options: "i" };
+      }
 
-    if (teacher) {
-      query.teacherName = { $regex: String(teacher), $options: "i" };
-    }
+      if (teacher) {
+        query.teacherName = { $regex: String(teacher), $options: "i" };
+      }
 
-    // tier only applies when query.level is GCSE (works for regex too)
-    // We only apply tier if caller explicitly sent tier AND the requested/effective level is GCSE.
-    const levelIsGCSE =
-      requesterType === "student"
-        ? normalizeKeyStage(
-            (await User.findById(getAuthUserId(req))
-              .select("Keystage stageKey yearGroup")
-              .lean()
-              .then((u) => u?.Keystage || u?.stageKey || deriveKeyStageFromYearGroup(u?.yearGroup))
-              .catch(() => "")) || ""
-          ) === "gcse"
-        : String(level || "").toLowerCase().includes("gcse");
+      levelIsGCSE = String(level || "").toLowerCase().includes("gcse");
 
-    if (tier && levelIsGCSE) {
-      const normalisedTier = normalizeTier(tier);
-      if (normalisedTier) query.tier = normalisedTier;
-    }
+      if (tier && levelIsGCSE) {
+        const normalisedTier = normalizeTier(tier);
+        if (normalisedTier) query.tier = normalisedTier;
+      }
 
-    // free-text search (title/subject/topic/board/level)
-    const text = (q || search || "").toString().trim();
-    if (text) {
-      const rx = { $regex: text, $options: "i" };
-      query.$or = [
-        { title: rx },
-        { subject: rx },
-        { topic: rx },
-        { board: rx },
-        { level: rx },
-      ];
+      const text = (q || search || "").toString().trim();
+      if (text) {
+        const rx = { $regex: text, $options: "i" };
+        query.$or = [
+          { title: rx },
+          { subject: rx },
+          { topic: rx },
+          { board: rx },
+          { level: rx },
+        ];
+      }
     }
 
     let lessons = await Lesson.find(query)
