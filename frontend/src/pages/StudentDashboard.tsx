@@ -993,15 +993,6 @@ const StudentDashboard: React.FC = () => {
               </div>
             )}
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-            <Link to="/subscription" style={{ color: "#64748b", fontSize: "0.9rem", fontWeight: 600, textDecoration: "underline" }}>
-              Upgrade to access
-            </Link>
-            <Link to="/dashboard" style={{ color: "#64748b", fontSize: "0.9rem", textDecoration: "underline" }}>
-              Back to main dashboard
-            </Link>
-          </div>
         </div>
 
         {/* 1. Continue Learning */}
