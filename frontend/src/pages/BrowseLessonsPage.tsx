@@ -1,11 +1,32 @@
 // frontend/src/pages/BrowseLessons.tsx
 // PR-AUTH-UI-2: use useCurrentUser (no direct localStorage auth reads).
-import React, { useEffect, useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 import { getAxiosErrorMessage } from "../utils/apiErrorMessage";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getCatalogueAvailability, getPublicCatalogue } from "../api/catalogueAvailability";
+import type { CatalogueTreeNode } from "../api/catalogueAvailability";
+import {
+  BrowseStageKey,
+  backToMyStageLessonsLabel,
+  browseComingSoonHeadline,
+  buildBrowseBoardOptions,
+  buildBrowsePath,
+  buildBrowseSubjectOptions,
+  buildBrowseTierOptions,
+  isTemporaryBrowseStage,
+  lessonMatchesBrowseStage,
+  normalizeLevelLabel,
+  normalizeTierValue,
+  parseBrowseStageParam,
+  resolveEffectiveBrowseStageKey,
+  resolveProfileStageKey,
+  shouldHideBrowseFilters,
+  stageKeyToLessonLevel,
+  stageLabel,
+} from "../utils/catalogueBrowseOptions";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -66,6 +87,8 @@ interface Filters {
 
 const BrowseLessons: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlBrowseStage = parseBrowseStageParam(searchParams.get("browseStage"));
 
   // ✅ localStorage-backed state for advanced/deeper knowledge
   const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
@@ -79,6 +102,17 @@ const BrowseLessons: React.FC = () => {
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
+  const [catalogueLevels, setCatalogueLevels] = useState<CatalogueTreeNode[]>([]);
+  const [catalogueError, setCatalogueError] = useState<string>("");
+  const [profileStageKey, setProfileStageKey] = useState<BrowseStageKey>("");
+  const browseStageKey = useMemo(
+    () => resolveEffectiveBrowseStageKey(profileStageKey, urlBrowseStage),
+    [profileStageKey, urlBrowseStage]
+  );
+  const isBrowsingOtherStage = useMemo(
+    () => isTemporaryBrowseStage(profileStageKey, browseStageKey),
+    [profileStageKey, browseStageKey]
+  );
   const { user, token, refresh } = useCurrentUser({ watchLocation: true });
   const [purchasedLessonMap, setPurchasedLessonMap] = useState<
     Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null }>
@@ -95,37 +129,103 @@ const BrowseLessons: React.FC = () => {
   const userType = (user?.userType || user?.type || "").toString().toLowerCase();
   const isStudent = userType === "student";
 
-  const studentStageKey = useMemo(() => {
-    const lsStage = localStorage.getItem("selectedStage") || "";
-    if (lsStage) {
-      const normalized = lsStage.toLowerCase();
-      if (normalized.includes("ks3")) return "ks3";
-      if (normalized.includes("gcse")) return "gcse";
-      if (normalized.includes("a-level") || normalized.includes("alevel") || normalized.includes("a level"))
-        return "a-level";
-      return normalized;
-    }
-    const stageFromUser = user?.stage || user?.level || (user as any)?.selectedStage || "";
-    const normalized = String(stageFromUser).toLowerCase();
-    if (normalized.includes("ks3")) return "ks3";
-    if (normalized.includes("gcse")) return "gcse";
-    if (normalized.includes("a-level") || normalized.includes("alevel") || normalized.includes("a level"))
-      return "a-level";
-    return normalized;
-  }, [user?.stage, user?.level, (user as any)?.selectedStage]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setCatalogueError("");
+      try {
+        if (token && isStudent) {
+          const data = await getCatalogueAvailability();
+          if (cancelled) return;
+          setCatalogueLevels(data.publicTree?.levels || []);
+          const profile = resolveProfileStageKey(
+            data.profileStage,
+            (user as any)?.stageKey || user?.stage || user?.level
+          ) as BrowseStageKey;
+          setProfileStageKey(profile);
+          return;
+        }
+        const data = await getPublicCatalogue();
+        if (cancelled) return;
+        setCatalogueLevels(data.publicTree?.levels || []);
+      } catch (err) {
+        if (!cancelled) {
+          setCatalogueError(getAxiosErrorMessage(err, "Could not load catalogue availability."));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isStudent, user?.stage, user?.level, (user as any)?.stageKey]);
 
-  const stageLabel = useMemo(() => {
-    if (studentStageKey === "ks3") return "KS3";
-    if (studentStageKey === "gcse") return "GCSE";
-    if (studentStageKey === "a-level") return "A-Level";
-    return "";
-  }, [studentStageKey]);
+  const browseLevelNode = useMemo(() => {
+    return catalogueLevels.find((node) => node.kind === "level" && node.stageKey === browseStageKey) || null;
+  }, [catalogueLevels, browseStageKey]);
+
+  const browseStageLabel = useMemo(() => stageLabel(browseStageKey), [browseStageKey]);
+
+  const comingSoonHeadline = useMemo(
+    () => browseComingSoonHeadline(browseStageKey, filters.subject, browseLevelNode),
+    [browseStageKey, filters.subject, browseLevelNode]
+  );
+
+  const hideBrowseFilters = useMemo(
+    () => shouldHideBrowseFilters(browseLevelNode, filters.subject),
+    [browseLevelNode, filters.subject]
+  );
+
+  const catalogueSubjectOptions = useMemo(
+    () => buildBrowseSubjectOptions(browseLevelNode),
+    [browseLevelNode]
+  );
+
+  const handleBrowseStageChange = useCallback(
+    (nextStage: BrowseStageKey) => {
+      setFilters((prev) => ({
+        ...prev,
+        subject: "",
+        topic: "",
+        level: "",
+        board: "",
+        tier: "",
+      }));
+      navigate(buildBrowsePath(profileStageKey, nextStage));
+    },
+    [navigate, profileStageKey]
+  );
+
+  const returnToProfileStage = useCallback(() => {
+    navigate(buildBrowsePath(profileStageKey, profileStageKey));
+  }, [navigate, profileStageKey]);
 
   useEffect(() => {
     loadPublishedLessons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [browseStageKey, token, isStudent]);
 
+  const loadPublishedLessons = async () => {
+    try {
+      setLoading(true);
+
+      const levelParam =
+        isStudent && browseStageKey ? stageKeyToLessonLevel(browseStageKey) : "";
+
+      const res = await axios.get(`${API_BASE}/api/lessons`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        params: levelParam ? { level: levelParam } : undefined,
+      });
+
+      const allLessons = Array.isArray(res.data) ? res.data : [];
+      setLessons(allLessons);
+    } catch (error) {
+      console.error("Error loading lessons:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter lessons based on browse stage and advanced mode
   useEffect(() => {
     const list = user?.purchasedLessons;
     if (!Array.isArray(list) || list.length === 0) {
@@ -153,86 +253,29 @@ const BrowseLessons: React.FC = () => {
     })();
   }, [user?.purchasedLessons, token]);
 
-  const loadPublishedLessons = async () => {
-    try {
-      setLoading(true);
-
-      // If student, pass level to backend for gating
-      const levelParam = isStudent && studentStageKey ? getLevelFromStageKey(studentStageKey) : "";
-
-      const res = await axios.get(`${API_BASE}/api/lessons`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        params: levelParam ? { level: levelParam } : undefined,
-      });
-
-      const allLessons = Array.isArray(res.data) ? res.data : [];
-      const publishedLessons = allLessons.filter((lesson: Lesson) => lesson.isPublished);
-      setLessons(publishedLessons);
-    } catch (error) {
-      console.error("Error loading lessons:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getLevelFromStageKey = (stageKey: string): string => {
-    if (stageKey === "ks3") return "KS3";
-    if (stageKey === "gcse") return "GCSE";
-    if (stageKey === "a-level") return "A-Level";
-    return "";
-  };
-
-  const normalizeTier = (tier: string) => {
-    if (!tier) return "";
-    const t = tier.toLowerCase();
-    if (t.includes("foundation")) return "foundation";
-    if (t.includes("higher")) return "higher";
-    if (t.includes("advanced")) return "advanced";
-    return t;
-  };
-
-  const normalizeLevelLabel = (level: string) => {
-    if (!level) return "Not set";
-    const l = level.toLowerCase();
-    if (l.includes("ks3")) return "KS3";
-    if (l.includes("gcse")) return "GCSE";
-    if (l.includes("a-level") || l.includes("alevel") || l.includes("a level")) return "A-Level";
-    return level;
-  };
-
-  // Filter lessons based on stage gating and advanced mode
   const gatedLessons = useMemo(() => {
     let filtered = lessons;
 
-    // Stage gating for students
-    if (isStudent && studentStageKey) {
-      filtered = filtered.filter((lesson) => {
-        const lessonLevel = normalizeLevelLabel(lesson.level).toLowerCase();
-        if (studentStageKey === "gcse") return lessonLevel.includes("gcse");
-        if (studentStageKey === "ks3") return lessonLevel.includes("ks3");
-        if (studentStageKey === "a-level")
-          return lessonLevel.includes("a-level") || lessonLevel.includes("alevel") || lessonLevel.includes("a level");
-        return true;
-      });
+    if (isStudent && browseStageKey) {
+      filtered = filtered.filter((lesson) => lessonMatchesBrowseStage(lesson.level, browseStageKey));
     }
 
-    // Advanced mode filtering (hide "advanced" tier when off)
     if (!advancedMode) {
-      filtered = filtered.filter((lesson) => {
-        const tier = normalizeTier(lesson.tier);
-        return tier !== "advanced";
-      });
+      filtered = filtered.filter((lesson) => normalizeTierValue(lesson.tier) !== "advanced");
     }
 
     return filtered;
-  }, [lessons, isStudent, studentStageKey, advancedMode]);
+  }, [lessons, isStudent, browseStageKey, advancedMode]);
 
   // Extract unique values for filter dropdowns
   const subjectOptions = useMemo(() => {
+    if (catalogueSubjectOptions.length > 0) {
+      return catalogueSubjectOptions.map((option) => option.value);
+    }
     const subjects = new Set<string>();
     gatedLessons.forEach((lesson) => subjects.add(lesson.subject || "Not set"));
     return Array.from(subjects).sort();
-  }, [gatedLessons]);
+  }, [catalogueSubjectOptions, gatedLessons]);
 
   const topicOptions = useMemo(() => {
     const topics = new Set<string>();
@@ -246,24 +289,9 @@ const BrowseLessons: React.FC = () => {
     return Array.from(levels).sort();
   }, [gatedLessons]);
 
-  const boardOptions = useMemo(() => {
-    const boards = new Set<string>(["AQA", "OCR", "Edexcel", "WJEC", "Not set"]);
-    gatedLessons.forEach((lesson) => boards.add((lesson as any).examBoard ?? lesson.board ?? "Not set"));
-    return Array.from(boards).sort((a, b) => {
-      if (a === "Not set") return 1;
-      if (b === "Not set") return -1;
-      return a.localeCompare(b);
-    });
-  }, [gatedLessons]);
+  const boardOptions = useMemo(() => buildBrowseBoardOptions(gatedLessons), [gatedLessons]);
 
-  const tierOptions = useMemo(() => {
-    const tiers = new Set<string>(["foundation", "higher", "advanced"]);
-    gatedLessons.forEach((lesson) => {
-      const tier = normalizeTier(lesson.tier);
-      if (tier) tiers.add(tier);
-    });
-    return Array.from(tiers).sort();
-  }, [gatedLessons]);
+  const tierOptions = useMemo(() => buildBrowseTierOptions(gatedLessons), [gatedLessons]);
 
   // Apply all filters
   const filteredLessons = useMemo(() => {
@@ -284,7 +312,7 @@ const BrowseLessons: React.FC = () => {
 
       // Tier filter
       if (filters.tier) {
-        const lessonTier = normalizeTier(lesson.tier);
+        const lessonTier = normalizeTierValue(lesson.tier);
         if (lessonTier !== filters.tier) return false;
       }
 
@@ -356,11 +384,69 @@ const BrowseLessons: React.FC = () => {
         >
           <div>
             <h1 style={{ color: "#2d3748", marginBottom: "5px" }}>📚 Browse Lessons</h1>
-            <p style={{ color: "#718096" }}>
-              {isStudent && stageLabel
-                ? `You are browsing ${stageLabel} lessons only.`
-                : "Browse all available lessons."}
-            </p>
+            {catalogueError ? (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "#fff5f5",
+                  border: "1px solid #feb2b2",
+                  color: "#742a2a",
+                }}
+              >
+                {catalogueError}
+              </div>
+            ) : null}
+            {comingSoonHeadline ? (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "20px 22px",
+                  borderRadius: 12,
+                  background: "#fffbeb",
+                  border: "1px solid #fcd34d",
+                  color: "#92400e",
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>{comingSoonHeadline}</div>
+                {isBrowsingOtherStage && profileStageKey ? (
+                  <button
+                    type="button"
+                    onClick={returnToProfileStage}
+                    style={{
+                      marginTop: 14,
+                      padding: "10px 18px",
+                      borderRadius: 999,
+                      border: "none",
+                      background: "#111827",
+                      color: "white",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {backToMyStageLessonsLabel(profileStageKey)}
+                  </button>
+                ) : filters.subject ? (
+                  <button
+                    type="button"
+                    onClick={() => setFilters((prev) => ({ ...prev, subject: "", topic: "" }))}
+                    style={{
+                      marginTop: 14,
+                      padding: "10px 18px",
+                      borderRadius: 999,
+                      border: "none",
+                      background: "#111827",
+                      color: "white",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Browse other subjects
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {advancedMode && (
               <div
                 style={{
@@ -376,6 +462,27 @@ const BrowseLessons: React.FC = () => {
                 🔥 Advanced mode enabled (Deeper knowledge)
               </div>
             )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            {(["ks3", "gcse", "a-level"] as BrowseStageKey[]).map((stageKey) => (
+              <button
+                key={stageKey}
+                type="button"
+                onClick={() => handleBrowseStageChange(stageKey)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  border: "1px solid #cbd5e0",
+                  background: browseStageKey === stageKey ? "#111827" : "white",
+                  color: browseStageKey === stageKey ? "white" : "#111827",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {stageLabel(stageKey)}
+              </button>
+            ))}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
@@ -445,6 +552,7 @@ const BrowseLessons: React.FC = () => {
         </div>
 
         {/* Filters Section */}
+        {!hideBrowseFilters ? (
         <div
           style={{
             background: "white",
@@ -520,9 +628,10 @@ const BrowseLessons: React.FC = () => {
                 }}
               >
                 <option value="">All Subjects</option>
-                {subjectOptions.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
+                {(catalogueSubjectOptions.length > 0 ? catalogueSubjectOptions : subjectOptions.map((s) => ({ value: s, label: s }))).map(
+                  (subject) => (
+                  <option key={subject.value} value={subject.value}>
+                    {subject.label}
                   </option>
                 ))}
               </select>
@@ -580,19 +689,19 @@ const BrowseLessons: React.FC = () => {
                 name="level"
                 value={filters.level}
                 onChange={handleFilterChange}
-                disabled={isStudent && stageLabel ? true : false}
+                disabled={isStudent && browseStageLabel ? true : false}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e2e8f0",
                   borderRadius: "6px",
-                  backgroundColor: isStudent && stageLabel ? "#f7fafc" : "white",
-                  color: isStudent && stageLabel ? "#718096" : "#2d3748",
+                  backgroundColor: isStudent && browseStageLabel ? "#f7fafc" : "white",
+                  color: isStudent && browseStageLabel ? "#718096" : "#2d3748",
                   fontSize: "0.95rem",
                 }}
               >
-                {isStudent && stageLabel ? (
-                  <option value={stageLabel}>{stageLabel}</option>
+                {isStudent && browseStageLabel ? (
+                  <option value={browseStageLabel}>{browseStageLabel}</option>
                 ) : (
                   <>
                     <option value="">All Levels</option>
@@ -723,7 +832,10 @@ const BrowseLessons: React.FC = () => {
             </div>
           </div>
         </div>
+        ) : null}
 
+        {!hideBrowseFilters ? (
+        <>
         {/* Results Header */}
         <div
           style={{
@@ -899,18 +1011,18 @@ const BrowseLessons: React.FC = () => {
                         <span
                           style={{
                             padding: "4px 10px",
-                            background: normalizeTier(lesson.tier) === "advanced" ? "rgba(124,58,237,0.20)" : "#e9d5ff",
+                            background: normalizeTierValue(lesson.tier) === "advanced" ? "rgba(124,58,237,0.20)" : "#e9d5ff",
                             borderRadius: "20px",
                             fontSize: "0.8rem",
-                            color: normalizeTier(lesson.tier) === "advanced" ? "#5b21b6" : "#6b21a8",
-                            fontWeight: normalizeTier(lesson.tier) === "advanced" ? 700 : 400,
+                            color: normalizeTierValue(lesson.tier) === "advanced" ? "#5b21b6" : "#6b21a8",
+                            fontWeight: normalizeTierValue(lesson.tier) === "advanced" ? 700 : 400,
                           }}
                         >
-                          {normalizeTier(lesson.tier) === "foundation"
+                          {normalizeTierValue(lesson.tier) === "foundation"
                             ? "Foundation Tier"
-                            : normalizeTier(lesson.tier) === "higher"
+                            : normalizeTierValue(lesson.tier) === "higher"
                             ? "Higher Tier"
-                            : normalizeTier(lesson.tier) === "advanced"
+                            : normalizeTierValue(lesson.tier) === "advanced"
                             ? "🔥 Advanced"
                             : lesson.tier}
                         </span>
@@ -1033,6 +1145,8 @@ const BrowseLessons: React.FC = () => {
             })}
           </div>
         )}
+        </>
+        ) : null}
 
         {/* Purchased Lessons Section */}
         {user?.purchasedLessons && user.purchasedLessons.length > 0 && (

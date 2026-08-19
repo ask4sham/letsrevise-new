@@ -421,6 +421,17 @@ async function getCatalogueAvailabilityForUser(userId) {
   };
 }
 
+/** Public browse/explore — approved catalogue tree only (no auth, no grants). */
+async function getPublicCatalogueAvailability() {
+  const approvedLessons = await loadApprovedCatalogueLessons();
+  const publicTree = buildPublicCatalogueTree(approvedLessons);
+  return {
+    ok: true,
+    publicTree,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 module.exports = {
   PUBLIC_STATUS,
   VISIBILITY_REASON,
@@ -432,6 +443,7 @@ module.exports = {
   applyPublicLessonActivations,
   buildAdminGrantOverlay,
   getCatalogueAvailabilityForUser,
+  getPublicCatalogueAvailability,
   resolveLessonSpecKey,
   isApprovedCatalogueLesson,
 };

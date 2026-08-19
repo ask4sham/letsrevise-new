@@ -27,6 +27,7 @@ const {
   applyPublicLessonActivations,
   buildCatalogueSkeleton,
   getCatalogueAvailabilityForUser,
+  getPublicCatalogueAvailability,
   normalizeProfileStage,
 } = require("../services/catalogueAvailabilityService");
 
@@ -319,5 +320,20 @@ describe("catalogueAvailability safety checklist", () => {
 
   test("subscription does not create admin grant: PASS", () => {
     expect(buildAdminGrantOverlay([], "gcse")).toEqual([]);
+  });
+
+  test("getPublicCatalogueAvailability returns public tree without profile or grants", async () => {
+    Lesson.find.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([approvedLesson()]),
+      }),
+    });
+
+    const result = await getPublicCatalogueAvailability();
+    expect(result.ok).toBe(true);
+    expect(result.publicTree?.levels?.length).toBeGreaterThan(0);
+    expect(result.profileStage).toBeUndefined();
+    expect(result.grantedToYou).toBeUndefined();
+    expect(result.generatedAt).toBeTruthy();
   });
 });

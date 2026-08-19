@@ -165,15 +165,15 @@ describe("StudentDashboard catalogue consumer", () => {
     });
   });
 
-  test("shows Change stage recovery link", async () => {
+  test("does not show Change stage link in dashboard header", async () => {
     mockGetCatalogue.mockResolvedValue(gcseCatalogue);
     renderDashboard();
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: /Change stage/i })).toHaveAttribute(
-        "href",
-        "/complete-profile"
-      );
+      expect(screen.getByText(/Hi Zuri · GCSE/i)).toBeInTheDocument();
     });
+    expect(screen.queryByRole("link", { name: /Change stage/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Saved browse stage/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Wrong stage/i)).not.toBeInTheDocument();
   });
 
   test("Chemistry is visible, selectable, and shows Coming soon banner with disabled public actions", async () => {

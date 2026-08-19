@@ -42,6 +42,17 @@ export type CatalogueAvailabilityResponse = {
   generatedAt: string;
 };
 
+export type CataloguePublicResponse = {
+  ok: boolean;
+  publicTree: { levels: CatalogueTreeNode[] };
+  generatedAt: string;
+};
+
+export async function getPublicCatalogue(): Promise<CataloguePublicResponse> {
+  const res = await api.get<CataloguePublicResponse>("/catalogue/public");
+  return res.data;
+}
+
 export async function getCatalogueAvailability(): Promise<CatalogueAvailabilityResponse> {
   const res = await api.get<CatalogueAvailabilityResponse>("/catalogue/availability");
   return res.data;

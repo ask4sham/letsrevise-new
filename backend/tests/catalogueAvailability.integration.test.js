@@ -213,3 +213,21 @@ describe("GET /api/catalogue/availability", () => {
     ).toBe(false);
   });
 });
+
+describe("GET /api/catalogue/public", () => {
+  test("returns approved public tree without authentication", async () => {
+    const res = await request(app).get("/api/catalogue/public").expect(200);
+
+    expect(res.body.ok).toBe(true);
+    expect(Array.isArray(res.body.publicTree?.levels)).toBe(true);
+    expect(res.body.profileStage).toBeUndefined();
+    expect(res.body.grantedToYou).toBeUndefined();
+    expect(res.body.generatedAt).toBeTruthy();
+
+    const biology = findSubjectNode(res.body.publicTree, "Biology");
+    expect(biology).toBeDefined();
+    expect(biology?.publicStatus).toBe(PUBLIC_STATUS.COMING_SOON);
+    const chemistry = findSubjectNode(res.body.publicTree, "Chemistry");
+    expect(chemistry?.publicStatus).toBe(PUBLIC_STATUS.COMING_SOON);
+  });
+});
