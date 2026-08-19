@@ -2010,7 +2010,7 @@ const StudentDashboard: React.FC = () => {
                 marginBottom: "20px",
               }}
             >
-              <h2 style={{ color: "#333", margin: 0 }}>My Purchased Lessons</h2>
+              <h2 style={{ color: "#333", margin: 0 }}>My lessons</h2>
               <div style={{ color: "#666" }}>
                 {(() => {
                   const uniq = new Set(user.purchasedLessons.map((p: any) => String(p?.lessonId ?? p)).filter(Boolean));
@@ -2078,10 +2078,6 @@ const StudentDashboard: React.FC = () => {
                                 )}
                               </div>
                             )}
-                            <p style={{ margin: 0, fontSize: "0.9rem", color: "#666" }}>
-                              Purchased:{" "}
-                              {purchase.purchasedAt ? new Date(purchase.purchasedAt).toLocaleDateString() : purchase.timestamp ? new Date(purchase.timestamp).toLocaleDateString() : "—"}
-                            </p>
                             <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem", color: "#48bb78" }}>
                               Included in your subscription
                             </p>
