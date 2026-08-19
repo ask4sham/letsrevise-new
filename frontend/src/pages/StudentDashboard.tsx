@@ -1044,7 +1044,7 @@ const StudentDashboard: React.FC = () => {
         >
           <h2 style={{ color: "#0f172a", margin: "0 0 6px 0", fontSize: "1.4rem", fontWeight: 800 }}>MY REVISION</h2>
           <p style={{ color: "#475569", margin: "0 0 18px 0", fontSize: "0.95rem", fontWeight: 500 }}>
-            Choose a lesson, quiz, or exam practice for this topic.
+            Choose your course and topic, then learn, quiz, or practise.
           </p>
 
           {/* Step 1: dropdowns */}
