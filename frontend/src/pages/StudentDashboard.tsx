@@ -1010,7 +1010,7 @@ const StudentDashboard: React.FC = () => {
           <p style={{ color: "#047857", margin: 0, fontSize: "0.95rem" }}>
             {!dashboardLoading && hasDashboardActivity
               ? "Pick up where you left off."
-              : "Start with a topic below."}
+              : "Start with a Biology topic below."}
           </p>
           <div style={{ marginTop: 14 }}>
             {!dashboardLoading && hasDashboardActivity && recLessons.length > 0 && recLessons[0]?.id ? (
