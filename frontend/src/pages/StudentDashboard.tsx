@@ -6,9 +6,27 @@ import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 import { getStudentDashboard, type DashboardResponse } from "../api/studentDashboard";
+import {
+  getCatalogueAvailability,
+  type CatalogueAvailabilityResponse,
+} from "../api/catalogueAvailability";
 import StudentMyClassesSection from "../components/StudentMyClassesSection";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getAxiosErrorMessage, getErrorMessageFromData } from "../utils/apiErrorMessage";
+import {
+  buildRevisionCourseOptions,
+  buildRevisionSubjectOptions,
+  buildRevisionTopicOptions,
+  computeRevisionPublicActionsEnabled,
+  filterAdminGrants,
+  findProfileLevelNode,
+  formatCatalogueCourseDisplayLabel,
+  formatComingSoonLabel,
+  getSelectedRevisionStatus,
+  resolveProfileStageKey,
+  revisionCourseToSpecKey,
+  shouldShowGrantedSection,
+} from "../utils/catalogueRevisionOptions";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -337,6 +355,8 @@ function revisionFocusDisplayCopy(text: string): string {
 
 const REVISION_FOCUS_NO_COURSE_COPY =
   "Choose a Biology course and complete a few quizzes to start building your Revision Focus.";
+const CATALOGUE_UNAVAILABLE_COPY =
+  "We couldn't load your curriculum catalogue. Try refreshing, or continue with Browse all lessons below.";
 const REVISION_FOCUS_UNAVAILABLE_COPY = "Revision Focus is temporarily unavailable.";
 
 /** Step 6: Your revision focus - course-specific fetch only (no shared dashboardData, no knowledge-gap). */
@@ -439,6 +459,10 @@ const StudentDashboard: React.FC = () => {
   const [revisionFocusLoading, setRevisionFocusLoading] = useState(false);
   const [revisionFocusError, setRevisionFocusError] = useState<string | null>(null);
 
+  const [catalogueData, setCatalogueData] = useState<CatalogueAvailabilityResponse | null>(null);
+  const [catalogueLoading, setCatalogueLoading] = useState(false);
+  const [catalogueError, setCatalogueError] = useState<string | null>(null);
+
   const [purchasedLessonMap, setPurchasedLessonMap] = useState<
     Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null }>
   >({});
@@ -468,16 +492,33 @@ const StudentDashboard: React.FC = () => {
   const userType = (user?.userType || user?.type || "").toString().toLowerCase();
   const isStudent = userType === "student" || userType === "";
 
-  const studentStageKey = useMemo(() => {
-    const lsStage = safeStr(localStorage.getItem("selectedStage"), "");
-    if (lsStage) return normalizeStageKey(lsStage);
-    const stageFromUser = safeStr(user?.stage || user?.level || (user as any)?.selectedStage, "");
-    return normalizeStageKey(stageFromUser);
-  }, [user?.stage, user?.level, (user as any)?.selectedStage]);
+  /** Profile study stage — server/catalogue truth for the whole dashboard (not localStorage). */
+  const profileStageKey = useMemo(
+    () =>
+      resolveProfileStageKey(
+        catalogueData?.profileStage,
+        safeStr((user as any)?.stageKey || user?.stage || user?.level, "")
+      ),
+    [catalogueData?.profileStage, user?.stage, user?.level, (user as any)?.stageKey]
+  );
+
+  const localBrowseStageKey = useMemo(
+    () => normalizeStageKey(safeStr(localStorage.getItem("selectedStage"), "")),
+    []
+  );
+
+  const hasBrowseStageDrift = Boolean(
+    isStudent && localBrowseStageKey && profileStageKey && localBrowseStageKey !== profileStageKey
+  );
 
   const lockedLevelLabel = useMemo(() => {
-    return isStudent && studentStageKey ? stageLabel(studentStageKey) : "";
-  }, [isStudent, studentStageKey]);
+    return isStudent && profileStageKey ? stageLabel(profileStageKey) : "";
+  }, [isStudent, profileStageKey]);
+
+  const adminGrantItems = useMemo(
+    () => filterAdminGrants(catalogueData?.grantedToYou),
+    [catalogueData?.grantedToYou]
+  );
 
   /** True when the unified dashboard reports real learning activity (not just recommendations). */
   const hasDashboardActivity = useMemo(() => {
@@ -488,11 +529,44 @@ const StudentDashboard: React.FC = () => {
   }, [dashboardData]);
 
   useEffect(() => {
+    if (!token) {
+      setCatalogueData(null);
+      setCatalogueLoading(false);
+      setCatalogueError(null);
+      return;
+    }
+    let cancelled = false;
+    setCatalogueLoading(true);
+    setCatalogueError(null);
+    getCatalogueAvailability()
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.ok) {
+          setCatalogueData(data);
+          setCatalogueError(null);
+        } else {
+          setCatalogueData(null);
+          setCatalogueError(CATALOGUE_UNAVAILABLE_COPY);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCatalogueData(null);
+          setCatalogueError(CATALOGUE_UNAVAILABLE_COPY);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogueLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
     loadPublishedLessons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Phase 2: Fetch unified dashboard (revision focus + recommendations + study plan)
+  }, [profileStageKey, token, isStudent]);
   useEffect(() => {
     if (!token) {
       setDashboardData(null);
@@ -585,7 +659,7 @@ const StudentDashboard: React.FC = () => {
   useEffect(() => {
     const list = user?.purchasedLessons;
     if (!Array.isArray(list) || list.length === 0) {
-      setPurchasedLessonMap({});
+      setPurchasedLessonMap((prev) => (Object.keys(prev).length === 0 ? prev : {}));
       return;
     }
     const ids = Array.from(new Set(list.map((p: any) => String(p?.lessonId ?? p)).filter(Boolean)));
@@ -613,7 +687,7 @@ const StudentDashboard: React.FC = () => {
     try {
 
       // Option A: if student stage known, we can pass level, but server also enforces level for students.
-      const levelParam = isStudent && studentStageKey ? stageKeyToLessonLevel(studentStageKey) : "";
+      const levelParam = isStudent && profileStageKey ? stageKeyToLessonLevel(profileStageKey) : "";
 
       const res = await axios.get(`${API_BASE}/api/lessons`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -778,8 +852,8 @@ const StudentDashboard: React.FC = () => {
     let base = lessons;
 
     // Stage gate (existing behavior)
-    if (isStudent && studentStageKey) {
-      base = base.filter((l) => lessonMatchesStage(l.level, studentStageKey));
+    if (isStudent && profileStageKey) {
+      base = base.filter((l) => lessonMatchesStage(l.level, profileStageKey));
     }
 
     // ✅ UPDATED: Advanced mode toggle (now using localStorage-backed state)
@@ -790,7 +864,7 @@ const StudentDashboard: React.FC = () => {
     }
 
     return base;
-  }, [lessons, isStudent, studentStageKey, advancedMode]);
+  }, [lessons, isStudent, profileStageKey, advancedMode]);
 
   /**
    * Subjects dropdown: derived from gatedLessons only (published catalogue).
@@ -841,62 +915,67 @@ const StudentDashboard: React.FC = () => {
     return arr;
   }, [gatedLessons]);
 
-  const courseOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    gatedLessons.forEach((l) => {
-      if (revisionSubject && safeStr(l.subject, "") !== revisionSubject) return;
-      const key = buildCourseKey(l.examBoardName, l.level, l.tier);
-      if (!map.has(key)) {
-        map.set(
-          key,
-          formatCourseLabel(l.examBoardName, l.level, l.tier, {
-            suppressTier: isEdexcelIgcseBiologyDisplay(l),
-          })
-        );
-      }
-    });
-    return Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [gatedLessons, revisionSubject]);
+  const revisionLevelNode = useMemo(
+    () => findProfileLevelNode(catalogueData?.publicTree?.levels, profileStageKey),
+    [catalogueData?.publicTree?.levels, profileStageKey]
+  );
 
-  const revisionTopicOptions = useMemo(() => {
-    const set = new Set<string>();
-    const course = revisionCourse ? parseCourseKey(revisionCourse) : null;
-    gatedLessons.forEach((l) => {
-      if (revisionSubject && safeStr(l.subject, "") !== revisionSubject) return;
-      if (course) {
-        if (normalizeBoardName(l.examBoardName) !== course.board) return;
-        if (normalizeLevelLabel(l.level) !== course.level) return;
-        if ((normalizeTier(l.tier) || "") !== (course.tier || "")) return;
-      }
-      const t = safeStr(l.topic, "");
-      if (t && t !== "Not set") set.add(t);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [gatedLessons, revisionSubject, revisionCourse]);
+  const revisionCatalogueSubjectOptions = useMemo(
+    () => buildRevisionSubjectOptions(revisionLevelNode),
+    [revisionLevelNode]
+  );
+
+  const revisionCatalogueCourseOptions = useMemo(
+    () => buildRevisionCourseOptions(revisionLevelNode, revisionSubject),
+    [revisionLevelNode, revisionSubject]
+  );
+
+  const revisionCatalogueTopicOptions = useMemo(
+    () => buildRevisionTopicOptions(revisionLevelNode, revisionSubject, revisionCourse),
+    [revisionLevelNode, revisionSubject, revisionCourse]
+  );
+
+  const revisionSelectionStatus = useMemo(
+    () =>
+      getSelectedRevisionStatus(
+        revisionLevelNode,
+        revisionSubject,
+        revisionCourse,
+        revisionTopic
+      ),
+    [revisionLevelNode, revisionSubject, revisionCourse, revisionTopic]
+  );
 
   const myRevisionLessons = useMemo(() => {
     if (!revisionSubject || !revisionTopic) return [];
-    const course = revisionCourse ? parseCourseKey(revisionCourse) : null;
+    const legacyCourse = revisionCourse.includes("|") ? parseCourseKey(revisionCourse) : null;
     return gatedLessons
       .filter((l) => {
         if (safeStr(l.subject, "") !== revisionSubject) return false;
         if (normalizeForCompare(l.topic) !== normalizeForCompare(revisionTopic)) return false;
-        if (course) {
-          if (normalizeBoardName(l.examBoardName) !== course.board) return false;
-          if (normalizeLevelLabel(l.level) !== course.level) return false;
-          if ((normalizeTier(l.tier) || "") !== (course.tier || "")) return false;
+        if (legacyCourse) {
+          if (normalizeBoardName(l.examBoardName) !== legacyCourse.board) return false;
+          if (normalizeLevelLabel(l.level) !== legacyCourse.level) return false;
+          if ((normalizeTier(l.tier) || "") !== (legacyCourse.tier || "")) return false;
         }
         return true;
       })
       .slice(0, 3);
   }, [gatedLessons, revisionSubject, revisionCourse, revisionTopic]);
 
-  const revisionFocusSpecKey = useMemo(
-    () => courseSelectionToSpecKey(revisionSubject, revisionCourse, gatedLessons),
-    [revisionSubject, revisionCourse, gatedLessons]
-  );
+  const revisionFocusSpecKey = useMemo(() => {
+    if (!revisionSubject || !revisionCourse || !revisionTopic) return null;
+    if (revisionSelectionStatus.isComingSoon) return null;
+    return revisionCourseToSpecKey(revisionCourse, revisionSubject, () =>
+      courseSelectionToSpecKey(revisionSubject, revisionCourse, gatedLessons)
+    );
+  }, [
+    revisionSubject,
+    revisionCourse,
+    revisionTopic,
+    gatedLessons,
+    revisionSelectionStatus.isComingSoon,
+  ]);
 
   useEffect(() => {
     if (!token || !revisionFocusSpecKey) {
@@ -948,6 +1027,13 @@ const StudentDashboard: React.FC = () => {
 
   const revisionReady = Boolean(revisionSubject && revisionCourse && revisionTopic);
   const learnLesson = myRevisionLessons[0] || null;
+  const revisionPublicActionsEnabled = revisionReady
+    ? computeRevisionPublicActionsEnabled(
+        revisionSelectionStatus.topicStatus,
+        myRevisionLessons.length
+      )
+    : false;
+  const showGrantedSection = shouldShowGrantedSection(adminGrantItems);
 
   /**
    * Final filtered list:
@@ -1067,6 +1153,20 @@ const StudentDashboard: React.FC = () => {
               {user?.firstName ? `Hi ${user.firstName}` : "Welcome"}
               {lockedLevelLabel ? ` · ${lockedLevelLabel}` : ""}
             </p>
+            {isStudent && (
+              <p style={{ color: "#64748b", margin: "6px 0 0 0", fontSize: "0.9rem" }}>
+                Wrong stage?{" "}
+                <Link to="/complete-profile" style={{ color: "#4f46e5", fontWeight: 700 }}>
+                  Change stage
+                </Link>
+              </p>
+            )}
+            {hasBrowseStageDrift && (
+              <p style={{ color: "#9a3412", margin: "6px 0 0 0", fontSize: "0.85rem", fontWeight: 600 }}>
+                Saved browse stage ({stageLabel(localBrowseStageKey)}) differs from your study stage (
+                {stageLabel(profileStageKey)}). This dashboard uses your study stage.
+              </p>
+            )}
             
             {advancedMode && (
               <div
@@ -1136,7 +1236,32 @@ const StudentDashboard: React.FC = () => {
           <h2 style={{ color: "#0f172a", margin: "0 0 6px 0", fontSize: "1.4rem", fontWeight: 800 }}>MY REVISION</h2>
           <p style={{ color: "#475569", margin: "0 0 18px 0", fontSize: "0.95rem", fontWeight: 500 }}>
             Choose your course and topic, then learn, quiz, or practise.
+            {lockedLevelLabel ? ` Your study stage is ${lockedLevelLabel}.` : ""}
           </p>
+
+          {catalogueError && !catalogueLoading && (
+            <p
+              role="alert"
+              style={{
+                color: "#9a3412",
+                fontSize: "0.9rem",
+                margin: "0 0 12px 0",
+                padding: "10px 12px",
+                background: "#fff7ed",
+                border: "1px solid #fdba74",
+                borderRadius: 8,
+                fontWeight: 600,
+              }}
+            >
+              {catalogueError}
+            </p>
+          )}
+
+          {catalogueLoading && (
+            <p style={{ color: "#64748b", fontSize: "0.9rem", margin: "0 0 12px 0" }}>
+              Loading catalogue…
+            </p>
+          )}
 
           {/* Step 1: dropdowns */}
           <div
@@ -1176,9 +1301,9 @@ const StudentDashboard: React.FC = () => {
                 }}
               >
                 <option value="">Select subject</option>
-                {subjectOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                {revisionCatalogueSubjectOptions.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
                   </option>
                 ))}
               </select>
@@ -1212,7 +1337,7 @@ const StudentDashboard: React.FC = () => {
                 }}
               >
                 <option value="">Select course</option>
-                {courseOptions.map((c) => (
+                {revisionCatalogueCourseOptions.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
                   </option>
@@ -1246,18 +1371,35 @@ const StudentDashboard: React.FC = () => {
                 }}
               >
                 <option value="">Select topic</option>
-                {revisionTopicOptions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                {revisionCatalogueTopicOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
+          {revisionReady && revisionSelectionStatus.statusHeadline && (
+            <div
+              style={{
+                marginBottom: 14,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#fff7ed",
+                border: "1px solid #fdba74",
+                color: "#9a3412",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+              }}
+            >
+              {revisionSelectionStatus.statusHeadline}
+            </div>
+          )}
+
           {/* Step 2: actions */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
-            {revisionReady && learnLesson?.id ? (
+            {revisionPublicActionsEnabled && learnLesson?.id ? (
               <Link
                 to={`/lesson/${learnLesson.id}`}
                 style={{
@@ -1281,25 +1423,27 @@ const StudentDashboard: React.FC = () => {
             ) : (
               <button
                 type="button"
-                disabled={!revisionReady}
-                onClick={() => setBrowseOpen(true)}
+                disabled={!revisionPublicActionsEnabled}
+                onClick={() => {
+                  if (revisionPublicActionsEnabled) setBrowseOpen(true);
+                }}
                 style={{
                   minHeight: 48,
                   padding: "12px 22px",
                   borderRadius: 10,
                   fontSize: "1rem",
                   fontWeight: 800,
-                  background: revisionReady ? "#059669" : "#cbd5e1",
-                  color: revisionReady ? "white" : "#64748b",
-                  border: revisionReady ? "2px solid #047857" : "2px solid #94a3b8",
-                  cursor: revisionReady ? "pointer" : "not-allowed",
-                  boxShadow: revisionReady ? "0 2px 0 #065f46" : "none",
+                  background: revisionPublicActionsEnabled ? "#059669" : "#cbd5e1",
+                  color: revisionPublicActionsEnabled ? "white" : "#64748b",
+                  border: revisionPublicActionsEnabled ? "2px solid #047857" : "2px solid #94a3b8",
+                  cursor: revisionPublicActionsEnabled ? "pointer" : "not-allowed",
+                  boxShadow: revisionPublicActionsEnabled ? "0 2px 0 #065f46" : "none",
                 }}
               >
                 Learn topic
               </button>
             )}
-            {revisionReady ? (
+            {revisionPublicActionsEnabled ? (
               <Link
                 to="/student/quick-quiz"
                 style={{
@@ -1340,7 +1484,7 @@ const StudentDashboard: React.FC = () => {
             )}
             <button
               type="button"
-              disabled={!revisionReady}
+              disabled={!revisionPublicActionsEnabled}
               onClick={handleExamPractice}
               style={{
                 minHeight: 48,
@@ -1348,15 +1492,15 @@ const StudentDashboard: React.FC = () => {
                 borderRadius: 10,
                 fontSize: "1rem",
                 fontWeight: 800,
-                background: revisionReady ? "white" : "#e2e8f0",
-                color: revisionReady ? "#0f172a" : "#94a3b8",
-                border: revisionReady ? "2px solid #334155" : "2px solid #cbd5e1",
-                cursor: revisionReady ? "pointer" : "not-allowed",
+                background: revisionPublicActionsEnabled ? "white" : "#e2e8f0",
+                color: revisionPublicActionsEnabled ? "#0f172a" : "#94a3b8",
+                border: revisionPublicActionsEnabled ? "2px solid #334155" : "2px solid #cbd5e1",
+                cursor: revisionPublicActionsEnabled ? "pointer" : "not-allowed",
               }}
             >
               Exam practice
             </button>
-            {revisionReady ? (
+            {revisionPublicActionsEnabled ? (
               <Link
                 to="/student/structure-notes"
                 style={{
@@ -1402,6 +1546,61 @@ const StudentDashboard: React.FC = () => {
             <p style={{ color: "#64748b", fontSize: "0.9rem", margin: 0, fontWeight: 600 }}>
               Select subject, course, then topic to unlock the buttons.
             </p>
+          )}
+
+          {revisionReady && revisionSelectionStatus.isComingSoon && (
+            <p style={{ color: "#9a3412", fontSize: "0.9rem", margin: "8px 0 0 0", fontWeight: 600 }}>
+              This curriculum is not available yet. You can browse it now, and learning tools will unlock when lessons launch.
+            </p>
+          )}
+
+          {showGrantedSection && (
+            <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+              {adminGrantItems.map((grant) => (
+                <div
+                  key={grant.lessonId}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 16px",
+                    borderRadius: 10,
+                    border: "1px solid #c4b5fd",
+                    background: "#f5f3ff",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: "#4c1d95", fontSize: "0.85rem" }}>
+                      Granted to you
+                      {grant.stageMismatch ? " · different stage" : ""}
+                    </div>
+                    <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "1rem" }}>{grant.title}</div>
+                    <div style={{ color: "#64748b", fontSize: "0.85rem", marginTop: 2 }}>
+                      {grant.topic} · {grant.subject}
+                      {grant.level ? ` · ${grant.level}` : ""}
+                    </div>
+                  </div>
+                  <Link to={`/lesson/${grant.lessonId}`}>
+                    <button
+                      type="button"
+                      style={{
+                        padding: "10px 16px",
+                        background: "#7c3aed",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 8,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Learn
+                    </button>
+                  </Link>
+                </div>
+              ))}
+            </div>
           )}
 
           {revisionReady && myRevisionLessons.length > 0 && (
@@ -1484,7 +1683,10 @@ const StudentDashboard: React.FC = () => {
             </div>
           )}
 
-          {revisionReady && myRevisionLessons.length === 0 && (
+          {revisionReady &&
+            !revisionSelectionStatus.isComingSoon &&
+            myRevisionLessons.length === 0 &&
+            !showGrantedSection && (
             <p style={{ color: "#64748b", fontSize: "0.9rem", margin: "8px 0 0 0" }}>
               No lessons for this topic yet.{" "}
               <button
