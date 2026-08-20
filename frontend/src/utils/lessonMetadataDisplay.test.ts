@@ -79,6 +79,17 @@ describe("lessonMetadataDisplay", () => {
     ).toBe(prose);
   });
 
+  it("suppressTier omits tier from Edexcel IGCSE Biology catalog metadata", () => {
+    const stored = "Topic: RNA Structure · Key stage: IGCSE · Tier: Higher";
+    expect(
+      resolveLessonDescriptionForDisplay(
+        stored,
+        { ...edexcelIgcsePollination, topic: "RNA Structure" },
+        { suppressTier: true }
+      )
+    ).toBe("Topic: RNA Structure · Key stage: KS4 · Course: Edexcel IGCSE Biology");
+  });
+
   it("5. does not mutate taxonomy input objects", () => {
     const lesson = { ...edexcelIgcsePollination };
     const snapshot = JSON.stringify(lesson);

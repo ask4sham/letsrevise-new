@@ -24,6 +24,9 @@ export type BrowseLessonFilterSource = {
   examBoard?: string;
   tier?: string;
   specKey?: string;
+  topicKey?: string;
+  topic?: string;
+  title?: string;
 };
 
 function safeNormalizeStage(value: string | undefined | null): BrowseStageKey {
@@ -224,9 +227,49 @@ export function normalizeLevelLabel(level: string): string {
   if (!level) return "Not set";
   const l = level.toLowerCase();
   if (l.includes("ks3")) return "KS3";
+  if (l.includes("igcse")) return "IGCSE";
   if (l.includes("gcse")) return "GCSE";
   if (l.includes("a-level") || l.includes("alevel") || l.includes("a level")) return "A-Level";
   return level;
+}
+
+/** Display-only: Edexcel International GCSE Biology (4BI1); suppress Foundation/Higher labelling. */
+export function isEdexcelIgcseBiologyLesson(lesson: BrowseLessonFilterSource): boolean {
+  const specKey = String(lesson.specKey || "").toLowerCase();
+  if (specKey === "edexcel-igcse-biology") return true;
+
+  const topicKey = String(lesson.topicKey || "").toLowerCase();
+  if (topicKey.startsWith("edexcel-igcse-biology:")) return true;
+
+  const board = String(lesson.examBoard ?? lesson.board ?? "")
+    .trim()
+    .toLowerCase();
+  const subject = String(lesson.subject ?? "")
+    .trim()
+    .toLowerCase();
+  if (board !== "edexcel" || subject !== "biology") return false;
+
+  if (normalizeLevelLabel(String(lesson.level ?? "")) === "IGCSE") return true;
+
+  const blob = [lesson.topic, lesson.title].map((value) => String(value || "")).join(" ");
+  return /\b4bi1\b/i.test(blob);
+}
+
+/** Hide tier filter only when catalogue resolves a single Edexcel IGCSE Biology (4BI1) course. */
+export function shouldHideBrowseTierFilter(
+  levelNode: CatalogueTreeNode | null,
+  subject: string,
+  board: string
+): boolean {
+  if (!levelNode || !subject.trim() || !board.trim()) return false;
+
+  const subjectNode = findBrowseSubjectNode(levelNode, subject);
+  const matchingCourses = findCourseNodesForBrowse(subjectNode, board);
+  if (matchingCourses.length !== 1) return false;
+
+  return (
+    String(matchingCourses[0].specKey || "").toLowerCase() === "edexcel-igcse-biology"
+  );
 }
 
 export function lessonMatchesBrowseStage(level: string, browseStageKey: BrowseStageKey): boolean {
@@ -257,8 +300,7 @@ export function buildBrowseBoardOptions(lessons: BrowseLessonFilterSource[]): st
 export function buildBrowseTierOptions(lessons: BrowseLessonFilterSource[]): string[] {
   const tiers = new Set<string>();
   for (const lesson of lessons) {
-    const specKey = String(lesson.specKey || "").toLowerCase();
-    if (specKey === "edexcel-igcse-biology") continue;
+    if (isEdexcelIgcseBiologyLesson(lesson)) continue;
     const tier = normalizeTierValue(String(lesson.tier || ""));
     if (tier) tiers.add(tier);
   }

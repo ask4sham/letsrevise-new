@@ -164,7 +164,8 @@ function tierFromCatalogMeta(description: string): string | undefined {
  * Topic: … · Key stage: KS4 · Course: Edexcel IGCSE Biology · Tier: Higher
  */
 export function formatLessonMetadataDisplayLine(
-  input: LessonMetadataDisplayInput
+  input: LessonMetadataDisplayInput,
+  options?: { suppressTier?: boolean }
 ): string | null {
   const topic = safeTrim(input.topic);
   if (!topic || topic === "Not set") return null;
@@ -177,7 +178,7 @@ export function formatLessonMetadataDisplayLine(
     course = undefined;
   }
 
-  const tier = displayTierLabel(input.tier);
+  const tier = options?.suppressTier ? undefined : displayTierLabel(input.tier);
 
   return [
     `Topic: ${topic}`,
@@ -195,7 +196,8 @@ export function formatLessonMetadataDisplayLine(
  */
 export function resolveLessonDescriptionForDisplay(
   description: string,
-  lesson: LessonMetadataDisplayInput
+  lesson: LessonMetadataDisplayInput,
+  options?: { suppressTier?: boolean }
 ): string {
   const raw = safeTrim(description);
   if (!raw) return raw;
@@ -205,13 +207,18 @@ export function resolveLessonDescriptionForDisplay(
     safeTrim(lesson.topic) && safeTrim(lesson.topic) !== "Not set"
       ? safeTrim(lesson.topic)
       : topicFromCatalogMeta(raw);
-  const tier = safeTrim(lesson.tier) || tierFromCatalogMeta(raw);
+  const tier = options?.suppressTier
+    ? ""
+    : safeTrim(lesson.tier) || tierFromCatalogMeta(raw);
 
   return (
-    formatLessonMetadataDisplayLine({
-      ...lesson,
-      topic,
-      tier,
-    }) || raw
+    formatLessonMetadataDisplayLine(
+      {
+        ...lesson,
+        topic,
+        tier,
+      },
+      options
+    ) || raw
   );
 }
