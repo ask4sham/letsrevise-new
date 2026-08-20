@@ -150,6 +150,22 @@ const userSchema = new mongoose.Schema(
       cancelAtPeriodEnd: { type: Boolean, default: false },
     },
 
+    /**
+     * Stripe billing state (B2+). Written exclusively by Stripe webhooks in B3+.
+     * Never overwrites subscriptionV2 (admin grant / trial provenance).
+     */
+    stripeBilling: {
+      customerId: { type: String, default: null },
+      subscriptionId: { type: String, default: null },
+      priceId: { type: String, default: null },
+      planId: { type: String, default: null },
+      status: { type: String, default: null },
+      currentPeriodEnd: { type: Date, default: null },
+      paidThrough: { type: Date, default: null },
+      cancelAtPeriodEnd: { type: Boolean, default: false },
+      lastInvoicePaidAt: { type: Date, default: null },
+    },
+
     referralCode: {
       type: String,
       unique: true,
