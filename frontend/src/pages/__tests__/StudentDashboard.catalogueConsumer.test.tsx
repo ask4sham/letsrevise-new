@@ -5,7 +5,7 @@ import React from "react";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import StudentDashboard from "../StudentDashboard";
-import { getCatalogueAvailability } from "../../api/catalogueAvailability";
+import { getCatalogueAvailability, getPublicCatalogue } from "../../api/catalogueAvailability";
 import { getStudentDashboard } from "../../api/studentDashboard";
 import axios from "axios";
 
@@ -51,6 +51,7 @@ jest.mock("../../api/studentDashboard");
 jest.mock("../../components/StudentMyClassesSection", () => () => <div data-testid="my-classes" />);
 
 const mockGetCatalogue = getCatalogueAvailability as jest.MockedFunction<typeof getCatalogueAvailability>;
+const mockGetPublicCatalogue = getPublicCatalogue as jest.MockedFunction<typeof getPublicCatalogue>;
 const mockGetDashboard = getStudentDashboard as jest.MockedFunction<typeof getStudentDashboard>;
 const mockAxiosGet = axios.get as jest.MockedFunction<typeof axios.get>;
 
@@ -167,6 +168,20 @@ describe("StudentDashboard catalogue consumer", () => {
     await waitFor(() => {
       expect(screen.getByText(/Hi Zuri · GCSE/i)).toBeInTheDocument();
     });
+  });
+
+  test("public catalogue fallback restores MY REVISION subjects when availability fails", async () => {
+    mockGetCatalogue.mockRejectedValue(new Error("availability unavailable"));
+    mockGetPublicCatalogue.mockResolvedValue({
+      ok: true,
+      publicTree: gcseCatalogue.publicTree,
+      generatedAt: new Date().toISOString(),
+    });
+    renderDashboard();
+    await waitFor(() => expect(mockGetPublicCatalogue).toHaveBeenCalled());
+    const revision = document.querySelector(".student-dashboard-revision") as HTMLElement;
+    expect(within(revision).getByRole("option", { name: /^Biology$/i })).toBeInTheDocument();
+    expect(within(revision).getByRole("option", { name: /Chemistry — Coming soon/i })).toBeInTheDocument();
   });
 
   test("does not show Change stage link in dashboard header", async () => {

@@ -314,13 +314,25 @@ export function formatCatalogueCourseDisplayLabel(label: string, specKey?: strin
     .trim();
 }
 
+export function deriveStageKeyFromYearGroup(yearGroup: unknown): string {
+  const n = Number(yearGroup);
+  if (!Number.isFinite(n)) return "";
+  if (n >= 7 && n <= 9) return "ks3";
+  if (n >= 10 && n <= 11) return "gcse";
+  if (n >= 12 && n <= 13) return "a-level";
+  return "";
+}
+
 export function resolveProfileStageKey(
   catalogueProfileStage: string | undefined,
-  userStageKey: string | undefined
+  userStageKey: string | undefined,
+  userYearGroup?: unknown
 ): string {
   const fromCatalogue = safeNormalizeStage(catalogueProfileStage);
   if (fromCatalogue) return fromCatalogue;
-  return safeNormalizeStage(userStageKey);
+  const fromUser = safeNormalizeStage(userStageKey);
+  if (fromUser) return fromUser;
+  return deriveStageKeyFromYearGroup(userYearGroup);
 }
 
 function safeNormalizeStage(value: string | undefined): string {
