@@ -3,22 +3,9 @@ const router = express.Router();
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { sendInternalError } = require('../utils/safeErrorResponse');
-
-// Mock Stripe for now - we'll integrate real Stripe later
-const stripe = {
-  checkout: {
-    sessions: {
-      create: async (sessionData) => {
-        // Mock implementation
-        return {
-          id: 'mock_session_' + Date.now(),
-          url: 'https://checkout.stripe.com/mock',
-          ...sessionData
-        };
-      }
-    }
-  }
-};
+const { isStripeCheckoutConfigured } = require('../config/stripe');
+const { createBiologyProCheckoutForUser } = require('../services/stripeCheckoutService');
+const { findForbiddenClientBillingKeys } = require('../utils/rejectClientBillingInput');
 
 // @route   GET api/subscriptions/plans
 // @desc    Get available subscription plans
@@ -267,14 +254,26 @@ router.post('/renew-shamcoins', auth, (req, res) => {
 });
 
 // @route   POST api/subscriptions/create-checkout-session
-// @desc    Create checkout session (mock for now)
+// @desc    Create Stripe Checkout Session for Biology Pro (server-owned price; test mode B2)
 // @access  Private
 router.post('/create-checkout-session', auth, async (req, res) => {
   try {
-    const { plan } = req.body;
-    
-    if (!plan || !['basic', 'premium', 'enterprise'].includes(plan)) {
-      return res.status(400).json({ msg: 'Valid plan is required' });
+    const forbiddenKeys = findForbiddenClientBillingKeys(req.body);
+    if (forbiddenKeys.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'CLIENT_BILLING_INPUT_NOT_ALLOWED',
+        msg: 'Billing inputs are server-owned',
+        rejectedKeys: forbiddenKeys,
+      });
+    }
+
+    if (!isStripeCheckoutConfigured()) {
+      return res.status(503).json({
+        success: false,
+        code: 'STRIPE_NOT_CONFIGURED',
+        msg: 'Stripe Checkout is not configured on this server',
+      });
     }
 
     const user = await User.findById(req.user._id);
@@ -282,44 +281,13 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // Create mock checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
-              description: `Monthly subscription to ${plan} plan`
-            },
-            unit_amount: {
-              basic: 999,
-              premium: 1999,
-              enterprise: 4999
-            }[plan],
-            recurring: {
-              interval: 'month'
-            }
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/subscription/cancel`,
-      customer_email: user.email,
-      metadata: {
-        userId: user._id.toString(),
-        plan: plan
-      }
-    });
+    const session = await createBiologyProCheckoutForUser(user);
 
-    res.json({ 
-      success: true, 
-      sessionId: session.id, 
+    res.json({
+      success: true,
+      sessionId: session.id,
       url: session.url,
-      message: 'Mock checkout session created. In production, this would redirect to Stripe.'
+      planId: 'biology_pro',
     });
   } catch (err) {
     return sendInternalError('subscriptions/create-checkout-session', err, res);
