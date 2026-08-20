@@ -16,13 +16,15 @@ import { getAxiosErrorMessage, getErrorMessageFromData } from "../utils/apiError
 import {
   buildRevisionCourseOptions,
   buildRevisionSubjectOptions,
-  buildRevisionTopicOptions,
+  buildGroupedRevisionTopicOptions,
   computeRevisionPublicActionsEnabled,
   filterAdminGrants,
+  findCatalogueTopicNode,
   findProfileLevelNode,
   formatCatalogueCourseDisplayLabel,
   formatComingSoonLabel,
   getSelectedRevisionStatus,
+  lessonMatchesCatalogueTopic,
   resolveProfileStageKey,
   revisionCourseToSpecKey,
   shouldShowGrantedSection,
@@ -921,9 +923,14 @@ const StudentDashboard: React.FC = () => {
     [revisionLevelNode, revisionSubject]
   );
 
-  const revisionCatalogueTopicOptions = useMemo(
-    () => buildRevisionTopicOptions(revisionLevelNode, revisionSubject, revisionCourse),
+  const revisionCatalogueTopicGroups = useMemo(
+    () => buildGroupedRevisionTopicOptions(revisionLevelNode, revisionSubject, revisionCourse),
     [revisionLevelNode, revisionSubject, revisionCourse]
+  );
+
+  const selectedRevisionTopicNode = useMemo(
+    () => findCatalogueTopicNode(revisionLevelNode, revisionSubject, revisionCourse, revisionTopic),
+    [revisionLevelNode, revisionSubject, revisionCourse, revisionTopic]
   );
 
   const revisionSelectionStatus = useMemo(
@@ -943,7 +950,15 @@ const StudentDashboard: React.FC = () => {
     return gatedLessons
       .filter((l) => {
         if (safeStr(l.subject, "") !== revisionSubject) return false;
-        if (normalizeForCompare(l.topic) !== normalizeForCompare(revisionTopic)) return false;
+        if (
+          !lessonMatchesCatalogueTopic(
+            l,
+            revisionTopic,
+            selectedRevisionTopicNode?.label
+          )
+        ) {
+          return false;
+        }
         if (legacyCourse) {
           if (normalizeBoardName(l.examBoardName) !== legacyCourse.board) return false;
           if (normalizeLevelLabel(l.level) !== legacyCourse.level) return false;
@@ -952,7 +967,7 @@ const StudentDashboard: React.FC = () => {
         return true;
       })
       .slice(0, 3);
-  }, [gatedLessons, revisionSubject, revisionCourse, revisionTopic]);
+  }, [gatedLessons, revisionSubject, revisionCourse, revisionTopic, selectedRevisionTopicNode?.label]);
 
   const revisionFocusSpecKey = useMemo(() => {
     if (!revisionSubject || !revisionCourse || !revisionTopic) return null;
@@ -1347,10 +1362,14 @@ const StudentDashboard: React.FC = () => {
                 }}
               >
                 <option value="">Select topic</option>
-                {revisionCatalogueTopicOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
+                {revisionCatalogueTopicGroups.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

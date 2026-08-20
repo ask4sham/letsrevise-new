@@ -84,6 +84,8 @@ const gcseCatalogue = {
                     kind: "topic" as const,
                     label: "Atomic structure",
                     topicSlug: "atomic-structure",
+                    topicKey: "aqa-gcse-chemistry:atomic-structure",
+                    groupLabel: "Atomic structure and the periodic table",
                     publicStatus: "coming_soon" as const,
                   },
                 ],
@@ -108,6 +110,8 @@ const gcseCatalogue = {
                     kind: "topic" as const,
                     label: "Cell structure",
                     topicSlug: "cell-structure",
+                    topicKey: "aqa-gcse-biology:cell-structure",
+                    groupLabel: "Cell biology",
                     publicStatus: "available" as const,
                   },
                 ],
@@ -139,7 +143,7 @@ async function selectChemistryPath() {
   const [subject, course, topic] = revisionCombos();
   fireEvent.change(subject, { target: { value: "Chemistry" } });
   fireEvent.change(course, { target: { value: "aqa-gcse-chemistry" } });
-  fireEvent.change(topic, { target: { value: "Atomic structure" } });
+  fireEvent.change(topic, { target: { value: "aqa-gcse-chemistry:atomic-structure" } });
 }
 
 beforeEach(() => {
@@ -187,7 +191,7 @@ describe("StudentDashboard catalogue consumer", () => {
     fireEvent.change(subject, { target: { value: "Chemistry" } });
     expect(within(course).getAllByRole("option").length).toBeGreaterThan(1);
     fireEvent.change(course, { target: { value: "aqa-gcse-chemistry" } });
-    fireEvent.change(topic, { target: { value: "Atomic structure" } });
+    fireEvent.change(topic, { target: { value: "aqa-gcse-chemistry:atomic-structure" } });
 
     expect(within(revision).getAllByText("Chemistry — Coming soon").length).toBeGreaterThan(0);
     expect(within(revision).getByRole("button", { name: /Learn topic/i })).toBeDisabled();
@@ -279,7 +283,7 @@ describe("StudentDashboard catalogue consumer", () => {
     const [subject, course, topic] = within(revision).getAllByRole("combobox");
     fireEvent.change(subject, { target: { value: "Biology" } });
     fireEvent.change(course, { target: { value: "aqa-gcse-biology" } });
-    fireEvent.change(topic, { target: { value: "Cell structure" } });
+    fireEvent.change(topic, { target: { value: "aqa-gcse-biology:cell-structure" } });
 
     await waitFor(() => {
       expect(mockGetDashboard).toHaveBeenCalledWith(

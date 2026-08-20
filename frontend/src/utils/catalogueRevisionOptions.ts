@@ -12,6 +12,26 @@ export type RevisionOption = {
   topicKey?: string;
 };
 
+export type GroupedRevisionOptions = {
+  label: string;
+  options: RevisionOption[];
+};
+
+function topicOptionFromNode(node: CatalogueTreeNode): RevisionOption {
+  const topicKey = node.topicKey || "";
+  return {
+    value: topicKey || node.label,
+    label: formatComingSoonLabel(node.label, node.publicStatus),
+    publicStatus: node.publicStatus,
+    topicKey: node.topicKey,
+  };
+}
+
+function courseTopicNodes(courseNode: CatalogueTreeNode | null): CatalogueTreeNode[] {
+  if (!courseNode?.children?.length) return [];
+  return courseNode.children.filter((node) => node.kind === "topic");
+}
+
 export function formatComingSoonLabel(label: string, publicStatus: CataloguePublicStatus): string {
   if (publicStatus === "coming_soon") return `${label} — Coming soon`;
   return label;
@@ -70,24 +90,150 @@ export function buildRevisionCourseOptions(
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+export function buildGroupedRevisionTopicOptions(
+  levelNode: CatalogueTreeNode | null,
+  subjectLabel: string,
+  specKey: string,
+  options?: { groupLabelPrefix?: string }
+): GroupedRevisionOptions[] {
+  const subjectNode = findSubjectNode(levelNode, subjectLabel);
+  const courseNode = findCourseNode(subjectNode, specKey);
+  const prefix = options?.groupLabelPrefix ? `${options.groupLabelPrefix} · ` : "";
+  const groups: GroupedRevisionOptions[] = [];
+  const groupIndex = new Map<string, number>();
+
+  for (const node of courseTopicNodes(courseNode)) {
+    const groupLabel = `${prefix}${node.groupLabel || "Topics"}`;
+    let idx = groupIndex.get(groupLabel);
+    if (idx === undefined) {
+      groups.push({ label: groupLabel, options: [] });
+      idx = groups.length - 1;
+      groupIndex.set(groupLabel, idx);
+    }
+    groups[idx].options.push(topicOptionFromNode(node));
+  }
+
+  return groups;
+}
+
 export function buildRevisionTopicOptions(
   levelNode: CatalogueTreeNode | null,
   subjectLabel: string,
   specKey: string
 ): RevisionOption[] {
+  return buildGroupedRevisionTopicOptions(levelNode, subjectLabel, specKey).flatMap((g) => g.options);
+}
+
+export function findCatalogueTopicNode(
+  levelNode: CatalogueTreeNode | null,
+  subjectLabel: string,
+  specKey: string,
+  selectedTopicKey: string
+): CatalogueTreeNode | null {
   const subjectNode = findSubjectNode(levelNode, subjectLabel);
   const courseNode = findCourseNode(subjectNode, specKey);
-  if (!courseNode?.children?.length) return [];
+  if (!selectedTopicKey) return null;
+  return (
+    courseTopicNodes(courseNode).find(
+      (node) =>
+        node.topicKey === selectedTopicKey ||
+        node.label === selectedTopicKey ||
+        node.topicSlug === selectedTopicKey
+    ) || null
+  );
+}
 
-  return courseNode.children
-    .filter((node) => node.kind === "topic")
-    .map((topic) => ({
-      value: topic.label,
-      label: formatComingSoonLabel(topic.label, topic.publicStatus),
-      publicStatus: topic.publicStatus,
-      topicKey: topic.topicKey,
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+function extractTopicSlug(topicKeyRaw: string): string {
+  const raw = String(topicKeyRaw || "").trim();
+  if (!raw) return "";
+  const colon = raw.indexOf(":");
+  if (colon >= 0) return raw.slice(colon + 1).trim();
+  return raw;
+}
+
+/** Mirrors resolveTopicLabelToKey / backend composite label stripping. */
+function extractLegacyTopicLabelCandidates(raw: string | undefined): string[] {
+  const out: string[] = [];
+  const add = (value: string) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed || out.includes(trimmed)) return;
+    out.push(trimmed);
+  };
+
+  const source = String(raw || "").trim();
+  if (!source) return out;
+  add(source);
+  const noParens = source.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  add(noParens);
+  for (const part of noParens.split(/[–—|:]/)) {
+    add(part.trim());
+  }
+  return out;
+}
+
+function normalizeTopicLabel(value: string | undefined): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[–—]/g, "-")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\band\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function slugifyTopicLabel(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function loosenTopicSlug(slug: string): string {
+  return slug.replace(/-and-/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+
+function legacyTopicMatchesCanonicalLabel(
+  lessonTopic: string | undefined,
+  canonicalLabel: string
+): boolean {
+  if (!lessonTopic || !canonicalLabel) return false;
+  const canonNorm = normalizeTopicLabel(canonicalLabel);
+  for (const candidate of extractLegacyTopicLabelCandidates(lessonTopic)) {
+    if (normalizeTopicLabel(candidate) === canonNorm) return true;
+  }
+  return false;
+}
+
+function legacyTopicMatchesSelectedSlug(lessonTopic: string | undefined, selectedTopicKey: string): boolean {
+  const selectedSlug = extractTopicSlug(selectedTopicKey);
+  if (!selectedSlug || !lessonTopic) return false;
+  const target = loosenTopicSlug(selectedSlug);
+  for (const candidate of extractLegacyTopicLabelCandidates(lessonTopic)) {
+    if (loosenTopicSlug(slugifyTopicLabel(candidate)) === target) return true;
+  }
+  return false;
+}
+
+export function lessonMatchesCatalogueTopic(
+  lesson: { topic?: string; topicKey?: string },
+  selectedTopicKey: string,
+  canonicalLabel?: string
+): boolean {
+  if (!selectedTopicKey) return true;
+  const lessonKey = String(lesson.topicKey || "").trim();
+  if (lessonKey && lessonKey === selectedTopicKey) return true;
+  if (canonicalLabel && legacyTopicMatchesCanonicalLabel(lesson.topic, canonicalLabel)) {
+    return true;
+  }
+  if (legacyTopicMatchesSelectedSlug(lesson.topic, selectedTopicKey)) {
+    return true;
+  }
+  return normalizeTopicLabel(lesson.topic) === normalizeTopicLabel(selectedTopicKey);
 }
 
 export function getSelectedRevisionStatus(
@@ -104,14 +250,7 @@ export function getSelectedRevisionStatus(
 } {
   const subjectNode = findSubjectNode(levelNode, revisionSubject);
   const courseNode = findCourseNode(subjectNode, revisionCourse);
-  const topicNode =
-    courseNode?.children?.find(
-      (node) =>
-        node.kind === "topic" &&
-        (node.label === revisionTopic ||
-          node.topicSlug === revisionTopic ||
-          node.topicKey === revisionTopic)
-    ) || null;
+  const topicNode = findCatalogueTopicNode(levelNode, revisionSubject, revisionCourse, revisionTopic);
 
   const subjectStatus = subjectNode?.publicStatus ?? null;
   const courseStatus = courseNode?.publicStatus ?? null;
@@ -142,7 +281,8 @@ export function matchingAdminGrants(
     if (grant.visibilityReason !== "admin_grant") return false;
     if (grant.subject && grant.subject !== revisionSubject) return false;
     if (grant.specKey && grant.specKey !== revisionCourse) return false;
-    if (grant.topic && grant.topic !== revisionTopic) return false;
+    if (grant.topicKey && grant.topicKey !== revisionTopic) return false;
+    if (!grant.topicKey && grant.topic && grant.topic !== revisionTopic) return false;
     return true;
   });
 }

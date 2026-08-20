@@ -16,6 +16,7 @@ export type CatalogueTreeNode = {
   examCode?: string | null;
   topicSlug?: string;
   topicKey?: string;
+  groupLabel?: string;
   children?: CatalogueTreeNode[];
 };
 

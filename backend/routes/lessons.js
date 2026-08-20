@@ -5933,7 +5933,7 @@ router.get("/", auth, async (req, res) => {
 
     // List-safe shape only: never return pages, content, quiz, flashcards (Phase 9 — non-leaky).
     const LIST_SAFE_KEYS = [
-      "id", "_id", "title", "summary", "description", "subject", "level", "board", "examBoard", "topic", "tier",
+      "id", "_id", "title", "summary", "description", "subject", "level", "board", "examBoard", "topic", "topicKey", "specKey", "tier",
       "status", "isPublished", "teacherId", "teacherName", "createdAt", "updatedAt", "views",
       "averageRating", "isFreePreview", "preview",
     ];

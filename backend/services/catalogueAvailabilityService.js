@@ -96,29 +96,31 @@ function courseLabelForSpec(specKey, meta) {
   return meta.examCode ? `${base} (${meta.examCode})` : base;
 }
 
+function unitGroupLabel(unit) {
+  return safeStr(unit?.mainTopic) || safeStr(unit?.unit) || "Topics";
+}
+
 function collectTaxonomyTopics(taxonomy, specKey) {
   const topics = [];
   for (const unit of taxonomy?.units || []) {
-    for (const t of unit.topics || []) {
+    const groupLabel = unitGroupLabel(unit);
+    const pushTopic = (t) => {
       const slug = safeStr(t.key);
       const title = safeStr(t.topic) || slug;
-      if (!slug && !title) continue;
+      if (!slug && !title) return;
       topics.push({
         topicSlug: slug || normalizeForCompare(title).replace(/\s+/g, "-"),
         topicLabel: title,
         topicKey: t.topicKey || (slug ? `${specKey}:${slug}` : ""),
+        groupLabel,
       });
+    };
+    for (const t of unit.topics || []) {
+      pushTopic(t);
     }
     for (const sec of unit.sections || []) {
       for (const t of sec.topics || []) {
-        const slug = safeStr(t.key);
-        const title = safeStr(t.topic) || slug;
-        if (!slug && !title) continue;
-        topics.push({
-          topicSlug: slug || normalizeForCompare(title).replace(/\s+/g, "-"),
-          topicLabel: title,
-          topicKey: t.topicKey || (slug ? `${specKey}:${slug}` : ""),
-        });
+        pushTopic(t);
       }
     }
   }
@@ -189,6 +191,7 @@ function buildCatalogueSkeleton() {
           label: t.topicLabel,
           topicSlug: t.topicSlug,
           topicKey: t.topicKey,
+          groupLabel: t.groupLabel,
           publicStatus: PUBLIC_STATUS.COMING_SOON,
         });
       }
