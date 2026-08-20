@@ -13,6 +13,7 @@ import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
 import { LessonDiagramBlockDisplay } from "../components/lesson/LessonDiagramBlockDisplay";
 import { diagramCaptionForDisplayFromBlock } from "../utils/diagramPedagogyDisplay";
 import { resolveLessonDescriptionForDisplay } from "../utils/lessonMetadataDisplay";
+import { isEdexcelIgcseBiologyLesson } from "../utils/catalogueBrowseOptions";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import {
   LessonStudentBlockRenderer,
@@ -4509,15 +4510,19 @@ const LessonViewPage: React.FC = () => {
                     const cleanedDesc = stripMediaFromDescription(lesson.description);
                     if (!cleanedDesc) return null;
                     // Display-only: rewrite import catalog meta (Key stage: IGCSE → KS4 + Course).
-                    const displayDesc = resolveLessonDescriptionForDisplay(cleanedDesc, {
-                      topic: lesson.topic,
-                      level: lesson.level,
-                      tier: lesson.tier,
-                      subject: lesson.subject,
-                      specKey: lesson.specKey,
-                      examBoardName: lesson.examBoardName,
-                      description: cleanedDesc,
-                    });
+                    const displayDesc = resolveLessonDescriptionForDisplay(
+                      cleanedDesc,
+                      {
+                        topic: lesson.topic,
+                        level: lesson.level,
+                        tier: lesson.tier,
+                        subject: lesson.subject,
+                        specKey: lesson.specKey,
+                        examBoardName: lesson.examBoardName,
+                        description: cleanedDesc,
+                      },
+                      { suppressTier: isEdexcelIgcseBiologyLesson(lesson) }
+                    );
                     return (
                       <div
                         className={v12StudentPresentation ? "lesson-student-blurb" : undefined}
