@@ -8,6 +8,7 @@ import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/Lesson
 import { getStudentDashboard, type DashboardResponse } from "../api/studentDashboard";
 import {
   getCatalogueAvailability,
+  getPublicCatalogue,
   type CatalogueAvailabilityResponse,
 } from "../api/catalogueAvailability";
 import StudentMyClassesSection from "../components/StudentMyClassesSection";
@@ -499,9 +500,10 @@ const StudentDashboard: React.FC = () => {
     () =>
       resolveProfileStageKey(
         catalogueData?.profileStage,
-        safeStr((user as any)?.stageKey || user?.stage || user?.level, "")
+        safeStr((user as any)?.stageKey || user?.stage || user?.level, ""),
+        (user as any)?.yearGroup
       ),
-    [catalogueData?.profileStage, user?.stage, user?.level, (user as any)?.stageKey]
+    [catalogueData?.profileStage, user?.stage, user?.level, (user as any)?.stageKey, (user as any)?.yearGroup]
   );
 
   const lockedLevelLabel = useMemo(() => {
@@ -532,8 +534,30 @@ const StudentDashboard: React.FC = () => {
     setCatalogueLoading(true);
     setCatalogueError(null);
     getCatalogueAvailability()
-      .then((data) => {
+      .then(async (data) => {
         if (cancelled) return;
+        if (data?.ok && data.publicTree?.levels?.length) {
+          setCatalogueData(data);
+          setCatalogueError(null);
+          return;
+        }
+        try {
+          const pub = await getPublicCatalogue();
+          if (cancelled) return;
+          if (pub?.ok && pub.publicTree?.levels?.length) {
+            setCatalogueData({
+              ok: true,
+              profileStage: data?.profileStage || "",
+              publicTree: pub.publicTree,
+              grantedToYou: data?.grantedToYou || [],
+              generatedAt: pub.generatedAt,
+            });
+            setCatalogueError(null);
+            return;
+          }
+        } catch {
+          /* use primary response below */
+        }
         if (data?.ok) {
           setCatalogueData(data);
           setCatalogueError(null);
@@ -542,11 +566,27 @@ const StudentDashboard: React.FC = () => {
           setCatalogueError(CATALOGUE_UNAVAILABLE_COPY);
         }
       })
-      .catch(() => {
-        if (!cancelled) {
-          setCatalogueData(null);
-          setCatalogueError(CATALOGUE_UNAVAILABLE_COPY);
+      .catch(async () => {
+        if (cancelled) return;
+        try {
+          const pub = await getPublicCatalogue();
+          if (cancelled) return;
+          if (pub?.ok && pub.publicTree?.levels?.length) {
+            setCatalogueData({
+              ok: true,
+              profileStage: "",
+              publicTree: pub.publicTree,
+              grantedToYou: [],
+              generatedAt: pub.generatedAt,
+            });
+            setCatalogueError(null);
+            return;
+          }
+        } catch {
+          /* fall through */
         }
+        setCatalogueData(null);
+        setCatalogueError(CATALOGUE_UNAVAILABLE_COPY);
       })
       .finally(() => {
         if (!cancelled) setCatalogueLoading(false);

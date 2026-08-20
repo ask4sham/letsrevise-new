@@ -11,6 +11,7 @@ import {
   getSelectedRevisionStatus,
   lessonMatchesCatalogueTopic,
   matchingAdminGrants,
+  deriveStageKeyFromYearGroup,
   resolveProfileStageKey,
   revisionCourseToSpecKey,
   shouldShowGrantedSection,
@@ -221,6 +222,18 @@ describe("catalogueRevisionOptions", () => {
   test("resolveProfileStageKey prefers catalogue profile over user fallback", () => {
     expect(resolveProfileStageKey("gcse", "a-level")).toBe("gcse");
     expect(resolveProfileStageKey("", "gcse")).toBe("gcse");
+  });
+
+  test("resolveProfileStageKey derives gcse from yearGroup when catalogue and stageKey missing", () => {
+    expect(resolveProfileStageKey("", "", 11)).toBe("gcse");
+    expect(resolveProfileStageKey(undefined, undefined, 10)).toBe("gcse");
+  });
+
+  test("deriveStageKeyFromYearGroup mirrors backend profile stage bands", () => {
+    expect(deriveStageKeyFromYearGroup(8)).toBe("ks3");
+    expect(deriveStageKeyFromYearGroup(11)).toBe("gcse");
+    expect(deriveStageKeyFromYearGroup(12)).toBe("a-level");
+    expect(deriveStageKeyFromYearGroup(null)).toBe("");
   });
 
   test("shouldShowGrantedSection is false when empty", () => {
