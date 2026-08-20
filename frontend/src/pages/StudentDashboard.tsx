@@ -1690,7 +1690,7 @@ const StudentDashboard: React.FC = () => {
                               cursor: "pointer",
                             }}
                           >
-                            {isUnlocked ? "Learn" : "Preview"}
+                            {isUnlocked ? "Go to Lesson" : "Preview"}
                           </button>
                         </Link>
                       ) : (
