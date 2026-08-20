@@ -8,11 +8,13 @@ import {
   findBrowseLevelNode,
   isBrowseLevelComingSoon,
   isBrowseSubjectComingSoon,
+  isEdexcelIgcseBiologyLesson,
   isTemporaryBrowseStage,
   lessonMatchesBrowseStage,
   parseBrowseStageParam,
   resolveEffectiveBrowseStageKey,
   shouldHideBrowseFilters,
+  shouldHideBrowseTierFilter,
 } from "./catalogueBrowseOptions";
 import type { CatalogueTreeNode } from "../api/catalogueAvailability";
 import { lessonMatchesCatalogueTopic } from "./catalogueRevisionOptions";
@@ -107,13 +109,129 @@ describe("catalogueBrowseOptions", () => {
     ).toEqual(["AQA", "Not set"]);
   });
 
-  test("Edexcel 4BI1 tier suppressed in tier options", () => {
+  test("Edexcel 4BI1 tier suppressed in tier options with specKey", () => {
     expect(
       buildBrowseTierOptions([
         { specKey: "edexcel-igcse-biology", tier: "foundation" },
         { specKey: "aqa-gcse-biology", tier: "higher" },
       ])
     ).toEqual(["higher"]);
+  });
+
+  test("Edexcel 4BI1 tier suppressed in tier options without specKey", () => {
+    expect(
+      buildBrowseTierOptions([
+        {
+          subject: "Biology",
+          level: "IGCSE",
+          board: "Edexcel",
+          examBoard: "Edexcel",
+          tier: "higher",
+        },
+        { specKey: "aqa-gcse-biology", tier: "higher" },
+      ])
+    ).toEqual(["higher"]);
+  });
+
+  test("isEdexcelIgcseBiologyLesson detects board level subject without specKey", () => {
+    expect(
+      isEdexcelIgcseBiologyLesson({
+        subject: "Biology",
+        level: "IGCSE",
+        examBoard: "Edexcel",
+        tier: "higher",
+      })
+    ).toBe(true);
+    expect(
+      isEdexcelIgcseBiologyLesson({
+        subject: "Biology",
+        level: "GCSE",
+        examBoard: "AQA",
+        tier: "higher",
+      })
+    ).toBe(false);
+  });
+
+  test("shouldHideBrowseTierFilter uses catalogue course identity for 4BI1", () => {
+    const gcseLevel: CatalogueTreeNode = {
+      id: "level:gcse",
+      kind: "level",
+      label: "GCSE",
+      stageKey: "gcse",
+      publicStatus: "available",
+      children: [
+        {
+          id: "biology",
+          kind: "subject",
+          label: "Biology",
+          subject: "Biology",
+          publicStatus: "available",
+          children: [
+            {
+              id: "edexcel",
+              kind: "course",
+              label: "Edexcel IGCSE Biology (4BI1)",
+              specKey: "edexcel-igcse-biology",
+              publicStatus: "available",
+              children: [],
+            },
+            {
+              id: "aqa",
+              kind: "course",
+              label: "AQA GCSE Biology (8461)",
+              specKey: "aqa-gcse-biology",
+              publicStatus: "available",
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(shouldHideBrowseTierFilter(gcseLevel, "Biology", "Edexcel")).toBe(true);
+    expect(shouldHideBrowseTierFilter(gcseLevel, "Biology", "AQA")).toBe(false);
+    expect(shouldHideBrowseTierFilter(gcseLevel, "Chemistry", "Edexcel")).toBe(false);
+    expect(shouldHideBrowseTierFilter(null, "Biology", "Edexcel")).toBe(false);
+    expect(shouldHideBrowseTierFilter(gcseLevel, "Biology", "")).toBe(false);
+  });
+
+  test("shouldHideBrowseTierFilter does not hide when multiple Edexcel Biology courses match", () => {
+    const gcseLevel: CatalogueTreeNode = {
+      id: "level:gcse",
+      kind: "level",
+      label: "GCSE",
+      stageKey: "gcse",
+      publicStatus: "available",
+      children: [
+        {
+          id: "biology",
+          kind: "subject",
+          label: "Biology",
+          subject: "Biology",
+          publicStatus: "available",
+          children: [
+            {
+              id: "edexcel-igcse",
+              kind: "course",
+              label: "Edexcel IGCSE Biology (4BI1)",
+              specKey: "edexcel-igcse-biology",
+              publicStatus: "available",
+              children: [],
+            },
+            {
+              id: "edexcel-gcse",
+              kind: "course",
+              label: "Edexcel GCSE Biology (1BI0)",
+              specKey: "edexcel-gcse-biology",
+              publicStatus: "available",
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(shouldHideBrowseTierFilter(gcseLevel, "Biology", "Edexcel")).toBe(false);
   });
 
   test("lessonMatchesBrowseStage includes IGCSE under GCSE browse", () => {

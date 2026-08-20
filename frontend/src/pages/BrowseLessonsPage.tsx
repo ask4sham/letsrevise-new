@@ -17,6 +17,7 @@ import {
   buildBrowsePath,
   buildBrowseSubjectOptions,
   buildBrowseTierOptions,
+  isEdexcelIgcseBiologyLesson,
   isTemporaryBrowseStage,
   lessonMatchesBrowseStage,
   normalizeLevelLabel,
@@ -25,10 +26,12 @@ import {
   resolveEffectiveBrowseStageKey,
   resolveProfileStageKey,
   shouldHideBrowseFilters,
+  shouldHideBrowseTierFilter,
   stageKeyToLessonLevel,
   stageLabel,
 } from "../utils/catalogueBrowseOptions";
 import { lessonMatchesCatalogueTopic } from "../utils/catalogueRevisionOptions";
+import { resolveLessonDescriptionForDisplay } from "../utils/lessonMetadataDisplay";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -311,6 +314,17 @@ const BrowseLessons: React.FC = () => {
 
   const tierOptions = useMemo(() => buildBrowseTierOptions(gatedLessons), [gatedLessons]);
 
+  const hideBrowseTierFilter = useMemo(
+    () => shouldHideBrowseTierFilter(browseLevelNode, filters.subject, filters.board),
+    [browseLevelNode, filters.subject, filters.board]
+  );
+
+  useEffect(() => {
+    if (hideBrowseTierFilter && filters.tier) {
+      setFilters((prev) => ({ ...prev, tier: "" }));
+    }
+  }, [hideBrowseTierFilter, filters.tier]);
+
   // Apply all filters
   const filteredLessons = useMemo(() => {
     const searchTerm = filters.search.toLowerCase().trim();
@@ -367,7 +381,17 @@ const BrowseLessons: React.FC = () => {
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+    setFilters((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "subject" || name === "board") {
+        const nextSubject = name === "subject" ? value : prev.subject;
+        const nextBoard = name === "board" ? value : prev.board;
+        if (shouldHideBrowseTierFilter(browseLevelNode, nextSubject, nextBoard)) {
+          next.tier = "";
+        }
+      }
+      return next;
+    });
   };
 
   const clearFilters = () => {
@@ -776,7 +800,8 @@ const BrowseLessons: React.FC = () => {
               </select>
             </div>
 
-            {/* Tier Filter */}
+            {/* Tier Filter — hidden for Edexcel IGCSE Biology (4BI1) */}
+            {!hideBrowseTierFilter ? (
             <div>
               <label
                 style={{
@@ -810,6 +835,7 @@ const BrowseLessons: React.FC = () => {
                 ))}
               </select>
             </div>
+            ) : null}
 
             {/* Search Filter */}
             <div style={{ gridColumn: "span 2" }}>
@@ -977,7 +1003,19 @@ const BrowseLessons: React.FC = () => {
                           overflow: "hidden",
                         }}
                       >
-                        {lesson.description}
+                        {resolveLessonDescriptionForDisplay(
+                          lesson.description,
+                          {
+                            topic: lesson.topic,
+                            level: lesson.level,
+                            tier: lesson.tier,
+                            subject: lesson.subject,
+                            specKey: lesson.specKey,
+                            examBoardName: (lesson as any).examBoard ?? lesson.board,
+                            board: lesson.board,
+                          },
+                          { suppressTier: isEdexcelIgcseBiologyLesson(lesson) }
+                        )}
                       </p>
                     ) : null}
 
@@ -1033,7 +1071,7 @@ const BrowseLessons: React.FC = () => {
                         </span>
                       )}
 
-                      {lesson.tier && (
+                      {lesson.tier && !isEdexcelIgcseBiologyLesson(lesson) && (
                         <span
                           style={{
                             padding: "4px 10px",
