@@ -1,5 +1,6 @@
 import type { CataloguePublicStatus, CatalogueTreeNode } from "../api/catalogueAvailability";
 import {
+  buildGroupedRevisionTopicOptions,
   buildRevisionCourseOptions,
   buildRevisionSubjectOptions,
   buildRevisionTopicOptions,
@@ -7,7 +8,10 @@ import {
   formatCatalogueCourseDisplayLabel,
   formatComingSoonLabel,
   resolveProfileStageKey,
+  type GroupedRevisionOptions,
 } from "./catalogueRevisionOptions";
+
+export type { GroupedRevisionOptions };
 
 export const BROWSE_STAGE_URL_PARAM = "browseStage";
 
@@ -153,6 +157,58 @@ export function buildBrowseTopicOptions(
   specKey: string
 ) {
   return buildRevisionTopicOptions(levelNode, subjectLabel, specKey);
+}
+
+function findCourseNodesForBrowse(
+  subjectNode: CatalogueTreeNode | null,
+  board?: string
+): CatalogueTreeNode[] {
+  if (!subjectNode?.children?.length) return [];
+  const courses = subjectNode.children.filter((node) => node.kind === "course");
+  const boardNorm = String(board || "")
+    .trim()
+    .toLowerCase();
+  if (!boardNorm || boardNorm === "not set") return courses;
+  return courses.filter(
+    (course) =>
+      course.label.toLowerCase().includes(boardNorm) ||
+      String(course.specKey || "")
+        .toLowerCase()
+        .includes(boardNorm)
+  );
+}
+
+/** Grouped topic options for Browse — canonical catalogue nodes only (no lesson.topic). */
+export function buildBrowseGroupedTopicOptions(
+  levelNode: CatalogueTreeNode | null,
+  subjectLabel: string,
+  board?: string
+): GroupedRevisionOptions[] {
+  const subjectNode = findBrowseSubjectNode(levelNode, subjectLabel);
+  if (!subjectNode) return [];
+
+  const courses = findCourseNodesForBrowse(subjectNode, board);
+  const multiCourse = courses.length > 1;
+  const merged: GroupedRevisionOptions[] = [];
+  const groupIndex = new Map<string, number>();
+
+  for (const course of courses) {
+    if (!course.specKey) continue;
+    const groups = buildGroupedRevisionTopicOptions(levelNode, subjectLabel, course.specKey, {
+      groupLabelPrefix: multiCourse ? course.label : undefined,
+    });
+    for (const group of groups) {
+      const existingIdx = groupIndex.get(group.label);
+      if (existingIdx === undefined) {
+        merged.push({ label: group.label, options: [...group.options] });
+        groupIndex.set(group.label, merged.length - 1);
+      } else {
+        merged[existingIdx].options.push(...group.options);
+      }
+    }
+  }
+
+  return merged;
 }
 
 export function normalizeTierValue(tier: string): string {

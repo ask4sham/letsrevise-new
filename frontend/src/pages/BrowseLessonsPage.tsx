@@ -13,6 +13,7 @@ import {
   backToMyStageLessonsLabel,
   browseComingSoonHeadline,
   buildBrowseBoardOptions,
+  buildBrowseGroupedTopicOptions,
   buildBrowsePath,
   buildBrowseSubjectOptions,
   buildBrowseTierOptions,
@@ -27,6 +28,7 @@ import {
   stageKeyToLessonLevel,
   stageLabel,
 } from "../utils/catalogueBrowseOptions";
+import { lessonMatchesCatalogueTopic } from "../utils/catalogueRevisionOptions";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -58,6 +60,8 @@ interface Lesson {
   subject: string;
   level: string;
   topic: string;
+  topicKey?: string;
+  specKey?: string;
   board: string;
   tier: string;
   isPublished: boolean;
@@ -277,11 +281,25 @@ const BrowseLessons: React.FC = () => {
     return Array.from(subjects).sort();
   }, [catalogueSubjectOptions, gatedLessons]);
 
-  const topicOptions = useMemo(() => {
-    const topics = new Set<string>();
-    gatedLessons.forEach((lesson) => topics.add(lesson.topic || "Not set"));
-    return Array.from(topics).sort();
-  }, [gatedLessons]);
+  const browseGroupedTopicOptions = useMemo(
+    () =>
+      filters.subject
+        ? buildBrowseGroupedTopicOptions(browseLevelNode, filters.subject, filters.board)
+        : [],
+    [browseLevelNode, filters.subject, filters.board]
+  );
+
+  const selectedBrowseTopicNode = useMemo(() => {
+    if (!filters.subject || !filters.topic) return null;
+    for (const group of browseGroupedTopicOptions) {
+      for (const option of group.options) {
+        if (option.value === filters.topic) {
+          return { label: option.label.replace(/ — Coming soon$/, ""), topicKey: option.topicKey };
+        }
+      }
+    }
+    return null;
+  }, [browseGroupedTopicOptions, filters.subject, filters.topic]);
 
   const levelOptions = useMemo(() => {
     const levels = new Set<string>();
@@ -301,8 +319,11 @@ const BrowseLessons: React.FC = () => {
       // Subject filter
       if (filters.subject && lesson.subject !== filters.subject) return false;
 
-      // Topic filter
-      if (filters.topic && lesson.topic !== filters.topic) return false;
+      // Topic filter — canonical topicKey with legacy lesson.topic fallback
+      if (filters.topic) {
+        const canonicalLabel = selectedBrowseTopicNode?.label;
+        if (!lessonMatchesCatalogueTopic(lesson, filters.topic, canonicalLabel)) return false;
+      }
 
       // Level filter
       if (filters.level && normalizeLevelLabel(lesson.level) !== filters.level) return false;
@@ -342,7 +363,7 @@ const BrowseLessons: React.FC = () => {
 
       return true;
     });
-  }, [gatedLessons, filters, advancedMode]);
+  }, [gatedLessons, filters, advancedMode, selectedBrowseTopicNode?.label]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -654,20 +675,25 @@ const BrowseLessons: React.FC = () => {
                 name="topic"
                 value={filters.topic}
                 onChange={handleFilterChange}
+                disabled={!filters.subject}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e2e8f0",
                   borderRadius: "6px",
-                  backgroundColor: "white",
+                  backgroundColor: filters.subject ? "white" : "#f7fafc",
                   fontSize: "0.95rem",
                 }}
               >
-                <option value="">All Topics</option>
-                {topicOptions.map((topic) => (
-                  <option key={topic} value={topic}>
-                    {topic}
-                  </option>
+                <option value="">{filters.subject ? "All Topics" : "Select a subject first"}</option>
+                {browseGroupedTopicOptions.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map((topic) => (
+                      <option key={topic.value} value={topic.value}>
+                        {topic.label}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

@@ -1,5 +1,6 @@
 import {
   backToMyStageLessonsLabel,
+  buildBrowseGroupedTopicOptions,
   buildBrowsePath,
   buildBrowseBoardOptions,
   buildBrowseTierOptions,
@@ -14,6 +15,7 @@ import {
   shouldHideBrowseFilters,
 } from "./catalogueBrowseOptions";
 import type { CatalogueTreeNode } from "../api/catalogueAvailability";
+import { lessonMatchesCatalogueTopic } from "./catalogueRevisionOptions";
 
 const gcseLevel: CatalogueTreeNode = {
   id: "level:gcse",
@@ -117,5 +119,62 @@ describe("catalogueBrowseOptions", () => {
   test("lessonMatchesBrowseStage includes IGCSE under GCSE browse", () => {
     expect(lessonMatchesBrowseStage("IGCSE", "gcse")).toBe(true);
     expect(lessonMatchesBrowseStage("A-Level", "gcse")).toBe(false);
+  });
+
+  test("buildBrowseGroupedTopicOptions uses catalogue groups not lesson.topic", () => {
+    const gcseLevel: CatalogueTreeNode = {
+      id: "level:gcse",
+      kind: "level",
+      label: "GCSE",
+      stageKey: "gcse",
+      publicStatus: "available",
+      children: [
+        {
+          id: "biology",
+          kind: "subject",
+          label: "Biology",
+          subject: "Biology",
+          publicStatus: "available",
+          children: [
+            {
+              id: "edexcel",
+              kind: "course",
+              label: "Edexcel IGCSE Biology (4BI1)",
+              specKey: "edexcel-igcse-biology",
+              publicStatus: "available",
+              children: [
+                {
+                  id: "gametes",
+                  kind: "topic",
+                  label: "Gametes & Fertilisation",
+                  topicKey: "edexcel-igcse-biology:gametes-and-fertilisation",
+                  groupLabel: "Reproduction and inheritance",
+                  publicStatus: "available",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const groups = buildBrowseGroupedTopicOptions(gcseLevel, "Biology", "Edexcel");
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe("Reproduction and inheritance");
+    expect(groups[0].options[0].label).toBe("Gametes & Fertilisation");
+    expect(groups[0].options[0].value).toBe("edexcel-igcse-biology:gametes-and-fertilisation");
+  });
+
+  test("legacy Edexcel verbose lesson.topic still matches canonical browse topicKey", () => {
+    const legacyLesson = {
+      topic: "Gametes & Fertilisation (Edexcel IGCSE Biology) (Higher Tier)",
+    };
+    expect(
+      lessonMatchesCatalogueTopic(
+        legacyLesson,
+        "edexcel-igcse-biology:gametes-and-fertilisation",
+        "Gametes & Fertilisation"
+      )
+    ).toBe(true);
   });
 });

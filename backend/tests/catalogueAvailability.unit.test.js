@@ -95,6 +95,25 @@ describe("catalogueAvailabilityService", () => {
       expect(aqaBio?.publicStatus).toBe(PUBLIC_STATUS.AVAILABLE);
       const cellTopic = (aqaBio?.children || []).find((t) => t.topicSlug === "cell-structure");
       expect(cellTopic?.publicStatus).toBe(PUBLIC_STATUS.AVAILABLE);
+      expect(cellTopic?.groupLabel).toBeTruthy();
+    });
+
+    test("AQA GCSE Biology topics include canonical groupLabel and short label", () => {
+      const tree = buildPublicCatalogueTree([]);
+      const aqaBio = findCourseNode(tree, "aqa-gcse-biology");
+      const cellStructure = (aqaBio?.children || []).find((t) => t.topicSlug === "cell-structure");
+      expect(cellStructure?.label).toBe("Cell structure");
+      expect(cellStructure?.groupLabel).toBe("Cell Biology");
+      expect(cellStructure?.topicKey).toBe("aqa-gcse-biology:cell-structure");
+    });
+
+    test("Edexcel IGCSE Biology topics include canonical groupLabel and short label", () => {
+      const tree = buildPublicCatalogueTree([]);
+      const edexcel = findCourseNode(tree, "edexcel-igcse-biology");
+      const gametes = (edexcel?.children || []).find((t) => t.topicSlug === "gametes-and-fertilisation");
+      expect(gametes?.label).toBe("Gametes & Fertilisation");
+      expect(gametes?.groupLabel).toBe("Reproduction and inheritance");
+      expect(gametes?.topicKey).toBe("edexcel-igcse-biology:gametes-and-fertilisation");
     });
 
     test("unapproved published lesson does not activate public nodes", () => {
