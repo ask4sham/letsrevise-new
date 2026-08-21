@@ -60,7 +60,7 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.STRIPE_SECRET_KEY = "sk_test_integration_dummy";
-    process.env.STRIPE_PRICE_ID_BIOLOGY_PRO = "price_test_biology_pro_499";
+    process.env.STRIPE_PRICE_ID_LETSREVISE_PRO = "price_test_letsrevise_pro_499";
     process.env.FRONTEND_URL = "https://app.letsrevise.test";
     isStripeCheckoutConfigured.mockReturnValue(true);
     getStripeClient.mockReturnValue({
@@ -132,13 +132,13 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
     expect(mockCustomerCreate).toHaveBeenCalledTimes(1);
     expect(mockCustomerCreate.mock.calls[0][0].metadata).toEqual({
       letsReviseUserId: String(freshUser._id),
-      planId: "biology_pro",
+      planId: "letsrevise_pro",
     });
     expect(mockSessionCreate).toHaveBeenCalledTimes(1);
 
     const params = mockSessionCreate.mock.calls[0][0];
     expect(params.customer).toBe("cus_test_newly_created");
-    expect(params.line_items).toEqual([{ price: "price_test_biology_pro_499", quantity: 1 }]);
+    expect(params.line_items).toEqual([{ price: "price_test_letsrevise_pro_499", quantity: 1 }]);
     expect(params.metadata.letsReviseUserId).toBe(String(freshUser._id));
     expect(params.subscription_data.metadata.letsReviseUserId).toBe(String(freshUser._id));
     expect(params.client_reference_id).toBe(String(freshUser._id));
