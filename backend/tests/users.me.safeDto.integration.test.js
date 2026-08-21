@@ -67,9 +67,11 @@ function assertCurrentUserShape(body) {
   expect(body).toHaveProperty("yearGroup");
   expect(body).toHaveProperty("stageKey");
   expect(body).toHaveProperty("referralCode");
+  expect(typeof body.hasLetsReviseProAccess).toBe("boolean");
   assertForbiddenAbsent(body);
   expect(body).not.toHaveProperty("purchasedLessons");
   expect(body).not.toHaveProperty("earnings");
+  expect(body).not.toHaveProperty("stripeBilling");
 }
 
 async function createUserWithSecrets(overrides = {}) {
@@ -238,6 +240,46 @@ describe("Safe current-user / self-profile DTOs", () => {
     expect(me.body.subscriptionV2.status).toBe("expired");
     expect(me.body.subscriptionV2).not.toHaveProperty("provider");
     expect(me.body.subscriptionV2).not.toHaveProperty("planId");
+  });
+
+  test("LetsRevise Pro: hasLetsReviseProAccess true without exposing Stripe billing fields", async () => {
+    const { user, password } = await createUserWithSecrets({
+      stripeBilling: {
+        planId: "letsrevise_pro",
+        status: "active",
+        paidThrough: new Date(Date.now() + 86400000),
+        customerId: "cus_SENTINEL",
+        subscriptionId: "sub_SENTINEL",
+        priceId: "price_SENTINEL",
+      },
+    });
+    createdIds.push(user._id);
+    const token = await loginToken(user.email, password);
+    const me = await request(app)
+      .get("/api/users/me")
+      .set("Authorization", `Bearer ${token}`);
+    expect(me.status).toBe(200);
+    expect(me.body.hasLetsReviseProAccess).toBe(true);
+    expect(me.body).not.toHaveProperty("stripeBilling");
+    const json = JSON.stringify(me.body);
+    expect(json).not.toMatch(/cus_SENTINEL|sub_SENTINEL|price_SENTINEL/);
+  });
+
+  test("no Stripe entitlement: hasLetsReviseProAccess false", async () => {
+    const { user, password } = await createUserWithSecrets({
+      stripeBilling: {
+        planId: "letsrevise_pro",
+        status: "canceled",
+        paidThrough: new Date(Date.now() + 86400000),
+      },
+    });
+    createdIds.push(user._id);
+    const token = await loginToken(user.email, password);
+    const me = await request(app)
+      .get("/api/users/me")
+      .set("Authorization", `Bearer ${token}`);
+    expect(me.status).toBe(200);
+    expect(me.body.hasLetsReviseProAccess).toBe(false);
   });
 
   test("deleted user: /users/me returns 401 ACCOUNT_DELETED", async () => {

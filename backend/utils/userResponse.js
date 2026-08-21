@@ -3,6 +3,8 @@
  * Prefer explicit inclusion over blacklist projections.
  */
 
+const { hasStripeLetsReviseProAccess } = require("./stripeBillingAccess");
+
 /** Fields required for toCurrentUserDto (+ isDeleted for route checks only). */
 const CURRENT_USER_PROJECTION = [
   "_id",
@@ -20,6 +22,7 @@ const CURRENT_USER_PROJECTION = [
   "subscription",
   "subscriptionEndDate",
   "subscriptionV2",
+  "stripeBilling",
   "isDeleted",
 ].join(" ");
 
@@ -135,6 +138,8 @@ function toCurrentUserDto(userDoc) {
 
   const subV2 = toSafeSubscriptionV2(userDoc.subscriptionV2);
   if (subV2) dto.subscriptionV2 = subV2;
+
+  dto.hasLetsReviseProAccess = hasStripeLetsReviseProAccess(userDoc);
 
   return dto;
 }

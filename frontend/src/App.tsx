@@ -25,6 +25,8 @@ import EditLessonPage from "./pages/EditLessonPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import StudentProgressPage from "./pages/StudentProgressPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
+import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
+import SubscriptionCancelPage from "./pages/SubscriptionCancelPage";
 import TeacherPayoutPage from "./pages/TeacherPayoutPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -1096,6 +1098,24 @@ function App() {
             element={
               <ProtectedRoute>
                 <SubscriptionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/subscription/success"
+            element={
+              <ProtectedRoute>
+                <SubscriptionSuccessPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/subscription/cancel"
+            element={
+              <ProtectedRoute>
+                <SubscriptionCancelPage />
               </ProtectedRoute>
             }
           />

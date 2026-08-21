@@ -6,6 +6,7 @@ const { sendInternalError } = require('../utils/safeErrorResponse');
 const { isStripeCheckoutConfigured } = require('../config/stripe');
 const { createLetsReviseProCheckoutForUser } = require('../services/stripeCheckoutService');
 const { findForbiddenClientBillingKeys } = require('../utils/rejectClientBillingInput');
+const { hasStripeLetsReviseProAccess } = require('../utils/stripeBillingAccess');
 
 // @route   GET api/subscriptions/plans
 // @desc    Get available subscription plans
@@ -279,6 +280,14 @@ router.post('/create-checkout-session', auth, async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
+    }
+
+    if (hasStripeLetsReviseProAccess(user)) {
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_SUBSCRIBED',
+        msg: 'LetsRevise Pro is already active on this account',
+      });
     }
 
     const session = await createLetsReviseProCheckoutForUser(user);
