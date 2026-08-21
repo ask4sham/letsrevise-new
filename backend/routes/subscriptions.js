@@ -5,7 +5,9 @@ const auth = require('../middleware/auth');
 const { sendInternalError } = require('../utils/safeErrorResponse');
 const { isStripeCheckoutConfigured } = require('../config/stripe');
 const { createLetsReviseProCheckoutForUser } = require('../services/stripeCheckoutService');
+const { createLetsReviseProPortalSession } = require('../services/stripePortalService');
 const { findForbiddenClientBillingKeys } = require('../utils/rejectClientBillingInput');
+const { findForbiddenPortalClientBillingKeys } = require('../utils/rejectPortalClientBillingInput');
 const { hasStripeLetsReviseProAccess } = require('../utils/stripeBillingAccess');
 
 // @route   GET api/subscriptions/plans
@@ -300,6 +302,54 @@ router.post('/create-checkout-session', auth, async (req, res) => {
     });
   } catch (err) {
     return sendInternalError('subscriptions/create-checkout-session', err, res);
+  }
+});
+
+// @route   POST api/subscriptions/create-portal-session
+// @desc    Create Stripe Customer Portal session for LetsRevise Pro billing management (B5)
+// @access  Private
+router.post('/create-portal-session', auth, async (req, res) => {
+  try {
+    const forbiddenKeys = findForbiddenPortalClientBillingKeys(req.body);
+    if (forbiddenKeys.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'CLIENT_BILLING_INPUT_NOT_ALLOWED',
+        msg: 'Billing inputs are server-owned',
+        rejectedKeys: forbiddenKeys,
+      });
+    }
+
+    if (!isStripeCheckoutConfigured()) {
+      return res.status(503).json({
+        success: false,
+        code: 'STRIPE_NOT_CONFIGURED',
+        msg: 'Stripe billing is not configured on this server',
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    const customerId = user.stripeBilling?.customerId;
+    if (!customerId) {
+      return res.status(403).json({
+        success: false,
+        code: 'NO_STRIPE_CUSTOMER',
+        msg: 'No Stripe billing account is linked to this user',
+      });
+    }
+
+    const session = await createLetsReviseProPortalSession(customerId);
+
+    res.json({
+      success: true,
+      url: session.url,
+    });
+  } catch (err) {
+    return sendInternalError('subscriptions/create-portal-session', err, res);
   }
 });
 

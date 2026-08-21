@@ -76,6 +76,46 @@ const SubscriptionPage: React.FC = () => {
     };
   }, [loadEntitlement]);
 
+  const handleManageBilling = async () => {
+    if (processing || !hasLetsReviseProAccess) return;
+
+    setProcessing(true);
+    setMessage(null);
+
+    try {
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const response = await fetch(apiUrl("/api/subscriptions/create-portal-session"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      setMessage({
+        type: "error",
+        text: getErrorMessageFromData(data, "Failed to open billing portal"),
+      });
+    } catch (error) {
+      console.error("Portal error:", error);
+      setMessage({ type: "error", text: "Failed to open billing portal" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleSubscribe = async () => {
     if (processing) return;
 
@@ -191,10 +231,28 @@ const SubscriptionPage: React.FC = () => {
               >
                 LetsRevise Pro — Active
               </p>
-              <p style={{ color: "#495057", lineHeight: 1.6 }}>
-                Your premium access is active. Billing management will be available in a future
-                update.
+              <p style={{ color: "#495057", lineHeight: 1.6, marginBottom: "1.5rem" }}>
+                Your premium access is active. Manage your subscription, payment method, and
+                invoices in Stripe.
               </p>
+              <button
+                type="button"
+                onClick={handleManageBilling}
+                disabled={processing}
+                style={{
+                  width: "100%",
+                  padding: "1rem",
+                  backgroundColor: "#1976d2",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontSize: "1rem",
+                  cursor: processing ? "default" : "pointer",
+                  opacity: processing ? 0.7 : 1,
+                }}
+              >
+                {processing ? "Opening billing portal..." : "Manage billing"}
+              </button>
             </>
           ) : (
             <>
