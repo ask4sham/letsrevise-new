@@ -23,6 +23,7 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
   let existingCustomerToken;
   let existingCustomerUserId;
   const mockSessionCreate = jest.fn();
+  const mockSessionList = jest.fn();
   const mockCustomerCreate = jest.fn();
   const hashedPassword = bcrypt.hashSync("password123", 10);
 
@@ -65,9 +66,10 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
     isStripeCheckoutConfigured.mockReturnValue(true);
     getStripeClient.mockReturnValue({
       customers: { create: mockCustomerCreate },
-      checkout: { sessions: { create: mockSessionCreate } },
+      checkout: { sessions: { create: mockSessionCreate, list: mockSessionList } },
     });
     mockCustomerCreate.mockResolvedValue({ id: "cus_test_newly_created" });
+    mockSessionList.mockResolvedValue({ data: [] });
     mockSessionCreate.mockResolvedValue({
       id: "cs_test_integration",
       url: "https://checkout.stripe.com/c/pay/cs_test_integration",
@@ -143,9 +145,9 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
     expect(params.subscription_data.metadata.letsReviseUserId).toBe(String(freshUser._id));
     expect(params.client_reference_id).toBe(String(freshUser._id));
     expect(params.success_url).toBe(
-      "https://app.letsrevise.test/subscription/success?session_id={CHECKOUT_SESSION_ID}"
+      "https://app.letsrevise.test/#/subscription/success?session_id={CHECKOUT_SESSION_ID}"
     );
-    expect(params.cancel_url).toBe("https://app.letsrevise.test/subscription/cancel");
+    expect(params.cancel_url).toBe("https://app.letsrevise.test/#/subscription/cancel");
 
     const after = await User.findById(freshUser._id).lean();
     expect(after.stripeBilling.customerId).toBe("cus_test_newly_created");
@@ -163,11 +165,80 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
 
     expect(res.status).toBe(200);
     expect(mockCustomerCreate).not.toHaveBeenCalled();
+    expect(mockSessionList).toHaveBeenCalledWith({
+      customer: "cus_test_preexisting",
+      status: "open",
+      limit: 10,
+    });
     expect(mockSessionCreate).toHaveBeenCalledTimes(1);
     expect(mockSessionCreate.mock.calls[0][0].customer).toBe("cus_test_preexisting");
 
     const after = await User.findById(existingCustomerUserId).lean();
     expect(after.stripeBilling.customerId).toBe("cus_test_preexisting");
     expect(after.stripeBilling.subscriptionId).toBeFalsy();
+  });
+
+  test("reuses existing open LetsRevise Pro Checkout Session instead of creating duplicate", async () => {
+    mockSessionList.mockResolvedValue({
+      data: [
+        {
+          id: "cs_test_existing_open",
+          url: "https://checkout.stripe.com/c/pay/cs_test_existing_open",
+          mode: "subscription",
+          metadata: {
+            planId: "letsrevise_pro",
+            letsReviseUserId: String(existingCustomerUserId),
+          },
+        },
+      ],
+    });
+
+    const res = await request(app)
+      .post("/api/subscriptions/create-checkout-session")
+      .set("Authorization", `Bearer ${existingCustomerToken}`)
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.sessionId).toBe("cs_test_existing_open");
+    expect(res.body.url).toBe("https://checkout.stripe.com/c/pay/cs_test_existing_open");
+    expect(mockSessionList).toHaveBeenCalledWith({
+      customer: "cus_test_preexisting",
+      status: "open",
+      limit: 10,
+    });
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+
+  test("409 when user already has valid LetsRevise Pro access (duplicate subscription guard)", async () => {
+    const entitledUser = await User.create({
+      firstName: "Zuri",
+      lastName: "AlreadyPro",
+      email: `stripe-b4-already-pro-${Date.now()}@test.com`,
+      password: hashedPassword,
+      userType: "student",
+      stripeBilling: {
+        customerId: "cus_test_already_pro",
+        planId: "letsrevise_pro",
+        status: "active",
+        paidThrough: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: entitledUser.email, password: "password123" });
+    const entitledToken = loginRes.body.token;
+
+    const res = await request(app)
+      .post("/api/subscriptions/create-checkout-session")
+      .set("Authorization", `Bearer ${entitledToken}`)
+      .send({});
+
+    expect(res.status).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe("ALREADY_SUBSCRIBED");
+    expect(mockCustomerCreate).not.toHaveBeenCalled();
+    expect(mockSessionCreate).not.toHaveBeenCalled();
   });
 });

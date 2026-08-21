@@ -12,7 +12,7 @@ Documentation for LetsRevise Stripe billing (B2 Checkout foundation, B3 webhooks
 |---|---|---|
 | `STRIPE_SECRET_KEY` | `sk_test_...` | Stripe API secret key (test mode) |
 | `STRIPE_PRICE_ID_LETSREVISE_PRO` | `price_...` | Server-owned recurring Price for LetsRevise Pro |
-| `FRONTEND_URL` | `http://localhost:3000` | Base URL for server-controlled Checkout success/cancel redirects |
+| `FRONTEND_URL` | `http://localhost:3000` | Base URL for server-controlled Checkout success/cancel redirects (HashRouter: `/#/subscription/success`, `/#/subscription/cancel`) |
 
 ## Required for B3 (webhooks)
 
@@ -24,7 +24,18 @@ Documentation for LetsRevise Stripe billing (B2 Checkout foundation, B3 webhooks
 
 - Clients must **not** supply `priceId`, `price`, `line_items`, `amount`, `currency`, `planId`, `userId`, or `letsReviseUserId` on Checkout creation.
 - Checkout metadata uses **`letsReviseUserId`** (not client-supplied) plus server-owned **`planId: letsrevise_pro`**.
+- Checkout creation reuses an existing **open** LetsRevise Pro session for the same Stripe Customer when present (avoids duplicate hosted Checkout before payment completes).
 - Production keys (`sk_live_*`) are blocked until explicit go-live approval.
+
+## B6 launch verification (pre go-live)
+
+Before switching to live Stripe keys:
+
+| Check | Action |
+|---|---|
+| Price ID | Confirm `STRIPE_PRICE_ID_LETSREVISE_PRO` in Stripe Dashboard is the **£4.99/month** recurring Price for LetsRevise Pro |
+| Duplicate subscriptions | Enable Stripe **“Limit customers to one subscription”** on the Checkout / Product settings as a second line of defence |
+| Webhook | Confirm live `STRIPE_WEBHOOK_SECRET` and endpoint URL |
 
 ## Code references
 

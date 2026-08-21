@@ -132,7 +132,26 @@ describe("userResponse DTOs", () => {
     });
     expect(dto).not.toHaveProperty("purchasedLessons");
     expect(dto).not.toHaveProperty("earnings");
+    expect(dto.hasLetsReviseProAccess).toBe(false);
+    expect(dto).not.toHaveProperty("stripeBilling");
     assertNoForbiddenKeys(dto);
+  });
+
+  test("toCurrentUserDto exposes hasLetsReviseProAccess without Stripe billing fields", () => {
+    const dto = toCurrentUserDto({
+      ...seeded,
+      stripeBilling: {
+        planId: "letsrevise_pro",
+        status: "active",
+        paidThrough: new Date(Date.now() + 86400000),
+        customerId: "cus_secret",
+        subscriptionId: "sub_secret",
+        priceId: "price_secret",
+      },
+    });
+    expect(dto.hasLetsReviseProAccess).toBe(true);
+    expect(dto).not.toHaveProperty("stripeBilling");
+    expect(JSON.stringify(dto)).not.toMatch(/cus_secret|sub_secret|price_secret/);
   });
 
   test("toCurrentUserDto derives emailVerified false for pending", () => {

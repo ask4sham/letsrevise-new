@@ -55,6 +55,38 @@ async function ensureStripeCustomerBound(user) {
 }
 
 /**
+ * Find an existing open LetsRevise Pro Checkout Session for this Stripe Customer (B4).
+ * Prevents duplicate hosted Checkout tabs before the first payment/webhook completes.
+ *
+ * @param {{ customerId: string, userId: import("mongoose").Types.ObjectId|string }} opts
+ * @returns {Promise<import("stripe").Stripe.Checkout.Session|null>}
+ */
+async function findOpenLetsReviseProCheckoutSession({ customerId, userId }) {
+  if (!customerId || userId == null) return null;
+
+  const expectedUserId = String(userId);
+  const stripe = getStripeClient();
+  const sessions = await stripe.checkout.sessions.list({
+    customer: customerId,
+    status: "open",
+    limit: 10,
+  });
+
+  for (const session of sessions.data) {
+    if (
+      session.mode === "subscription" &&
+      session.metadata?.planId === LETSREVISE_PRO_PLAN_ID &&
+      session.metadata?.letsReviseUserId === expectedUserId &&
+      session.url
+    ) {
+      return session;
+    }
+  }
+
+  return null;
+}
+
+/**
  * @param {{ user: { _id: unknown }, customerId: string }} opts
  * @returns {Promise<import("stripe").Stripe.Checkout.Session>}
  */
@@ -76,8 +108,8 @@ async function createLetsReviseProCheckoutSession({ user, customerId }) {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceIdLetsRevisePro, quantity: 1 }],
-    success_url: `${frontendUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${frontendUrl}/subscription/cancel`,
+    success_url: `${frontendUrl}/#/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${frontendUrl}/#/subscription/cancel`,
     client_reference_id: userId,
     metadata,
     subscription_data: {
@@ -96,12 +128,20 @@ async function createLetsReviseProCheckoutSession({ user, customerId }) {
  */
 async function createLetsReviseProCheckoutForUser(user) {
   const customerId = await ensureStripeCustomerBound(user);
+  const existingOpenSession = await findOpenLetsReviseProCheckoutSession({
+    customerId,
+    userId: user._id,
+  });
+  if (existingOpenSession) {
+    return existingOpenSession;
+  }
   return createLetsReviseProCheckoutSession({ user, customerId });
 }
 
 module.exports = {
   buildStripeCheckoutMetadata,
   ensureStripeCustomerBound,
+  findOpenLetsReviseProCheckoutSession,
   createLetsReviseProCheckoutSession,
   createLetsReviseProCheckoutForUser,
 };
