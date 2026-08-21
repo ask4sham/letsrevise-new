@@ -41,6 +41,30 @@ Before switching to live Stripe keys:
 
 - Config: `backend/config/stripe.js`
 - Checkout service: `backend/services/stripeCheckoutService.js`
+- Portal service: `backend/services/stripePortalService.js`
 - Webhook service: `backend/services/stripeWebhookService.js`
 - Route (Checkout): `POST /api/subscriptions/create-checkout-session`
+- Route (Portal): `POST /api/subscriptions/create-portal-session`
 - Route (webhook): `POST /api/webhooks/stripe` (raw body; mounted before JSON parser in `app.js`)
+
+## B5 Customer Portal (test mode)
+
+| Requirement | Notes |
+|---|---|
+| Stripe Dashboard | Enable **Customer Portal** for the test-mode Stripe account and configure allowed subscription management actions |
+| Return URL | Server-owned `${FRONTEND_URL}/#/subscription` (HashRouter) |
+| Security | Client must not supply `customerId`, `return_url`, or portal `configuration`; backend uses persisted `stripeBilling.customerId` for authenticated user only |
+| B5 UI scope | **Manage billing** shown only when `hasLetsReviseProAccess === true` (active Pro) |
+
+## B6 pre-production requirements (blocks go-live)
+
+Production activation remains **blocked** until B6 verification is complete:
+
+| Requirement | Action |
+|---|---|
+| Portal configuration | Verify live Stripe Customer Portal settings match LetsRevise Pro product/price |
+| `past_due` / failed payment recovery | Test user can reach billing management and recover payment when entitlement may be false |
+| Canceled resubscription | Test canceled subscriber can manage/resubscribe via portal; webhooks restore entitlement correctly |
+| Price ID | Confirm live `STRIPE_PRICE_ID_LETSREVISE_PRO` is **£4.99/month** |
+| Duplicate subscriptions | Enable Stripe **“Limit customers to one subscription”** |
+| Webhook | Confirm live `STRIPE_WEBHOOK_SECRET` and endpoint URL |

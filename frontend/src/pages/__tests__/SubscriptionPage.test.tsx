@@ -119,10 +119,48 @@ describe("SubscriptionPage (B4)", () => {
     );
 
     expect(await screen.findByText(/LetsRevise Pro — Active/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage billing" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Subscribe" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Cancel subscription/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Upgrade/i)).not.toBeInTheDocument();
     expectNoLegacyCalls(global.fetch as jest.Mock);
+  });
+
+  test("already Pro: Manage billing opens Stripe Customer Portal", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "/api/users/me") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ hasLetsReviseProAccess: true, id: "user-1" }),
+        });
+      }
+      if (url === "/api/subscriptions/create-portal-session" && init?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            url: "https://billing.stripe.com/p/session/test_portal",
+          }),
+        });
+      }
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    });
+
+    render(
+      <MemoryRouter>
+        <SubscriptionPage />
+      </MemoryRouter>
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "Manage billing" }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/subscriptions/create-portal-session",
+        expect.objectContaining({ method: "POST" })
+      );
+      expect(window.location.href).toBe("https://billing.stripe.com/p/session/test_portal");
+    });
   });
 
   test("checkout failure shows error and does not redirect", async () => {
