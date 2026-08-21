@@ -4,7 +4,7 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { sendInternalError } = require('../utils/safeErrorResponse');
 const { isStripeCheckoutConfigured } = require('../config/stripe');
-const { createBiologyProCheckoutForUser } = require('../services/stripeCheckoutService');
+const { createLetsReviseProCheckoutForUser } = require('../services/stripeCheckoutService');
 const { findForbiddenClientBillingKeys } = require('../utils/rejectClientBillingInput');
 
 // @route   GET api/subscriptions/plans
@@ -254,7 +254,7 @@ router.post('/renew-shamcoins', auth, (req, res) => {
 });
 
 // @route   POST api/subscriptions/create-checkout-session
-// @desc    Create Stripe Checkout Session for Biology Pro (server-owned price; test mode B2)
+// @desc    Create Stripe Checkout Session for LetsRevise Pro (server-owned price; test mode B2)
 // @access  Private
 router.post('/create-checkout-session', auth, async (req, res) => {
   try {
@@ -281,13 +281,13 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    const session = await createBiologyProCheckoutForUser(user);
+    const session = await createLetsReviseProCheckoutForUser(user);
 
     res.json({
       success: true,
       sessionId: session.id,
       url: session.url,
-      planId: 'biology_pro',
+      planId: 'letsrevise_pro',
     });
   } catch (err) {
     return sendInternalError('subscriptions/create-checkout-session', err, res);

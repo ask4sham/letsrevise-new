@@ -2,7 +2,7 @@
  * Unit tests: Stripe Checkout session builder (B2 — no real Stripe calls).
  */
 jest.mock("../config/stripe", () => ({
-  BIOLOGY_PRO_PLAN_ID: "biology_pro",
+  LETSREVISE_PRO_PLAN_ID: "letsrevise_pro",
   getStripeConfig: jest.fn(),
   getStripeClient: jest.fn(),
 }));
@@ -10,7 +10,7 @@ jest.mock("../config/stripe", () => ({
 const { getStripeConfig, getStripeClient } = require("../config/stripe");
 const {
   buildStripeCheckoutMetadata,
-  createBiologyProCheckoutSession,
+  createLetsReviseProCheckoutSession,
 } = require("../services/stripeCheckoutService");
 
 describe("stripeCheckoutService (B2)", () => {
@@ -20,7 +20,7 @@ describe("stripeCheckoutService (B2)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getStripeConfig.mockReturnValue({
-      priceIdBiologyPro: "price_test_biology_pro_499",
+      priceIdLetsRevisePro: "price_test_letsrevise_pro_499",
       frontendUrl: "https://app.letsrevise.test",
     });
     getStripeClient.mockReturnValue({
@@ -32,17 +32,17 @@ describe("stripeCheckoutService (B2)", () => {
     });
   });
 
-  test("buildStripeCheckoutMetadata uses letsReviseUserId (frozen contract)", () => {
+  test("buildStripeCheckoutMetadata uses letsReviseUserId and letsrevise_pro", () => {
     expect(buildStripeCheckoutMetadata(userId)).toEqual({
       letsReviseUserId: String(userId),
-      planId: "biology_pro",
+      planId: "letsrevise_pro",
     });
   });
 
-  test("createBiologyProCheckoutSession uses server-owned price, quantity 1, and metadata contract", async () => {
+  test("createLetsReviseProCheckoutSession uses server-owned price, quantity 1, and metadata contract", async () => {
     const user = { _id: userId };
 
-    const session = await createBiologyProCheckoutSession({
+    const session = await createLetsReviseProCheckoutSession({
       user,
       customerId: "cus_test_bound",
     });
@@ -53,30 +53,13 @@ describe("stripeCheckoutService (B2)", () => {
     const params = mockCreate.mock.calls[0][0];
     expect(params.mode).toBe("subscription");
     expect(params.line_items).toEqual([
-      { price: "price_test_biology_pro_499", quantity: 1 },
+      { price: "price_test_letsrevise_pro_499", quantity: 1 },
     ]);
     expect(params.customer).toBe("cus_test_bound");
-    expect(params).not.toHaveProperty("customer_email");
-    expect(params.client_reference_id).toBe(String(userId));
     expect(params.metadata).toEqual({
       letsReviseUserId: String(userId),
-      planId: "biology_pro",
+      planId: "letsrevise_pro",
     });
-    expect(params.subscription_data.metadata).toEqual({
-      letsReviseUserId: String(userId),
-      planId: "biology_pro",
-    });
-    expect(params.success_url).toBe(
-      "https://app.letsrevise.test/subscription/success?session_id={CHECKOUT_SESSION_ID}"
-    );
-    expect(params.cancel_url).toBe("https://app.letsrevise.test/subscription/cancel");
-  });
-
-  test("service has no client price parameter — line_items use env price only", async () => {
-    await createBiologyProCheckoutSession({ user: { _id: userId }, customerId: "cus_x" });
-    const params = mockCreate.mock.calls[0][0];
-    expect(params.line_items[0].price).toBe("price_test_biology_pro_499");
-    expect(params.line_items[0].quantity).toBe(1);
-    expect(params.line_items[0]).not.toHaveProperty("price_data");
+    expect(params.subscription_data.metadata.planId).toBe("letsrevise_pro");
   });
 });

@@ -1,19 +1,20 @@
 /**
- * Stripe billing configuration (B2 — Checkout foundation).
- * Price ID and plan identity are server-owned; clients must not supply them.
+ * Stripe billing configuration (B2 Checkout + B3 webhooks).
+ * LetsRevise Pro — one universal premium subscription (all subjects).
  *
  * Env documentation: backend/docs/STRIPE_BILLING_ENV.md
  */
 
-const BIOLOGY_PRO_PLAN_ID = "biology_pro";
+const LETSREVISE_PRO_PLAN_ID = "letsrevise_pro";
 
 let stripeClient = null;
 
 function getStripeConfig() {
   return {
     secretKey: (process.env.STRIPE_SECRET_KEY || "").trim(),
-    priceIdBiologyPro: (process.env.STRIPE_PRICE_ID_BIOLOGY_PRO || "").trim(),
-    planIdBiologyPro: BIOLOGY_PRO_PLAN_ID,
+    priceIdLetsRevisePro: (process.env.STRIPE_PRICE_ID_LETSREVISE_PRO || "").trim(),
+    webhookSecret: (process.env.STRIPE_WEBHOOK_SECRET || "").trim(),
+    planIdLetsRevisePro: LETSREVISE_PRO_PLAN_ID,
     frontendUrl: (process.env.FRONTEND_URL || "http://localhost:3000").trim().replace(/\/+$/, ""),
   };
 }
@@ -25,8 +26,13 @@ function assertProductionKeyBlocked(secretKey) {
 }
 
 function isStripeCheckoutConfigured() {
-  const { secretKey, priceIdBiologyPro } = getStripeConfig();
-  return Boolean(secretKey && priceIdBiologyPro);
+  const { secretKey, priceIdLetsRevisePro } = getStripeConfig();
+  return Boolean(secretKey && priceIdLetsRevisePro);
+}
+
+function isStripeWebhookConfigured() {
+  const { secretKey, webhookSecret } = getStripeConfig();
+  return Boolean(secretKey && webhookSecret);
 }
 
 function getStripeClient() {
@@ -49,9 +55,10 @@ function resetStripeClientForTests() {
 }
 
 module.exports = {
-  BIOLOGY_PRO_PLAN_ID,
+  LETSREVISE_PRO_PLAN_ID,
   getStripeConfig,
   getStripeClient,
   isStripeCheckoutConfigured,
+  isStripeWebhookConfigured,
   resetStripeClientForTests,
 };

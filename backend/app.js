@@ -77,6 +77,15 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 /* ============================================================
+   Stripe webhook — raw body BEFORE JSON parser (B3)
+============================================================ */
+app.post(
+  "/api/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  require("./routes/stripeWebhooks")
+);
+
+/* ============================================================
    C. Parsers
 ============================================================ */
 app.use(bodyLimit);

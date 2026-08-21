@@ -1,5 +1,5 @@
 const {
-  BIOLOGY_PRO_PLAN_ID,
+  LETSREVISE_PRO_PLAN_ID,
   getStripeClient,
   getStripeConfig,
 } = require("../config/stripe");
@@ -14,7 +14,7 @@ const {
 function buildStripeCheckoutMetadata(userId) {
   return {
     letsReviseUserId: String(userId),
-    planId: BIOLOGY_PRO_PLAN_ID,
+    planId: LETSREVISE_PRO_PLAN_ID,
   };
 }
 
@@ -58,11 +58,11 @@ async function ensureStripeCustomerBound(user) {
  * @param {{ user: { _id: unknown }, customerId: string }} opts
  * @returns {Promise<import("stripe").Stripe.Checkout.Session>}
  */
-async function createBiologyProCheckoutSession({ user, customerId }) {
+async function createLetsReviseProCheckoutSession({ user, customerId }) {
   const stripe = getStripeClient();
-  const { priceIdBiologyPro, frontendUrl } = getStripeConfig();
-  if (!priceIdBiologyPro) {
-    throw new Error("STRIPE_PRICE_ID_BIOLOGY_PRO is not configured");
+  const { priceIdLetsRevisePro, frontendUrl } = getStripeConfig();
+  if (!priceIdLetsRevisePro) {
+    throw new Error("STRIPE_PRICE_ID_LETSREVISE_PRO is not configured");
   }
   if (!customerId) {
     throw new Error("Stripe customerId is required for Checkout");
@@ -75,7 +75,7 @@ async function createBiologyProCheckoutSession({ user, customerId }) {
   const sessionParams = {
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: priceIdBiologyPro, quantity: 1 }],
+    line_items: [{ price: priceIdLetsRevisePro, quantity: 1 }],
     success_url: `${frontendUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${frontendUrl}/subscription/cancel`,
     client_reference_id: userId,
@@ -89,19 +89,19 @@ async function createBiologyProCheckoutSession({ user, customerId }) {
 }
 
 /**
- * Bind Stripe customer (if needed) and create Biology Pro Checkout Session.
+ * Bind Stripe customer (if needed) and create LetsRevise Pro Checkout Session.
  *
  * @param {import("mongoose").Document} user
  * @returns {Promise<import("stripe").Stripe.Checkout.Session>}
  */
-async function createBiologyProCheckoutForUser(user) {
+async function createLetsReviseProCheckoutForUser(user) {
   const customerId = await ensureStripeCustomerBound(user);
-  return createBiologyProCheckoutSession({ user, customerId });
+  return createLetsReviseProCheckoutSession({ user, customerId });
 }
 
 module.exports = {
   buildStripeCheckoutMetadata,
   ensureStripeCustomerBound,
-  createBiologyProCheckoutSession,
-  createBiologyProCheckoutForUser,
+  createLetsReviseProCheckoutSession,
+  createLetsReviseProCheckoutForUser,
 };
