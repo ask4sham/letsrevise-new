@@ -106,6 +106,29 @@ async function retrieveSubscription(subscriptionId) {
 }
 
 /**
+ * Resolve subscription id from Invoice webhook payloads.
+ * Supports legacy invoice.subscription and newer parent.subscription_details.subscription.
+ *
+ * @param {import("stripe").Stripe.Invoice} invoice
+ * @returns {string|null}
+ */
+function resolveInvoiceSubscriptionId(invoice) {
+  const topLevel =
+    typeof invoice.subscription === "string"
+      ? invoice.subscription
+      : invoice.subscription?.id ?? null;
+  if (topLevel) return topLevel;
+
+  const parentSub = invoice.parent?.subscription_details?.subscription;
+  if (typeof parentSub === "string" && parentSub.trim()) return parentSub.trim();
+  if (parentSub && typeof parentSub === "object" && parentSub.id) {
+    return String(parentSub.id);
+  }
+
+  return null;
+}
+
+/**
  * @param {import("stripe").Stripe.Checkout.Session} session
  */
 async function handleCheckoutSessionCompleted(session) {
@@ -174,8 +197,7 @@ async function handleSubscriptionLifecycle(subscription) {
  * @param {import("stripe").Stripe.Invoice} invoice
  */
 async function handleInvoicePaid(invoice) {
-  const subscriptionId =
-    typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
+  const subscriptionId = resolveInvoiceSubscriptionId(invoice);
   if (!subscriptionId) return;
 
   const subscription = await retrieveSubscription(subscriptionId);
@@ -216,8 +238,7 @@ async function handleInvoicePaid(invoice) {
  * @param {import("stripe").Stripe.Invoice} invoice
  */
 async function handleInvoicePaymentFailed(invoice) {
-  const subscriptionId =
-    typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
+  const subscriptionId = resolveInvoiceSubscriptionId(invoice);
   if (!subscriptionId) return;
 
   const subscription = await retrieveSubscription(subscriptionId);
