@@ -1,6 +1,56 @@
 const { LETSREVISE_PRO_PLAN_ID } = require("../config/stripe");
 
 /**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isUnixSeconds(value) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * Resolve subscription period end from legacy top-level or item-level Stripe shapes.
+ *
+ * @param {import("stripe").Stripe.Subscription} subscription
+ * @returns {number|null}
+ */
+function resolveSubscriptionCurrentPeriodEndUnix(subscription) {
+  if (isUnixSeconds(subscription.current_period_end)) {
+    return subscription.current_period_end;
+  }
+
+  const itemPeriodEnd = subscription.items?.data?.[0]?.current_period_end;
+  if (isUnixSeconds(itemPeriodEnd)) {
+    return itemPeriodEnd;
+  }
+
+  return null;
+}
+
+/**
+ * Resolve scheduled end-of-period cancellation from legacy or B6 Stripe shapes.
+ *
+ * @param {import("stripe").Stripe.Subscription} subscription
+ * @param {number|null} resolvedPeriodEndUnix
+ * @returns {boolean}
+ */
+function resolveSubscriptionCancelAtPeriodEnd(subscription, resolvedPeriodEndUnix) {
+  if (subscription.cancel_at_period_end === true) {
+    return true;
+  }
+
+  if (
+    isUnixSeconds(subscription.cancel_at) &&
+    isUnixSeconds(resolvedPeriodEndUnix) &&
+    subscription.cancel_at === resolvedPeriodEndUnix
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Stripe invoice timestamp for billing history (deterministic; never Date.now()).
  *
  * @param {import("stripe").Stripe.Invoice} invoice
@@ -58,16 +108,22 @@ function buildSubscriptionSnapshotSetFields(subscription, existingBilling = {}) 
       ? subscription.customer
       : subscription.customer?.id ?? existingBilling.customerId ?? null;
 
+  const periodEndUnix = resolveSubscriptionCurrentPeriodEndUnix(subscription);
+  const cancelAtPeriodEnd = resolveSubscriptionCancelAtPeriodEnd(
+    subscription,
+    periodEndUnix
+  );
+
   return {
     "stripeBilling.customerId": customerId,
     "stripeBilling.subscriptionId": subscription.id,
     "stripeBilling.priceId": priceId,
     "stripeBilling.planId": planId,
     "stripeBilling.status": subscription.status,
-    "stripeBilling.currentPeriodEnd": subscription.current_period_end
-      ? new Date(subscription.current_period_end * 1000)
+    "stripeBilling.currentPeriodEnd": periodEndUnix
+      ? new Date(periodEndUnix * 1000)
       : null,
-    "stripeBilling.cancelAtPeriodEnd": !!subscription.cancel_at_period_end,
+    "stripeBilling.cancelAtPeriodEnd": cancelAtPeriodEnd,
   };
 }
 
