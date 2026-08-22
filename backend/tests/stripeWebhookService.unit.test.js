@@ -17,6 +17,7 @@ const {
   handleInvoicePaid,
   handleStripeWebhookEvent,
 } = require("../services/stripeWebhookService");
+const { hasStripeLetsReviseProAccess } = require("../utils/stripeBillingAccess");
 
 describe("stripeWebhookService (B3)", () => {
   let userId;
@@ -267,6 +268,83 @@ describe("stripeWebhookService (B3)", () => {
     expect(user.stripeBilling.status).toBe("past_due");
     expect(user.stripeBilling.paidThrough).toBeFalsy();
     expect(user.stripeBilling.lastInvoicePaidAt).toBeFalsy();
+  });
+
+  test("invoice.payment_failed preserves existing paidThrough and lastInvoicePaidAt while syncing past_due lifecycle", async () => {
+    const existingPaidThrough = new Date(Date.now() + 30 * 86400000);
+    const existingLastInvoicePaidAt = new Date(Date.now() - 7 * 86400000);
+    const existingCurrentPeriodEnd = new Date(Date.now() + 30 * 86400000);
+    const syncedPeriodEndUnix = Math.floor(Date.now() / 1000) + 86400;
+
+    await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          "stripeBilling.planId": "letsrevise_pro",
+          "stripeBilling.status": "active",
+          "stripeBilling.customerId": "cus_webhook_unit",
+          "stripeBilling.subscriptionId": "sub_parent_failed_preserve",
+          "stripeBilling.paidThrough": existingPaidThrough,
+          "stripeBilling.lastInvoicePaidAt": existingLastInvoicePaidAt,
+          "stripeBilling.currentPeriodEnd": existingCurrentPeriodEnd,
+          "stripeBilling.cancelAtPeriodEnd": false,
+        },
+      }
+    );
+
+    mockRetrieve.mockResolvedValue({
+      id: "sub_parent_failed_preserve",
+      customer: "cus_webhook_unit",
+      status: "past_due",
+      cancel_at_period_end: false,
+      metadata: { letsReviseUserId: String(userId), planId: "letsrevise_pro" },
+      items: {
+        data: [
+          {
+            current_period_end: syncedPeriodEndUnix,
+            price: { id: "price_test" },
+          },
+        ],
+      },
+    });
+
+    const updateOneSpy = jest.spyOn(User, "updateOne");
+
+    await handleStripeWebhookEvent({
+      id: "evt_payment_failed_preserve_paidthrough",
+      type: "invoice.payment_failed",
+      data: {
+        object: {
+          id: "in_failed_preserve_paidthrough",
+          parent: {
+            subscription_details: {
+              subscription: "sub_parent_failed_preserve",
+            },
+          },
+        },
+      },
+    });
+
+    expect(mockRetrieve).toHaveBeenCalledWith("sub_parent_failed_preserve");
+    expect(updateOneSpy).not.toHaveBeenCalled();
+    updateOneSpy.mockRestore();
+
+    const user = await User.findById(userId).lean();
+    expect(user.stripeBilling.status).toBe("past_due");
+    expect(user.stripeBilling.paidThrough).toEqual(existingPaidThrough);
+    expect(user.stripeBilling.lastInvoicePaidAt).toEqual(existingLastInvoicePaidAt);
+    expect(user.stripeBilling.currentPeriodEnd).toEqual(new Date(syncedPeriodEndUnix * 1000));
+    expect(user.stripeBilling.cancelAtPeriodEnd).toBe(false);
+    expect(hasStripeLetsReviseProAccess(user)).toBe(true);
+
+    expect(
+      hasStripeLetsReviseProAccess({
+        stripeBilling: {
+          ...user.stripeBilling,
+          paidThrough: new Date(Date.now() - 1000),
+        },
+      })
+    ).toBe(false);
   });
 
   test("duplicate processed webhook does not mutate again", async () => {
