@@ -5,9 +5,10 @@ jest.mock("../config/stripe", () => ({
   LETSREVISE_PRO_PLAN_ID: "letsrevise_pro",
   getStripeConfig: jest.fn(),
   getStripeClient: jest.fn(),
+  assertLetsReviseProPriceForCheckout: jest.fn(),
 }));
 
-const { getStripeConfig, getStripeClient } = require("../config/stripe");
+const { getStripeConfig, getStripeClient, assertLetsReviseProPriceForCheckout } = require("../config/stripe");
 const {
   buildStripeCheckoutMetadata,
   createLetsReviseProCheckoutSession,
@@ -26,6 +27,7 @@ describe("stripeCheckoutService (B2/B4)", () => {
       priceIdLetsRevisePro: "price_test_letsrevise_pro_499",
       frontendUrl: "https://app.letsrevise.test",
     });
+    assertLetsReviseProPriceForCheckout.mockResolvedValue(undefined);
     getStripeClient.mockReturnValue({
       checkout: { sessions: { create: mockCreate, list: mockList } },
     });
@@ -190,6 +192,31 @@ describe("stripeCheckoutService (B2/B4)", () => {
 
     expect(session.id).toBe("cs_open_pro");
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  test("createLetsReviseProCheckoutForUser validates price before open-session reuse", async () => {
+    mockList.mockResolvedValue({
+      data: [
+        {
+          id: "cs_open_pro",
+          url: "https://checkout.stripe.com/c/pay/cs_open_pro",
+          mode: "subscription",
+          metadata: { planId: "letsrevise_pro", letsReviseUserId: userId },
+        },
+      ],
+    });
+
+    const user = {
+      _id: userId,
+      stripeBilling: { customerId: "cus_test_bound" },
+    };
+
+    await createLetsReviseProCheckoutForUser(user);
+
+    expect(assertLetsReviseProPriceForCheckout).toHaveBeenCalledTimes(1);
+    expect(assertLetsReviseProPriceForCheckout.mock.invocationCallOrder[0]).toBeLessThan(
+      mockList.mock.invocationCallOrder[0]
+    );
   });
 
   test("createLetsReviseProCheckoutForUser creates new session when none open", async () => {

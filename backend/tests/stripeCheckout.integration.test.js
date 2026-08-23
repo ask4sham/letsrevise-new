@@ -8,6 +8,7 @@ jest.mock("../config/stripe", () => {
     ...actual,
     isStripeCheckoutConfigured: jest.fn(),
     getStripeClient: jest.fn(),
+    assertLetsReviseProPriceForCheckout: jest.fn(),
   };
 });
 
@@ -15,7 +16,12 @@ const request = require("supertest");
 const bcrypt = require("bcryptjs");
 const app = require("../app");
 const User = require("../models/User");
-const { isStripeCheckoutConfigured, getStripeClient } = require("../config/stripe");
+const {
+  isStripeCheckoutConfigured,
+  getStripeClient,
+  assertLetsReviseProPriceForCheckout,
+  StripeBillingError,
+} = require("../config/stripe");
 
 describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
   let token;
@@ -64,6 +70,7 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
     process.env.STRIPE_PRICE_ID_LETSREVISE_PRO = "price_test_letsrevise_pro_499";
     process.env.FRONTEND_URL = "https://app.letsrevise.test";
     isStripeCheckoutConfigured.mockReturnValue(true);
+    assertLetsReviseProPriceForCheckout.mockResolvedValue(undefined);
     getStripeClient.mockReturnValue({
       customers: { create: mockCustomerCreate },
       checkout: { sessions: { create: mockSessionCreate, list: mockSessionList } },
@@ -207,6 +214,55 @@ describe("POST /api/subscriptions/create-checkout-session (B2)", () => {
       status: "open",
       limit: 10,
     });
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+
+  test("503 BILLING_TEMPORARILY_UNAVAILABLE when price validation fails", async () => {
+    assertLetsReviseProPriceForCheckout.mockRejectedValue(
+      new StripeBillingError(
+        "BILLING_TEMPORARILY_UNAVAILABLE",
+        "Billing is temporarily unavailable. Please try again shortly."
+      )
+    );
+
+    const res = await request(app)
+      .post("/api/subscriptions/create-checkout-session")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe("BILLING_TEMPORARILY_UNAVAILABLE");
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+
+  test("503 STRIPE_PRICE_VALIDATION_FAILED blocks open-session reuse", async () => {
+    mockSessionList.mockResolvedValue({
+      data: [
+        {
+          id: "cs_test_existing_open",
+          url: "https://checkout.stripe.com/c/pay/cs_test_existing_open",
+          mode: "subscription",
+          metadata: {
+            planId: "letsrevise_pro",
+            letsReviseUserId: String(existingCustomerUserId),
+          },
+        },
+      ],
+    });
+    assertLetsReviseProPriceForCheckout.mockRejectedValue(
+      new StripeBillingError(
+        "STRIPE_PRICE_VALIDATION_FAILED",
+        "Billing is temporarily unavailable. Please contact support if this continues."
+      )
+    );
+
+    const res = await request(app)
+      .post("/api/subscriptions/create-checkout-session")
+      .set("Authorization", `Bearer ${existingCustomerToken}`)
+      .send({});
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe("STRIPE_PRICE_VALIDATION_FAILED");
     expect(mockSessionCreate).not.toHaveBeenCalled();
   });
 

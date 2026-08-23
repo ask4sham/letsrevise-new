@@ -3,12 +3,23 @@ const router = express.Router();
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { sendInternalError } = require('../utils/safeErrorResponse');
-const { isStripeCheckoutConfigured } = require('../config/stripe');
+const { isStripeCheckoutConfigured, StripeBillingError } = require('../config/stripe');
 const { createLetsReviseProCheckoutForUser } = require('../services/stripeCheckoutService');
 const { createLetsReviseProPortalSession } = require('../services/stripePortalService');
 const { findForbiddenClientBillingKeys } = require('../utils/rejectClientBillingInput');
 const { findForbiddenPortalClientBillingKeys } = require('../utils/rejectPortalClientBillingInput');
 const { hasStripeLetsReviseProAccess } = require('../utils/stripeBillingAccess');
+
+function respondStripeBillingError(res, err) {
+  if (err instanceof StripeBillingError) {
+    return res.status(503).json({
+      success: false,
+      code: err.code,
+      msg: err.userMessage,
+    });
+  }
+  return null;
+}
 
 // @route   GET api/subscriptions/plans
 // @desc    Get available subscription plans
@@ -301,6 +312,8 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       planId: 'letsrevise_pro',
     });
   } catch (err) {
+    const billingResponse = respondStripeBillingError(res, err);
+    if (billingResponse) return billingResponse;
     return sendInternalError('subscriptions/create-checkout-session', err, res);
   }
 });
@@ -349,6 +362,8 @@ router.post('/create-portal-session', auth, async (req, res) => {
       url: session.url,
     });
   } catch (err) {
+    const billingResponse = respondStripeBillingError(res, err);
+    if (billingResponse) return billingResponse;
     return sendInternalError('subscriptions/create-portal-session', err, res);
   }
 });
