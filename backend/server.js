@@ -134,6 +134,15 @@ async function startServer(options = {}) {
   } catch (e) {
     console.warn("[specTopicRegistry] cache refresh skipped:", e?.message || e);
   }
+  try {
+    const { validateStripeBillingConfigAtStartup } = require("./config/stripe");
+    validateStripeBillingConfigAtStartup();
+    console.log("[stripe] billing config validated (local only)");
+  } catch (err) {
+    console.error("[stripe] FATAL: billing configuration invalid:", err?.message || err);
+    exitFn(1);
+    return null;
+  }
   return listenImpl(port);
 }
 

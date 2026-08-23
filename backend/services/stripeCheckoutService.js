@@ -1,5 +1,6 @@
 const {
   LETSREVISE_PRO_PLAN_ID,
+  assertLetsReviseProPriceForCheckout,
   getStripeClient,
   getStripeConfig,
 } = require("../config/stripe");
@@ -127,6 +128,7 @@ async function createLetsReviseProCheckoutSession({ user, customerId }) {
  * @returns {Promise<import("stripe").Stripe.Checkout.Session>}
  */
 async function createLetsReviseProCheckoutForUser(user) {
+  await assertLetsReviseProPriceForCheckout();
   const customerId = await ensureStripeCustomerBound(user);
   const existingOpenSession = await findOpenLetsReviseProCheckoutSession({
     customerId,

@@ -1,4 +1,8 @@
-const { getStripeClient, getStripeConfig, isStripeWebhookConfigured } = require("../config/stripe");
+const {
+  constructStripeWebhookEvent,
+  isStripeLiveModeEnabled,
+  isStripeWebhookConfigured,
+} = require("../config/stripe");
 const { handleStripeWebhookEvent } = require("../services/stripeWebhookService");
 
 /**
@@ -26,18 +30,24 @@ async function stripeWebhookHandler(req, res) {
 
   let event;
   try {
-    const stripe = getStripeClient();
-    const { webhookSecret } = getStripeConfig();
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    event = constructStripeWebhookEvent(rawBody, signature);
   } catch (err) {
     return res.status(400).json({ success: false, msg: `Webhook signature verification failed: ${err.message}` });
   }
 
-  if (event.livemode === true) {
+  const liveModeEnabled = isStripeLiveModeEnabled();
+  if (event.livemode !== liveModeEnabled) {
+    if (event.livemode === true) {
+      return res.status(403).json({
+        success: false,
+        code: "STRIPE_LIVE_EVENT_BLOCKED",
+        msg: "Live Stripe webhook events are not permitted until explicit go-live",
+      });
+    }
     return res.status(403).json({
       success: false,
-      code: "STRIPE_LIVE_EVENT_BLOCKED",
-      msg: "Live Stripe webhook events are not permitted until explicit go-live",
+      code: "STRIPE_TEST_EVENT_BLOCKED",
+      msg: "Test Stripe webhook events are not permitted when live mode is enabled",
     });
   }
 
