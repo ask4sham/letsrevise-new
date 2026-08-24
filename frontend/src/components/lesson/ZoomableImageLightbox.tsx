@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 import { makeAbsoluteAssetUrl, resolveFullResolutionImageUrlForLightbox } from "../../utils/assetUrl";
+import { lockBodyScroll } from "../../utils/bodyScrollLock";
 import "./ZoomableImageLightbox.css";
 
 const MIN_SCALE = 1;
@@ -70,13 +71,7 @@ export function ZoomableImageLightbox({ src, alt = "", onClose, gallery }: Light
     resetView();
   }, [src, gallery?.activeIndex, resetView]);
 
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  useEffect(() => lockBodyScroll(), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -80,4 +80,3 @@ describe("PracticeItemCard", () => {
     expect(screen.getByTestId("practice-answer-option-2")).toHaveAttribute("data-correct", "true");
   });
 });
-

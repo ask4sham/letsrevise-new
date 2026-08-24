@@ -1,99 +1,122 @@
-// Admin AI Generation Jobs routes (placeholder — not wired yet)
-// This admin router mirrors the public AI generation jobs namespace and is
-// intended for oversight/moderation access; all handlers are placeholders for now.
-// Admin endpoints are expected to bypass subscription/entitlement checks by design,
-// consistent with other admin routes; no such enforcement exists here yet.
+// Admin AI Generation Jobs — oversight/moderation.
+// Mount MUST apply auth + checkAdmin (see admin.js). No ownership filter for admins.
 
 const express = require("express");
-const { requireAiJobAccess } = require("../middleware");
+const mongoose = require("mongoose");
 const AiGenerationJob = require("../models/AiGenerationJob");
-
-// Future intended admin endpoints (documentation only, no handlers yet):
-// - GET /             (list all jobs across users/types)
-// - GET /:id          (inspect a specific job)
-// - POST /:id/cancel  (force cancel a job)
-// - POST /:id/retry   (admin-triggered retry)
 
 const router = express.Router();
 
-// Global AI job access-control hook (no-op for now) shared with public routes.
-router.use(requireAiJobAccess);
+function jobNotFound(res) {
+  return res.status(404).json({ error: "Job not found" });
+}
 
-// Minimal admin endpoint: list up to 50 AI generation jobs across users for admin oversight.
+function isInvalidJobId(id) {
+  return !mongoose.isValidObjectId(id);
+}
+
+// List up to 50 AI generation jobs across users for admin oversight.
 router.get("/", async (req, res) => {
-  const jobs = await AiGenerationJob.find({})
-    .sort({ createdAt: -1 })
-    .limit(50)
-    .select(
-      "type status requestedByUserId createdAt updatedAt startedAt finishedAt error"
+  try {
+    const jobs = await AiGenerationJob.find({})
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .select(
+        "type status requestedByUserId createdAt updatedAt startedAt finishedAt error"
+      );
+
+    return res.status(200).json({ jobs });
+  } catch (err) {
+    console.error("Error listing admin AI generation jobs:", err);
+    return res.status(500).json({ error: "Failed to list AI generation jobs" });
+  }
+});
+
+// Return a single AI generation job by id for admin oversight.
+router.get("/:id", async (req, res) => {
+  try {
+    if (isInvalidJobId(req.params.id)) return jobNotFound(res);
+
+    const job = await AiGenerationJob.findOne({ _id: req.params.id }).select(
+      "type status requestedByUserId input output error createdAt updatedAt startedAt finishedAt"
     );
 
-  return res.status(200).json({ jobs });
-});
+    if (!job) {
+      return jobNotFound(res);
+    }
 
-// Minimal admin endpoint: return a single AI generation job by id for admin oversight.
-router.get("/:id", async (req, res) => {
-  const job = await AiGenerationJob.findOne({ _id: req.params.id }).select(
-    "type status requestedByUserId input output error createdAt updatedAt startedAt finishedAt"
-  );
-
-  if (!job) {
-    return res.status(404).json({ error: "Job not found" });
+    return res.status(200).json({ job });
+  } catch (err) {
+    if (err && err.name === "CastError") return jobNotFound(res);
+    console.error("Error reading admin AI generation job:", err);
+    return res.status(500).json({ error: "Failed to read AI generation job" });
   }
-
-  return res.status(200).json({ job });
 });
 
-// Minimal admin endpoint: cancel an AI generation job by id (admin override, DB update only).
+// Cancel an AI generation job by id (admin override, DB update only).
 router.post("/:id/cancel", async (req, res) => {
-  const job = await AiGenerationJob.findOne({
-    _id: req.params.id,
-  });
+  try {
+    if (isInvalidJobId(req.params.id)) return jobNotFound(res);
 
-  if (!job) {
-    return res.status(404).json({ error: "Job not found" });
+    const job = await AiGenerationJob.findOne({
+      _id: req.params.id,
+    });
+
+    if (!job) {
+      return jobNotFound(res);
+    }
+
+    if (!["QUEUED", "RUNNING"].includes(job.status)) {
+      return res.status(400).json({ error: "Job cannot be cancelled" });
+    }
+
+    job.status = "CANCELLED";
+    job.finishedAt = new Date();
+    await job.save();
+
+    return res.status(200).json({
+      jobId: job._id,
+      status: job.status,
+    });
+  } catch (err) {
+    if (err && err.name === "CastError") return jobNotFound(res);
+    console.error("Error cancelling admin AI generation job:", err);
+    return res.status(500).json({ error: "Failed to cancel AI generation job" });
   }
-
-  if (!["QUEUED", "RUNNING"].includes(job.status)) {
-    return res.status(400).json({ error: "Job cannot be cancelled" });
-  }
-
-  job.status = "CANCELLED";
-  job.finishedAt = new Date();
-  await job.save();
-
-  return res.status(200).json({
-    jobId: job._id,
-    status: job.status,
-  });
 });
 
-// Minimal admin endpoint: retry a FAILED AI generation job by resetting it to QUEUED (DB update only).
+// Retry a FAILED AI generation job by resetting it to QUEUED (DB update only).
 router.post("/:id/retry", async (req, res) => {
-  const job = await AiGenerationJob.findOne({ _id: req.params.id });
+  try {
+    if (isInvalidJobId(req.params.id)) return jobNotFound(res);
 
-  if (!job) {
-    return res.status(404).json({ error: "Job not found" });
+    const job = await AiGenerationJob.findOne({ _id: req.params.id });
+
+    if (!job) {
+      return jobNotFound(res);
+    }
+
+    if (job.status !== "FAILED") {
+      return res.status(400).json({ error: "Job cannot be retried" });
+    }
+
+    job.status = "QUEUED";
+    job.startedAt = null;
+    job.finishedAt = null;
+    job.error = null;
+    job.output = null;
+
+    await job.save();
+
+    return res.status(200).json({
+      jobId: job._id,
+      status: job.status,
+    });
+  } catch (err) {
+    if (err && err.name === "CastError") return jobNotFound(res);
+    console.error("Error retrying admin AI generation job:", err);
+    return res.status(500).json({ error: "Failed to retry AI generation job" });
   }
-
-  if (job.status !== "FAILED") {
-    return res.status(400).json({ error: "Job cannot be retried" });
-  }
-
-  job.status = "QUEUED";
-  job.startedAt = null;
-  job.finishedAt = null;
-  job.error = null;
-  job.output = null;
-
-  await job.save();
-
-  return res.status(200).json({
-    jobId: job._id,
-    status: job.status,
-  });
 });
 
 module.exports = router;
-
-

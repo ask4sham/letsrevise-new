@@ -3,6 +3,7 @@
  * Student view only — does not mutate lesson.quiz in the database.
  */
 import { deriveLessonRetrieval } from "./deriveLessonRetrieval";
+import { collectInlineActivityFingerprints } from "./activityQuestionsFromBlock";
 import {
   buildQuizVariantsFromCheckpoints,
   buildEndOfLessonVariantsFromCheckpoints,
@@ -153,6 +154,16 @@ function conflictsQuizLayer(
   );
 }
 
+function conflictsInlineActivity(
+  q: LayerQuizQuestion,
+  inlineFingerprints: Set<string>
+): boolean {
+  const fp = mcqFingerprintFromRecord(q);
+  if (inlineFingerprints.has(fp)) return true;
+  const stemOnly = `stem:${normalizeQuestionStem(q.question)}`;
+  return inlineFingerprints.has(stemOnly);
+}
+
 /** Revision practice: topic-bank / AI first, then checkpoint-derived variants — never raw checkpoint clones. */
 export function buildRevisionPracticePool(
   pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>,
@@ -160,6 +171,7 @@ export function buildRevisionPracticePool(
   max = 5
 ): LayerQuizQuestion[] {
   const checkpoints = collectCheckpointMcqsFromPages(pages);
+  const inlineFingerprints = collectInlineActivityFingerprints(pages);
   const derived = deriveLessonRetrieval(pages);
   const seen = new Set<string>();
   const out: LayerQuizQuestion[] = [];
@@ -170,6 +182,7 @@ export function buildRevisionPracticePool(
     if (isPageQuizTagged(bankFiltered[i])) continue;
     const layer = recordToLayer(bankFiltered[i], inferStoredSource(bankFiltered[i]), "rev-bank", i);
     if (!layer || conflictsCheckpoint(layer, checkpoints)) continue;
+    if (conflictsInlineActivity(layer, inlineFingerprints)) continue;
     pushUnique(out, seen, layer);
   }
 

@@ -12,6 +12,9 @@ const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
 const { validatePasswordStrength } = require("../utils/passwordStrength");
 const { sendInternalError, IS_PRODUCTION } = require("../utils/safeErrorResponse");
+const { CURRENT_USER_PROJECTION, toCurrentUserDto } = require("../utils/userResponse");
+const { sendResendEmail } = require("../services/resendEmailService");
+const { recordLoginSuccess } = require("../utils/recordLoginSuccess");
 
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -94,9 +97,6 @@ async function sendParentLinkEmail({ to, parentName, approveUrl, rejectUrl }) {
     return;
   }
 
-  const { Resend } = require("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
-
   const subject = `${parentName} wants to link as your parent`;
 
   const html = `
@@ -117,11 +117,14 @@ async function sendParentLinkEmail({ to, parentName, approveUrl, rejectUrl }) {
     </div>
   `;
 
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
-    to,
-    subject,
-    html,
+  await sendResendEmail({
+    apiKey: process.env.RESEND_API_KEY,
+    payload: {
+      from: process.env.RESEND_FROM_EMAIL,
+      to,
+      subject,
+      html,
+    },
   });
 }
 
@@ -132,8 +135,6 @@ async function sendPasswordResetEmail({ to, firstName, resetUrl, expiresInHours 
     console.log("📧 Password reset email (DEV LOG ONLY):", { to, resetUrl });
     return;
   }
-  const { Resend } = require("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = "Reset your LetsRevise password";
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -148,11 +149,14 @@ async function sendPasswordResetEmail({ to, firstName, resetUrl, expiresInHours 
       <p>This link expires in ${expiresInHours} hour${expiresInHours !== 1 ? "s" : ""}. If you didn't request this, you can safely ignore this email.</p>
     </div>
   `;
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
-    to,
-    subject,
-    html,
+  await sendResendEmail({
+    apiKey: process.env.RESEND_API_KEY,
+    payload: {
+      from: process.env.RESEND_FROM_EMAIL,
+      to,
+      subject,
+      html,
+    },
   });
 }
 
@@ -162,8 +166,6 @@ async function sendEmailChangeVerification({ to, confirmUrl, expiresInHours }) {
     console.log("📧 Email change verification (DEV LOG ONLY):", { to, confirmUrl });
     return;
   }
-  const { Resend } = require("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = "Confirm your new email address";
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -177,11 +179,14 @@ async function sendEmailChangeVerification({ to, confirmUrl, expiresInHours }) {
       <p>This link expires in ${expiresInHours} hour${expiresInHours !== 1 ? "s" : ""}. If you didn't request this, you can safely ignore this email.</p>
     </div>
   `;
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
-    to,
-    subject,
-    html,
+  await sendResendEmail({
+    apiKey: process.env.RESEND_API_KEY,
+    payload: {
+      from: process.env.RESEND_FROM_EMAIL,
+      to,
+      subject,
+      html,
+    },
   });
 }
 
@@ -192,8 +197,6 @@ async function sendVerificationEmail({ to, firstName, verifyUrl }) {
     console.log("📧 Verification email (DEV LOG ONLY):", { to, verifyUrl });
     return;
   }
-  const { Resend } = require("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = "Verify your LetsRevise account";
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -208,11 +211,14 @@ async function sendVerificationEmail({ to, firstName, verifyUrl }) {
       <p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
     </div>
   `;
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
-    to,
-    subject,
-    html,
+  await sendResendEmail({
+    apiKey: process.env.RESEND_API_KEY,
+    payload: {
+      from: process.env.RESEND_FROM_EMAIL,
+      to,
+      subject,
+      html,
+    },
   });
 }
 
@@ -913,6 +919,9 @@ router.post(
             console.log(`[auth/login] success userId=${user._id} userType=${user.userType}`);
           }
 
+          const loggedInAt = new Date();
+          recordLoginSuccess({ user, loggedInAt });
+
           res.json({
             token,
             user: buildAuthUserPayload(user),
@@ -1131,7 +1140,7 @@ router.get("/user", async (req, res) => {
       return res.status(401).json({ msg: "Token valid but user id missing in payload" });
     }
 
-    const user = await User.findById(userId).select("-password");
+    const user = await User.findById(userId).select(CURRENT_USER_PROJECTION).lean();
     if (!user) {
       return res.status(401).json({ msg: "User not found" });
     }
@@ -1142,8 +1151,7 @@ router.get("/user", async (req, res) => {
       });
     }
 
-    // ✅ Ensure yearGroup + stageKey are returned for gating
-    res.json(user);
+    res.json(toCurrentUserDto(user));
   } catch (err) {
     console.error(err.message);
     return res.status(401).json({ msg: "Token is not valid" });

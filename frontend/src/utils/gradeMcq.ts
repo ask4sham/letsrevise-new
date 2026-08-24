@@ -283,6 +283,125 @@ export function gradeMcq(
   };
 }
 
+/** Shown when no educational rationale exists (never bare option text). */
+export const NEUTRAL_WHY_CORRECT =
+  "The selected response matches the correct answer.";
+
+export function normalizeFeedbackText(text: string): string {
+  return String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Administrative marking lines — identify marks / acceptance, not biology. */
+export function isAdministrativeMarkingLine(text: string): boolean {
+  const t = normalizeFeedbackText(text);
+  if (!t) return true;
+  return (
+    /^award\s+\d+\s+marks?\b/i.test(t) ||
+    /^\d+\s+marks?\s+for\b/i.test(t) ||
+    /^accept\b/i.test(t) ||
+    /^do\s+not\s+accept\b/i.test(t) ||
+    /^correct\s+answer\s*:/i.test(t) ||
+    /^select(?:ing|ed)?\s+(?:option\s+)?[a-d]\b/i.test(t) ||
+    /^award\s+1\s+mark\s+for\s+selecting\b/i.test(t)
+  );
+}
+
+/**
+ * True when text is just the correct option / option label, not an explanation.
+ * e.g. "Light", "C", "Option C", "C — Light".
+ */
+export function isBareCorrectOptionText(
+  text: string,
+  correctOption?: string
+): boolean {
+  const t = normalizeFeedbackText(text);
+  if (!t) return true;
+  const opt = normalizeFeedbackText(correctOption || "");
+
+  if (opt && t.toLowerCase() === opt.toLowerCase()) return true;
+  if (/^option\s*[a-d]$/i.test(t) || /^[a-d]$/i.test(t)) return true;
+
+  const labeled = t.match(/^(?:option\s*)?([a-d])\s*[—\-–:]\s*(.+)$/i);
+  if (labeled) {
+    const rest = normalizeFeedbackText(labeled[2] || "");
+    if (!rest) return true;
+    if (opt && rest.toLowerCase() === opt.toLowerCase()) return true;
+  }
+
+  const declared = t.match(
+    /^correct\s+answer\s*:\s*(?:[a-d]\s*[—\-–:]\s*)?(.+)$/i
+  );
+  if (declared) {
+    const rest = normalizeFeedbackText(declared[1] || "");
+    if (!rest) return true;
+    if (opt && rest.toLowerCase() === opt.toLowerCase()) return true;
+    if (/^[a-d]$/i.test(rest) || /^option\s*[a-d]$/i.test(rest)) return true;
+  }
+
+  return false;
+}
+
+/** Educational rationale suitable for "Why this is correct". */
+export function isSubstantiveWhyCorrectText(
+  text: string,
+  correctOption?: string
+): boolean {
+  const t = normalizeFeedbackText(text);
+  if (!t) return false;
+  if (isAdministrativeMarkingLine(t)) return false;
+  if (isBareCorrectOptionText(t, correctOption)) return false;
+  // Too short to be a useful classroom explanation.
+  if (t.length < 12) return false;
+  return true;
+}
+
+function uniqueWhyCorrectParts(parts: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of parts) {
+    const t = normalizeFeedbackText(raw);
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
+function resolveWhyCorrectText(input: {
+  explanation?: string;
+  whyCorrectRationaleParts: string[];
+  teachingLines: string[];
+  correctOption?: string;
+}): string {
+  const correctOption = input.correctOption;
+  const ordered: string[] = [];
+
+  const expl = normalizeFeedbackText(input.explanation || "");
+  if (isSubstantiveWhyCorrectText(expl, correctOption)) {
+    ordered.push(expl);
+  }
+
+  for (const part of input.whyCorrectRationaleParts) {
+    if (isSubstantiveWhyCorrectText(part, correctOption)) {
+      ordered.push(normalizeFeedbackText(part));
+    }
+  }
+
+  for (const line of input.teachingLines) {
+    if (isSubstantiveWhyCorrectText(line, correctOption)) {
+      ordered.push(normalizeFeedbackText(line));
+    }
+  }
+
+  const unique = uniqueWhyCorrectParts(ordered);
+  if (unique.length > 0) return unique.join("\n\n");
+  return NEUTRAL_WHY_CORRECT;
+}
+
 function parseMarkSchemeMcqLines(markScheme: string[]): {
   whyCorrectParts: string[];
   wrongByLabel: Map<string, string>;
@@ -298,8 +417,8 @@ function parseMarkSchemeMcqLines(markScheme: string[]): {
 
     const correctMatch = line.match(CORRECT_ANSWER_LINE_RE);
     if (correctMatch) {
-      const trailing = (correctMatch[2] || "").trim();
-      if (trailing) whyCorrectParts.push(trailing);
+      // Answer declaration only (e.g. "Correct answer: C — Light").
+      // Do not treat the trailing option text as a whyCorrect explanation.
       continue;
     }
 
@@ -348,12 +467,22 @@ export function buildMcqFeedback(input: {
   const { whyCorrectParts, wrongByLabel, teachingLines } = parseMarkSchemeMcqLines(lines);
 
   const expl = String(explanation ?? "").trim();
-  if (expl) whyCorrectParts.unshift(expl);
+  const correctOption = normalizeFeedbackText(
+    grade.correctOption || correctAnswer || ""
+  );
 
-  const ca = String(correctAnswer ?? "").trim();
-  if (ca && !whyCorrectParts.length) whyCorrectParts.push(ca);
+  // Keep a filtered list for incorrect-path revise/memory helpers (no bare option dump).
+  const substantiveWhyParts = uniqueWhyCorrectParts([
+    ...(isSubstantiveWhyCorrectText(expl, correctOption) ? [expl] : []),
+    ...whyCorrectParts.filter((p) => isSubstantiveWhyCorrectText(p, correctOption)),
+  ]);
 
-  const whyCorrect = whyCorrectParts.filter(Boolean).join("\n\n") || undefined;
+  const whyCorrect = resolveWhyCorrectText({
+    explanation: expl,
+    whyCorrectRationaleParts: whyCorrectParts,
+    teachingLines,
+    correctOption,
+  });
 
   const wrongOptionExplanations: McqOptionExplanation[] = [];
   options.forEach((opt, i) => {
@@ -394,7 +523,7 @@ export function buildMcqFeedback(input: {
       grade,
       whySelectedWrong,
       explanation: expl,
-      whyCorrectParts,
+      whyCorrectParts: substantiveWhyParts,
       markSchemeTeachingLines: teachingLines,
     });
     improvementTip = reviseTeaching
@@ -405,7 +534,7 @@ export function buildMcqFeedback(input: {
       markScheme: lines,
       memoryRule: explicitMemoryRule,
       teachingLines,
-      whyCorrectParts,
+      whyCorrectParts: substantiveWhyParts,
       explanation: expl,
       whySelectedWrong,
     });

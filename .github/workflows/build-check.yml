@@ -2,60 +2,138 @@ name: Build Integrity Check
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   check:
-    runs-on: windows-latest  # Uses Windows because your project is on Windows
-    
+    name: check
+    runs-on: windows-latest
+    timeout-minutes: 10
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        
-    - name: Install dependencies (Frontend)
-      run: |
-        cd frontend
-        npm ci
-        
-    - name: Install dependencies (Backend)
-      run: |
-        cd backend
-        npm ci
-        
-    - name: Run Build Integrity Check
-      run: node check-build.js || true
-      
-    - name: Run Frontend Lint Check
-      run: |
-        cd frontend
-        npm run lint || true
-      env:
-        CI: false
-        
-    - name: Run Security Audit
-      run: |
-        cd frontend && npm audit --audit-level=high || true
-        cd ../backend && npm audit --audit-level=high || true
-        
-    - name: Check for old brand references
-      shell: powershell
-      run: |
-        $ErrorActionPreference = 'SilentlyContinue'
-        echo "Checking for old brand references..."
-        $found = $false
-        Get-ChildItem -Path "frontend\src", "backend", "static-site" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -notmatch '\.(backup|bak)$' } | ForEach-Object {
-          if (Select-String -Path $_.FullName -Pattern "Let's Revise|Lets Revise|let's revise" -Quiet) {
-            Write-Host "❌ Found old brand reference in $($_.FullName)"
-            $found = $true
-          }
-        }
-        if ($found) { exit 1 }
-        Write-Host "✅ No old brand references found"
-        exit 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install dependencies (Frontend)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install dependencies (Backend)
+        working-directory: backend
+        run: npm ci
+
+      - name: Run Build Integrity Check
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          node check-build.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check for old brand references
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Write-Host "Checking for old brand references..."
+          $found = $false
+          $roots = @("frontend\src", "backend", "static-site") | Where-Object { Test-Path $_ }
+          Get-ChildItem -Path $roots -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -notmatch '\.(backup|bak)$' } |
+            ForEach-Object {
+              if (Select-String -Path $_.FullName -Pattern "Let's Revise|Lets Revise|let's revise" -Quiet -ErrorAction SilentlyContinue) {
+                Write-Host "Found old brand reference in $($_.FullName)"
+                $found = $true
+              }
+            }
+          if ($found) { exit 1 }
+          Write-Host "No old brand references found"
+
+  advisory:
+    name: "Advisory: lint and dependency audit"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install dependencies (Frontend)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install dependencies (Backend)
+        working-directory: backend
+        run: npm ci
+
+      - name: Frontend lint (advisory)
+        id: fe_lint
+        continue-on-error: true
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Backend lint (advisory)
+        id: be_lint
+        continue-on-error: true
+        working-directory: backend
+        run: npm run lint
+
+      - name: Frontend npm audit high (advisory)
+        id: fe_audit
+        continue-on-error: true
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Backend npm audit high (advisory)
+        id: be_audit
+        continue-on-error: true
+        working-directory: backend
+        run: npm audit --audit-level=high
+
+      - name: Advisory summary
+        if: always()
+        env:
+          FE_LINT: ${{ steps.fe_lint.outcome }}
+          BE_LINT: ${{ steps.be_lint.outcome }}
+          FE_AUDIT: ${{ steps.fe_audit.outcome }}
+          BE_AUDIT: ${{ steps.be_audit.outcome }}
+        run: |
+          {
+            echo "## Advisory: lint and dependency audit"
+            echo ""
+            echo "These checks are **advisory**. Failures here do **not** certify a clean lint or dependency state, and they do not block merge by themselves."
+            echo ""
+            echo "| Step | Outcome |"
+            echo "| --- | --- |"
+            echo "| Frontend lint | ${FE_LINT} |"
+            echo "| Backend lint | ${BE_LINT} |"
+            echo "| Frontend npm audit (high) | ${FE_AUDIT} |"
+            echo "| Backend npm audit (high) | ${BE_AUDIT} |"
+          } >> "$GITHUB_STEP_SUMMARY"

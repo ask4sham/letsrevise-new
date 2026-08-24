@@ -29,6 +29,8 @@ function mcqPart(label = "a") {
       "Meiosis always occurs before fertilisation",
     ],
     correctIndex: 1,
+    explanation:
+      "Asexual reproduction involves one parent and produces genetically identical offspring through mitosis.",
     markSchemeLines: [
       "Award 1 mark for selecting Option B (offspring from one parent / genetically identical).",
     ],
@@ -118,6 +120,8 @@ function validHardDraft() {
           "Meiosis increases mutation rate in every tuber generation",
         ],
         correctIndex: 0,
+        explanation:
+          "Asexual offspring are clones, so they share the same alleles and are all vulnerable to the same pathogen.",
         markSchemeLines: [
           "Award 1 mark for selecting Option A (clones / identical genetics / shared susceptibility).",
         ],

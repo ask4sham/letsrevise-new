@@ -23,9 +23,10 @@ export type InteractiveSequenceStepPersisted = {
   title: string;
   description: string;
   imageUrl: string;
-  caption: string;
+  caption?: string;
   /** Optional — AssessmentFeedback explanation after reveal (with caption as key idea). */
   testExplanation?: string;
+  sourceIds?: string[];
 };
 
 export type InteractiveDiagramHotspotPersisted = {
@@ -62,11 +63,17 @@ export type DragDropMatchDiagramZonePersisted = {
 
 export type StudentLessonPageBlock = {
   type: string;
+  /** Stable block id from generator / Synthesiser export. */
+  id?: string;
   content?: string;
   title?: string;
   /** SS1 lesson block ordinal (generator export); optional — title may already include `N —`. */
   number?: number;
   intro?: string;
+  role?: string;
+  presentationMode?: "progressiveReveal";
+  enableTestMe?: boolean;
+  sourceIds?: string[];
   /** Teacher-only design brief / notes — never rendered in student view. */
   note?: string;
   /** Persisted name; API may also send `steps` as an alias when saving. */

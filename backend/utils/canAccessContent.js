@@ -1,4 +1,5 @@
 const { isSubscriptionActive } = require("./isSubscriptionActive");
+const { hasStripeLetsReviseProAccess } = require("./stripeBillingAccess");
 const LessonUnlock = require("../models/LessonUnlock");
 
 /**
@@ -65,19 +66,24 @@ async function canAccessContent(userOrOpts, lessonParam, ctx = {}) {
     return { allowed: false, reason: "NOT_PUBLISHED" };
   }
 
-  // 1) Active subscription always wins
+  // 1) subscriptionV2 admin grant / trial (platform-wide V1)
   if (isSubscriptionActive(user)) {
     return { allowed: true, reason: "SUB_ACTIVE" };
   }
 
-  // 2) Single-lesson unlock (credit/admin/promo)
+  // 2) LetsRevise Pro via Stripe (universal premium; paidThrough is payment proof)
+  if (hasStripeLetsReviseProAccess(user)) {
+    return { allowed: true, reason: "STRIPE_LETSREVISE_PRO" };
+  }
+
+  // 3) Single-lesson unlock (credit/admin/promo)
   const lessonId = lesson?._id ?? lesson?.id;
   const userId = user._id ?? user.id;
   if (lessonId && userId && (await hasLessonUnlock(userId, lessonId, ctx))) {
     return { allowed: true, reason: "LESSON_UNLOCK" };
   }
 
-  // 3) Purchased lesson (normalize IDs once to avoid ObjectId/string mismatches)
+  // 4) Purchased lesson (normalize IDs once to avoid ObjectId/string mismatches)
   const purchased = new Set(
     (user.purchasedLessons ?? []).map((pl) => String(pl?.lessonId ?? pl))
   );
@@ -85,12 +91,12 @@ async function canAccessContent(userOrOpts, lessonParam, ctx = {}) {
     return { allowed: true, reason: "PURCHASED" };
   }
 
-  // 4) Free preview (partial content) — authorable via lesson.isFreePreview. allowed: false so preview is never treated as full entitlement.
+  // 5) Free preview (partial content) — authorable via lesson.isFreePreview. allowed: false so preview is never treated as full entitlement.
   if (isFreePreviewAllowed(lesson)) {
     return { allowed: false, reason: "FREE_PREVIEW" };
   }
 
-  // 5) Not entitled
+  // 6) Not entitled
   return { allowed: false, reason: "NOT_ENTITLED" };
 }
 

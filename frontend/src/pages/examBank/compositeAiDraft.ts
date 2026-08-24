@@ -21,6 +21,8 @@ export type AiCompositeDraftPart = {
   markSchemeLines: string[];
   options?: string[];
   correctIndex?: number | null;
+  /** Transient AI-draft MCQ rationale; mapped to partData.explanation on save. */
+  explanation?: string;
   commandWord?: string;
   skill?: string;
   dataDependency?: string;
@@ -79,6 +81,8 @@ export function mapAiCompositeDraftToParts(draft: AiCompositeDraft): CompositePa
         type === "mcq" && typeof p.correctIndex === "number" && p.correctIndex >= 0 && p.correctIndex <= 3
           ? p.correctIndex
           : 0;
+      const explanation =
+        type === "mcq" && typeof p.explanation === "string" ? p.explanation.trim() : "";
       return {
         ...base,
         label: String(p.label || COMPOSITE_PART_LABELS[i] || String(i + 1)).trim() || base.label,
@@ -88,7 +92,8 @@ export function mapAiCompositeDraftToParts(draft: AiCompositeDraft): CompositePa
         markScheme: lines.join("\n"),
         options,
         correctIndex,
-        partData: undefined,
+        // Persist via existing PR #82 field only — never invent a neutral fallback.
+        partData: type === "mcq" && explanation ? { explanation } : undefined,
       };
     });
 }

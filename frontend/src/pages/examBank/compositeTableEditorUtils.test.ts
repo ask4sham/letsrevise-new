@@ -4,7 +4,9 @@ import {
   getCompositePartTypeOptions,
   makeDefaultTablePartData,
   mapApiPartToCompositePartForm,
+  MCQ_EXPLANATION_MAX_LENGTH,
   serializeCompositePartForSave,
+  validateCompositePartForm,
   type CompositePartForm,
 } from "./compositeTableEditorUtils";
 
@@ -81,7 +83,7 @@ describe("compositeTableEditorUtils", () => {
     expect(mcqSaved).not.toHaveProperty("partData");
   });
 
-  test("MCQ serialization unchanged (no partData)", () => {
+  test("MCQ serialization unchanged when no explanation (no partData)", () => {
     const part: CompositePartForm = {
       label: "b",
       type: "mcq",
@@ -100,6 +102,71 @@ describe("compositeTableEditorUtils", () => {
       options: ["Wrong", "Right"],
       correctIndex: 1,
     });
+    expect(serializeCompositePartForSave(part)).not.toHaveProperty("partData");
+  });
+
+  test("MCQ serialization includes trimmed partData.explanation", () => {
+    const part: CompositePartForm = {
+      label: "a",
+      type: "mcq",
+      marks: 1,
+      questionText: "Which factor is NOT essential?",
+      options: ["Water", "Light", "", ""],
+      correctIndex: 1,
+      markScheme: "Award 1 mark for selecting Light.",
+      partData: {
+        explanation:
+          "  Light is not essential for germination because the seed initially uses energy stored in its food reserves.  ",
+      },
+    };
+    expect(serializeCompositePartForSave(part)).toEqual({
+      label: "a",
+      type: "mcq",
+      marks: 1,
+      questionText: "Which factor is NOT essential?",
+      markScheme: ["Award 1 mark for selecting Light."],
+      options: ["Water", "Light"],
+      correctIndex: 1,
+      partData: {
+        explanation:
+          "Light is not essential for germination because the seed initially uses energy stored in its food reserves.",
+      },
+    });
+  });
+
+  test("MCQ serialization omits partData when explanation is whitespace-only", () => {
+    const part: CompositePartForm = {
+      label: "a",
+      type: "mcq",
+      marks: 1,
+      questionText: "Pick one.",
+      options: ["A", "B"],
+      correctIndex: 0,
+      markScheme: "",
+      partData: { explanation: "   " },
+    };
+    const saved = serializeCompositePartForSave(part);
+    expect(saved).not.toHaveProperty("partData");
+  });
+
+  test("mapApiPartToCompositePartForm loads MCQ explanation", () => {
+    const loaded = mapApiPartToCompositePartForm(
+      {
+        label: "a",
+        type: "mcq",
+        marks: 1,
+        questionText: "Pick one.",
+        options: ["A", "B"],
+        correctIndex: 0,
+        markScheme: ["Admin line"],
+        partData: { explanation: "Water activates enzymes." },
+      },
+      0,
+      false
+    );
+    expect(loaded.type).toBe("mcq");
+    expect(loaded.partData).toEqual({ explanation: "Water activates enzymes." });
+    expect(loaded.markScheme).toBe("Admin line");
   });
 
   test("Short serialization unchanged (no partData)", () => {
@@ -140,9 +207,13 @@ describe("compositeTableEditorUtils", () => {
       true
     );
     expect(loaded.type).toBe("table");
-    expect(loaded.partData?.headers).toEqual(["H1"]);
-    expect(loaded.partData?.rows[0].cells[0].blank).toBe(true);
-    expect(loaded.partData?.rows[0].cells[0].correctAnswer).toBe("x");
+    expect(loaded.partData && "headers" in loaded.partData ? loaded.partData.headers : undefined).toEqual(["H1"]);
+    expect(
+      loaded.partData && "rows" in loaded.partData ? loaded.partData.rows[0].cells[0].blank : undefined
+    ).toBe(true);
+    expect(
+      loaded.partData && "rows" in loaded.partData ? loaded.partData.rows[0].cells[0].correctAnswer : undefined
+    ).toBe("x");
   });
 
   test("mapApiPartToCompositePartForm coerces table to short when flag OFF", () => {
@@ -153,5 +224,35 @@ describe("compositeTableEditorUtils", () => {
     );
     expect(loaded.type).toBe("short");
     expect(loaded.partData).toBeUndefined();
+  });
+
+  test("validateCompositePartForm uses trimmed length for the 1000-character limit", () => {
+    const base: CompositePartForm = {
+      label: "a",
+      type: "mcq",
+      marks: 1,
+      questionText: "Pick one.",
+      options: ["A", "B"],
+      correctIndex: 0,
+      markScheme: "",
+    };
+    expect(
+      validateCompositePartForm({
+        ...base,
+        partData: { explanation: `  ${"x".repeat(999)}  ` },
+      })
+    ).toBeNull();
+    expect(
+      validateCompositePartForm({
+        ...base,
+        partData: { explanation: `  ${"x".repeat(1000)}  ` },
+      })
+    ).toBeNull();
+    expect(
+      validateCompositePartForm({
+        ...base,
+        partData: { explanation: "x".repeat(1001) },
+      })
+    ).toBe(`Part (a) explanation must be at most ${MCQ_EXPLANATION_MAX_LENGTH} characters.`);
   });
 });

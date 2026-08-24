@@ -38,6 +38,7 @@ import {
   hydrateInteractiveSequenceStepsForEditor,
 } from "./parseGeneratorVisualScript";
 import { formatExamPracticeContentForImport } from "./formatExamPracticeContent";
+import { filterExamPracticeBlocksOnPage } from "./activityQuestionsFromBlock";
 import { formatLessonBlockContentForImport } from "./formatLessonBlockContent";
 import { resolveImportedCheckpointExplanation } from "./deriveCheckpointWhyExplanation";
 
@@ -843,9 +844,11 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
       .map((record) => recordToLessonBlock(record, lessonMeta))
       .filter(Boolean) as Record<string, unknown>[];
     // Guard rail: Learn is teaching-only — drop checkpoint / selfCheck / pageQuiz if present.
-    const blocksForPage = isLearnTeachingPage(pageMeta)
-      ? stripLearnPageTestingBlocks(blocksRaw)
-      : elevateExtraImportedCheckpointsToSelfCheck(blocksRaw, lessonMeta);
+    const blocksForPage = filterExamPracticeBlocksOnPage(
+      isLearnTeachingPage(pageMeta)
+        ? stripLearnPageTestingBlocks(blocksRaw)
+        : elevateExtraImportedCheckpointsToSelfCheck(blocksRaw, lessonMeta)
+    ) as Record<string, unknown>[];
     return {
       pageId: newPid(),
       title: pageTitle,

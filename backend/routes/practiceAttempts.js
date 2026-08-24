@@ -7,8 +7,8 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const PracticeAttempt = require("../models/PracticeAttempt");
 const PracticeSet = require("../models/PracticeSet");
-const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
+const { hasAcceptedStudentTeacherLink } = require("../utils/hasAcceptedStudentTeacherLink");
 const { computeMcqCorrectness } = require("../services/computeMcqCorrectness");
 const { recordExamQuestionAttempt, recordQuizAttempt } = require("../services/learningEvidenceService");
 const { updateReviewStateAfterSession } = require("../services/adaptiveRevisionService");
@@ -115,8 +115,11 @@ router.post("/", auth, async (req, res) => {
     } catch {
       return res.status(400).json({ error: "teacherId must be a valid ObjectId" });
     }
-    const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
-    if (link) {
+    const linked = await hasAcceptedStudentTeacherLink({
+      studentId,
+      teacherId: teacherIdObj,
+    });
+    if (linked) {
       // Linked dashboard / ordinary practice — keep using validated link teacherId.
     } else {
       teacherIdObj = null;

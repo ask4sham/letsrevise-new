@@ -11,6 +11,11 @@ export function normalizeQuestionStem(text: string): string {
     .trim();
 }
 
+/** Fingerprint normalisation ÔÇö must match backend questionDeduplicationGuard.js exactly. */
+export function normalizeQuestionStemForFingerprint(text: string): string {
+  return normalizeQuestionStem(text);
+}
+
 function tokenSet(text: string): Set<string> {
   const norm = normalizeQuestionStem(text);
   const tokens = norm.split(" ").filter((t) => t.length > 2);
@@ -58,10 +63,16 @@ export function correctAnswerFromRecord(q: Record<string, unknown>): string {
 }
 
 /** Stable key: normalised stem + correct answer (catches identical MCQ clones). */
+export function mcqFingerprintFromStemAndAnswer(stem: string, answer: string): string {
+  return `${normalizeQuestionStemForFingerprint(stem)}|${normalizeQuestionStemForFingerprint(answer)}`;
+}
+
+/** Stable key: normalised stem + correct answer (catches identical MCQ clones). */
 export function mcqFingerprintFromRecord(q: Record<string, unknown>): string {
-  const stem = normalizeQuestionStem(questionStemFromRecord(q));
-  const ca = normalizeQuestionStem(correctAnswerFromRecord(q));
-  return `${stem}|${ca}`;
+  return mcqFingerprintFromStemAndAnswer(
+    questionStemFromRecord(q),
+    correctAnswerFromRecord(q)
+  );
 }
 
 export function isDuplicateMcqPair(

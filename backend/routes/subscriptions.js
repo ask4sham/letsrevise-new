@@ -3,22 +3,23 @@ const router = express.Router();
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { sendInternalError } = require('../utils/safeErrorResponse');
+const { isStripeCheckoutConfigured, StripeBillingError } = require('../config/stripe');
+const { createLetsReviseProCheckoutForUser } = require('../services/stripeCheckoutService');
+const { createLetsReviseProPortalSession } = require('../services/stripePortalService');
+const { findForbiddenClientBillingKeys } = require('../utils/rejectClientBillingInput');
+const { findForbiddenPortalClientBillingKeys } = require('../utils/rejectPortalClientBillingInput');
+const { hasStripeLetsReviseProAccess } = require('../utils/stripeBillingAccess');
 
-// Mock Stripe for now - we'll integrate real Stripe later
-const stripe = {
-  checkout: {
-    sessions: {
-      create: async (sessionData) => {
-        // Mock implementation
-        return {
-          id: 'mock_session_' + Date.now(),
-          url: 'https://checkout.stripe.com/mock',
-          ...sessionData
-        };
-      }
-    }
+function respondStripeBillingError(res, err) {
+  if (err instanceof StripeBillingError) {
+    return res.status(503).json({
+      success: false,
+      code: err.code,
+      msg: err.userMessage,
+    });
   }
-};
+  return null;
+}
 
 // @route   GET api/subscriptions/plans
 // @desc    Get available subscription plans
@@ -267,14 +268,26 @@ router.post('/renew-shamcoins', auth, (req, res) => {
 });
 
 // @route   POST api/subscriptions/create-checkout-session
-// @desc    Create checkout session (mock for now)
+// @desc    Create Stripe Checkout Session for LetsRevise Pro (server-owned price; test mode B2)
 // @access  Private
 router.post('/create-checkout-session', auth, async (req, res) => {
   try {
-    const { plan } = req.body;
-    
-    if (!plan || !['basic', 'premium', 'enterprise'].includes(plan)) {
-      return res.status(400).json({ msg: 'Valid plan is required' });
+    const forbiddenKeys = findForbiddenClientBillingKeys(req.body);
+    if (forbiddenKeys.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'CLIENT_BILLING_INPUT_NOT_ALLOWED',
+        msg: 'Billing inputs are server-owned',
+        rejectedKeys: forbiddenKeys,
+      });
+    }
+
+    if (!isStripeCheckoutConfigured()) {
+      return res.status(503).json({
+        success: false,
+        code: 'STRIPE_NOT_CONFIGURED',
+        msg: 'Stripe Checkout is not configured on this server',
+      });
     }
 
     const user = await User.findById(req.user._id);
@@ -282,47 +295,76 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // Create mock checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
-              description: `Monthly subscription to ${plan} plan`
-            },
-            unit_amount: {
-              basic: 999,
-              premium: 1999,
-              enterprise: 4999
-            }[plan],
-            recurring: {
-              interval: 'month'
-            }
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/subscription/cancel`,
-      customer_email: user.email,
-      metadata: {
-        userId: user._id.toString(),
-        plan: plan
-      }
-    });
+    if (hasStripeLetsReviseProAccess(user)) {
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_SUBSCRIBED',
+        msg: 'LetsRevise Pro is already active on this account',
+      });
+    }
 
-    res.json({ 
-      success: true, 
-      sessionId: session.id, 
+    const session = await createLetsReviseProCheckoutForUser(user);
+
+    res.json({
+      success: true,
+      sessionId: session.id,
       url: session.url,
-      message: 'Mock checkout session created. In production, this would redirect to Stripe.'
+      planId: 'letsrevise_pro',
     });
   } catch (err) {
+    const billingResponse = respondStripeBillingError(res, err);
+    if (billingResponse) return billingResponse;
     return sendInternalError('subscriptions/create-checkout-session', err, res);
+  }
+});
+
+// @route   POST api/subscriptions/create-portal-session
+// @desc    Create Stripe Customer Portal session for LetsRevise Pro billing management (B5)
+// @access  Private
+router.post('/create-portal-session', auth, async (req, res) => {
+  try {
+    const forbiddenKeys = findForbiddenPortalClientBillingKeys(req.body);
+    if (forbiddenKeys.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'CLIENT_BILLING_INPUT_NOT_ALLOWED',
+        msg: 'Billing inputs are server-owned',
+        rejectedKeys: forbiddenKeys,
+      });
+    }
+
+    if (!isStripeCheckoutConfigured()) {
+      return res.status(503).json({
+        success: false,
+        code: 'STRIPE_NOT_CONFIGURED',
+        msg: 'Stripe billing is not configured on this server',
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    const customerId = user.stripeBilling?.customerId;
+    if (!customerId) {
+      return res.status(403).json({
+        success: false,
+        code: 'NO_STRIPE_CUSTOMER',
+        msg: 'No Stripe billing account is linked to this user',
+      });
+    }
+
+    const session = await createLetsReviseProPortalSession(customerId);
+
+    res.json({
+      success: true,
+      url: session.url,
+    });
+  } catch (err) {
+    const billingResponse = respondStripeBillingError(res, err);
+    if (billingResponse) return billingResponse;
+    return sendInternalError('subscriptions/create-portal-session', err, res);
   }
 });
 

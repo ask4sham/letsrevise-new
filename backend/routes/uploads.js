@@ -10,6 +10,11 @@ const {
   warnLocalDiskFallback,
 } = require("../config/storage");
 const auth = require("../middleware/auth");
+const requireLessonMediaUploader = require("../middleware/requireLessonMediaUploader");
+const {
+  imageUploadLimiter,
+  videoUploadLimiter,
+} = require("../middleware/uploadRouteRateLimits");
 const { isR2Enabled } = require("../services/r2Storage");
 const { isSupabaseStorageEnabled } = require("../services/supabaseStorage");
 const { tryPutBuffer } = require("../services/uploadObjectStorage");
@@ -126,28 +131,25 @@ function setUploadMeta(req, res, next) {
 }
 
 // ---------- IMAGE UPLOAD (images only)
-const imageMimeTypes = [
-  "image/png",
-  "image/x-png",
-  "image/jpeg",
-  "image/jpg",
-  "image/pjpeg",
-  "image/webp",
-  "image/gif",
-];
-const imageExtensions = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
+// Explicit MIME ∩ extension allow-list (no broad image/* — rejects SVG etc.)
+const IMAGE_EXT_MIME = new Map([
+  [".jpg", new Set(["image/jpeg", "image/pjpeg"])],
+  [".jpeg", new Set(["image/jpeg", "image/pjpeg"])],
+  [".png", new Set(["image/png", "image/x-png"])],
+  [".webp", new Set(["image/webp"])],
+  [".gif", new Set(["image/gif"])],
+]);
 
 function imageFileFilter(req, file, cb) {
   const mt = (file.mimetype || "").toLowerCase().split(";")[0].trim();
   const ext = (path.extname(file.originalname || "") || "").toLowerCase();
-  const ok =
-    imageMimeTypes.includes(mt) ||
-    (mt && mt.startsWith("image/")) ||
-    imageExtensions.includes(ext);
-  if (ok) return cb(null, true);
-  return cb(
-    new Error("Only image files are allowed (png/jpg/jpeg/webp/gif).")
-  );
+  const allowedMimes = IMAGE_EXT_MIME.get(ext);
+  if (!allowedMimes || !allowedMimes.has(mt)) {
+    return cb(
+      new Error("Only image files are allowed (png/jpg/jpeg/webp/gif).")
+    );
+  }
+  return cb(null, true);
 }
 
 const upload = multer({
@@ -420,9 +422,10 @@ async function handleVideoUploadSafe(req, res) {
 }
 
 /**
- * Middleware + handler: invokes multer with callback so errors return 400, not 500.
+ * Multer + handler only (after auth → role → video limiter).
+ * Invokes multer with callback so errors return 400, not 500.
  */
-function videoUploadRoute(req, res, next) {
+function videoMulterAndHandler(req, res, next) {
   uploadVideo.single("file")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       console.error("[video upload] multer error:", err.code, err.message);
@@ -440,6 +443,17 @@ function videoUploadRoute(req, res, next) {
 }
 
 /**
+ * Full video chain — used by router mount AND direct app.js mount.
+ * Order: auth → role → always-on video limiter → Multer → storage.
+ */
+const videoUploadRoute = [
+  auth,
+  requireLessonMediaUploader,
+  videoUploadLimiter,
+  videoMulterAndHandler,
+];
+
+/**
  * POST /api/uploads/video — Videos only (mp4/webm/mov).
  * Must be before /image to avoid any path ambiguity.
  */
@@ -451,60 +465,71 @@ router.post("/video", videoUploadRoute);
  * When R2 configured: uploads to R2, returns full public URL (https://...r2.dev/...).
  * Otherwise: saves to local disk, returns /uploads/... path.
  */
-router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => {
-  try {
-    if (!req.file) {
-      return res
-        .status(400)
-        .json({ error: "No file uploaded. Use form field name: file" });
-    }
-
-    const safeFolder = req._uploadSafeFolder || "images";
-    const filename = req.file.filename || makeFilename(req.file);
-
-    if (req.file.buffer) {
-      const provider = isSupabaseStorageEnabled() ? "Supabase" : isR2Enabled() ? "R2" : "local";
-      console.log("[uploads] Upload provider:", provider);
-      try {
-        const payload = await finishImageUploadToStorage(
-          req.file.buffer,
-          req.file.mimetype,
-          safeFolder,
-          filename
-        );
-        return res.json(payload);
-      } catch (writeErr) {
-        if (writeErr.statusCode === 503) {
-          return res.status(503).json({ error: cloudUploadRequiredMessage() });
-        }
-        console.error("[uploads] Fallback disk write failed:", writeErr.message);
-        return res.status(500).json({ error: "Upload failed. Storage unavailable." });
+router.post(
+  "/image",
+  auth,
+  requireLessonMediaUploader,
+  imageUploadLimiter,
+  upload.single("file"),
+  setUploadMeta,
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ error: "No file uploaded. Use form field name: file" });
       }
-    }
 
-    // No buffer (unexpected with memory storage)
-    const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
-    return res.json({
-      ok: true,
-      url: publicUrl,
-      filename,
-      folder: safeFolder,
-    });
-  } catch (e) {
-    if (e && e.statusCode === 503) {
-      return res.status(503).json({ error: cloudUploadRequiredMessage() });
+      const safeFolder = req._uploadSafeFolder || "images";
+      const filename = req.file.filename || makeFilename(req.file);
+
+      if (req.file.buffer) {
+        const provider = isSupabaseStorageEnabled() ? "Supabase" : isR2Enabled() ? "R2" : "local";
+        console.log("[uploads] Upload provider:", provider);
+        try {
+          const payload = await finishImageUploadToStorage(
+            req.file.buffer,
+            req.file.mimetype,
+            safeFolder,
+            filename
+          );
+          return res.json(payload);
+        } catch (writeErr) {
+          if (writeErr.statusCode === 503) {
+            return res.status(503).json({ error: cloudUploadRequiredMessage() });
+          }
+          console.error("[uploads] Fallback disk write failed:", writeErr.message);
+          return res.status(500).json({ error: "Upload failed. Storage unavailable." });
+        }
+      }
+
+      // No buffer (unexpected with memory storage)
+      const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
+      return res.json({
+        ok: true,
+        url: publicUrl,
+        filename,
+        folder: safeFolder,
+      });
+    } catch (e) {
+      if (e && e.statusCode === 503) {
+        return res.status(503).json({ error: cloudUploadRequiredMessage() });
+      }
+      return sendInternalError("uploads/image", e, res);
     }
-    return sendInternalError("uploads/image", e, res);
   }
-});
+);
 
 /**
- * POST /api/uploads/lesson-media — CreateLessonPage (and draft) image/video upload.
- * Auth required. When R2 configured: returns full R2 URL. Otherwise: /uploads/lesson-media/...
+ * POST /api/uploads/lesson-media — CreateLessonPage / Exam Question Bank image upload.
+ * Auth + staff role + image-family limiter before Multer.
+ * When R2 configured: returns full R2 URL. Otherwise: /uploads/lesson-media/...
  */
 router.post(
   "/lesson-media",
   auth,
+  requireLessonMediaUploader,
+  imageUploadLimiter,
   (req, res, next) => {
     const folder = (req.query?.folder || req.body?.folder || "lesson-media").toString().trim();
     if (!folder || folder === "lesson-media") {
@@ -552,11 +577,14 @@ router.post(
 );
 
 /**
- * POST /api/uploads/lesson-image — CreateLessonPage, field name: "image"
+ * POST /api/uploads/lesson-image — field name: "image"
  * When R2 configured: returns full R2 URL. Otherwise: /uploads/lesson-images/...
  */
 router.post(
   "/lesson-image",
+  auth,
+  requireLessonMediaUploader,
+  imageUploadLimiter,
   (req, res, next) => {
     if (!req.query.folder && !req.body?.folder) {
       req.query.folder = "lesson-images";

@@ -307,6 +307,60 @@ function mockGeneralKnowledgeFallback(question, constraints) {
   };
 }
 
+/** Normalize whitespace for mock chunk comparison. */
+function normalizeMockChunkText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Title/header-like segments (lesson title, page title) are poor direct answers.
+ * Used only by the mock provider for student explain responses.
+ */
+function isTitleLikeMockChunk(chunk) {
+  const text = normalizeMockChunkText(chunk?.text);
+  const title = normalizeMockChunkText(chunk?.title);
+  if (!text) return true;
+  if (title && text.toLowerCase() === title.toLowerCase()) return true;
+  if (text.length < 40 && !/[.!?]/.test(text) && text.split(/\s+/).length <= 6) return true;
+  return false;
+}
+
+/**
+ * Pick grounded lesson content for mock student answers — skip title-only hits when possible.
+ */
+function pickSubstantiveMockChunk(chunks) {
+  const list = Array.isArray(chunks) ? chunks : [];
+  if (list.length === 0) return null;
+
+  let best = null;
+  let bestLen = -1;
+  for (const chunk of list) {
+    const text = normalizeMockChunkText(chunk?.text);
+    if (!text || isTitleLikeMockChunk(chunk)) continue;
+    if (text.length > bestLen) {
+      bestLen = text.length;
+      best = chunk;
+    }
+  }
+  if (best) return best;
+
+  for (const chunk of list) {
+    const text = normalizeMockChunkText(chunk?.text);
+    if (text.length >= 40 && text.length > bestLen) {
+      bestLen = text.length;
+      best = chunk;
+    }
+  }
+  return best || list[0];
+}
+
+/** Short answer-shaped mock text from one grounded chunk (no invented facts). */
+function buildStudentMockExplanationFromChunk(chunk) {
+  const text = normalizeMockChunkText(chunk?.text);
+  if (!text) return "Here is a concise answer from this lesson.";
+  return text.length > 220 ? `${text.slice(0, 220).trim()}…` : text;
+}
+
 /**
  * Mock provider: deterministic response from context snippets.
  */
@@ -328,14 +382,22 @@ function mockGenerate(question, contextChunks, constraints) {
   if (hasWeakEvidence || chunks.length === 0) {
     warnings.push("Insufficient trusted sources");
     explanation =
-      "I could not find enough trusted curriculum content to answer this question confidently. Please try a more specific question or check that the topic is covered in your specification.";
+      constraints?.studentMode === true
+        ? "I can't answer that confidently from this lesson. Try asking me about the topic you're studying."
+        : "I could not find enough trusted curriculum content to answer this question confidently. Please try a more specific question or check that the topic is covered in your specification.";
     if (chunks.length > 0) {
       const nearest = chunks[0];
       keyPoints.push(`Nearest topic: ${nearest.topicKey || "unknown"}`);
     }
   } else {
-    const firstChunk = chunks[0];
-    const snippet = (firstChunk.text || "").slice(0, 150).trim();
+    const isStudentExplain =
+      constraints?.studentMode === true &&
+      responseMode !== "quick" &&
+      responseMode !== "exam" &&
+      responseMode !== "revision";
+    const answerChunk = isStudentExplain ? pickSubstantiveMockChunk(chunks) : chunks[0];
+    const firstChunk = answerChunk || chunks[0];
+    const snippet = normalizeMockChunkText(firstChunk.text).slice(0, 150);
     if (responseMode === "quick") {
       explanation = `• Key point 1 from curriculum\n• Key point 2\n• Key point 3`;
       keyPoints.push("Concise summary");
@@ -345,17 +407,29 @@ function mockGenerate(question, contextChunks, constraints) {
     } else if (responseMode === "revision") {
       explanation = `Revision sheet:\n• Key facts\n• Common mistake to avoid\n• Memory cue`;
       keyPoints.push("Structured for revision");
+    } else if (isStudentExplain) {
+      explanation = buildStudentMockExplanationFromChunk(firstChunk);
     } else {
-    explanation = `Based on the curriculum content: ${snippet}${snippet ? "..." : ""}`;
-    keyPoints.push("Content is drawn from trusted specification and lesson sources.");
-    keyPoints.push("Always verify against your exam board specification.");
+      const lead = snippet
+        ? snippet.length > 220
+          ? `${snippet.slice(0, 220).trim()}…`
+          : snippet
+        : "Here is a concise answer from this lesson.";
+      explanation =
+        constraints?.studentMode === true
+          ? lead
+          : `Based on the curriculum content: ${snippet}${snippet ? "..." : ""}`;
+      if (constraints?.studentMode !== true) {
+        keyPoints.push("Content is drawn from trusted specification and lesson sources.");
+        keyPoints.push("Always verify against your exam board specification.");
+      }
     }
 
     citations.push({
       knowledgeDocumentId: firstChunk.knowledgeDocumentId,
       sourceType: firstChunk.sourceType || "lessonBlock",
       sourceId: firstChunk.sourceId || "",
-      quote: (firstChunk.text || "").slice(0, 200),
+      quote: normalizeMockChunkText(firstChunk.text).slice(0, 200),
       reason: "Primary source for the answer",
     });
 
@@ -435,10 +509,13 @@ async function openaiGenerateGeneralKnowledge(question, constraints) {
       ? `
 
 STUDENT MODE:
-- Use simple language suitable for GCSE/A-Level students.
+- Answer the student's question immediately in the first sentence.
+- Use clear GCSE-level language (ages 15–16). Explain unfamiliar terms simply.
+- Keep the response short (about 2–5 sentences or concise bullets).
+- Do not start with process phrases such as "Based on the curriculum content" or "According to trusted sources".
+- Do not mention retrieval, grounding, embeddings, or internal systems.
 - Keep explanation <= 1200 characters.
-- Prefer bullet points.
-- Do not mention internal implementation details.${
+- Prefer bullet points when helpful.${
           constraints?.includePractice !== false && responseMode !== "explain"
             ? "\n- You may include practice items as requested by the mode."
             : "\n- Do not include practice items; focus on the explanation."
@@ -586,10 +663,13 @@ STRONG TRUSTED SOURCES (preferred style):
       ? `
 
 STUDENT MODE:
-- Use simple language suitable for GCSE/A-Level students.
+- Answer the student's question immediately in the first sentence.
+- Use clear GCSE-level language (ages 15–16). Explain unfamiliar terms simply.
+- Keep the response short (about 2–5 sentences or concise bullets).
+- Do not start with process phrases such as "Based on the curriculum content" or "According to trusted sources".
+- Do not mention retrieval, grounding, embeddings, or internal systems.
 - Keep explanation <= 1200 characters.
-- Prefer bullet points.
-- Do not mention internal implementation details.${
+- Prefer bullet points when helpful.${
           constraints?.includePractice !== false && responseMode !== "explain"
             ? "\n- Practice items may follow the explanation when the mode requests them."
             : "\n- Do not include practice items; the explanation is the full response."
@@ -680,6 +760,115 @@ Return JSON: { "explanation": "...", "keyPoints": ["..."], "memoryHook": "", "ci
     });
 
   return out;
+}
+
+/**
+ * Ask Sham V1 — direct GCSE answer (no lesson retrieval / RAG).
+ * Mock returns a deterministic test string; OpenAI answers from the question only.
+ */
+async function openaiDirectStudentAskShamAnswer(question, constraints = {}) {
+  const axios = require("axios");
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey || !String(apiKey).trim()) {
+    throw new Error("LLM_API_KEY or OPENAI_API_KEY required when LLM_PROVIDER=openai");
+  }
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+  const convCtx = buildConversationContext(constraints?.conversationContext || []);
+  const specHint = constraints?.specKey ? `\nSubject context: ${String(constraints.specKey)}.` : "";
+  const topicHint = constraints?.topicKey ? `\nTopic context: ${String(constraints.topicKey)}.` : "";
+
+  const systemPrompt = `You are Ask Sham, a helpful tutor for GCSE students aged 15–16.
+
+Answer the student's question directly.
+Use clear, simple and accurate language.
+Keep the answer concise.
+Explain difficult words where useful.
+Do not discuss the AI system, retrieval, sources or internal process.
+If you genuinely do not know something, say so rather than inventing an answer.
+
+Return valid JSON only: { "explanation": "..." }`;
+
+  const userPrompt = `${convCtx}${specHint}${topicHint}
+
+Question: ${question}`;
+
+  const res = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.4,
+    },
+    { headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+
+  const content = res.data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty OpenAI response");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    throw new Error("Invalid JSON from LLM: " + e.message);
+  }
+
+  return {
+    explanation: String(parsed.explanation || "").trim(),
+    keyPoints: [],
+    memoryHook: "",
+    citations: [],
+    practice: [],
+    warnings: [],
+  };
+}
+
+/**
+ * Direct Ask Sham answer for students — one AI call, no retrieval chunks.
+ */
+async function generateDirectStudentAskShamAnswer({ question, constraints = {} }) {
+  const q = String(question || "").trim();
+  if (!q) throw new Error("question is required");
+
+  const provider = getProvider();
+  if (provider === "mock") {
+    return {
+      explanation: "This is a simple Ask Sham test answer.",
+      keyPoints: [],
+      memoryHook: "",
+      citations: [],
+      practice: [],
+      warnings: [],
+    };
+  }
+
+  if (provider === "openai") {
+    const maxAttempts = getEnquiryLlmMaxAttempts();
+    let lastErr;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await openaiDirectStudentAskShamAnswer(q, constraints);
+      } catch (err) {
+        lastErr = err;
+        const canRetry = attempt < maxAttempts && shouldRetryOpenAiEnquiryError(err);
+        if (!canRetry) break;
+        await sleep(Math.min(2500, 350 * 2 ** (attempt - 1)));
+      }
+    }
+    throw lastErr;
+  }
+
+  return {
+    explanation: "This is a simple Ask Sham test answer.",
+    keyPoints: [],
+    memoryHook: "",
+    citations: [],
+    practice: [],
+    warnings: [],
+  };
 }
 
 /**
@@ -1676,6 +1865,7 @@ async function generateLessonCheckpointDraft(params) {
 
 module.exports = {
   generateEnquiryAnswer,
+  generateDirectStudentAskShamAnswer,
   generateStarterPack,
   generateTopicSummary,
   generateWeakEvidenceFixPack,

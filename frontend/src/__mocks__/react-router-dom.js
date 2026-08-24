@@ -32,39 +32,38 @@ function entryToParts(entry) {
 }
 
 function MemoryRouter({ children, initialEntries = ["/"] }) {
-  const [index, setIndex] = React.useState(0);
-  const [overrideSearch, setOverrideSearch] = React.useState(null);
   const entries = React.useMemo(
     () => (Array.isArray(initialEntries) ? initialEntries : [initialEntries]),
     [initialEntries]
   );
-  const parts = entryToParts(entries[index] || entries[0] || "/");
-  const pathname = parts.pathname;
-  const search = overrideSearch != null ? overrideSearch : parts.search;
-
-  const navigate = React.useCallback(
-    (to) => {
-      if (typeof to === "number") setIndex((i) => Math.max(0, Math.min(entries.length - 1, i + to)));
-      else {
-        const target = typeof to === "string" ? to : to?.pathname || "/";
-        const idx = entries.findIndex((e) => {
-          const p = entryToParts(e);
-          return p.pathname === target || e === to;
-        });
-        if (idx >= 0) {
-          setOverrideSearch(null);
-          setIndex(idx);
-        }
-      }
-    },
-    [entries]
+  const [location, setLocation] = React.useState(() =>
+    entryToParts(entries[0] || "/")
   );
+  const pathname = location.pathname;
+  const search = location.search;
+
+  const navigate = React.useCallback((to) => {
+    if (typeof to === "number") {
+      setLocation((prev) => {
+        const currentIdx = entries.findIndex((e) => {
+          const p = entryToParts(e);
+          return p.pathname === prev.pathname;
+        });
+        const nextIdx = Math.max(
+          0,
+          Math.min(entries.length - 1, (currentIdx < 0 ? 0 : currentIdx) + to)
+        );
+        return entryToParts(entries[nextIdx] || entries[0] || "/");
+      });
+      return;
+    }
+    const target = typeof to === "string" ? to : to?.pathname || "/";
+    setLocation(entryToParts(target));
+  }, [entries]);
 
   const setSearchParams = React.useCallback((next, _opts) => {
-    setOverrideSearch((prev) => {
-      const current = new URLSearchParams(
-        (prev != null ? prev : parts.search).replace(/^\?/, "")
-      );
+    setLocation((prev) => {
+      const current = new URLSearchParams((prev.search || "").replace(/^\?/, ""));
       let params;
       if (typeof next === "function") {
         params = next(current);
@@ -74,9 +73,9 @@ function MemoryRouter({ children, initialEntries = ["/"] }) {
         params = new URLSearchParams(next);
       }
       const s = params.toString();
-      return s ? `?${s}` : "";
+      return { ...prev, search: s ? `?${s}` : "" };
     });
-  }, [parts.search]);
+  }, []);
 
   return React.createElement(
     NavigationContext.Provider,

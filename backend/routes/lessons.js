@@ -39,6 +39,10 @@ const { generateLessonPastPapersFromTopic } = require("../services/generateLesso
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
 const { autoGenerateLessonFromBanks } = require("../services/autoGenerateLessonFromBanks");
 const { generateLessonAssets, META_SOURCE } = require("../services/generateLessonAssets");
+const {
+  collectInlineActivityFingerprintsFromPages,
+  mcqFingerprintFromStemAndAnswer,
+} = require("../../lib/questionDeduplicationGuard");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
@@ -56,6 +60,10 @@ const {
   rehydrateLessonPagesMarkSchemeFromDb,
 } = require("../utils/lessonDbSafe");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
+const {
+  groundLessonQuizBeforePersist,
+  isSynthesiserLessonProvenance,
+} = require("../utils/groundLessonQuizBeforePersist");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 const { sendInternalError } = require("../utils/safeErrorResponse");
@@ -87,6 +95,7 @@ const {
   markCataloguePendingReReview,
   recordCatalogueReReviewAfterEdit,
   getTeacherLibraryStatus,
+  buildApprovedLessonsQuery,
 } = require("../services/approvedLessonsService");
 const { normalizeLessonDescription } = require("../utils/lessonDescriptionLimits");
 const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
@@ -554,48 +563,80 @@ function sanitisePageInput(p, isUpdate = false) {
         if (type === "interactiveSequence") {
           const title = typeof b?.title === "string" ? b.title.trim().slice(0, 240) : "";
           const intro = typeof b?.intro === "string" ? b.intro.trim().slice(0, 4000) : "";
+          const isProgressive = b?.presentationMode === "progressiveReveal";
+          const stepCap = isProgressive ? 8 : 40;
           const rawSeq = Array.isArray(b?.sequenceSteps)
             ? b.sequenceSteps
             : Array.isArray(b?.steps)
               ? b.steps
               : [];
+
+          const sanitizeSourceIds = (arr, max = 30) => {
+            if (!Array.isArray(arr)) return undefined;
+            const ids = arr
+              .map((id) => (typeof id === "string" ? id.trim() : ""))
+              .filter(Boolean)
+              .slice(0, max);
+            return ids.length ? ids : undefined;
+          };
+
           const sequenceSteps = rawSeq
-            .slice(0, 40)
+            .slice(0, stepCap)
             .map((s) => {
               if (!s || typeof s !== "object") {
-                return { title: "", description: "", imageUrl: "", caption: "" };
+                return isProgressive
+                  ? { title: "", description: "", imageUrl: "" }
+                  : { title: "", description: "", imageUrl: "", caption: "" };
               }
               const sid = typeof s.id === "string" && s.id.trim() ? s.id.trim().slice(0, 64) : "";
               const row = {
                 title: typeof s.title === "string" ? s.title.trim().slice(0, 200) : "",
-                description: typeof s.description === "string" ? s.description.trim().slice(0, 8000) : "",
+                description:
+                  typeof s.description === "string" ? s.description.trim().slice(0, 8000) : "",
                 imageUrl: typeof s.imageUrl === "string" ? s.imageUrl.trim().slice(0, 2000) : "",
-                caption: typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "",
               };
-              if (typeof s.testQuestion === "string" && s.testQuestion.trim()) {
-                row.testQuestion = s.testQuestion.trim().slice(0, 500);
+              if (!isProgressive) {
+                row.caption = typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "";
+                if (typeof s.testQuestion === "string" && s.testQuestion.trim()) {
+                  row.testQuestion = s.testQuestion.trim().slice(0, 500);
+                }
+                if (typeof s.testExplanation === "string" && s.testExplanation.trim()) {
+                  row.testExplanation = s.testExplanation.trim().slice(0, 4000);
+                }
               }
-              if (typeof s.testExplanation === "string" && s.testExplanation.trim()) {
-                row.testExplanation = s.testExplanation.trim().slice(0, 4000);
-              }
+              const stepSourceIds = sanitizeSourceIds(s.sourceIds);
+              if (stepSourceIds) row.sourceIds = stepSourceIds;
               return sid ? { id: sid, ...row } : row;
             })
-            .filter(
-              (s) =>
+            .filter((s) => {
+              if (isProgressive) {
+                return s.title || s.description || s.imageUrl;
+              }
+              return (
                 s.title ||
                 s.description ||
                 s.imageUrl ||
                 s.caption ||
                 s.testQuestion ||
                 s.testExplanation
-            );
+              );
+            });
+
           const seqOut = {
             type: "interactiveSequence",
             title,
             intro,
             sequenceSteps,
           };
+          const blockId = typeof b?.id === "string" && b.id.trim() ? b.id.trim().slice(0, 128) : "";
+          if (blockId) seqOut.id = blockId;
           if (typeof b?.role === "string" && b.role.trim()) seqOut.role = b.role.trim();
+          const blockSourceIds = sanitizeSourceIds(b?.sourceIds);
+          if (blockSourceIds) seqOut.sourceIds = blockSourceIds;
+          if (isProgressive) {
+            seqOut.presentationMode = "progressiveReveal";
+            seqOut.enableTestMe = false;
+          }
           return seqOut;
         }
         if (type === "interactiveDiagram") {
@@ -867,7 +908,6 @@ function sanitisePageInput(p, isUpdate = false) {
       : [];
     if (!q) return true;
     if (opts.length === 0) return true;
-    if (opts.every((o) => /^\[?option\s*\d+\]?$/i.test(o))) return true;
     if (
       /^which statement is correct\??$/i.test(q) &&
       opts.every((o) => /^\[?option\s*\d+\]?$/i.test(o))
@@ -975,6 +1015,96 @@ function sanitisePageInput(p, isUpdate = false) {
 function sanitisePagesInput(pages, isUpdate = false) {
   if (!Array.isArray(pages)) return [];
   return pages.map((p) => sanitisePageInput(p, isUpdate));
+}
+
+const PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS = new Set([
+  "caption",
+  "testQuestion",
+  "testExplanation",
+  "note",
+  "teacherBrief",
+  "modelAnswer",
+  "expectedResponse",
+  "teacherGuidance",
+]);
+
+const TEACHER_KEY_MARKER_RE = /teacher-key\s*:/i;
+const TEACHER_KEY_KEY_RE = /teacher-key/i;
+
+function progressiveRevealKeyContainsTeacherKey(key) {
+  return typeof key === "string" && TEACHER_KEY_KEY_RE.test(key);
+}
+
+function progressiveRevealValueContainsTeacherKey(value) {
+  return typeof value === "string" && TEACHER_KEY_MARKER_RE.test(value);
+}
+
+function stripProgressiveRevealStepForStudent(step) {
+  if (!step || typeof step !== "object" || Array.isArray(step)) return step;
+  const out = {};
+  for (const [key, value] of Object.entries(step)) {
+    if (PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS.has(key)) continue;
+    if (progressiveRevealKeyContainsTeacherKey(key)) continue;
+    if (progressiveRevealValueContainsTeacherKey(value)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function stripProgressiveRevealBlockForStudent(block) {
+  if (
+    !block ||
+    block.type !== "interactiveSequence" ||
+    block.presentationMode !== "progressiveReveal"
+  ) {
+    return block;
+  }
+
+  const out = {};
+  for (const [key, value] of Object.entries(block)) {
+    if (PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS.has(key)) continue;
+    if (progressiveRevealKeyContainsTeacherKey(key)) continue;
+    if (progressiveRevealValueContainsTeacherKey(value)) continue;
+
+    if (key === "metadata" && value && typeof value === "object" && !Array.isArray(value)) {
+      const meta = {};
+      for (const [metaKey, metaValue] of Object.entries(value)) {
+        if (metaKey === "teacherBrief") continue;
+        if (PROGRESSIVE_REVEAL_STUDENT_PROHIBITED_KEYS.has(metaKey)) continue;
+        if (progressiveRevealKeyContainsTeacherKey(metaKey)) continue;
+        if (progressiveRevealValueContainsTeacherKey(metaValue)) continue;
+        meta[metaKey] = metaValue;
+      }
+      if (Object.keys(meta).length > 0) out.metadata = meta;
+      continue;
+    }
+
+    if (key === "sequenceSteps" && Array.isArray(value)) {
+      out.sequenceSteps = value.map(stripProgressiveRevealStepForStudent);
+      continue;
+    }
+
+    out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Student delivery shaping for progressiveReveal interactiveSequence blocks.
+ * Omits teacher-only keys reintroduced by Mongoose defaults without mutating the source doc.
+ * @param {Object} lesson - Lesson doc or plain object.
+ * @returns {Object} Shallow lesson copy with progressive blocks sanitised.
+ */
+function shapeProgressiveRevealBlocksForStudentLesson(lesson) {
+  if (!lesson || !Array.isArray(lesson.pages)) return lesson;
+  const pages = lesson.pages.map((page) => {
+    if (!page || !Array.isArray(page.blocks)) return page;
+    return {
+      ...page,
+      blocks: page.blocks.map(stripProgressiveRevealBlockForStudent),
+    };
+  });
+  return { ...lesson, pages };
 }
 
 /**
@@ -1267,6 +1397,7 @@ async function createLessonHandler(req, res) {
       pages,
       quiz,
       autoGenerateFromBanks,
+      metadata,
     } = req.body || {};
 
     description = normalizeLessonDescription(description);
@@ -1389,6 +1520,14 @@ async function createLessonHandler(req, res) {
         quizData.questions = [];
       }
       lessonData.quiz = quizData;
+    }
+
+    if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+      lessonData.metadata = metadata;
+    }
+
+    if (isSynthesiserLessonProvenance(lessonData)) {
+      groundLessonQuizBeforePersist(lessonData);
     }
 
     // ✅ ADDED: Auto-attach curated hero visual for AQA GCSE Biology with debug logging
@@ -3995,18 +4134,24 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
       ? { allowed: !!req.accessDecision.allowed, reason: req.accessDecision.reason }
       : { allowed: true, reason: "UNKNOWN" };
 
-    if (decision?.reason === "FREE_PREVIEW") {
-      const payload = toLessonPreviewPayload(lesson);
-      return res.json({ ...payload, accessDecision });
-    }
     const isOwner = String(lesson.teacherId) === String(req.user._id);
     const isSharedReviewer = decision?.reason === "SHARED_REVIEW";
     const isSharedTeacher = decision?.reason === "SHARED_TEACH";
     const isPrivilegedViewer = isAdmin(req.user) || isOwner || isSharedReviewer || isSharedTeacher;
-    const lessonForResponse =
-      !isPrivilegedViewer && req.user?.userType === "student"
-        ? stripCheckpointAutoMarkFromLesson(lesson)
-        : lesson;
+
+    let lessonForResponse = lesson;
+    if (!isPrivilegedViewer) {
+      lessonForResponse = shapeProgressiveRevealBlocksForStudentLesson(lessonForResponse);
+    }
+
+    if (decision?.reason === "FREE_PREVIEW") {
+      const payload = toLessonPreviewPayload(lessonForResponse);
+      return res.json({ ...payload, accessDecision });
+    }
+
+    if (!isPrivilegedViewer && req.user?.userType === "student") {
+      lessonForResponse = stripCheckpointAutoMarkFromLesson(lessonForResponse);
+    }
     const payload = toLessonFullPayload(lessonForResponse);
     payload.readiness = computeLessonReadiness(lesson);
     if (isSharedReviewer || isSharedTeacher) {
@@ -4981,6 +5126,15 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
 
     const alreadyExistedCount = ids.filter((id) => existingSourceIds.has(String(id))).length;
 
+    const inlineFingerprints = collectInlineActivityFingerprintsFromPages(lesson.pages || []);
+    for (const q of existingQuiz) {
+      const stem = String(q.question || q.prompt || "").trim();
+      const answer = String(q.correctAnswer || q.answer || "").trim();
+      const fp = mcqFingerprintFromStemAndAnswer(stem, answer);
+      if (fp !== "|") inlineFingerprints.add(fp);
+    }
+
+    let stemDuplicateSkipped = 0;
     const toAttach = [];
     for (const q of bankQuestions) {
       const sid = String(q._id);
@@ -4991,11 +5145,17 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
       const correctAnswer = isShort
         ? (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers[0] ? q.acceptableAnswers[0] : "")
         : (choices[correctIndex] || "");
+      const stemText = String(q.questionText || "").trim();
+      const fp = mcqFingerprintFromStemAndAnswer(stemText, correctAnswer);
+      if (inlineFingerprints.has(fp)) {
+        stemDuplicateSkipped += 1;
+        continue;
+      }
       const meta = q.metadata && typeof q.metadata === "object" ? q.metadata : {};
       toAttach.push({
         id: `pq_${pageId}_${Date.now()}_${toAttach.length}`,
         type: isShort ? "short" : "mcq",
-        question: q.questionText || "",
+        question: stemText,
         options: isShort ? undefined : choices,
         correctAnswer,
         explanation: q.explanation || "",
@@ -5006,9 +5166,10 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
         aiGenerated: meta.aiGenerated === true,
       });
       existingSourceIds.add(sid);
+      if (fp !== "|") inlineFingerprints.add(fp);
     }
 
-    const alreadyExisted = ids.length - toAttach.length;
+    const alreadyExisted = alreadyExistedCount + stemDuplicateSkipped;
     const newQuestions = [...existingQuiz, ...toAttach];
 
     if (!lesson.quiz || typeof lesson.quiz !== "object") {
@@ -5021,7 +5182,7 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
     return res.json({
       ok: true,
       addedCount: toAttach.length,
-      alreadyExisted: alreadyExistedCount,
+      alreadyExisted: alreadyExisted,
       lesson: lesson.toObject ? lesson.toObject() : lesson,
     });
   } catch (err) {
@@ -5670,20 +5831,15 @@ router.get("/", auth, async (req, res) => {
 
     const requesterType = (req.user?.userType || "").toString().toLowerCase();
 
-    // Phase 9D: list filtering by role — students only see published; teachers see own; admins see all
-    const query = { status: { $nin: ["archived", "flagged"] } };
-    if (requesterType === "student") {
-      query.status = "published";
-      query.isPublished = true;
-    } else if (requesterType === "teacher") {
-      query.teacherId = req.user._id;
-    }
-    // admin: no extra filter (all non-archived/flagged)
+    let query;
+    let levelIsGCSE = false;
 
-    // ✅ HARD RULE: students are locked to their own level
     if (requesterType === "student") {
+      // Approved catalogue only; explicit level = browse stage override (Browse Lessons).
       const userId = getAuthUserId(req);
-      if (userId) {
+      let effectiveLevel = level ? String(level).trim() : "";
+
+      if (!effectiveLevel && userId) {
         const u = await User.findById(userId)
           .select("Keystage stageKey yearGroup userType")
           .lean();
@@ -5693,80 +5849,81 @@ router.get("/", auth, async (req, res) => {
           normalizeKeyStage(u?.stageKey) ||
           deriveKeyStageFromYearGroup(u?.yearGroup);
 
-        const forcedLevel = keyStageToLessonLevelLabel(ks);
+        effectiveLevel = keyStageToLessonLevelLabel(ks) || "";
+      }
 
-        // If we can determine it, enforce it (normalization-safe)
-        if (forcedLevel) {
-          const re = levelToRegex(forcedLevel);
-          if (re) query.level = re;
-        }
+      levelIsGCSE = String(effectiveLevel || "").toLowerCase().includes("gcse");
+
+      query = buildApprovedLessonsQuery({
+        subject,
+        level: effectiveLevel || undefined,
+        topic,
+        board,
+        tier: tier && levelIsGCSE ? tier : undefined,
+        q,
+        search,
+      });
+
+      if (teacher) {
+        query.teacherName = { $regex: String(teacher), $options: "i" };
       }
     } else {
-      // teacher/admin: allow explicit level filtering (normalization-safe)
+      // Phase 9D: teachers see own; admins see all non-archived/flagged
+      query = { status: { $nin: ["archived", "flagged"] } };
+      if (requesterType === "teacher") {
+        query.teacherId = req.user._id;
+      }
+
       if (level) {
         const re = levelToRegex(level);
         if (re) query.level = re;
       }
-    }
 
-    if (subject) query.subject = subject;
+      if (subject) query.subject = subject;
 
-    if (board !== undefined) {
-      // ✅ "Not set" should match missing/empty/"Not set"
-      if (isNotSetBoard(board)) {
-        query.$and = query.$and || [];
-        query.$and.push({
-          $or: [
-            { board: { $exists: false } },
-            { board: null },
-            { board: "" },
-            { board: { $regex: /^not set$/i } },
-            { board: { $regex: /^none$/i } },
-          ],
-        });
-      } else {
-        // supports exact board match (case-insensitive exact)
-        query.board = { $regex: `^${escapeRegex(String(board).trim())}$`, $options: "i" };
+      if (board !== undefined) {
+        if (isNotSetBoard(board)) {
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { board: { $exists: false } },
+              { board: null },
+              { board: "" },
+              { board: { $regex: /^not set$/i } },
+              { board: { $regex: /^none$/i } },
+            ],
+          });
+        } else {
+          query.board = { $regex: `^${escapeRegex(String(board).trim())}$`, $options: "i" };
+        }
       }
-    }
 
-    if (topic) {
-      query.topic = { $regex: String(topic), $options: "i" };
-    }
+      if (topic) {
+        query.topic = { $regex: String(topic), $options: "i" };
+      }
 
-    if (teacher) {
-      query.teacherName = { $regex: String(teacher), $options: "i" };
-    }
+      if (teacher) {
+        query.teacherName = { $regex: String(teacher), $options: "i" };
+      }
 
-    // tier only applies when query.level is GCSE (works for regex too)
-    // We only apply tier if caller explicitly sent tier AND the requested/effective level is GCSE.
-    const levelIsGCSE =
-      requesterType === "student"
-        ? normalizeKeyStage(
-            (await User.findById(getAuthUserId(req))
-              .select("Keystage stageKey yearGroup")
-              .lean()
-              .then((u) => u?.Keystage || u?.stageKey || deriveKeyStageFromYearGroup(u?.yearGroup))
-              .catch(() => "")) || ""
-          ) === "gcse"
-        : String(level || "").toLowerCase().includes("gcse");
+      levelIsGCSE = String(level || "").toLowerCase().includes("gcse");
 
-    if (tier && levelIsGCSE) {
-      const normalisedTier = normalizeTier(tier);
-      if (normalisedTier) query.tier = normalisedTier;
-    }
+      if (tier && levelIsGCSE) {
+        const normalisedTier = normalizeTier(tier);
+        if (normalisedTier) query.tier = normalisedTier;
+      }
 
-    // free-text search (title/subject/topic/board/level)
-    const text = (q || search || "").toString().trim();
-    if (text) {
-      const rx = { $regex: text, $options: "i" };
-      query.$or = [
-        { title: rx },
-        { subject: rx },
-        { topic: rx },
-        { board: rx },
-        { level: rx },
-      ];
+      const text = (q || search || "").toString().trim();
+      if (text) {
+        const rx = { $regex: text, $options: "i" };
+        query.$or = [
+          { title: rx },
+          { subject: rx },
+          { topic: rx },
+          { board: rx },
+          { level: rx },
+        ];
+      }
     }
 
     let lessons = await Lesson.find(query)
@@ -5776,7 +5933,7 @@ router.get("/", auth, async (req, res) => {
 
     // List-safe shape only: never return pages, content, quiz, flashcards (Phase 9 — non-leaky).
     const LIST_SAFE_KEYS = [
-      "id", "_id", "title", "summary", "description", "subject", "level", "board", "examBoard", "topic", "tier",
+      "id", "_id", "title", "summary", "description", "subject", "level", "board", "examBoard", "topic", "topicKey", "specKey", "tier",
       "status", "isPublished", "teacherId", "teacherName", "createdAt", "updatedAt", "views",
       "averageRating", "isFreePreview", "preview",
     ];
@@ -5866,3 +6023,5 @@ module.exports = router;
 module.exports.createLessonHandler = createLessonHandler;
 module.exports.mergePagesOnUpdate = mergePagesOnUpdate;
 module.exports.sanitisePagesInput = sanitisePagesInput;
+module.exports.shapeProgressiveRevealBlocksForStudentLesson =
+  shapeProgressiveRevealBlocksForStudentLesson;

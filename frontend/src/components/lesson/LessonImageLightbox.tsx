@@ -2,7 +2,6 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -72,15 +71,6 @@ export function LessonImageLightboxProvider({ children }: { children: React.Reac
       return { ...s, index: (s.index + 1) % s.items.length };
     });
   }, []);
-
-  useEffect(() => {
-    if (!openState) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [openState]);
 
   const value = useMemo(() => ({ open, close }), [open, close]);
 

@@ -168,6 +168,54 @@ describe("ExamQuestionBlock composite question marking", () => {
     expect(screen.getByTestId("exam-composite-total-score")).toHaveTextContent(/1 \/ 3 marks/i);
   });
 
+  test("legacy composite MCQ without rationale shows neutral whyCorrect, not bare option", () => {
+    render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="student" />);
+    fireEvent.click(screen.getByRole("radio", { name: /Prophase/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /check answer/i })[0]);
+
+    expect(screen.getByTestId("answer-feedback-panel")).toHaveAttribute("data-status", "correct");
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/1 \/ 1 marks/i);
+    const why = screen.getByTestId("answer-feedback-why-correct");
+    expect(why).toHaveTextContent(/Why this is correct/i);
+    expect(why).toHaveTextContent(/The selected response matches the correct answer/i);
+    expect(why).not.toHaveTextContent(/^Why this is correct\s*Prophase\s*$/i);
+    // Short-answer part remains unanswered and independently checkable.
+    expect(screen.getByRole("textbox", { name: /your answer/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /check answer/i }).length).toBeGreaterThan(0);
+  });
+
+  test("composite MCQ with partData explanation shows full rationale", () => {
+    const withRationale: ExamQuestion = {
+      ...COMPOSITE_QUESTION,
+      _id: "exam-composite-rationale",
+      parts: [
+        {
+          label: "a",
+          type: "mcq",
+          marks: 1,
+          questionText: "Which factor is NOT essential for seed germination?",
+          options: ["Water", "Oxygen", "Suitable temperature", "Light"],
+          correctIndex: 3,
+          markScheme: ["Award 1 mark for selecting Light."],
+          partData: {
+            explanation:
+              "Light is not essential because the seed initially uses stored food reserves. Germination requires water, oxygen and a suitable temperature.",
+          },
+        },
+        COMPOSITE_QUESTION.parts![1],
+      ],
+    };
+    render(<ExamQuestionBlock question={withRationale} mode="student" />);
+    fireEvent.click(screen.getByRole("radio", { name: /^Light$/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /check answer/i })[0]);
+
+    expect(screen.getByTestId("answer-feedback-panel")).toHaveAttribute("data-status", "correct");
+    expect(screen.getByTestId("answer-feedback-score-badge")).toHaveTextContent(/1 \/ 1 marks/i);
+    const why = screen.getByTestId("answer-feedback-why-correct");
+    expect(why).toHaveTextContent(/stored food reserves/i);
+    expect(why).not.toHaveTextContent(/^Why this is correct\s*Light\s*$/i);
+  });
+
   test("part (b) written answer marks partially with feedback", () => {
     render(<ExamQuestionBlock question={COMPOSITE_QUESTION} mode="student" />);
     fireEvent.change(screen.getByRole("textbox", { name: /your answer/i }), {

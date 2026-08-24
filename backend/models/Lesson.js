@@ -62,6 +62,8 @@ const InteractiveSequenceStepSchema = new mongoose.Schema(
     caption: { type: String, default: "" },
     /** Optional — second line in AssessmentFeedback after students reveal Test me key idea. */
     testExplanation: { type: String, required: false },
+    /** Optional curriculum provenance per step (progressive-reveal V1). */
+    sourceIds: { type: [String], default: undefined },
   },
   { _id: false }
 );
@@ -225,6 +227,14 @@ const LessonPageBlockSchema = new mongoose.Schema(
     /** featured = key visual emphasis in student lesson layout */
     diagramVariant: { type: String, enum: ["standard", "featured"], required: false },
 
+    /** Stable block id from generator / Synthesiser export (optional). */
+    id: { type: String, default: undefined },
+    /** interactiveSequence presentation — only progressiveReveal is supported in V1. */
+    presentationMode: { type: String, enum: ["progressiveReveal"], required: false },
+    /** When false, disables Test me / AI recall in carousel mode; forced false for progressiveReveal. */
+    enableTestMe: { type: Boolean, required: false },
+    /** Curriculum provenance for interactiveSequence blocks (optional). */
+    sourceIds: { type: [String], default: undefined },
     /** type === "interactiveSequence" | "interactiveDiagram" | "dragDropMatch" */
     intro: { type: String, default: undefined },
     sequenceSteps: { type: [InteractiveSequenceStepSchema], default: undefined },

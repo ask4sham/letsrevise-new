@@ -6,6 +6,7 @@ const { verifyCitations, traceCitationVerification } = require("../utils/citatio
 const { searchKnowledge } = require("../services/knowledge/knowledgeSearchService");
 const {
   generateEnquiryAnswer,
+  generateDirectStudentAskShamAnswer,
   getProvider: getLlmProvider,
   ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING,
 } = require("../services/llm/provider");
@@ -168,18 +169,13 @@ async function handleEnquiry(req, res) {
       }
     }
 
-    // PR-007: Student-safe mode — force constraints
-    // PR-021: Students never get external search
-    // Ask Sham: Explain answers first — do not force practice generation in explain mode.
+    // Ask Sham V1: students get one direct AI answer — no retrieval, modes, or practice.
     if (isStudentUser) {
       mode = "lesson";
       limit = Math.min(6, parseInt(limit, 10) || 6);
       allowExternal = false;
-      if (responseMode === "explain") {
-        includePractice = false;
-      } else {
-        includePractice = true;
-      }
+      includePractice = false;
+      responseMode = "explain";
     }
 
     const isTeacherOrAdmin = userRoleLower === "teacher" || userRoleLower === "admin";
@@ -193,6 +189,8 @@ async function handleEnquiry(req, res) {
     if (!spec) {
       return res.status(400).json({ error: "specKey is required" });
     }
+
+    const retrievalQuery = q;
 
     const topN = Math.min(20, Math.max(1, parseInt(limit, 10) || 8));
     const modeVal = normalizeEnquiryMode(mode);
@@ -335,14 +333,146 @@ async function handleEnquiry(req, res) {
           })
         );
       }
+      if (isStudentUser) {
+        return res.json({
+          enquiryLogId: logDoc._id?.toString() || null,
+          cached: true,
+          question: q,
+          specKey: spec,
+          topicKey: topicKey || null,
+          usedSources: [],
+          answer: {
+            explanation: String(answerCached.explanation || "").trim(),
+            keyPoints: [],
+            memoryHook: "",
+            citations: [],
+            practice: [],
+            warnings: [],
+          },
+          suggestedActions: [],
+        });
+      }
       return res.json(cachePayload);
+    }
+
+    // Ask Sham V1 — direct AI for students (no lesson retrieval / grounding gate).
+    if (isStudentUser) {
+      const userId = req.user?._id || req.user?.userId || req.user?.id;
+      const modeValStudent = normalizeEnquiryMode(mode);
+      let answer;
+      try {
+        answer = await generateDirectStudentAskShamAnswer({
+          question: q,
+          constraints: {
+            specKey: spec,
+            topicKey: topicKey || null,
+            conversationContext: conversationContext.length > 0 ? conversationContext : undefined,
+          },
+        });
+      } catch (directErr) {
+        console.error("Ask Sham direct answer error:", directErr);
+        return res.status(503).json({
+          error: "Ask Sham isn't available right now. Please try again shortly.",
+        });
+      }
+
+      const studentAnswer = {
+        explanation: String(answer.explanation || "").trim(),
+        keyPoints: [],
+        memoryHook: "",
+        citations: [],
+        practice: [],
+        warnings: [],
+      };
+
+      const msgCount = await (convIdValid
+        ? ConversationMessage.countDocuments({ conversationId: convIdValid })
+        : Promise.resolve(0));
+      const turnIndex = Math.floor(msgCount / 2);
+
+      const logDoc = await EnquiryLog.create({
+        userId,
+        role: userRoleForLog,
+        question: q,
+        specKey: spec,
+        topicKey: topicKey || null,
+        mode: modeValStudent,
+        conversationId: convIdValid || undefined,
+        turnIndex,
+        cached: false,
+        retrieval: { query: q, topK: 0, results: [] },
+        response: {
+          explanation: studentAnswer.explanation,
+          keyPoints: [],
+          memoryHook: "",
+          practice: [],
+          citations: [],
+          warnings: [],
+        },
+        provider: { llm: getLlmProvider(), embeddings: getEmbeddingsProvider() },
+      });
+
+      if (convIdValid) {
+        await ConversationMessage.create([
+          { conversationId: convIdValid, role: "user", text: q },
+          {
+            conversationId: convIdValid,
+            role: "assistant",
+            text: studentAnswer.explanation,
+            enquiryLogId: logDoc._id,
+          },
+        ]);
+        const update = { updatedAt: new Date(), lastMessageAt: new Date() };
+        if (msgCount === 0) update.title = String(q).trim().slice(0, 60);
+        await Conversation.updateOne({ _id: convIdValid }, { $set: update });
+      }
+
+      await setCached(
+        spec,
+        topicKey || null,
+        modeValStudent,
+        q,
+        {
+          question: q,
+          usedSources: [],
+          answer: studentAnswer,
+        },
+        convIdValid,
+        responseMode,
+        false,
+        lessonIdForCache,
+        groundingPolicy
+      );
+
+      if (topicKey) {
+        (async () => {
+          await upsertStudentTopicProgressSignal({
+            userId,
+            specKey: spec,
+            topicKey,
+            signalType: "aiEnquiries",
+            value: 1,
+          });
+        })().catch(() => {});
+      }
+
+      return res.json({
+        enquiryLogId: logDoc._id?.toString() || null,
+        cached: false,
+        question: q,
+        specKey: spec,
+        topicKey: topicKey || null,
+        usedSources: [],
+        answer: studentAnswer,
+        suggestedActions: [],
+      });
     }
 
     if (DEBUG_ENQUIRY) console.log("[enquiry/post] before searchKnowledge");
     let lessonLocalResults = [];
     if (lessonIdForCache) {
       lessonLocalResults = await getLessonLocalRetrieval({
-        question: q,
+        question: retrievalQuery,
         specKey: spec,
         topicKey: topicKey || null,
         lessonId: lessonIdForCache,
@@ -356,7 +486,7 @@ async function handleEnquiry(req, res) {
     const lessonLocalStrong = lessonTopScore >= LESSON_LOCAL_STRONG_THRESHOLD;
 
     let vectorResults = await searchKnowledge({
-      query: q,
+      query: retrievalQuery,
       specKey: spec,
       topicKey: topicKey || undefined,
       limit: topN,
@@ -395,7 +525,7 @@ async function handleEnquiry(req, res) {
         });
         await embedExternalDocs(indexed);
         const vectorAfterExternal = await searchKnowledge({
-          query: q,
+          query: retrievalQuery,
           specKey: spec,
           topicKey: topicKey || undefined,
           limit: topN,
@@ -889,4 +1019,8 @@ async function handleEnquiryAction(req, res) {
   }
 }
 
-module.exports = { handleEnquiry, handleEnquiryFeedback, handleEnquiryAction };
+module.exports = {
+  handleEnquiry,
+  handleEnquiryFeedback,
+  handleEnquiryAction,
+};

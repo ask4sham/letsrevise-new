@@ -59,7 +59,12 @@ router.post("/", auth, async (req, res) => {
     return res.status(200).json({ ok: true, linkId: existing._id, message: "Link already exists" });
   }
 
-  const link = await StudentTeacherLink.create({ studentId: studentIdObj, teacherId: teacherIdObj });
+  const link = await StudentTeacherLink.create({
+    studentId: studentIdObj,
+    teacherId: teacherIdObj,
+    status: "accepted",
+    source: "admin",
+  });
   return res.status(201).json({ ok: true, linkId: link._id });
 });
 

@@ -15,6 +15,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ConfirmEmailChangePage from "./pages/ConfirmEmailChangePage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminAuditLogPage from "./pages/AdminAuditLogPage";
+import AdminLoginActivityPage from "./pages/AdminLoginActivityPage";
 import Dashboard from "./pages/Dashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -24,6 +25,8 @@ import EditLessonPage from "./pages/EditLessonPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import StudentProgressPage from "./pages/StudentProgressPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
+import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
+import SubscriptionCancelPage from "./pages/SubscriptionCancelPage";
 import TeacherPayoutPage from "./pages/TeacherPayoutPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -62,6 +65,9 @@ import TeacherReteachPlansPage from "./pages/TeacherReteachPlansPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 import AdminIngestPage from "./pages/AdminIngestPage";
 import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
+import AdminExamQuestionViewPage from "./pages/AdminExamQuestionViewPage";
+import AdminMcqRationaleInventoryPage from "./pages/AdminMcqRationaleInventoryPage";
+import AdminMcqRationaleReviewPage from "./pages/AdminMcqRationaleReviewPage";
 import AdminTaxonomyPage from "./pages/AdminTaxonomyPage";
 import ContentCoveragePage from "./pages/ContentCoveragePage";
 import AdminLaunchCoveragePage from "./pages/AdminLaunchCoveragePage";
@@ -112,6 +118,7 @@ import StudentMyWorkPage from "./pages/StudentMyWorkPage";
 import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 import StudentPracticePage from "./pages/StudentPracticePage";
+import StudentClassesPage from "./pages/StudentClassesPage";
 import FlashcardSessionPage from "./pages/FlashcardSessionPage";
 import QuizSessionPage from "./pages/QuizSessionPage";
 import ExamPracticePage from "./pages/ExamPracticePage";
@@ -120,6 +127,7 @@ import StructureNotesPage from "./pages/StructureNotesPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 import TeacherLinkStudentsPage from "./pages/TeacherLinkStudentsPage";
+import TeacherClassDetailPage from "./pages/TeacherClassDetailPage";
 import DocsViewerPage from "./pages/DocsViewerPage";
 import CoverageDashboardPage from "./pages/CoverageDashboardPage";
 import ContentIssuesPage from "./pages/ContentIssuesPage";
@@ -501,6 +509,15 @@ function App() {
             }
           />
 
+          <Route
+            path="/student/classes"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentClassesPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Actionable Revision Flow: topic-based practice sessions */}
           <Route
             path="/practice/flashcards/:topicKey"
@@ -679,6 +696,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/teacher/classes/:classPublicId"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherClassDetailPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route path="/docs/view" element={<DocsViewerPage />} />
 
@@ -848,6 +873,14 @@ function App() {
             }
           />
           <Route
+            path="/admin/login-activity"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminLoginActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/ingest"
             element={
               <ProtectedRoute requireAdminOrContentManager>
@@ -894,6 +927,33 @@ function App() {
             element={
               <ProtectedRoute requireAdminOrContentManager>
                 <AdminQuestionBanksPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/question-banks/exam-questions/:questionId"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
+                <AdminExamQuestionViewPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/exam-question-rationale-inventory"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
+                <AdminMcqRationaleInventoryPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/exam-question-rationale-inventory/:questionId/:partLabel/review"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
+                <AdminMcqRationaleReviewPage />
               </ProtectedRoute>
             }
           />
@@ -1037,6 +1097,24 @@ function App() {
             element={
               <ProtectedRoute>
                 <SubscriptionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/subscription/success"
+            element={
+              <ProtectedRoute>
+                <SubscriptionSuccessPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/subscription/cancel"
+            element={
+              <ProtectedRoute>
+                <SubscriptionCancelPage />
               </ProtectedRoute>
             }
           />

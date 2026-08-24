@@ -30,9 +30,8 @@ export type PracticeSetItem = {
   };
 };
 
-export type GeneratePracticeSetPayload = {
-  /** Required for dashboard / linked-teacher practice. Ignored for lesson-scoped fresh practice. */
-  teacherId?: string;
+/** Shared Practice generation filters (no relationship context). */
+export type PracticeGenerationFilters = {
   specKey: string;
   topicKeys: string[];
   limit?: number;
@@ -42,8 +41,6 @@ export type GeneratePracticeSetPayload = {
   mode?: PracticeMode;
   /** Fresh V1: server excludes lesson-linked + recent set/attempt keys */
   excludeSeen?: boolean;
-  /** Lesson-scoped fresh practice: server verifies access and resolves lesson owner. */
-  lessonId?: string;
   idempotencyKey?: string;
   source?: string;
   /** Revision quiz session exclusions (server-validated). */
@@ -52,6 +49,27 @@ export type GeneratePracticeSetPayload = {
     stemTexts?: string[];
     fingerprints?: string[];
   };
+};
+
+/**
+ * Discriminated relationship context for Practice generation.
+ * Normal student UI uses `class` or `lesson` only — never `legacyTeacher`.
+ */
+export type PracticeGenerationContext =
+  | { mode: "class"; membershipPublicId: string }
+  | { mode: "lesson"; lessonId: string }
+  | { mode: "legacyTeacher"; teacherId: string };
+
+export type GeneratePracticeSetPayload = PracticeGenerationFilters & {
+  /** Opaque active class membership — preferred dashboard path. */
+  membershipPublicId?: string;
+  /** Lesson-scoped fresh practice: server verifies access and resolves lesson owner. */
+  lessonId?: string;
+  /**
+   * Legacy compatibility only. Do not send from the normal student Practice page.
+   * Ignored when lessonId is set; rejected when sent with membershipPublicId.
+   */
+  teacherId?: string;
 };
 
 /**
@@ -120,12 +138,52 @@ export async function generatePracticeSet(
     source: payload.source,
     sessionExclusions: payload.sessionExclusions,
   };
-  if (payload.teacherId) body.teacherId = payload.teacherId;
+  if (payload.membershipPublicId) {
+    body.membershipPublicId = payload.membershipPublicId;
+  } else if (payload.teacherId) {
+    body.teacherId = payload.teacherId;
+  }
   const res = await api.post<GeneratePracticeSetResponse>(
     "/practice-sets/generate",
     body
   );
   return res.data;
+}
+
+/** Map Practice relationship errors to student-safe copy. */
+export function getPracticeGenerationErrorMessage(
+  err: unknown,
+  fallback = "Could not start Practice."
+): string {
+  const e = err as {
+    status?: number;
+    message?: string;
+    data?: { error?: string; code?: string; msg?: string };
+    response?: { status?: number; data?: { error?: string; code?: string; msg?: string } };
+  };
+  const status = e?.status ?? e?.response?.status;
+  const code = e?.data?.code || e?.response?.data?.code;
+  const apiMsg =
+    e?.data?.error ||
+    e?.data?.msg ||
+    e?.response?.data?.error ||
+    e?.response?.data?.msg ||
+    e?.message;
+
+  if (code === "CLASS_ARCHIVED") return "This class is no longer active.";
+  if (code === "MEMBERSHIP_REMOVED") return "This class link is no longer active.";
+  if (code === "MEMBERSHIP_NOT_FOUND" || status === 404) {
+    return "This class link is no longer available.";
+  }
+  if (code === "AMBIGUOUS_PRACTICE_CONTEXT") {
+    return "Choose either a class or a teacher link, not both.";
+  }
+  if (status === 403) {
+    if (apiMsg && /lesson access/i.test(apiMsg)) return apiMsg;
+    return "You do not have access to start Practice with this class.";
+  }
+  if (status === 401) return "Please log in again.";
+  return apiMsg || fallback;
 }
 
 export async function getPracticeSet(

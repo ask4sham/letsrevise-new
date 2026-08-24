@@ -179,3 +179,150 @@ describe("InteractiveSequenceBlock compact image layout", () => {
     expect(screen.getByText(/follow each stage/i)).toBeInTheDocument();
   });
 });
+
+const progressiveSteps = [
+  {
+    id: "p1",
+    title: "Glucose uptake",
+    description: "Glucose enters the cell.",
+    imageUrl: "",
+    caption: "Should not show",
+  },
+  {
+    id: "p2",
+    title: "Respiration",
+    description: "Mitochondria release ATP.",
+    imageUrl: "",
+    caption: "Also hidden",
+  },
+  {
+    id: "p3",
+    title: "Energy use",
+    description: "ATP powers cell processes.",
+    imageUrl: "",
+    caption: "",
+  },
+];
+
+describe("InteractiveSequenceBlock progressiveReveal", () => {
+  beforeAll(() => {
+    window.scrollTo = jest.fn();
+  });
+
+  it("shows only the first step initially and reveals cumulatively on Continue", () => {
+    render(
+      <InteractiveSequenceBlock
+        blockTitle="Metabolism"
+        intro="Follow the process."
+        steps={progressiveSteps}
+        resolveImageUrl={(u) => u}
+        presentationMode="progressiveReveal"
+        enableTestMe={false}
+        viewMode="student"
+      />
+    );
+
+    expect(screen.getByText(/glucose enters the cell/i)).toBeInTheDocument();
+    expect(screen.queryByText(/mitochondria release atp/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/test me/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /continue to step 2 of 3/i }));
+    expect(screen.getByText(/mitochondria release atp/i)).toBeInTheDocument();
+    expect(screen.getByText(/glucose enters the cell/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /continue to step 3 of 3/i }));
+    expect(screen.getByText(/atp powers cell processes/i)).toBeInTheDocument();
+  });
+
+  it("marks completion after the final Continue and supports Reset", () => {
+    render(
+      <InteractiveSequenceBlock
+        blockTitle="Metabolism"
+        intro=""
+        steps={progressiveSteps}
+        resolveImageUrl={(u) => u}
+        presentationMode="progressiveReveal"
+        viewMode="student"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /continue to step 2 of 3/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue to step 3 of 3/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue to step 3 of 3/i }));
+    expect(screen.getByText(/process complete/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /reset activity/i }));
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+    expect(screen.queryByText(/process complete/i)).not.toBeInTheDocument();
+  });
+
+  it("does not render Previous, Test me, or caption reveal in progressive mode", () => {
+    render(
+      <InteractiveSequenceBlock
+        blockTitle="Metabolism"
+        intro=""
+        steps={progressiveSteps}
+        resolveImageUrl={(u) => u}
+        presentationMode="progressiveReveal"
+        viewMode="student"
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: /^previous$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reveal answer/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/should not show/i)).not.toBeInTheDocument();
+  });
+
+  it("shows single-step static completion without Continue", () => {
+    render(
+      <InteractiveSequenceBlock
+        blockTitle="One step"
+        intro=""
+        steps={[progressiveSteps[0]]}
+        resolveImageUrl={(u) => u}
+        presentationMode="progressiveReveal"
+        viewMode="student"
+      />
+    );
+
+    expect(screen.getByText(/process complete/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /continue/i })).not.toBeInTheDocument();
+  });
+
+  it("exposes aria-live progress and keyboard-accessible Continue", () => {
+    render(
+      <InteractiveSequenceBlock
+        blockTitle="Metabolism"
+        intro=""
+        steps={progressiveSteps}
+        resolveImageUrl={(u) => u}
+        presentationMode="progressiveReveal"
+        viewMode="student"
+      />
+    );
+
+    const progress = screen.getByText(/step 1 of 3/i);
+    expect(progress).toHaveAttribute("aria-live", "polite");
+
+    const continueBtn = screen.getByRole("button", { name: /continue to step 2 of 3/i });
+    fireEvent.click(continueBtn);
+    expect(screen.getByText(/mitochondria release atp/i)).toBeInTheDocument();
+  });
+
+  it("keeps legacy carousel behaviour when presentationMode is absent", () => {
+    render(
+      <InteractiveSequenceBlock
+        blockTitle="Carousel"
+        intro=""
+        steps={progressiveSteps}
+        resolveImageUrl={(u) => u}
+        enableAiTestMe={false}
+        viewMode="student"
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /^next$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^previous$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^continue$/i })).not.toBeInTheDocument();
+  });
+});

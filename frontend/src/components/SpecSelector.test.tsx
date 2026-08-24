@@ -1,11 +1,11 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SpecSelector } from "./SpecSelector";
+
 jest.mock("../services/api", () => ({
   __esModule: true,
   default: { get: jest.fn() },
 }));
-
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { SpecSelector } from "./SpecSelector";
 
 describe("SpecSelector", () => {
   it("includes Edexcel IGCSE Biology (4BI1)", () => {
@@ -24,5 +24,16 @@ describe("SpecSelector", () => {
     render(<SpecSelector value="aqa-gcse-biology" onChange={onChange} />);
     await userEvent.selectOptions(screen.getByRole("combobox"), "edexcel-igcse-biology");
     expect(onChange).toHaveBeenCalledWith("edexcel-igcse-biology");
+  });
+
+  it("defaults visible label to Subject", () => {
+    render(<SpecSelector value="aqa-gcse-biology" onChange={() => {}} />);
+    expect(screen.getByLabelText(/^Subject$/i)).toBeInTheDocument();
+  });
+
+  it("accepts optional Course label without changing default consumers", () => {
+    render(<SpecSelector value="aqa-gcse-biology" onChange={() => {}} label="Course" />);
+    expect(screen.getByLabelText(/^Course$/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Subject$/i)).not.toBeInTheDocument();
   });
 });
