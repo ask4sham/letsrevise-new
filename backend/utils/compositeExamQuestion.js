@@ -1,13 +1,42 @@
 /**
  * Composite Exam Question helpers (V1 + additive V2 table parts).
  *
- * V1 parts remain mcq/short with no partData.
+ * V1 parts remain mcq/short; MCQ may optionally store partData: { explanation }.
  * V2 table parts add type "table" + partData { headers, rows }.
  * Old questions require zero migration.
  */
 
 const PART_TYPES = ["mcq", "short", "table"];
 const DEFAULT_LABELS = "abcdefghijklmnopqrstuvwxyz".split("");
+/** Optional MCQ educational rationale (plain text). */
+const MCQ_EXPLANATION_MAX_LENGTH = 1000;
+
+function mcqExplanationTooLongError(label) {
+  const err = new Error(
+    `Part (${label}) explanation must be at most ${MCQ_EXPLANATION_MAX_LENGTH} characters.`
+  );
+  err.code = "MCQ_EXPLANATION_TOO_LONG";
+  err.status = 400;
+  return err;
+}
+
+/**
+ * Approved MCQ partData shape: { explanation: string } only.
+ * Strips arbitrary keys; omits partData when explanation is empty/invalid.
+ * Rejects trimmed explanations over MCQ_EXPLANATION_MAX_LENGTH (does not truncate).
+ * Used by both POST create and PUT composite rebuild via normalizePart.
+ * @returns {{ explanation: string } | undefined}
+ */
+function normalizeMcqPartData(raw, label) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  if (typeof raw.explanation !== "string") return undefined;
+  const explanation = raw.explanation.trim();
+  if (!explanation) return undefined;
+  if (explanation.length > MCQ_EXPLANATION_MAX_LENGTH) {
+    throw mcqExplanationTooLongError(label || "a");
+  }
+  return { explanation };
+}
 
 function isCompositePayload(body) {
   if (!body) return false;
@@ -105,7 +134,10 @@ function normalizePart(rawPart, index) {
     out.correctIndex = null;
   }
 
-  if (type === "table") {
+  if (type === "mcq") {
+    const mcqData = normalizeMcqPartData(part.partData, label);
+    if (mcqData) out.partData = mcqData;
+  } else if (type === "table") {
     const tableData = normalizeTablePartData(part.partData);
     if (tableData) out.partData = tableData;
   }
@@ -164,7 +196,15 @@ function validateCompositeDraft(body) {
   if (!sharedStem) {
     return { ok: false, msg: "Add a shared question stem for the composite question." };
   }
-  const parts = normalizeParts(body?.parts);
+  let parts;
+  try {
+    parts = normalizeParts(body?.parts);
+  } catch (err) {
+    if (err && err.code === "MCQ_EXPLANATION_TOO_LONG") {
+      return { ok: false, msg: err.message };
+    }
+    throw err;
+  }
   if (parts.length < 1) {
     return { ok: false, msg: "Add at least one part (a, b, c…) to the composite question." };
   }
@@ -225,13 +265,16 @@ function validateCompositePublish(doc) {
 
 module.exports = {
   PART_TYPES,
+  MCQ_EXPLANATION_MAX_LENGTH,
   isCompositePayload,
   normalizePart,
   normalizeParts,
+  normalizeMcqPartData,
   normalizeTablePartData,
   validateTablePartData,
   computeTotalMarks,
   buildCompositeFields,
   validateCompositeDraft,
   validateCompositePublish,
+  mcqExplanationTooLongError,
 };

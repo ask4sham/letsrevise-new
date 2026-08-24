@@ -5,6 +5,12 @@ const auth = require("../middleware/auth");
 const User = require("../models/User");
 const { isActiveUserDoc } = require("../utils/activeUser");
 const { sendInternalError } = require("../utils/safeErrorResponse");
+const {
+  CURRENT_USER_PROJECTION,
+  SELF_PROFILE_PROJECTION,
+  toCurrentUserDto,
+  toSelfProfileDto,
+} = require("../utils/userResponse");
 
 // helper: support different auth shapes (userId vs id vs _id)
 function getAuthUserId(req) {
@@ -48,7 +54,7 @@ router.get("/me", auth, async (req, res) => {
       return res.status(401).json({ msg: "Not authenticated (no user id)" });
     }
     const user = await User.findById(userId)
-      .select("-password -__v")
+      .select(CURRENT_USER_PROJECTION)
       .lean();
     if (!user) {
       return res.status(404).json({ msg: "User not found", code: "USER_NOT_FOUND" });
@@ -59,7 +65,7 @@ router.get("/me", auth, async (req, res) => {
         code: "ACCOUNT_DELETED",
       });
     }
-    res.json(user);
+    res.json(toCurrentUserDto(user));
   } catch (err) {
     return sendInternalError("users/me", err, res);
   }
@@ -76,16 +82,21 @@ router.get("/profile", auth, async (req, res) => {
       return res.status(401).json({ msg: "Not authenticated (no user id)" });
     }
 
-    const user = await User.findById(userId)
-      .select("-password -__v")
-      .populate("purchasedLessons.lessonId", "title subject level teacherName");
+    // Explicit inclusion only — no auth/recovery tokens. purchasedLessons mapped to ids.
+    const user = await User.findById(userId).select(SELF_PROFILE_PROJECTION).lean();
 
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    // ✅ Return yearGroup + stageKey so frontend can enforce gating consistently
-    res.json(user);
+    if (!isActiveUserDoc(user)) {
+      return res.status(401).json({
+        msg: "This account has been closed.",
+        code: "ACCOUNT_DELETED",
+      });
+    }
+
+    res.json(toSelfProfileDto(user));
   } catch (error) {
     return sendInternalError("users/profile", error, res);
   }

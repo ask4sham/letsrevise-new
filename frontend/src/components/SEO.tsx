@@ -10,9 +10,9 @@ interface SEOProps {
 }
 
 const SEO: React.FC<SEOProps> = ({
-  title = 'LetsRevise - Learn, Teach, Earn',
-  description = 'LetsRevise is a platform where students can learn from expert teachers and teachers can earn by sharing their knowledge.',
-  keywords = 'learning, education, online courses, teaching, earn money, lessons, tutorials, UK curriculum, LetsRevise',
+  title = 'LetsRevise',
+  description = 'Structured revision lessons with interactive activities, quizzes and exam-style practice.',
+  keywords = 'revision, GCSE, lessons, quizzes, exam practice, LetsRevise',
   image = '/logo.png',
   url = '',
   type = 'website'

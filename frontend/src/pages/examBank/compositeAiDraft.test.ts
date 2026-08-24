@@ -49,6 +49,8 @@ const mixedDraft: AiCompositeDraft = {
         "Meiosis always occurs first",
       ],
       correctIndex: 1,
+      explanation:
+        "Asexual reproduction involves one parent and produces genetically identical offspring through mitosis.",
       markSchemeLines: ["Award 1 mark for selecting Option B."],
     },
     {
@@ -92,6 +94,60 @@ describe("compositeAiDraft mapping", () => {
     ]);
     expect(parts[0].correctIndex).toBe(1);
     expect(parts[0].markScheme).toContain("Option B");
+    expect(parts[0].partData).toEqual({
+      explanation:
+        "Asexual reproduction involves one parent and produces genetically identical offspring through mitosis.",
+    });
+    expect(parts[0].markScheme).not.toContain("genetically identical offspring through mitosis");
+    expect(parts[1].partData).toBeUndefined();
+  });
+
+  test("missing AI explanation does not invent neutral fallback partData", () => {
+    const noExpl: AiCompositeDraft = {
+      ...mixedDraft,
+      parts: [
+        {
+          ...mixedDraft.parts[0],
+          explanation: undefined,
+        },
+        mixedDraft.parts[1],
+      ],
+    };
+    const parts = mapAiCompositeDraftToParts(noExpl);
+    expect(parts[0].partData).toBeUndefined();
+    expect(parts[0].correctIndex).toBe(1);
+    expect(parts[0].options[1]).toBe("One parent and identical offspring");
+  });
+
+  test("multiple MCQ explanations map independently", () => {
+    const multi: AiCompositeDraft = {
+      ...mixedDraft,
+      parts: [
+        {
+          label: "a",
+          type: "mcq",
+          marks: 1,
+          questionText: "Q1?",
+          options: ["A", "B", "C", "D"],
+          correctIndex: 0,
+          explanation: "First rationale about option A clearly.",
+          markSchemeLines: ["Award 1 mark for selecting Option A."],
+        },
+        {
+          label: "b",
+          type: "mcq",
+          marks: 1,
+          questionText: "Q2?",
+          options: ["W", "X", "Y", "Z"],
+          correctIndex: 2,
+          explanation: "Second rationale about option Y clearly.",
+          markSchemeLines: ["Award 1 mark for selecting Option C."],
+        },
+      ],
+    };
+    const parts = mapAiCompositeDraftToParts(multi);
+    expect(parts[0].partData).toEqual({ explanation: "First rationale about option A clearly." });
+    expect(parts[1].partData).toEqual({ explanation: "Second rationale about option Y clearly." });
   });
 
   test("table parts are not mapped", () => {

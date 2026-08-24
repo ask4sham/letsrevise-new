@@ -12,9 +12,14 @@ const hashedPassword = bcrypt.hashSync("password123", 10);
 
 function validCheckpoint(overrides = {}) {
   return {
-    question: "Which statement is correct?",
-    options: ["Option 1", "Option 2", "Option 3", "Option 4"],
-    answer: "Option 1",
+    question: "What is a cell?",
+    options: [
+      "The basic structural and functional unit of a living organism",
+      "A group of organs working together",
+      "A chemical that speeds up a reaction",
+      "A tissue made from several organ systems",
+    ],
+    answer: "The basic structural and functional unit of a living organism",
     ...overrides,
   };
 }
@@ -60,7 +65,7 @@ describe("Lesson checkpoint creation (PR)", () => {
             title: "Page 1",
             order: 1,
             blocks: [{ type: "text", content: "Content" }],
-            checkpoint: validCheckpoint({ question: "What is a cell?" }),
+            checkpoint: validCheckpoint(),
           },
         ],
       });
@@ -71,7 +76,9 @@ describe("Lesson checkpoint creation (PR)", () => {
     expect(lesson.pages[0].checkpoint).toBeDefined();
     expect(lesson.pages[0].checkpoint.question).toBe("What is a cell?");
     expect(lesson.pages[0].checkpoint.options).toHaveLength(4);
-    expect(lesson.pages[0].checkpoint.answer).toBe("Option 1");
+    expect(lesson.pages[0].checkpoint.answer).toBe(
+      "The basic structural and functional unit of a living organism"
+    );
   });
 
   test("POST /api/lessons with empty checkpoint → omits invented Option 1–4 filler", async () => {

@@ -12,8 +12,9 @@ const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
-const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { canAccessContent } = require("../utils/canAccessContent");
+const { hasAcceptedStudentTeacherLink } = require("../utils/hasAcceptedStudentTeacherLink");
+const { resolvePracticeMembership } = require("../utils/resolvePracticeMembership");
 const {
   generateAndPersistPracticeSet,
   getPracticeSetForStudent,
@@ -50,8 +51,11 @@ async function resolveTeacherLink(studentId, teacherId) {
   if (!teacherIdObj) {
     return { error: { status: 400, body: { error: "teacherId is required (content owner)." } } };
   }
-  const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
-  if (!link) {
+  const linked = await hasAcceptedStudentTeacherLink({
+    studentId,
+    teacherId: teacherIdObj,
+  });
+  if (!linked) {
     return {
       error: {
         status: 403,
@@ -64,12 +68,16 @@ async function resolveTeacherLink(studentId, teacherId) {
 
 /**
  * Resolve content-owner for practice generation.
- * - With lessonId: verify lesson access via canAccessContent; use Lesson.teacherId.
- *   Client-supplied teacherId is ignored (cannot override owner).
- * - Without lessonId: existing StudentTeacherLink + teacherId path.
+ * Precedence:
+ * A. lessonId → lesson-access path (client teacherId ignored)
+ * B. membershipPublicId → active class membership (reject if teacherId also sent)
+ * C. legacy teacherId → accepted link / membership helper
  */
-async function resolvePracticeOwner({ studentId, teacherId, lessonId }) {
+async function resolvePracticeOwner({ studentId, teacherId, lessonId, membershipPublicId }) {
   const lid = lessonId != null ? String(lessonId).trim() : "";
+  const mid = membershipPublicId != null ? String(membershipPublicId).trim() : "";
+  const tid = teacherId != null ? String(teacherId).trim() : "";
+
   if (lid) {
     if (!mongoose.Types.ObjectId.isValid(lid)) {
       return { error: { status: 400, body: { error: "Invalid lessonId" } } };
@@ -103,7 +111,23 @@ async function resolvePracticeOwner({ studentId, teacherId, lessonId }) {
     };
   }
 
-  const linked = await resolveTeacherLink(studentId, teacherId);
+  if (mid && tid) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          error: "Do not provide both membershipPublicId and teacherId.",
+          code: "AMBIGUOUS_PRACTICE_CONTEXT",
+        },
+      },
+    };
+  }
+
+  if (mid) {
+    return resolvePracticeMembership({ studentId, membershipPublicId: mid });
+  }
+
+  const linked = await resolveTeacherLink(studentId, tid || teacherId);
   if (linked.error) return linked;
   return { ...linked, resolution: "teacher-link" };
 }
@@ -120,6 +144,8 @@ router.get("/fresh-availability", auth, async (req, res) => {
   const topicKey = (req.query.topicKey && String(req.query.topicKey).trim()) || "";
   const teacherId = req.query.teacherId && String(req.query.teacherId).trim();
   const lessonId = req.query.lessonId && String(req.query.lessonId).trim();
+  const membershipPublicId =
+    req.query.membershipPublicId && String(req.query.membershipPublicId).trim();
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 5));
   const includeRaw = req.query.include;
   const includeTypes = includeRaw
@@ -143,7 +169,12 @@ router.get("/fresh-availability", auth, async (req, res) => {
     return res.status(400).json({ error: "specKey and topicKey are required" });
   }
 
-  const resolved = await resolvePracticeOwner({ studentId, teacherId, lessonId });
+  const resolved = await resolvePracticeOwner({
+    studentId,
+    teacherId,
+    lessonId,
+    membershipPublicId,
+  });
   if (resolved.error) return res.status(resolved.error.status).json(resolved.error.body);
 
   try {
@@ -266,6 +297,7 @@ router.post("/generate", auth, async (req, res) => {
     difficulty,
     skill,
     teacherId,
+    membershipPublicId,
     mode,
     excludeSeen,
     lessonId,
@@ -290,6 +322,7 @@ router.post("/generate", auth, async (req, res) => {
     studentId,
     teacherId,
     lessonId: lessonId ? String(lessonId).trim() : null,
+    membershipPublicId: membershipPublicId ? String(membershipPublicId).trim() : null,
   });
   if (resolved.error) return res.status(resolved.error.status).json(resolved.error.body);
 

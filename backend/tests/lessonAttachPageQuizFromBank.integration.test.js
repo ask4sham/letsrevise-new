@@ -365,4 +365,76 @@ describe("Attach Page Quiz from Bank", () => {
     expect(res.status).toBe(400);
     expect(res.body.msg).toMatch(/questionIds/);
   });
+
+  test("stem fingerprint duplicate is idempotent no-op (HTTP 200, no new pq row)", async () => {
+    const topicKey = "aqa-gcse-biology:cell-structure";
+    const haploidStem = "Why must human gametes be haploid before fertilisation?";
+    const haploidAnswer = "So fusion restores the diploid chromosome number in the zygote";
+    const bulkRes = await request(app)
+      .post("/api/topic-quiz-questions/bulk")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        topicKey,
+        items: [
+          {
+            questionText: haploidStem,
+            choices: [haploidAnswer, "Wrong A", "Wrong B", "Wrong C"],
+            correctIndex: 0,
+          },
+        ],
+      });
+    expect(bulkRes.status).toBe(200);
+    const bankId = bulkRes.body.createdIds[0];
+    await request(app)
+      .post(`/api/topic-quiz-questions/${bankId}/publish`)
+      .set("Authorization", `Bearer ${teacherToken}`);
+
+    const lesson = await Lesson.create({
+      title: "Stem dedup attach lesson",
+      description: "Test",
+      content: "Content",
+      teacherId,
+      teacherName: "Attach Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      board: "AQA",
+      topic: "Cell division",
+      topicKey,
+      status: "draft",
+      pages: [
+        {
+          pageId: "p1",
+          title: "Practise",
+          order: 0,
+          blocks: [
+            {
+              type: "pageQuiz",
+              questions: [
+                {
+                  id: "quiz1",
+                  prompt: haploidStem,
+                  options: [haploidAnswer, "Wrong A", "Wrong B", "Wrong C"],
+                  correctAnswer: haploidAnswer,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      quiz: { timeSeconds: 600, questions: [] },
+    });
+
+    const attachRes = await request(app)
+      .post(`/api/lessons/${lesson._id}/attach-page-quiz-from-bank`)
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ pageId: "p1", questionIds: [bankId] });
+    expect(attachRes.status).toBe(200);
+    expect(attachRes.body.addedCount).toBe(0);
+    expect(attachRes.body.alreadyExisted).toBe(1);
+
+    const getRes = await request(app)
+      .get(`/api/lessons/${lesson._id}`)
+      .set("Authorization", `Bearer ${teacherToken}`);
+    expect((getRes.body.quiz?.questions ?? []).length).toBe(0);
+  });
 });

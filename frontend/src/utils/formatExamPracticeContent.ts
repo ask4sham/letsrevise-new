@@ -1,3 +1,8 @@
+import {
+  mcqFingerprintFromStemAndAnswer,
+  normalizeQuestionStem,
+} from "./questionStemSimilarity";
+
 function escapeHtml(s = ""): string {
   return String(s)
     .replace(/&/g, "&amp;")
@@ -183,4 +188,92 @@ export function formatExamPracticeContentForImport(content = ""): string {
   }
 
   return parts.join("\n");
+}
+
+type ExamPracticeSection = {
+  html: string;
+  stem: string;
+  modelAnswer: string;
+};
+
+function extractModelAnswerFromSectionHtml(sectionHtml: string): string {
+  const modelMatch = sectionHtml.match(
+    /Model answer:<\/strong><\/p>\s*<p>([^<]+)/i
+  );
+  if (modelMatch) return stripHtmlToPlain(modelMatch[1]).trim();
+  const details = extractDetailsBlocks(sectionHtml)[0];
+  if (details) {
+    const plain = detailsInnerText(details);
+    const modelInDetails = plain.match(/Model answer:\s*(.+)/i);
+    if (modelInDetails) return modelInDetails[1].trim();
+    return plain.slice(0, 240).trim();
+  }
+  return "";
+}
+
+const EXAM_PRACTICE_Q_HEADER_PATTERN =
+  /<p>\s*<strong>\s*Q\d+\s*\([^)]*\)\s*<\/strong>\s*<\/p>/i;
+
+function parseExamPracticeSections(html: string): ExamPracticeSection[] {
+  const raw = String(html || "");
+  if (!raw.trim()) return [];
+
+  const headers: Array<{ index: number; length: number }> = [];
+  const headerRe = new RegExp(EXAM_PRACTICE_Q_HEADER_PATTERN.source, "gi");
+  let match = headerRe.exec(raw);
+  while (match !== null) {
+    headers.push({ index: match.index, length: match[0].length });
+    match = headerRe.exec(raw);
+  }
+  if (!headers.length) return [];
+
+  const sections: ExamPracticeSection[] = [];
+  for (let i = 0; i < headers.length; i++) {
+    const start = headers[i].index;
+    const end = i + 1 < headers.length ? headers[i + 1].index : raw.length;
+    const sectionHtml = raw.slice(start, end).trim();
+    const stemMatch = sectionHtml.match(/<\/p>\s*<p>([^<]+)<\/p>/i);
+    const stem = stemMatch ? stripHtmlToPlain(stemMatch[1]).trim() : "";
+    sections.push({
+      html: sectionHtml,
+      stem,
+      modelAnswer: extractModelAnswerFromSectionHtml(sectionHtml),
+    });
+  }
+  return sections;
+}
+
+function sectionIsDuplicate(
+  section: ExamPracticeSection,
+  excludeFingerprints: Set<string>
+): boolean {
+  if (!section.stem) return false;
+  const fp = mcqFingerprintFromStemAndAnswer(section.stem, section.modelAnswer);
+  if (excludeFingerprints.has(fp)) return true;
+  const stemOnly = `stem:${normalizeQuestionStem(section.stem)}`;
+  return excludeFingerprints.has(stemOnly);
+}
+
+/** Strip exam-practice Q sections that exactly match prior inline activity fingerprints. */
+export function stripDuplicateExamPracticeSections(
+  content = "",
+  excludeFingerprints: Set<string>
+): string {
+  const raw = String(content || "");
+  if (!raw.trim() || excludeFingerprints.size === 0) return raw;
+
+  const sections = parseExamPracticeSections(raw);
+  if (!sections.length) return raw;
+
+  const kept = sections.filter((s) => !sectionIsDuplicate(s, excludeFingerprints));
+  if (kept.length === sections.length) return raw;
+  return kept.map((s) => s.html).join("\n\n").trim();
+}
+
+/** True when content still has at least one exam-practice Q section or substantive body. */
+export function hasRenderableExamPracticeContent(content = ""): boolean {
+  const raw = String(content || "").trim();
+  if (!raw) return false;
+  if (parseExamPracticeSections(raw).length > 0) return true;
+  return stripHtmlToPlain(raw).length > 40;
 }

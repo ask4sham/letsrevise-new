@@ -39,6 +39,10 @@ export type InteractiveSequenceBlockProps = {
   subject?: string;
   /** When false, uses stored/derived text only (e.g. editor without lesson context). */
   enableAiTestMe?: boolean;
+  /** Block-level Test me toggle (carousel only; ignored in progressiveReveal). */
+  enableTestMe?: boolean;
+  /** Additive presentation mode — progressiveReveal enables cumulative step reveal. */
+  presentationMode?: "progressiveReveal" | string;
   /** Student view hides empty image placeholders. */
   viewMode?: "student" | "teacher" | "full";
   /**
@@ -48,11 +52,174 @@ export type InteractiveSequenceBlockProps = {
   hideBlockTitle?: boolean;
 };
 
+type ProgressiveRevealProps = Pick<
+  InteractiveSequenceBlockProps,
+  "blockTitle" | "intro" | "steps" | "resolveImageUrl" | "viewMode" | "hideBlockTitle"
+>;
+
+function ProgressiveRevealInteractiveSequence({
+  blockTitle,
+  intro,
+  steps,
+  resolveImageUrl,
+  viewMode = "full",
+  hideBlockTitle = false,
+}: ProgressiveRevealProps): React.ReactElement {
+  const list = Array.isArray(steps) && steps.length > 0 ? steps : [];
+  const total = list.length;
+  const [visibleCount, setVisibleCount] = useState(total <= 1 ? 1 : 1);
+  const [isComplete, setIsComplete] = useState(total <= 1);
+  const stepHeadingRefs = useRef<Array<HTMLHeadingElement | null>>([]);
+  const progressLiveId = useId();
+
+  const resolveStepImage = useCallback(
+    (url: string) => resolveLessonStepImageSrc(resolveImageUrl(url)),
+    [resolveImageUrl]
+  );
+
+  const resetActivity = useCallback(() => {
+    setVisibleCount(1);
+    setIsComplete(false);
+  }, []);
+
+  const onContinue = useCallback(() => {
+    if (total <= 1) return;
+    if (isComplete) return;
+    if (visibleCount < total) {
+      setVisibleCount((c) => c + 1);
+      return;
+    }
+    setIsComplete(true);
+  }, [isComplete, total, visibleCount]);
+
+  useEffect(() => {
+    if (total <= 1) return;
+    const idx = visibleCount - 1;
+    const el = stepHeadingRefs.current[idx];
+    if (el) el.focus({ preventScroll: true });
+  }, [total, visibleCount]);
+
+  if (list.length === 0) {
+    return (
+      <div className="interactive-sequence interactive-sequence--progressive-reveal">
+        {!hideBlockTitle && blockTitle.trim() ? (
+          <h3 className="interactive-sequence__main-title">{blockTitle}</h3>
+        ) : null}
+        <p className="interactive-sequence__empty">No steps in this activity yet.</p>
+      </div>
+    );
+  }
+
+  const progressStep = Math.min(visibleCount, total);
+  const showContinue = total > 1 && !isComplete;
+  const showReset = total > 1 && (visibleCount > 1 || isComplete);
+
+  return (
+    <div
+      className="interactive-sequence interactive-sequence--progressive-reveal"
+      role="region"
+      aria-label={blockTitle.trim() || "Step-by-step activity"}
+    >
+      {!hideBlockTitle && blockTitle.trim() ? (
+        <h3 className="interactive-sequence__main-title">{blockTitle}</h3>
+      ) : null}
+      <InteractiveSequenceIntro
+        intro={intro}
+        className="interactive-sequence__intro"
+        markdownClassName="interactive-sequence__intro--md lesson-content lesson-md-body"
+      />
+
+      <p className="interactive-sequence__step-of" id={progressLiveId} aria-live="polite">
+        Step {progressStep} of {total}
+      </p>
+
+      <ol className="interactive-sequence__progressive-list">
+        {list.slice(0, visibleCount).map((step, index) => {
+          const descriptionStudent = cleanSequenceStepDescription(String(step.description ?? ""), {
+            stepTitle: step.title,
+            stepIndex: index,
+          });
+          const imgRaw = (step.imageUrl ?? "").trim();
+          const imgResolved = imgRaw ? resolveStepImage(imgRaw) : "";
+          const showImg =
+            hasRenderableLessonImageSrc(imgRaw) && hasRenderableLessonImageSrc(imgResolved);
+          const stepKey = step.id?.trim() || `step-${index}`;
+          return (
+            <li key={stepKey} className="interactive-sequence__progressive-item">
+              {step.title ? (
+                <h4
+                  className="interactive-sequence__step-title"
+                  tabIndex={-1}
+                  ref={(el) => {
+                    stepHeadingRefs.current[index] = el;
+                  }}
+                >
+                  {step.title}
+                </h4>
+              ) : null}
+              {showImg ? (
+                <figure className="interactive-sequence__figure">
+                  <LessonImageFrame variant="primary" lightboxSrc={imgResolved}>
+                    <img
+                      className="interactive-sequence__image"
+                      src={imgResolved}
+                      alt={step.title?.trim() || `Step ${index + 1}`}
+                      onError={hideBrokenLessonImage}
+                    />
+                  </LessonImageFrame>
+                </figure>
+              ) : viewMode === "student" ? null : (
+                <div className="interactive-sequence__image-placeholder" role="status">
+                  <p className="interactive-sequence__image-placeholder-text">
+                    Add an image for this step (optional but recommended)
+                  </p>
+                </div>
+              )}
+              <p className="interactive-sequence__explanation-text">
+                {descriptionStudent.trim() || "—"}
+              </p>
+            </li>
+          );
+        })}
+      </ol>
+
+      {isComplete ? (
+        <div className="interactive-sequence__complete" role="status" aria-live="polite">
+          <span className="interactive-sequence__complete-badge">✓ Process complete</span>
+        </div>
+      ) : null}
+
+      <div className="interactive-sequence__progressive-controls">
+        {showContinue ? (
+          <button
+            type="button"
+            className="interactive-sequence__btn interactive-sequence__btn--continue"
+            aria-label={`Continue to step ${Math.min(visibleCount + 1, total)} of ${total}`}
+            onClick={onContinue}
+          >
+            Continue
+          </button>
+        ) : null}
+        {showReset ? (
+          <button
+            type="button"
+            className="interactive-sequence__btn interactive-sequence__btn--reset"
+            aria-label="Reset activity"
+            onClick={resetActivity}
+          >
+            Reset
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /**
- * Step-by-step interactive sequence for lesson content (mitosis, procedures, etc.).
+ * Legacy carousel step-by-step sequence (mitosis, procedures, etc.).
  * “Test me” shows an AI-generated recall question; answer appears only after Reveal.
  */
-export function InteractiveSequenceBlock({
+function LegacyCarouselInteractiveSequence({
   blockTitle,
   intro,
   steps,
@@ -61,6 +228,7 @@ export function InteractiveSequenceBlock({
   level,
   subject,
   enableAiTestMe = true,
+  enableTestMe,
   viewMode = "full",
   hideBlockTitle = false,
 }: InteractiveSequenceBlockProps): React.ReactElement {
@@ -90,7 +258,9 @@ export function InteractiveSequenceBlock({
   const revealBodyId = useId();
 
   const topicForAi = (lessonTitle ?? blockTitle ?? "").trim();
-  const aiTestMeEnabled = enableAiTestMe !== false && Boolean(topicForAi || descriptionStudent.trim());
+  const testMeAllowed = enableTestMe !== false;
+  const aiTestMeEnabled =
+    testMeAllowed && enableAiTestMe !== false && Boolean(topicForAi || descriptionStudent.trim());
   const stepKey = (step?.id?.trim() || `step-${safeIndex}`).slice(0, 64);
 
   const preventClickFocusScroll = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -167,8 +337,11 @@ export function InteractiveSequenceBlock({
     setAnswerRevealed(false);
   }, [safeIndex, captionTrimmed, testExplanationTrimmed, storedQuestion]);
 
-  const hasTestMe = Boolean(captionTrimmed || descriptionStudent.trim());
-  const anyStepHasTestMe = list.some((s, stepIdx) => {
+  const hasTestMe =
+    testMeAllowed && Boolean(captionTrimmed || descriptionStudent.trim());
+  const anyStepHasTestMe =
+    testMeAllowed &&
+    list.some((s, stepIdx) => {
     const cap = String(s.caption ?? "").trim();
     const desc = cleanSequenceStepDescription(String(s.description ?? ""), {
       stepTitle: s.title,
@@ -487,4 +660,24 @@ export function InteractiveSequenceBlock({
       </div>
     </div>
   );
+}
+
+/** Dispatches progressiveReveal vs legacy carousel without conditional hooks. */
+export function InteractiveSequenceBlock({
+  presentationMode,
+  ...rest
+}: InteractiveSequenceBlockProps): React.ReactElement {
+  if (presentationMode === "progressiveReveal") {
+    return (
+      <ProgressiveRevealInteractiveSequence
+        blockTitle={rest.blockTitle}
+        intro={rest.intro}
+        steps={rest.steps}
+        resolveImageUrl={rest.resolveImageUrl}
+        viewMode={rest.viewMode}
+        hideBlockTitle={rest.hideBlockTitle}
+      />
+    );
+  }
+  return <LegacyCarouselInteractiveSequence presentationMode={presentationMode} {...rest} />;
 }

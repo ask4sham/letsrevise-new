@@ -470,6 +470,10 @@ const CreateLessonPage: React.FC = () => {
   );
   const fileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
   const generatorImportInputRef = useRef<HTMLInputElement | null>(null);
+  const [synthesiserImportProvenance, setSynthesiserImportProvenance] = useState<{
+    source: string;
+    generator: string;
+  } | null>(null);
 
   const { options: taxonomyOptions, loading: taxonomyLoading, error: taxonomyError } = useCreateLessonTaxonomyOptions();
   const [titleTouched, setTitleTouched] = useState(false);
@@ -659,6 +663,15 @@ const CreateLessonPage: React.FC = () => {
         );
         setTimeout(() => setError(""), 8000);
         return;
+      }
+
+      if (String(doc.source || "").trim() === "letsrevise-lesson-synthesiser") {
+        setSynthesiserImportProvenance({
+          source: "letsrevise-lesson-synthesiser",
+          generator: "lesson-synthesiser-v1",
+        });
+      } else {
+        setSynthesiserImportProvenance(null);
       }
 
       // Slice 1 — fail closed before mutating Create Lesson form state.
@@ -1657,6 +1670,15 @@ const CreateLessonPage: React.FC = () => {
       mainTopicTitle: topicSelection.mainTopicTitle,
       subTopic: topicSelection.topic,
     });
+    if (synthesiserImportProvenance) {
+      payload.metadata = {
+        synthesiser: {
+          ...synthesiserImportProvenance,
+          importedAt: new Date().toISOString(),
+          criticOk: true,
+        },
+      };
+    }
     payload.autoGenerateFromBanks = !!formData.autoGenerateFromBanks;
     return payload;
   };

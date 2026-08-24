@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const UserProfilePage: React.FC = () => {
@@ -106,10 +106,35 @@ const UserProfilePage: React.FC = () => {
         <h3 style={{ marginBottom: "0.75rem", textAlign: "center" }}>
           Quick Links
         </h3>
-        <p style={{ color: "#666", fontSize: "0.9rem", textAlign: "center" }}>
-          Use the navigation at the top to go to your dashboard, subscriptions,
-          or browse lessons.
-        </p>
+        {(user.userType || "").toLowerCase() === "student" ? (
+          <div style={{ textAlign: "center" }}>
+            <p style={{ color: "#334155", fontWeight: 700, margin: "0 0 6px" }}>
+              Classes and teachers
+            </p>
+            <p style={{ color: "#666", fontSize: "0.9rem", margin: "0 0 14px" }}>
+              View invitations and manage the classes you have joined.
+            </p>
+            <Link
+              to="/student/classes"
+              style={{
+                display: "inline-block",
+                padding: "0.75rem 1.5rem",
+                backgroundColor: "#0f766e",
+                color: "white",
+                borderRadius: "6px",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Manage classes
+            </Link>
+          </div>
+        ) : (
+          <p style={{ color: "#666", fontSize: "0.9rem", textAlign: "center" }}>
+            Use the navigation at the top to go to your dashboard, subscriptions,
+            or browse lessons.
+          </p>
+        )}
       </div>
     </div>
   );

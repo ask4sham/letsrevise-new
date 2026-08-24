@@ -220,6 +220,8 @@ export type CompositeAiDraftPart = {
   markSchemeLines: string[];
   options?: string[];
   correctIndex?: number | null;
+  /** Transient AI-draft MCQ rationale; maps to partData.explanation on save. */
+  explanation?: string;
   commandWord?: string;
   skill?: string;
 };
@@ -254,7 +256,7 @@ function friendlyCompositeAiCode(
   code?: string,
   status?: number,
   msg?: string,
-  opts?: { dataTable?: boolean }
+  opts?: { dataTable?: boolean; issues?: string[] }
 ): string | null {
   if (status === 429 || code === "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR") {
     return "Too many AI draft requests. Try again in a minute.";
@@ -268,6 +270,10 @@ function friendlyCompositeAiCode(
   if (code === "AI_DRAFT_INVALID" || status === 422) {
     if (opts?.dataTable) {
       return "AI generated an invalid data table. Please try again.";
+    }
+    const issues = Array.isArray(opts?.issues) ? opts.issues : [];
+    if (issues.some((i) => String(i).includes("explanation"))) {
+      return "The AI draft could not produce a valid explanation for the multiple-choice answer. Review the question and try again.";
     }
     return msg && msg.trim() ? msg : "AI draft failed validation. Try again.";
   }
@@ -302,7 +308,10 @@ async function postCompositeAiDraft(
     }>(path, payload);
     if (!res.data?.success || !res.data.draft) {
       const friendly =
-        friendlyCompositeAiCode(res.data?.code, undefined, res.data?.msg, opts) ||
+        friendlyCompositeAiCode(res.data?.code, undefined, res.data?.msg, {
+          ...opts,
+          issues: res.data?.issues,
+        }) ||
         res.data?.msg ||
         res.data?.error ||
         fallbackError;
@@ -329,7 +338,10 @@ async function postCompositeAiDraft(
         (typeof data?.message === "string" && data.message) ||
         (typeof e.message === "string" && e.message) ||
         "";
-      const friendly = friendlyCompositeAiCode(code, status, rawMsg, opts);
+      const friendly = friendlyCompositeAiCode(code, status, rawMsg, {
+        ...opts,
+        issues: data?.issues,
+      });
       if (friendly) throw new Error(friendly + formatAiDraftIssues(data?.issues));
       if (rawMsg.trim() && rawMsg !== fallbackError) {
         throw new Error(rawMsg.trim() + formatAiDraftIssues(data?.issues));

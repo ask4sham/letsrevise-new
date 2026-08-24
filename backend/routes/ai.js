@@ -37,6 +37,7 @@ const {
 const {
   repairLessonActivityQuestionCounts,
 } = require("../utils/repairLessonActivityQuestionCounts");
+const { filterQuizQuestionsByTopicGrounding } = require("../utils/quizTopicGrounding");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
@@ -5938,12 +5939,44 @@ router.post("/generate-and-save", auth, async (req, res) => {
         topicSpecForCounts = null;
       }
 
+      const namespacedForGrounding =
+        canonicalTopicKey && String(canonicalTopicKey).includes(":")
+          ? canonicalTopicKey
+          : canonicalTopicKey
+            ? `${specKey}:${canonicalTopicKey}`
+            : "";
+
       const repairOpts = {
         topic: topicLabelForCounts,
+        topicKey: namespacedForGrounding,
+        specKey,
         vocabulary: topicSpecForCounts?.requiredVocabulary || [],
         structures: topicSpecForCounts?.requiredStructures || [],
         misconceptions: topicSpecForCounts?.commonMisconceptions || [],
+        objectives: topicSpecForCounts?.learningObjectives || topicSpecForCounts?.objectives || [],
       };
+
+      const groundingCtx = {
+        topicKey: namespacedForGrounding,
+        specKey,
+        topic: topicLabelForCounts,
+        pages: sanitized.pages,
+        vocabulary: repairOpts.vocabulary,
+        objectives: repairOpts.objectives,
+      };
+
+      let quizTopicGroundingLimited = false;
+
+      const applyQuizGrounding = () => {
+        if (!Array.isArray(sanitized?.quiz?.questions) || sanitized.quiz.questions.length === 0) {
+          return;
+        }
+        const filtered = filterQuizQuestionsByTopicGrounding(sanitized.quiz.questions, groundingCtx);
+        sanitized.quiz.questions = filtered.questions;
+        if (filtered.groundingLimited) quizTopicGroundingLimited = true;
+      };
+
+      applyQuizGrounding();
 
       let countCheck = validateLessonActivityQuestionCounts(sanitized);
       const quizLen = Array.isArray(sanitized?.quiz?.questions) ? sanitized.quiz.questions.length : 0;
@@ -5953,6 +5986,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
         const repaired = repairLessonActivityQuestionCounts(sanitized, repairOpts);
         sanitized.pages = repaired.pages;
         sanitized.quiz = repaired.quiz;
+        if (repaired.quizTopicGroundingLimited) quizTopicGroundingLimited = true;
+        applyQuizGrounding();
         if (process.env.NODE_ENV !== "production") {
           console.log("[generate-and-save] activity question count/variety repair:", {
             changes: repaired.changes,
@@ -5982,6 +6017,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
         const repairedVariety = repairLessonActivityQuestionCounts(sanitized, repairOpts);
         sanitized.pages = repairedVariety.pages;
         sanitized.quiz = repairedVariety.quiz;
+        if (repairedVariety.quizTopicGroundingLimited) quizTopicGroundingLimited = true;
+        applyQuizGrounding();
         countCheck = validateLessonActivityQuestionCounts(sanitized);
       }
 
@@ -5989,6 +6026,23 @@ router.post("/generate-and-save", auth, async (req, res) => {
         const varietyOnly =
           (countCheck.issues || []).length > 0 &&
           (countCheck.issues || []).every(isVarietyIssue);
+        const isQuizGroundingPoolIssue = (issue) => {
+          const s = String(issue);
+          return s.startsWith("quiz_pool_too_low") || s.startsWith("revision_pool_too_low");
+        };
+        const quizGroundingCountOnly =
+          quizTopicGroundingLimited &&
+          (countCheck.issues || []).length > 0 &&
+          (countCheck.issues || []).every(
+            (i) => isQuizGroundingPoolIssue(i) || isVarietyIssue(i)
+          );
+        if (quizGroundingCountOnly && !varietyOnly) {
+          if (process.env.NODE_ENV !== "production") {
+            console.log(
+              "[generate-and-save] quiz topic grounding limited pool; accepting fewer than 5 quiz questions"
+            );
+          }
+        } else {
         console.warn(
           "[generate-and-save] activity question contract failed:",
           countCheck.issues?.slice(0, 8)
@@ -6002,6 +6056,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
         err.code = varietyOnly ? "ACTIVITY_QUESTION_VARIETY_FAILED" : "ACTIVITY_QUESTION_COUNT_FAILED";
         err.details = { issues: (countCheck.issues || []).slice(0, 12), summary: countCheck.summary };
         throw err;
+        }
       }
     }
 

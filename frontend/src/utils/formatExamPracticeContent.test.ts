@@ -1,7 +1,10 @@
 import {
   concealOpenExamPracticeMarkSchemes,
   formatExamPracticeContentForImport,
+  stripDuplicateExamPracticeSections,
+  hasRenderableExamPracticeContent,
 } from "./formatExamPracticeContent";
+import { mcqFingerprintFromStemAndAnswer } from "./questionStemSimilarity";
 
 describe("concealOpenExamPracticeMarkSchemes", () => {
   it("moves open mark scheme inside Reveal Model Answer details", () => {
@@ -58,5 +61,44 @@ describe("formatExamPracticeContentForImport", () => {
     ].join("\n");
     const out = formatExamPracticeContentForImport(input);
     expect(out.indexOf("Mark scheme:")).toBeGreaterThan(out.indexOf("<summary>"));
+  });
+});
+
+describe("stripDuplicateExamPracticeSections", () => {
+  const haploidStem = "Why must human gametes be haploid before fertilisation?";
+  const haploidAnswer = "So fusion restores the diploid chromosome number in the zygote";
+  const block26Html = [
+    "<p><strong>Q1 (1 mark)</strong></p>",
+    `<p>${haploidStem}</p>`,
+    "<details><summary>Reveal Model Answer</summary>",
+    "<p><strong>Model answer:</strong></p>",
+    `<p>${haploidAnswer}</p>`,
+    "</details>",
+    "<p><strong>Q2 (1 mark)</strong></p>",
+    "<p>State the nuclear event that defines fertilisation and name the cell produced.</p>",
+    "<details><summary>Reveal Model Answer</summary>",
+    "<p><strong>Model answer:</strong></p>",
+    "<p>Fusion of two haploid nuclei to form a diploid zygote nucleus</p>",
+    "</details>",
+  ].join("\n");
+
+  it("strips Q sections that match prior inline activity fingerprints", () => {
+    const exclude = new Set([
+      mcqFingerprintFromStemAndAnswer(haploidStem, haploidAnswer),
+      mcqFingerprintFromStemAndAnswer(
+        "State the nuclear event that defines fertilisation and name the cell produced.",
+        "Fusion of two haploid nuclei to form a diploid zygote nucleus"
+      ),
+    ]);
+    const out = stripDuplicateExamPracticeSections(block26Html, exclude);
+    expect(hasRenderableExamPracticeContent(out)).toBe(false);
+  });
+
+  it("keeps unique Q sections when only one duplicates", () => {
+    const exclude = new Set([mcqFingerprintFromStemAndAnswer(haploidStem, haploidAnswer)]);
+    const out = stripDuplicateExamPracticeSections(block26Html, exclude);
+    expect(hasRenderableExamPracticeContent(out)).toBe(true);
+    expect(out).toContain("State the nuclear event");
+    expect(out).not.toContain(haploidStem);
   });
 });

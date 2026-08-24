@@ -1,9 +1,13 @@
-// backend/app.js
+// backend/app.js — canonical Express composition (middleware + routes + errors).
+// server.js owns startup (Mongo, indexes) and listen only.
 require("dotenv").config();
 
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const crypto = require("crypto");
 
 // Fail fast when AI is enabled but OPENAI_API_KEY is missing (avoids confusing 500s later)
 // Skip in test so Jest can load the app without a key; individual tests set DISABLE_OPENAI=1 or OPENAI_API_KEY
@@ -17,8 +21,7 @@ if (
   process.exit(1);
 }
 
-// Ensure uploads directory exists (diagram and other uploads)
-const { FILE_STORAGE_PATH } = require("./config/paths");
+const { FILE_STORAGE_PATH, PUBLIC_VISUALS_DIR } = require("./config/paths");
 const uploadsDir = FILE_STORAGE_PATH;
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -34,8 +37,14 @@ if (process.env.NODE_ENV === "production" && !isTruthyEnv("REQUIRE_CLOUD_UPLOADS
 }
 
 const { cors, corsMiddleware, getCorsOptions, logCorsConfigAtStartup } = require("./config/cors");
-let Sentry = null;
+const { shouldServeLocalPublicVisuals } = require("./config/visualsServing");
+const bodyLimit = require("./middleware/bodyLimit");
+const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
+const auth = require("./middleware/auth");
+const requireAdmin = require("./middleware/requireAdmin");
+
 const sentryPath = path.join(__dirname, "config", "sentry.js");
+let Sentry = null;
 if (fs.existsSync(sentryPath)) {
   try {
     Sentry = require("./config/sentry").Sentry;
@@ -43,22 +52,44 @@ if (fs.existsSync(sentryPath)) {
     console.warn("[Sentry] Not initialized:", err.message);
   }
 }
-const bodyLimit = require("./middleware/bodyLimit");
-const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
-const app = express();
 
-// CORS: must run first; uses CORS_ORIGIN/FRONTEND_URL in production
+const app = express();
+app.set("trust proxy", 1);
+
+/* ============================================================
+   A–B. Security headers then CORS
+============================================================ */
+app.use(helmet());
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+});
+
 logCorsConfigAtStartup();
-app.options("*", (req, res, next) => cors(getCorsOptions())(req, res, next)); // Preflight: fresh options per request
+app.options("*", (req, res, next) => cors(getCorsOptions())(req, res, next));
 app.use(corsMiddleware);
 
-// Sentry v10: automatic instrumentation — no manual requestHandler/tracingHandler needed
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`\n[LOG] ${new Date().toISOString()} ${req.method} ${req.url}`);
+    next();
+  });
+}
 
-// PR-HARD-2: Reject oversized bulk/upload payloads before parsing (413)
+/* ============================================================
+   Stripe webhook — raw body BEFORE JSON parser (B3)
+============================================================ */
+app.post(
+  "/api/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  require("./routes/stripeWebhooks")
+);
+
+/* ============================================================
+   C. Parsers
+============================================================ */
 app.use(bodyLimit);
 
-// JSON body parser: strip BOM (PowerShell ConvertTo-Json can emit it) then parse
-// Skip for multipart (let multer handle) — otherwise express.json() consumes/fails on upload body
 const JSON_LIMIT = "2mb";
 app.use((req, res, next) => {
   const contentType = (req.headers["content-type"] || "").toLowerCase();
@@ -96,10 +127,149 @@ app.use((req, res, next) => {
   req.on("error", next);
 });
 
-// PR-BULK-INGEST-3: Serve uploaded files (local storage)
-app.use("/uploads", express.static(FILE_STORAGE_PATH));
-// Fallback: old /uploads/videos/xxx URLs → serve from visuals (e.g. 1773270742541-magnification.mp4 → magnification.mp4)
-const videosFallbackPath = path.join(__dirname, "public", "visuals", "biology", "aqa-gcse", "cell-biology", "cell-structure");
+/* ============================================================
+   D. Health / readiness / config (before global API limiter)
+============================================================ */
+function getCommit() {
+  return process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || "unknown";
+}
+
+function jwtSecretFingerprint() {
+  const raw = process.env.JWT_SECRET_KEY;
+  const secret = typeof raw === "string" ? raw.trim() : "";
+  if (!secret) return { ok: false, fingerprint: "JWT_SECRET_KEY missing" };
+  const hash = crypto.createHash("sha256").update(secret).digest("hex");
+  return {
+    ok: true,
+    fingerprint: `len=${secret.length}, sha256=${hash.slice(0, 12)}…`,
+  };
+}
+
+function debugEnabled() {
+  return process.env.DEBUG_ENDPOINTS === "1" || process.env.DEBUG_ENDPOINTS === "true";
+}
+
+app.get("/api/health", (req, res) => {
+  const mongoose = require("mongoose");
+  const mongoReady = mongoose.connection.readyState === 1;
+  res.json({
+    status: "OK",
+    message: "LetsRevise API is running",
+    commit: getCommit(),
+    mongo: mongoReady ? "connected" : "disconnected",
+  });
+});
+
+const ASSET_BASE_URL = (process.env.BACKEND_PUBLIC_URL || "https://letsrevise-new.onrender.com")
+  .trim()
+  .replace(/\/+$/, "")
+  .replace(/\/api\/?$/, "");
+app.get("/api/config", (req, res) => {
+  res.json({ assetBaseUrl: ASSET_BASE_URL });
+});
+
+app.get("/api/ready", async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        status: "not ready",
+        mongo: "disconnected",
+        readyState: mongoose.connection.readyState,
+      });
+    }
+    try {
+      await mongoose.connection.db.admin().command({ ping: 1 });
+    } catch (pingErr) {
+      console.error("[api/ready] ping failed:", pingErr.message);
+      return res.status(503).json({ status: "not ready", mongo: "ping_failed" });
+    }
+    res.json({ status: "ready", mongo: "connected" });
+  } catch (e) {
+    res.status(503).json({ status: "not ready", mongo: "error" });
+  }
+});
+
+app.get("/api/upload-ping", (req, res) => {
+  res.json({ ok: true, msg: "Upload routes active", ts: Date.now() });
+});
+
+app.get("/api/visuals/__ping", (req, res) => {
+  res.json({
+    ok: true,
+    serveLocalVisuals: shouldServeLocalPublicVisuals(),
+    visualsDirExists: fs.existsSync(PUBLIC_VISUALS_DIR),
+    hint:
+      "After migrating public/visuals to object storage, set REACT_APP_PUBLIC_VISUALS_CDN_URL to the public base (e.g. R2_PUBLIC_URL).",
+  });
+});
+
+app.get("/api/_debug/info", (req, res) => {
+  if (!debugEnabled()) {
+    return res.status(404).json({ msg: "API route not found" });
+  }
+  const fp = jwtSecretFingerprint();
+  res.json({
+    SERVER_DEBUG_ACTIVE: true,
+    commit: getCommit(),
+    jwtSecretOk: fp.ok,
+    jwtSecretFingerprint: fp.fingerprint,
+  });
+});
+
+/* ============================================================
+   E. Global API limiter (after health exclusions)
+============================================================ */
+// Production defaults unchanged. In Jest, skip unless FORCE_* is set so the suite
+// is not IP-throttled now that the limiter precedes every API router.
+function createApiLimiter() {
+  if (process.env.NODE_ENV === "test" && process.env.FORCE_API_LIMITER !== "1") {
+    return (req, res, next) => next();
+  }
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_API_MAX || "300", 10),
+    message: { error: "Too many requests" },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+}
+function createAuthLimiter() {
+  if (process.env.NODE_ENV === "test" && process.env.FORCE_AUTH_LIMITER !== "1") {
+    return (req, res, next) => next();
+  }
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_AUTH_MAX || "50", 10),
+  });
+}
+const apiLimiter = createApiLimiter();
+app.use("/api", apiLimiter);
+
+const authLimiter = createAuthLimiter();
+
+/* ============================================================
+   F. Static / public assets (canonical once)
+============================================================ */
+const videosFallbackPath = path.join(
+  __dirname,
+  "public",
+  "visuals",
+  "biology",
+  "aqa-gcse",
+  "cell-biology",
+  "cell-structure"
+);
+
+app.use(
+  "/uploads",
+  express.static(FILE_STORAGE_PATH, {
+    setHeaders: (res) => {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    },
+  })
+);
 app.use("/uploads", (req, res, next) => {
   if (req.method !== "GET" || !req.path.startsWith("/videos/")) return next();
   const filename = req.path.replace(/^\/videos\//, "");
@@ -107,167 +277,140 @@ app.use("/uploads", (req, res, next) => {
   const baseFilename = baseMatch ? `${baseMatch[1]}.${baseMatch[2]}` : filename;
   const fallbackFile = path.join(videosFallbackPath, baseFilename);
   if (fs.existsSync(fallbackFile)) {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Access-Control-Allow-Origin", "*");
     return res.sendFile(fallbackFile);
   }
   next();
 });
+if (process.env.RENDER !== "true") {
+  const https = require("https");
+  const RENDER_UPLOADS = process.env.BACKEND_PUBLIC_URL || "https://letsrevise-new.onrender.com";
+  app.use("/uploads", (req, res, next) => {
+    if (req.method !== "GET") return next();
+    const upstream = `${RENDER_UPLOADS}${req.originalUrl}`;
+    https
+      .get(upstream, (upRes) => {
+        if (upRes.statusCode !== 200) {
+          res.status(upRes.statusCode);
+          return res.end();
+        }
+        res.setHeader("Content-Type", upRes.headers["content-type"] || "application/octet-stream");
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        upRes.pipe(res);
+      })
+      .on("error", () => next());
+  });
+}
 
-// PR-BULK-INGEST-3: Admin media upload (store + reference + dedupe)
-app.use("/api/admin/media", require("./routes/adminMedia"));
+const contentRootPath = path.join(__dirname, "../static-site/content");
+if (fs.existsSync(contentRootPath)) {
+  app.use("/content", express.static(contentRootPath));
+}
 
-// Uploads: direct routes first (exact match), then router
+if (shouldServeLocalPublicVisuals() && fs.existsSync(PUBLIC_VISUALS_DIR)) {
+  app.use(
+    "/visuals",
+    express.static(PUBLIC_VISUALS_DIR, {
+      setHeaders: (res) => {
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+      },
+    })
+  );
+}
+
+const publicPath = path.join(__dirname, "public");
+if (fs.existsSync(publicPath)) {
+  app.use("/static", express.static(publicPath));
+}
+
+/* ============================================================
+   G. Application routes (one canonical mount each)
+============================================================ */
 const uploadsRouter = require("./routes/uploads");
 const { isSupabaseStorageEnabled } = require("./services/supabaseStorage");
 const { isR2Enabled } = require("./services/r2Storage");
 const uploadStorageType = isSupabaseStorageEnabled() ? "supabase" : isR2Enabled() ? "r2" : "local";
+
 app.get("/api/uploads/__ping", (req, res) =>
   res.json({ ok: true, route: "uploads", hasVideo: true, storage: uploadStorageType })
 );
-app.post("/api/uploads/video", uploadsRouter.videoUploadRoute);
+// Intentional alias: same secured chain as router.post("/video")
+app.post("/api/uploads/video", ...uploadsRouter.videoUploadRoute);
 app.use("/api/uploads", uploadsRouter);
 
-// ✅ Register routes that are needed for tests (add any others as needed)
+app.use("/api/admin/media", require("./routes/adminMedia"));
 app.use("/api/assessment-papers", require("./routes/assessmentPapers"));
 app.use("/api/assessment-attempts", createAttemptLimiter(), require("./routes/assessmentAttempts"));
 app.use("/api/assessment-items", require("./routes/assessmentItems"));
 
-// ✅ Add auth routes if your assessment endpoints need auth middleware
-app.use("/api/auth", require("./routes/auth"));
+// Auth-specific limiter must run before the auth router (was previously bypassed)
+app.use("/api/auth", authLimiter, require("./routes/auth"));
 
-// ✅ Phase 9B: me/entitlements (auth-only, non-sensitive)
 app.use("/api/me", require("./routes/me"));
-
-// ✅ Add lessons route for Phase 9 content-access integration tests
-// Revision pack export must mount before the general lessons router so
-// POST /:lessonId/export/revision-pack is not swallowed by /:id handlers.
 app.use("/api/lessons", require("./routes/lessonRevisionPackExport.routes"));
 app.use("/api/lessons", require("./routes/lessons"));
 app.use("/api/teachers", require("./routes/teachers"));
-
-// Lesson Synthesiser draft receiver (scoped service token; draft-only; isolated from POST /api/lessons).
-app.use(
-  "/api/lesson-synthesiser",
-  require("./routes/lessonSynthesiserDrafts")
-);
-
-// Phase 9D: reviews (lesson workflow approve/reject)
+app.use("/api/lesson-synthesiser", require("./routes/lessonSynthesiserDrafts"));
 app.use("/api/reviews", require("./routes/reviews"));
-
-// PR3: AQA GCSE Biology lesson factory
 app.use("/api/ai", require("./routes/ai"));
-// Lesson Generator V2 scaffold (three-phase). Independent of V1 generate-and-save.
-// Enable with LESSON_GENERATOR_V2_ENABLED=1. Does not alter V1 behaviour.
 app.use("/api/ai", require("./routes/aiLessonV2"));
-
-// Canonical taxonomy (teacher UI topic picker, diagram mapping)
 app.use("/api/taxonomy", require("./routes/taxonomy"));
-
-// PR-BULK-INGEST-1: Admin bulk import (flashcards; validate + dedupe + dry-run)
 app.use("/api/admin/bulk-import", require("./routes/adminBulkImport"));
-
-// Phase 1: CSV import for flashcards and exam questions (teacher/admin)
 app.use("/api/import", require("./routes/importRoutes"));
 app.use("/api/admin/student-teacher-links", require("./routes/adminStudentTeacherLinks"));
+app.use("/api/student-classes", createBulkLimiter(), require("./routes/studentClasses"));
+app.use("/api/student-class-invitations", require("./routes/studentClassInvitations"));
+app.use("/api/student-class-memberships", require("./routes/studentClassMemberships"));
 app.use("/api/admin/question-banks", require("./routes/adminQuestionBanks"));
+app.use("/api/admin/exam-question-rationale-inventory", require("./routes/adminExamQuestionRationaleInventory"));
+app.use("/api/admin/exam-question-rationale-candidates", require("./routes/adminExamQuestionRationaleCandidates"));
+app.use("/api/admin/exam-question-rationale-review-context", require("./routes/adminExamQuestionRationaleReviewContext"));
 app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));
-
-// PR10: Biology readiness report (teacher/admin)
 app.use("/api/reports", require("./routes/reports"));
-
-// PR12: Practice/checkpoint attempts (record only)
 app.use("/api/attempts", require("./routes/attempts"));
-
-// Lesson issue reports (students/teachers submit; admin/teachers manage)
 app.use("/api/lesson-issues", require("./routes/lessonIssues"));
-
-// PR-W1: worksheets (teacher/admin only)
 app.use("/api/worksheets", require("./routes/worksheets"));
-
-// PR-W4: worksheet assignment + attempts + reports + PR-HARD-2 rate limit on attempts
 app.use("/api/worksheet-assignments", require("./routes/worksheetAssignments"));
 app.use("/api/worksheet-attempts", createAttemptLimiter(), require("./routes/worksheetAttempts"));
 app.use("/api/worksheet-reports", require("./routes/worksheetReports"));
-
-// PR-W2: exam question bank (teacher/admin; topicKey, draft/published)
 app.use("/api/exam-questions", require("./routes/examQuestions"));
-
-// PR-F1: topic flashcard bank (teacher/admin only) + PR-HARD-2 rate limit
 app.use("/api/topic-flashcards", createBulkLimiter(), require("./routes/topicFlashcards"));
-
-// PR-Q1: topic quiz bank (teacher/admin only) + PR-HARD-2 rate limit
 app.use("/api/topic-quiz-questions", createBulkLimiter(), require("./routes/topicQuizQuestions"));
-
-// PR-PRACTICE-LOOP-1: student practice set + attempt tracking + teacher topic stats
 app.use("/api/practice", require("./routes/practice"));
 app.use("/api/practice-attempts", require("./routes/practiceAttempts"));
 app.use("/api/practice-sets", require("./routes/practiceSets"));
-
-// PR-PP1: topic past paper bank (teacher/admin only) + PR-HARD-2 rate limit
 app.use("/api/topic-past-papers", createUploadLimiter(), require("./routes/topicPastPapers"));
-
-// PR-PAST-PAPERS-API-1: teacher-owned PastPaper records (mine + filtering)
 app.use("/api/past-papers", require("./routes/pastPapers"));
-
-// PR-PAST-PAPERS-UI-2: past paper questions (mine + link)
 app.use("/api/past-paper-questions/by-topic", require("./routes/pastPaperQuestionsByTopic"));
 app.use("/api/past-paper-questions", require("./routes/pastPaperQuestions"));
-
-// PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson) + PR-HARD-2 rate limit
 app.use("/api/flashcard-bank", createBulkLimiter(), require("./routes/flashcardBank"));
-
-// Audit: question bank (Content Coverage) + sprint order doc — single source of truth
 app.use("/api/audit", require("./routes/audit"));
-
-// PR-001: SpecStatement admin CRUD (AI Tutor knowledge layer)
 app.use("/api/spec-statements", require("./routes/specStatements.routes"));
-
-// PR-002: KnowledgeDocument debug API (admin only)
 app.use("/api/knowledge-documents", require("./routes/knowledgeDocuments"));
-// PR-003: Semantic search (teacher + admin) at /api/knowledge/search
 app.use("/api/knowledge", require("./routes/knowledgeDocuments"));
-
-// PR-007: Feature flags (auth required)
 app.use("/api/feature-flags", require("./routes/featureFlags"));
-
-// P1: GCSE Visual Explanation (teacher/admin, flag-gated)
 app.use("/api/visual-explanations", require("./routes/visualExplanation"));
 app.use("/api/diagram-assets", require("./routes/diagramAssets"));
-
-// PR-009: Coverage engine (teacher + admin)
 app.use("/api/coverage", require("./routes/coverage.routes"));
-
-// Content Graph Layer — topic/lesson graph, coverage, rebuild
 app.use("/api/content-graph", require("./routes/contentGraph"));
-
-// PR-014: Content starter pack generator (teacher + admin, rate limited)
 app.use("/api/generate", require("./routes/contentGeneration.routes"));
-
-// PR-014.1: Publish gate — check and publish generated content (teacher + admin)
 app.use("/api/publish-gate", require("./routes/publishGate.routes"));
-
-// PR-012: Sprint order download (teacher + admin, rate limited)
 app.use("/api/sprint-order", require("./routes/sprintOrder.routes"));
-
-// PR-019: Conversations (threaded tutoring chat)
 app.use("/api/conversations", require("./routes/conversations.routes"));
-
-// PR-022: External source moderation (teacher/admin only)
 app.use("/api/external-sources", require("./routes/externalSources.routes"));
-
-// PR-023: Teacher notes listing (teacher/admin only)
 app.use("/api/teacher-notes", require("./routes/teacherNotes.routes"));
-// PR-038: Student progress signals (lesson-view, practice-attempt, flashcard-review)
+// Complementary progress routers (no METHOD+path overlap): student signals then lesson progress/stats
 app.use("/api/progress", require("./routes/progress.routes"));
-// PR — Adaptive Testing Loop: topic mastery (record quiz answers, get/aggregate mastery)
+app.use("/api/progress", require("./routes/progress"));
 app.use("/api/mastery", require("./routes/mastery.routes"));
-// PR-038: Study coach (personalised study plan)
 app.use("/api/study-coach", require("./routes/studyCoach.routes"));
 app.use("/api/topic-summary", require("./routes/topicSummary.routes"));
 app.use("/api/topic-summary", require("./routes/topicSummaryToLesson.routes"));
 app.use("/api/topic-summary/export", require("./routes/topicSummaryExport.routes"));
 
-// PR-004: Enquiry (RAG) — teacher + admin + student (when flag enabled)
-// Lazy-load to avoid pulling in vector DB / embeddings at app init (fixes Jest Babel parse in tests)
 let enquiryRouter = null;
 app.use("/api/enquiry", (req, res, next) => {
   if (!enquiryRouter) {
@@ -276,53 +419,156 @@ app.use("/api/enquiry", (req, res, next) => {
   return enquiryRouter(req, res, next);
 });
 
-// PR-EDGE-3: Teacher overview dashboard (topic-coverage must be before /api/teacher so GET /api/teacher/topic-coverage hits it)
 app.use("/api/teacher/analytics", require("./routes/teacherAnalytics"));
 app.use("/api/teacher/topic-coverage", require("./routes/topicCoverage"));
 app.use("/api/teacher", require("./routes/teacher"));
-
-// PR-EDGE-4: Student My Work dashboard
 app.use("/api/student", require("./routes/student"));
-
-// PR-EDGE-4.1/4.2: Quiz/Assessment assignment share + attempt submit
+app.use("/api/catalogue", require("./routes/catalogue"));
 app.use("/api/quiz-assignments", require("./routes/quizAssignments"));
 app.use("/api/quiz-attempts", require("./routes/quizAttempts"));
-
-// Production monitoring verification (404 unless NODE_ENV=production + x-monitoring-test: true)
 app.use("/api/monitoring", require("./routes/monitoring"));
-
-// PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 
-// JSON parse error (body-parser SyntaxError → 400, not 500)
-app.use((err, req, res, next) => {
-  const isJsonSyntaxError =
-    err instanceof SyntaxError &&
-    err.status === 400 &&
-    "body" in err;
+// Former server-only mounts
+app.use("/api/earnings", require("./routes/earnings"));
+app.use("/api/users", require("./routes/users"));
+app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/subscriptions", require("./routes/subscriptions"));
+app.use("/api/payouts", require("./routes/payouts"));
+app.use("/api/pricing", require("./routes/pricing"));
+app.use("/api/events", require("./routes/events"));
+app.use("/api/admin", require("./routes/admin"));
+app.use("/api/ops", require("./routes/ops"));
+app.use("/api/autopilot-safety", require("./routes/autopilotSafety"));
+app.use("/api/autopilot0", require("./routes/autopilot0"));
+app.use("/api/ai-generation-jobs", require("./routes/aiGenerationJobs"));
+app.use("/api/content-tree", require("./routes/content-tree"));
+app.use("/api/visuals", require("./routes/visuals"));
+app.use("/api/quizzes", require("./routes/quizzes"));
+app.use("/api/parent-link", require("./routes/parentLink"));
+app.use("/api/parent", require("./routes/parent"));
+app.use("/api/templates", require("./routes/templates.routes"));
+app.use("/api/curriculum-confidence", require("./routes/curriculumConfidence"));
 
+const adminOpsPath = path.join(__dirname, "views", "admin-ops.html");
+const gateHtml =
+  "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Ops Admin — Login</title></head><body>" +
+  "<h1>Ops Admin</h1><p>Authentication required. Paste your admin JWT and click Open.</p>" +
+  "<label>Token: <input type='password' id='jwt' style='width:20em' placeholder='Paste JWT' /></label> " +
+  "<button id='gateOpen'>Open</button><div id='gateErr' style='color:#c00;margin-top:0.5em'></div>" +
+  "<script>" +
+  "function showError(msg){document.getElementById('gateErr').textContent=msg||'';}" +
+  "async function openPanel(){" +
+  "var token=(document.getElementById('jwt').value||'').trim().replace(/^Bearer\\s+/i,'');" +
+  "if(!token){showError('Paste a token.');return;}" +
+  "showError('Loading...');" +
+  "var res=await fetch('/admin/ops',{headers:{'Authorization':'Bearer '+token}});" +
+  "if(!res.ok){showError('Unauthorized. Paste a valid admin token.');return;}" +
+  "var html=await res.text();" +
+  "document.open();document.write(html);document.close();" +
+  "var attempts=0;var t=setInterval(function(){attempts++;if(typeof window.__setAdminToken==='function'){clearInterval(t);window.__setAdminToken(token);}else if(attempts>20){clearInterval(t);}},50);" +
+  "}" +
+  "document.getElementById('gateOpen').onclick=openPanel;" +
+  "</script>" +
+  "</body></html>";
+
+app.get(
+  "/admin/ops",
+  (req, res, next) => {
+    const hasAuth = req.get("Authorization") || req.get("x-auth-token");
+    if (!hasAuth) {
+      res.status(401).setHeader("Content-Type", "text/html");
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("X-Frame-Options", "DENY");
+      res.setHeader("Referrer-Policy", "no-referrer");
+      return res.send(gateHtml);
+    }
+    next();
+  },
+  auth,
+  requireAdmin,
+  (req, res) => {
+    if (!fs.existsSync(adminOpsPath)) {
+      return res.status(404).send("Admin ops page not found");
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    );
+    res.sendFile(adminOpsPath);
+  }
+);
+
+app.get("/api/lesson_reviews", (req, res) => res.json([]));
+app.get("/lesson_reviews", (req, res) => res.json([]));
+
+/* ============================================================
+   H. API 404 (before SPA)
+============================================================ */
+app.use("/api", (req, res) => {
+  res.status(404).json({ msg: "API route not found" });
+});
+
+/* ============================================================
+   I. SPA / static-site fallback
+============================================================ */
+const staticSitePath = path.join(__dirname, "../static-site/website");
+const docsPath = path.join(staticSitePath, "docs");
+if (fs.existsSync(docsPath)) {
+  app.use("/docs", express.static(docsPath));
+}
+if (fs.existsSync(staticSitePath)) {
+  app.use(express.static(staticSitePath));
+}
+app.get("/", (req, res) => {
+  const indexFile = path.join(staticSitePath, "index.html");
+  if (fs.existsSync(indexFile)) {
+    res.sendFile(indexFile);
+  } else {
+    res.status(404).send("Index.html not found");
+  }
+});
+
+/* ============================================================
+   J. Final error handlers
+============================================================ */
+if (Sentry && process.env.SENTRY_DSN) {
+  try {
+    Sentry.setupExpressErrorHandler(app);
+  } catch (err) {
+    console.warn("[Sentry] setupExpressErrorHandler skipped:", err.message);
+  }
+}
+
+app.use((err, req, res, next) => {
+  const isJsonSyntaxError = err instanceof SyntaxError && err.status === 400 && "body" in err;
   if (isJsonSyntaxError) {
     return res.status(400).json({
       error: "Invalid JSON",
       message: "Malformed JSON body",
     });
   }
-
   return next(err);
 });
 
-// Sentry v10: setupExpressErrorHandler is called in server.js after all routes
-
-// Global error guard (unhandled → 500; respects err.status when present)
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;
   const msg = status === 500 ? "Unhandled server error" : "Request failed";
   const safeMessage =
-    process.env.NODE_ENV === "production" && status === 500 ? "Internal error" : (err?.message || "Unknown error");
+    process.env.NODE_ENV === "production" && status === 500 ? "Internal error" : err?.message || "Unknown error";
   console.error("[unhandled]", err);
-  // `msg` matches sendInternalError shape so axios + UI prefer detail over generic `error` label
   res.status(status).json({ error: msg, message: safeMessage, msg: safeMessage, code: "INTERNAL_ERROR" });
 });
 
-// ✅ Export for testing
+/** Mount inventory for composition tests (paths only; not registration order). */
+app.locals.compositionMeta = {
+  intentionalAliases: ["POST /api/uploads/video"],
+  progressRouters: ["progress.routes", "progress"],
+};
+
 module.exports = app;

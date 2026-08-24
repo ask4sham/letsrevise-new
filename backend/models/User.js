@@ -88,6 +88,9 @@ const userSchema = new mongoose.Schema(
     emailChangeToken: { type: String, default: null },
     emailChangeExpires: { type: Date, default: null },
 
+    /** Last successful authentication (login). Server-owned; optional for legacy users. */
+    lastLoginAt: { type: Date, default: null },
+
     /**
      * Soft-delete (admin): user row stays so Lesson.teacherId and FK-style refs remain valid.
      * HARD deleteOne() on User is dangerous: lessons use teacherId; a new account with the same email
@@ -145,6 +148,22 @@ const userSchema = new mongoose.Schema(
         type: Date,
       },
       cancelAtPeriodEnd: { type: Boolean, default: false },
+    },
+
+    /**
+     * Stripe billing state (B2+). Written exclusively by Stripe webhooks in B3+.
+     * Never overwrites subscriptionV2 (admin grant / trial provenance).
+     */
+    stripeBilling: {
+      customerId: { type: String, default: null },
+      subscriptionId: { type: String, default: null },
+      priceId: { type: String, default: null },
+      planId: { type: String, default: null },
+      status: { type: String, default: null },
+      currentPeriodEnd: { type: Date, default: null },
+      paidThrough: { type: Date, default: null },
+      cancelAtPeriodEnd: { type: Boolean, default: false },
+      lastInvoicePaidAt: { type: Date, default: null },
     },
 
     referralCode: {

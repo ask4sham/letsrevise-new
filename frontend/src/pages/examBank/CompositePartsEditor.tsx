@@ -7,10 +7,13 @@ import {
   type CompositePartForm,
   compositePartTypeSelectLabel,
   getCompositePartTypeOptions,
+  getMcqExplanationText,
   makeDefaultTablePartData,
   makeEmptyCompositePart,
+  MCQ_EXPLANATION_MAX_LENGTH,
   TABLE_COMPOSITE_PART_TYPE,
 } from "./compositeTableEditorUtils";
+import { parseTablePartData } from "../../components/lesson/examComposite/interactions/table/tableTypes";
 
 export type CompositePartsEditorForm = {
   title: string;
@@ -39,11 +42,18 @@ export function CompositePartsEditor({
       parts: f.parts.map((p, i) => {
         if (i !== index) return p;
         const next = { ...p, ...patch };
-        if (patch.type === TABLE_COMPOSITE_PART_TYPE && !next.partData) {
-          next.partData = makeDefaultTablePartData();
-        }
-        if (patch.type && patch.type !== TABLE_COMPOSITE_PART_TYPE) {
-          next.partData = undefined;
+        if (patch.type !== undefined) {
+          if (patch.type === TABLE_COMPOSITE_PART_TYPE) {
+            next.partData = makeDefaultTablePartData();
+          } else if (patch.type === "mcq") {
+            // Do not carry table-shaped partData into MCQ.
+            next.partData =
+              p.type === "mcq" && getMcqExplanationText(p.partData)
+                ? { explanation: getMcqExplanationText(p.partData) }
+                : undefined;
+          } else {
+            next.partData = undefined;
+          }
         }
         return next;
       }),
@@ -217,12 +227,12 @@ export function CompositePartsEditor({
             )}
             {part.type === TABLE_COMPOSITE_PART_TYPE && (
               <CompositeTablePartEditor
-                partData={part.partData}
+                partData={parseTablePartData(part.partData) ?? makeDefaultTablePartData()}
                 onChange={(next) => updatePart(index, { partData: next })}
                 fieldStyle={fieldStyle}
               />
             )}
-            <div>
+            <div style={{ marginBottom: part.type === "mcq" ? 10 : 0 }}>
               <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}>
                 Mark scheme {part.type === "mcq" ? "(optional)" : ""}
               </label>
@@ -234,6 +244,41 @@ export function CompositePartsEditor({
                 style={{ ...fieldStyle, resize: "vertical" }}
               />
             </div>
+            {part.type === "mcq" && (
+              <div>
+                <label
+                  htmlFor={`mcq-explanation-${index}`}
+                  style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600 }}
+                >
+                  Why this answer is correct
+                </label>
+                <p style={{ margin: "0 0 6px", fontSize: 12, color: "#6b7280" }}>
+                  Explain the subject knowledge behind the correct option. Do not simply repeat the answer.
+                </p>
+                <textarea
+                  id={`mcq-explanation-${index}`}
+                  data-testid={`mcq-explanation-${index}`}
+                  value={getMcqExplanationText(part.partData)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updatePart(index, {
+                      partData: value ? { explanation: value } : undefined,
+                    });
+                  }}
+                  placeholder="Explain why the correct option is right and why it matters."
+                  rows={3}
+                  style={{ ...fieldStyle, resize: "vertical" }}
+                />
+                {getMcqExplanationText(part.partData).trim().length > MCQ_EXPLANATION_MAX_LENGTH ? (
+                  <p
+                    data-testid={`mcq-explanation-error-${index}`}
+                    style={{ margin: "6px 0 0", fontSize: 12, color: "#b91c1c", fontWeight: 600 }}
+                  >
+                    Explanation must be at most {MCQ_EXPLANATION_MAX_LENGTH} characters.
+                  </p>
+                ) : null}
+              </div>
+            )}
           </div>
         ))}
 

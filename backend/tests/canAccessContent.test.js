@@ -61,6 +61,76 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("SUB_ACTIVE");
   });
 
+  test("stripe letsrevise pro (paidThrough future) → allow (STRIPE_LETSREVISE_PRO)", async () => {
+    const decision = await canAccessContent(
+      {
+        userType: "student",
+        subscriptionV2: null,
+        stripeBilling: {
+          planId: "letsrevise_pro",
+          paidThrough: new Date(Date.now() + 86400000),
+          status: "active",
+        },
+        purchasedLessons: [],
+      },
+      { ...lesson, subject: "Biology" }
+    );
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBe("STRIPE_LETSREVISE_PRO");
+  });
+
+  test("stripe letsrevise pro unlocks physics (universal premium)", async () => {
+    const decision = await canAccessContent(
+      {
+        userType: "student",
+        stripeBilling: {
+          planId: "letsrevise_pro",
+          status: "active",
+          paidThrough: new Date(Date.now() + 86400000),
+        },
+        purchasedLessons: [],
+      },
+      { ...lesson, subject: "Physics" }
+    );
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBe("STRIPE_LETSREVISE_PRO");
+  });
+
+  test("stripe letsrevise pro unpaid → deny", async () => {
+    const decision = await canAccessContent(
+      {
+        userType: "student",
+        stripeBilling: {
+          planId: "letsrevise_pro",
+          status: "incomplete",
+        },
+        purchasedLessons: [],
+      },
+      { ...lesson, subject: "Biology" }
+    );
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toBe("NOT_ENTITLED");
+  });
+
+  test("admin grant survives alongside canceled stripe billing", async () => {
+    const future = new Date(Date.now() + 86400000).toISOString();
+    const decision = await canAccessContent(
+      {
+        userType: "student",
+        subscriptionV2: { status: "trialing", provider: "admin", expiresAt: future },
+        stripeBilling: {
+          planId: "letsrevise_pro",
+          status: "canceled",
+          paidThrough: new Date(Date.now() - 1000),
+        },
+        purchasedLessons: [],
+      },
+      { ...lesson, subject: "Biology" }
+    );
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBe("SUB_ACTIVE");
+  });
+
   test("single-lesson unlock (no sub, no purchase) → allow (LESSON_UNLOCK)", async () => {
     LessonUnlock.exists.mockResolvedValueOnce(true);
     const decision = await canAccessContent(
