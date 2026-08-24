@@ -104,7 +104,7 @@ function adaptInteractiveSequenceBlock(block) {
 function adaptBlock(block) {
   if (!block || typeof block !== "object") return block;
   const type = block.type;
-  if (type === "interactiveSequence") {
+  if (type === "interactiveSequence" && block.presentationMode === "progressiveReveal") {
     return adaptInteractiveSequenceBlock(block);
   }
   const out = {
@@ -120,6 +120,9 @@ function adaptBlock(block) {
     explanation: block.explanation,
     caption: block.caption != null ? asString(block.caption) : undefined,
     subtitle: block.subtitle,
+    intro: block.intro != null ? asString(block.intro) : undefined,
+    instructions:
+      block.instructions != null ? asString(block.instructions) : undefined,
     // Map studentPrompt onto studentTask (schema-supported student-facing field).
     studentTask:
       block.studentTask != null
@@ -137,6 +140,21 @@ function adaptBlock(block) {
     number: block.number,
     note: block.note,
     diagramVariant: block.diagramVariant,
+    matchMode: block.matchMode,
+    dragDropLayout: block.dragDropLayout,
+    pairs: Array.isArray(block.pairs) ? block.pairs : undefined,
+    dropZones: Array.isArray(block.dropZones) ? block.dropZones : undefined,
+    sequenceSteps: Array.isArray(block.sequenceSteps)
+      ? block.sequenceSteps
+      : undefined,
+    hotspots: Array.isArray(block.hotspots) ? block.hotspots : undefined,
+    labelsAllowedOnStudentImage: block.labelsAllowedOnStudentImage,
+    studentSafe: block.studentSafe,
+    sourceIds: Array.isArray(block.sourceIds) ? [...block.sourceIds] : undefined,
+    metadata:
+      block.metadata && typeof block.metadata === "object"
+        ? { ...block.metadata }
+        : undefined,
   };
 
   if (Array.isArray(block.questions)) {
@@ -176,7 +194,9 @@ const ALLOWED = new Set([
   "selfCheck",
   "pageQuiz",
   "diagram",
+  "dragDropMatch",
   "interactiveSequence",
+  "interactiveDiagram",
 ]);
 
 /**

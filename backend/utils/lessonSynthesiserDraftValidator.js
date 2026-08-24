@@ -15,7 +15,10 @@ const ALLOWED_BLOCK_TYPES = Object.freeze([
   "selfCheck",
   "pageQuiz",
   "diagram",
+  // V1 Learn interactive teaching activities (no quiz/selfCheck on Learn)
+  "dragDropMatch",
   "interactiveSequence",
+  "interactiveDiagram",
 ]);
 
 const BANK_COUNTS = Object.freeze({
@@ -560,7 +563,7 @@ function validateLessonSynthesiserDraftEnvelope(envelope) {
 
     validateTeacherBriefLeak(block, path, errors);
 
-    if (type === "interactiveSequence") {
+    if (type === "interactiveSequence" && block.presentationMode === "progressiveReveal") {
       validateProgressiveRevealSequenceBlock(block, path, errors);
       continue;
     }
