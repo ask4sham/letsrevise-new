@@ -889,15 +889,8 @@ const StudentDashboard: React.FC = () => {
       base = base.filter((l) => lessonMatchesStage(l.level, profileStageKey));
     }
 
-    // ✅ UPDATED: Advanced mode toggle (now using localStorage-backed state)
-    // If Advanced mode is OFF: hide lessons marked as "advanced"
-    // If Advanced mode is ON: show everything
-    if (!advancedMode) {
-      base = base.filter((l) => safeStr(l.tier, "").toLowerCase() !== "advanced");
-    }
-
     return base;
-  }, [lessons, isStudent, profileStageKey, advancedMode]);
+  }, [lessons, isStudent, profileStageKey]);
 
   /**
    * Subjects dropdown: derived from gatedLessons only (published catalogue).

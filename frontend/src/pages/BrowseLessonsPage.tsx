@@ -267,12 +267,8 @@ const BrowseLessons: React.FC = () => {
       filtered = filtered.filter((lesson) => lessonMatchesBrowseStage(lesson.level, browseStageKey));
     }
 
-    if (!advancedMode) {
-      filtered = filtered.filter((lesson) => normalizeTierValue(lesson.tier) !== "advanced");
-    }
-
     return filtered;
-  }, [lessons, isStudent, browseStageKey, advancedMode]);
+  }, [lessons, isStudent, browseStageKey]);
 
   // Extract unique values for filter dropdowns
   const subjectOptions = useMemo(() => {
