@@ -588,3 +588,84 @@ describe("GET /api/lessons list — no premium fields (Phase 9 tripwire)", () =>
     }
   });
 });
+
+describe("GET /api/lessons list — Stripe LetsRevise Pro access (4F.34B)", () => {
+  jest.setTimeout(15000);
+
+  let stripeProLessonId;
+  let tokenStripeProStudent;
+
+  beforeAll(async () => {
+    const ts = Date.now();
+    const future = new Date(Date.now() + 86400000);
+
+    const teacher = await User.create({
+      firstName: "Stripe",
+      lastName: "Teacher",
+      email: `stripe-list-teacher-${ts}@test.com`,
+      password: hashedPassword,
+      userType: "teacher",
+    });
+
+    const lesson = await Lesson.create({
+      title: "Stripe Pro Catalogue Lesson",
+      description: "Approved subscription lesson for Stripe list access",
+      content: "Full content",
+      teacherId: teacher._id,
+      teacherName: "Stripe Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Cells",
+      status: "published",
+      isPublished: true,
+      isFreePreview: false,
+      teacherLibrary: { status: "approved" },
+      pages: [
+        { pageId: "p1", title: "Page 1", order: 0, blocks: [] },
+        { pageId: "p2", title: "Page 2", order: 1, blocks: [] },
+      ],
+      quiz: { questions: [] },
+      flashcards: [],
+    });
+    stripeProLessonId = lesson._id;
+
+    await User.create({
+      firstName: "Stripe",
+      lastName: "Student",
+      email: `stripe-list-student-${ts}@test.com`,
+      password: hashedPassword,
+      userType: "student",
+      subscriptionV2: null,
+      purchasedLessons: [],
+      stripeBilling: {
+        planId: "letsrevise_pro",
+        status: "active",
+        paidThrough: future,
+      },
+    });
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: `stripe-list-student-${ts}@test.com`, password: "password123" });
+    if (!loginRes.body.token) {
+      throw new Error("stripe-list-student login failed");
+    }
+    tokenStripeProStudent = loginRes.body.token;
+  });
+
+  test("Stripe-only Pro student gets hasAccess true and locked false on catalogue list", async () => {
+    const res = await request(app)
+      .get("/api/lessons")
+      .set("Authorization", `Bearer ${tokenStripeProStudent}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+
+    const match = res.body.find((item) => String(item._id ?? item.id) === String(stripeProLessonId));
+    expect(match).toBeTruthy();
+    expect(match.hasAccess).toBe(true);
+    expect(match.locked).toBe(false);
+    expect(match.reason).not.toBe("NOT_ENTITLED");
+    expect(match.isFreePreview).not.toBe(true);
+    expect(typeof match.pageCount).toBe("number");
+  });
+});

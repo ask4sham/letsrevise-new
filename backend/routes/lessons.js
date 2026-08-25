@@ -5950,7 +5950,7 @@ router.get("/", auth, async (req, res) => {
     }
 
     const fullUser = await User.findById(getAuthUserId(req))
-      .select("userType subscriptionV2 subscription purchasedLessons")
+      .select("userType subscriptionV2 subscription purchasedLessons stripeBilling")
       .lean();
 
     const lessonIds = lessons.map((l) => l._id);
