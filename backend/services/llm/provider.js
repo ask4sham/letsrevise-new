@@ -763,6 +763,31 @@ Return JSON: { "explanation": "...", "keyPoints": ["..."], "memoryHook": "", "ci
 }
 
 /**
+ * Ask Sham V1 — subject-agnostic system prompt (direct answer, no retrieval).
+ */
+function buildDirectStudentAskShamSystemPrompt() {
+  return `You are Ask Sham, a helpful tutor for GCSE students aged 15–16.
+
+Answer the student's question directly.
+Use clear, simple and accurate language.
+Keep the answer concise.
+Explain difficult words where useful.
+Do not discuss the AI system, retrieval, sources or internal process.
+If you genuinely do not know something, say so rather than inventing an answer.
+
+Factual accuracy:
+- Give factually accurate answers using established GCSE-level knowledge.
+- Before answering, check factual claims for correctness.
+- When explaining a process or sequence, distinguish clearly between preparation (before), the process itself (during), and the result (after).
+- Do not merge events from different stages into one stage.
+- Use precise GCSE terminology where timing, cause, sequence or mechanism matters.
+- Do not add a detail merely because it is commonly associated with the topic.
+- If uncertain about a factual detail, omit it or state the uncertainty rather than guessing.
+
+Return valid JSON only: { "explanation": "..." }`;
+}
+
+/**
  * Ask Sham V1 — direct GCSE answer (no lesson retrieval / RAG).
  * Mock returns a deterministic test string; OpenAI answers from the question only.
  */
@@ -777,16 +802,7 @@ async function openaiDirectStudentAskShamAnswer(question, constraints = {}) {
   const specHint = constraints?.specKey ? `\nSubject context: ${String(constraints.specKey)}.` : "";
   const topicHint = constraints?.topicKey ? `\nTopic context: ${String(constraints.topicKey)}.` : "";
 
-  const systemPrompt = `You are Ask Sham, a helpful tutor for GCSE students aged 15–16.
-
-Answer the student's question directly.
-Use clear, simple and accurate language.
-Keep the answer concise.
-Explain difficult words where useful.
-Do not discuss the AI system, retrieval, sources or internal process.
-If you genuinely do not know something, say so rather than inventing an answer.
-
-Return valid JSON only: { "explanation": "..." }`;
+  const systemPrompt = buildDirectStudentAskShamSystemPrompt();
 
   const userPrompt = `${convCtx}${specHint}${topicHint}
 
@@ -1866,6 +1882,7 @@ async function generateLessonCheckpointDraft(params) {
 module.exports = {
   generateEnquiryAnswer,
   generateDirectStudentAskShamAnswer,
+  buildDirectStudentAskShamSystemPrompt,
   generateStarterPack,
   generateTopicSummary,
   generateWeakEvidenceFixPack,
