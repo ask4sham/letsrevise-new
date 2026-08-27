@@ -1,0 +1,44 @@
+{
+  "_authored": "Independently specified contract expectations for the Variation lesson fixture — NOT generated from buildLessonTruth output.",
+  "learningObjectiveTexts": [
+    "Explain what is meant by variation within a species",
+    "Describe genetic and environmental causes of variation",
+    "Explain how genetic and environmental factors combine"
+  ],
+  "requiredConceptIds": [
+    "variation_within_a_species",
+    "genetic_variation",
+    "environmental_variation",
+    "combined_genetic_and_environmental_effects"
+  ],
+  "supportingConceptIds": [
+    "mutation",
+    "meiosis",
+    "random_fertilisation"
+  ],
+  "mustNotAppearInRequiredOrSupportingIds": [
+    "fertilisation",
+    "sperm",
+    "zygote",
+    "flagellum"
+  ],
+  "teachingEvidenceBlockIds": [
+    "obj-block",
+    "def-variation",
+    "teach-genetic",
+    "teach-environmental",
+    "teach-combined",
+    "teach-meiosis"
+  ],
+  "assessmentBlockIdsMustNotProduceEvidence": [
+    "assess-sperm",
+    "assess-fertilisation",
+    "assess-zygote"
+  ],
+  "requiredConceptEvidenceBlocks": {
+    "variation_within_a_species": "def-variation",
+    "genetic_variation": "teach-genetic",
+    "environmental_variation": "teach-environmental",
+    "combined_genetic_and_environmental_effects": "teach-combined"
+  }
+}
