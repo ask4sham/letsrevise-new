@@ -4,7 +4,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const { buildLessonTruth, runTeacherBrain } = require("../lib/teacherBrain");
+const { buildLessonTruth } = require("../lib/teacherBrain/lessonTruth/buildLessonTruth");
+const { runTeacherBrain } = require("../lib/teacherBrain");
 const { semanticEquals } = require("../lib/teacherBrain/lessonTruth/canonicalize");
 const { isTeachingAuthorityBlock } = require("../lib/teacherBrain/lessonTruth/taughtEvidenceBuilder");
 
@@ -355,8 +356,10 @@ describe("Lesson Truth buildLessonTruth (Phase 1)", () => {
   });
 
   test("existing Teacher Brain exports remain available", () => {
+    const teacherBrain = require("../lib/teacherBrain");
     expect(typeof runTeacherBrain).toBe("function");
     expect(typeof buildLessonTruth).toBe("function");
+    expect(teacherBrain.buildLessonTruth).toBeUndefined();
     const output = runTeacherBrain({ topic: "Metabolism", subject: "Biology" });
     expect(output).toHaveProperty("coreConcepts");
     expect(output).toHaveProperty("coverageMap");
