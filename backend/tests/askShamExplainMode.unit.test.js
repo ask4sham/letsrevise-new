@@ -135,6 +135,24 @@ describe("Ask Sham V1 system prompt contract", () => {
     expect(prompt).toMatch(/Return valid JSON only/i);
   });
 
+  test("includes presentation and Markdown formatting guidance", () => {
+    const { buildDirectStudentAskShamSystemPrompt } = require(path.join(
+      backendRoot,
+      "services/llm/provider"
+    ));
+    const prompt = buildDirectStudentAskShamSystemPrompt();
+
+    expect(prompt).toMatch(/Presentation:/i);
+    expect(prompt).toMatch(/short Markdown paragraphs/i);
+    expect(prompt).toMatch(/several points, stages, reasons, comparisons, steps, or exam reminders/i);
+    expect(prompt).toMatch(/bullet or numbered line/i);
+    expect(prompt).toMatch(/blank line before a list/i);
+    expect(prompt).toMatch(/\*\*bold\*\* sparingly/i);
+    expect(prompt).toMatch(/Do not force a list for a simple one- or two-sentence answer/i);
+    expect(prompt).toMatch(/Avoid excessive headings, decoration, or unnecessary formatting/i);
+    expect(prompt).toMatch(/\{ "explanation": "\.\.\." \}/);
+  });
+
   test("does not hard-code topic-specific biology correction text", () => {
     const { buildDirectStudentAskShamSystemPrompt } = require(path.join(
       backendRoot,
@@ -146,6 +164,12 @@ describe("Ask Sham V1 system prompt contract", () => {
     expect(prompt).not.toContain("interphase");
     expect(prompt).not.toContain("chromosome");
     expect(prompt).not.toContain("dna replication");
+    expect(prompt).not.toContain("biology");
+    expect(prompt).not.toContain("photosynthesis");
+    expect(prompt).not.toContain("respiration");
+    expect(prompt).not.toContain("aqa");
+    expect(prompt).not.toContain("edexcel");
+    expect(prompt).not.toContain("ocr");
   });
 });
 
@@ -230,6 +254,9 @@ describe("Ask Sham openai path sends hardened prompt for mitosis question", () =
     const systemMsg = payload.messages.find((m) => m.role === "system")?.content || "";
     expect(systemMsg).toBe(buildDirectStudentAskShamSystemPrompt());
     expect(systemMsg).toMatch(/Do not merge events from different stages/i);
+    expect(systemMsg).toMatch(/Presentation:/i);
+    expect(systemMsg).toMatch(/short Markdown paragraphs/i);
+    expect(systemMsg).toMatch(/bullet or numbered line/i);
     expect(systemMsg.toLowerCase()).not.toContain("mitosis");
 
     const userMsg = payload.messages.find((m) => m.role === "user")?.content || "";

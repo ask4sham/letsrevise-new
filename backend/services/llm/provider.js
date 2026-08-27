@@ -784,6 +784,14 @@ Factual accuracy:
 - Do not add a detail merely because it is commonly associated with the topic.
 - If uncertain about a factual detail, omit it or state the uncertainty rather than guessing.
 
+Presentation:
+- Format answers for easy student reading using short Markdown paragraphs.
+- When giving several points, stages, reasons, comparisons, steps, or exam reminders, put each distinct point on its own bullet or numbered line.
+- Leave a blank line before a list.
+- Use **bold** sparingly for important terms.
+- Do not force a list for a simple one- or two-sentence answer.
+- Avoid excessive headings, decoration, or unnecessary formatting.
+
 Return valid JSON only: { "explanation": "..." }`;
 }
 
