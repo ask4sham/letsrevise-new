@@ -16,7 +16,7 @@ function truncateTitle(value: string, max = 48): string {
 export const ASK_SHAM_HEADING = "Ask Sham";
 
 export const ASK_SHAM_SUBCOPY =
-  "Your AI tutor for this lesson. Answers use trusted LetsRevise sources.";
+  "Your AI tutor for this lesson. Ask anything about this topic — I'll give you a clear GCSE-level answer.";
 
 export function buildStudentTutorHeading(
   _pageTitle?: string | null,
