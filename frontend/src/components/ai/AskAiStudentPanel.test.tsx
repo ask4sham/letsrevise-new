@@ -26,6 +26,47 @@ jest.mock("axios", () => ({
 jest.mock("../../api/enquiry");
 jest.mock("../../api/conversations");
 
+jest.mock("../lesson/LessonMarkdown", () => {
+  const React = require("react");
+
+  // Panel wiring stub only — not production rehype-sanitize behaviour.
+  function renderInlineMarkdown(text: string) {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, index) => {
+      const bold = part.match(/^\*\*(.+)\*\*$/);
+      if (bold) {
+        return React.createElement("strong", { key: index }, bold[1]);
+      }
+      return part;
+    });
+  }
+
+  function LessonMarkdown({ children, className }: { children: string; className?: string }) {
+    const raw = String(children ?? "");
+    const lines = raw.split(/\n/);
+
+    if (lines.some((line) => /^\d+\.\s/.test(line))) {
+      const items = lines.filter((line) => /^\d+\.\s/.test(line));
+      return React.createElement(
+        "ol",
+        { className },
+        items.map((line, index) => {
+          const body = line.replace(/^\d+\.\s*/, "");
+          return React.createElement("li", { key: index }, renderInlineMarkdown(body));
+        })
+      );
+    }
+
+    return React.createElement(
+      "div",
+      { className },
+      React.createElement("p", null, renderInlineMarkdown(raw))
+    );
+  }
+
+  return { LessonMarkdown };
+});
+
 const mockPostEnquiry = enquiryApi.postEnquiry as jest.MockedFunction<typeof enquiryApi.postEnquiry>;
 const mockCreateConversation = conversationsApi.createConversation as jest.MockedFunction<
   typeof conversationsApi.createConversation
@@ -75,6 +116,31 @@ function renderRichPanel(
       {...props}
     />
   );
+}
+
+async function submitQuestionAndOpenExplanation(explanation: string) {
+  seedConversation();
+  mockPostEnquiry.mockResolvedValueOnce({
+    ...directAnswerResponse,
+    answer: {
+      ...directAnswerResponse.answer,
+      explanation,
+    },
+  });
+  renderRichPanel();
+
+  await waitFor(() => {
+    expect(screen.getByRole("textbox")).not.toBeDisabled();
+  });
+
+  fireEvent.change(screen.getByRole("textbox"), {
+    target: { value: "What happens during mitosis?" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+  const showBtn = await screen.findByRole("button", { name: "Show explanation" });
+  fireEvent.click(showBtn);
+  return showBtn;
 }
 
 describe("AskAiStudentPanel rich student UI", () => {
@@ -244,5 +310,49 @@ describe("AskAiStudentPanel rich student UI", () => {
     const tutorSection = screen.getByText("Tutor actions").closest("div");
     expect(tutorSection).toBeTruthy();
     expect(within(tutorSection!.parentElement!).getByRole("button", { name: "Explain again" })).toBeInTheDocument();
+  });
+
+  test("renders Markdown bold in explanation without visible asterisks", async () => {
+    await submitQuestionAndOpenExplanation("**Prophase** is the first stage of mitosis.");
+
+    const bold = screen.getByText("Prophase");
+    expect(bold.tagName).toBe("STRONG");
+    expect(screen.queryByText("**Prophase**")).not.toBeInTheDocument();
+    expect(screen.queryByText(/\*\*Prophase\*\*/)).not.toBeInTheDocument();
+  });
+
+  test("renders Markdown ordered lists in explanation", async () => {
+    await submitQuestionAndOpenExplanation(
+      "1. **Prophase**: Chromosomes condense.\n2. **Metaphase**: Chromosomes line up."
+    );
+
+    const list = screen.getByRole("list");
+    expect(list.tagName).toBe("OL");
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(within(items[0]).getByText("Prophase")).toBeInTheDocument();
+    expect(within(items[0]).getByText(/Chromosomes condense/)).toBeInTheDocument();
+    expect(within(items[1]).getByText("Metaphase")).toBeInTheDocument();
+    expect(within(items[1]).getByText(/Chromosomes line up/)).toBeInTheDocument();
+  });
+
+  test("renders plain-text explanations normally through Markdown", async () => {
+    await submitQuestionAndOpenExplanation(
+      "Mitosis produces two genetically identical daughter cells."
+    );
+
+    expect(
+      screen.getByText("Mitosis produces two genetically identical daughter cells.")
+    ).toBeInTheDocument();
+  });
+
+  test("routes explanation content through LessonMarkdown", async () => {
+    await submitQuestionAndOpenExplanation(
+      '<script>alert("x")</script>\n\n**Safe text**'
+    );
+
+    expect(document.querySelector(".lesson-md-body")).toBeInTheDocument();
+    const safeText = screen.getByText("Safe text");
+    expect(safeText.tagName).toBe("STRONG");
   });
 });

@@ -20,6 +20,7 @@ import {
   buildStudentTutorPlaceholder,
   buildStudentTutorSubcopy,
 } from "../../utils/askAiStudentLessonNative";
+import { LessonMarkdown } from "../lesson/LessonMarkdown";
 
 /** Learning reinforcement (not grading) — full string sent as the next enquiry in-thread. */
 const LEARNING_FOLLOW_UPS: { label: string; prompt: string }[] = [
@@ -390,7 +391,7 @@ export function AskAiStudentPanel({
                     followUpsDisabled={loading}
                   />
                 ) : (
-                  <div style={{ whiteSpace: "pre-wrap" }}>{latestAssistant.text}</div>
+                  <LessonMarkdown className="lesson-md-body">{latestAssistant.text}</LessonMarkdown>
                 )}
               </div>
             )}
@@ -835,10 +836,11 @@ function AssistantBubbleStudent({
                     border: "1px solid #e2e8f0",
                     fontSize: 15,
                     lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
                   }}
                 >
-                  {response.answer.explanation}
+                  <LessonMarkdown className="lesson-md-body">
+                    {response.answer.explanation}
+                  </LessonMarkdown>
                 </div>
               )}
             </div>
