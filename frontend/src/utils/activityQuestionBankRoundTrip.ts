@@ -121,3 +121,28 @@ export function withPreservedActivityQuestions<T extends Record<string, unknown>
 export function hasActivityQuestionBank(block: { questions?: unknown } | null | undefined): boolean {
   return Array.isArray(block?.questions) && block!.questions!.length > 0;
 }
+
+/**
+ * Patch one question in a bank without mutating siblings.
+ * Keeps prompt/question stems synchronized when either changes.
+ */
+export function patchActivityBankQuestionAtIndex(
+  questions: ActivityBankQuestion[] | undefined,
+  index: number,
+  patch: Partial<ActivityBankQuestion>
+): ActivityBankQuestion[] {
+  const base = Array.isArray(questions) ? questions.map((q) => ({ ...q })) : [];
+  if (index < 0 || index >= base.length) return base;
+
+  const current = { ...base[index] };
+  const next: ActivityBankQuestion = { ...current, ...patch };
+
+  if (patch.prompt !== undefined || patch.question !== undefined) {
+    const stem = asTrimmedString(patch.prompt ?? patch.question ?? current.prompt ?? current.question);
+    next.prompt = stem;
+    next.question = stem;
+  }
+
+  base[index] = next;
+  return base;
+}
