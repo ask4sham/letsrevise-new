@@ -1,0 +1,76 @@
+{
+  "title": "Weimar Republic — causes of instability",
+  "subject": "History",
+  "examBoard": "Edexcel",
+  "level": "GCSE",
+  "topicKey": "history:weimar-instability",
+  "specKey": "edexcel-gcse-history",
+  "pages": [
+    {
+      "blocks": [
+        {
+          "id": "obj-weimar",
+          "type": "text",
+          "role": "lessonObjectives",
+          "title": "Lesson Objectives",
+          "content": "- Explain economic problems in the Weimar Republic\n- Describe political instability and weak government\n- Explain how the Treaty of Versailles contributed to unrest"
+        },
+        {
+          "id": "teach-hyperinflation",
+          "type": "text",
+          "role": "definition",
+          "title": "Hyperinflation",
+          "content": "**Hyperinflation** is a rapid rise in prices."
+        },
+        {
+          "id": "teach-coalition",
+          "type": "text",
+          "role": "definition",
+          "title": "Weak coalition governments",
+          "content": "**Weak coalition governments** is unstable cabinet rule."
+        },
+        {
+          "id": "teach-treaty",
+          "type": "text",
+          "role": "definition",
+          "title": "Treaty of Versailles impact",
+          "content": "**Treaty of Versailles impact** is the burden placed on Germany after 1919."
+        },
+        {
+          "id": "teach-extremism",
+          "type": "text",
+          "role": "definition",
+          "title": "Political extremism",
+          "content": "**Political extremism** is the rise of extreme parties."
+        },
+        {
+          "id": "teach-reparations",
+          "type": "text",
+          "role": "concept",
+          "title": "Reparations payments",
+          "content": "**Reparations payments** is money paid by Germany under the treaty."
+        },
+        {
+          "id": "teach-link",
+          "type": "keyidea",
+          "title": "Economic link",
+          "content": "**Reparations payments** worsened **hyperinflation**."
+        }
+      ]
+    },
+    {
+      "blocks": [
+        {
+          "id": "assess-ww2",
+          "type": "checkpoint",
+          "question": "Explain the causes of World War Two."
+        },
+        {
+          "id": "assess-nazi",
+          "type": "selfcheck",
+          "question": "Describe the structure of the Nazi police state."
+        }
+      ]
+    }
+  ]
+}

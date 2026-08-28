@@ -1,0 +1,22 @@
+{
+  "_authored": "Independently specified Phase 2 plan expectations for Variation — pedagogical intent, not copied from planner output.",
+  "_pedagogicalNotes": "Breadth covers all four required concepts once. Compare assesses genetic vs environmental causes (obj-2 linkage). Relationship assesses how combined effects relate to genetic variation. Depth progresses genetic variation to Apply after earlier Recall/Explain uses.",
+  "targetCount": 8,
+  "breadthPrimaryConceptIds": [
+    "genetic_variation",
+    "variation_within_a_species",
+    "combined_genetic_and_environmental_effects",
+    "environmental_variation"
+  ],
+  "compareSlotIndex": 4,
+  "comparePrimaryConceptIds": ["genetic_variation", "environmental_variation"],
+  "compareCognitiveLevel": "Explain",
+  "relationshipSlotIndex": 5,
+  "relationshipPrimaryConceptIds": ["combined_genetic_and_environmental_effects", "genetic_variation"],
+  "relationshipCognitiveLevel": "Analyse",
+  "geneticVariationSupportingConceptIds": ["mutation"],
+  "depthSlotIndex": 6,
+  "depthConceptId": "genetic_variation",
+  "depthCognitiveLevel": "Apply",
+  "noSameLevelGlobalDuplicates": true
+}
