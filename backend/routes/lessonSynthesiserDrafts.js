@@ -15,6 +15,9 @@ const {
   adaptSynthesiserDraftToLessonCreate,
 } = require("../utils/lessonSynthesiserDraftAdapter");
 const { groundLessonQuizBeforePersist } = require("../utils/groundLessonQuizBeforePersist");
+const {
+  auditAndLogSynthesiserPageQuizShadow,
+} = require("../utils/synthesiserPageQuizAlignmentAudit");
 const Lesson = require("../models/Lesson");
 const User = require("../models/User");
 
@@ -92,6 +95,16 @@ router.post("/drafts", lessonSynthesiserAuth, async (req, res) => {
     });
 
     groundLessonQuizBeforePersist(createDoc);
+
+    try {
+      auditAndLogSynthesiserPageQuizShadow(createDoc);
+    } catch (shadowAuditError) {
+      console.warn("[TeacherBrain][PageQuizShadow] audit failed (fail-open)", {
+        message: shadowAuditError?.message || String(shadowAuditError),
+        topicKey: createDoc?.topicKey || null,
+        specKey: createDoc?.specKey || null,
+      });
+    }
 
     // Force draft / unpublished immediately before save (defence in depth).
     createDoc.status = "draft";
