@@ -176,11 +176,19 @@ import {
   stripLearnPageTestingBlocks,
   emptyPageQuizBankEditorWarning,
 } from "../utils/lessonPageGuards";
-import { withPreservedActivityQuestions } from "../utils/activityQuestionBankRoundTrip";
+import {
+  hasActivityQuestionBank,
+  patchActivityBankQuestionAtIndex,
+  preserveActivityQuestions,
+  withPreservedActivityQuestions,
+  type ActivityBankQuestion,
+} from "../utils/activityQuestionBankRoundTrip";
 import {
   resolveActivityPreviewQuestion,
   withEditorCompatFromActivityBank,
 } from "../utils/activityBankEditorCompat";
+import { lessonPersistPutPath } from "../utils/lessonSaveRoute";
+import { buildPageQuizLessonQuizEntriesFromPages } from "../utils/pageQuizLessonQuizRebuild";
 import {
   getHotspotLetter,
   isInteractiveDiagramHotspotPlaced,
@@ -855,6 +863,10 @@ const EditLessonPage: React.FC = () => {
   >({});
   /** Optional topic/prompt — when long enough, AI uses topic mode (4–6 pairs); else excerpt from lesson fields. */
   const [dragDropAiTopicPrompt, setDragDropAiTopicPrompt] = useState<Record<string, string>>({});
+  /** Active question index per pageQuiz block (`pageId:blockIdx`). */
+  const [pageQuizActiveQuestionByBlock, setPageQuizActiveQuestionByBlock] = useState<
+    Record<string, number>
+  >({});
   const [interactiveBlockCreation, setInteractiveBlockCreation] = useState<
     null | { pageId: string; insertAt?: number; option: AddBlockOption }
   >(null);
@@ -3900,7 +3912,9 @@ const EditLessonPage: React.FC = () => {
       });
 
       // Build quiz.questions from pageQuiz banks + legacy single fields + existing page-scoped items.
-      const pageQuizQuestions: QuizQuestion[] = [];
+      const pageQuizQuestions: QuizQuestion[] = [
+        ...buildPageQuizLessonQuizEntriesFromPages(sanitizedPages),
+      ];
       const pagesCoveredByBlockBank = new Set<string>();
       for (const p of sanitizedPages) {
         const pageId = p.pageId;
@@ -3912,36 +3926,6 @@ const EditLessonPage: React.FC = () => {
             : [];
           if (bank.length > 0) {
             pagesCoveredByBlockBank.add(String(pageId));
-            bank.forEach((raw, qi) => {
-              const qText = String(raw.prompt ?? raw.question ?? "").trim();
-              const correctAnswer = String(raw.correctAnswer ?? "").trim();
-              if (!qText || !correctAnswer) return;
-              const qt =
-                String(raw.questionType ?? raw.type ?? "").toLowerCase() === "short" ? "short" : "mcq";
-              const opts = Array.isArray(raw.options)
-                ? raw.options.map((o) => String(o ?? "").trim()).filter(Boolean)
-                : [];
-              if (qt === "mcq" && opts.length < 2) return;
-              pageQuizQuestions.push({
-                id: String(raw.id || `pq_${pageId}_${qi}_${Date.now()}`),
-                type: qt as "mcq" | "short",
-                question: qText,
-                options: qt === "mcq" ? opts : undefined,
-                correctAnswer,
-                explanation:
-                  raw.explanation != null ? String(raw.explanation).trim() : undefined,
-                purpose: raw.purpose != null ? String(raw.purpose).trim() : undefined,
-                tags: Array.isArray(raw.tags)
-                  ? [
-                      ...raw.tags.map((t) => String(t ?? "").trim()).filter(Boolean),
-                      "page-quiz",
-                    ]
-                  : ["page-quiz"],
-                marks: Number(raw.marks) > 0 ? Number(raw.marks) : 1,
-                pageId,
-                sourceType: "pageQuiz",
-              } as QuizQuestion);
-            });
             continue;
           }
           const qText = String(b.question ?? b.prompt ?? "").trim();
@@ -4074,18 +4058,7 @@ const EditLessonPage: React.FC = () => {
         return false;
       }
 
-      let saved = false;
-
-      if (isAdmin) {
-        try {
-          await api.put(`/admin/lessons/${id}`, payload);
-          saved = true;
-        } catch {}
-      }
-
-      if (!saved) {
-        await api.put(`/lessons/${id}`, payload);
-      }
+      await api.put(lessonPersistPutPath(id, payload, isAdmin), payload);
 
       setSaveMsg("✅ Saved!");
       const savedPages = Array.isArray(payload.pages) ? payload.pages : [];
@@ -4393,34 +4366,12 @@ const EditLessonPage: React.FC = () => {
       } | null = null;
 
       if (newStatus) {
-        let savedOk = false;
-        if (isAdmin) {
-          try {
-            await api.put(`/admin/lessons/${id}`, persistPayload);
-            savedOk = true;
-          } catch {
-            /* fall through to teacher route */
-          }
-        }
-        if (!savedOk) {
-          await api.put(`/lessons/${id}`, persistPayload);
-        }
+        await api.put(lessonPersistPutPath(id, persistPayload, isAdmin), persistPayload);
         const pubRes = await api.patch(`/lessons/${id}/publish`, { isPublished: true });
         publishData = pubRes.data;
       } else {
         await api.patch(`/lessons/${id}/publish`, { isPublished: false });
-        let savedOk = false;
-        if (isAdmin) {
-          try {
-            await api.put(`/admin/lessons/${id}`, persistPayload);
-            savedOk = true;
-          } catch {
-            /* fall through */
-          }
-        }
-        if (!savedOk) {
-          await api.put(`/lessons/${id}`, persistPayload);
-        }
+        await api.put(lessonPersistPutPath(id, persistPayload, isAdmin), persistPayload);
       }
 
       if (newStatus && publishData?.publishedWithWarnings && publishData?.publishWarningSummary) {
@@ -6286,6 +6237,8 @@ const EditLessonPage: React.FC = () => {
                       const isDragDropMatch = blockType === "dragDropMatch";
                       const isGraph = blockType === "graph";
                       const isExamQuestion = blockType === "examQuestion";
+                      const isPageQuiz = blockType === "pageQuiz";
+                      const isPageQuizBank = isPageQuiz && hasActivityQuestionBank(b);
                       const cp = isCheckpoint || isSelfCheck ? b : null;
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
@@ -6499,6 +6452,7 @@ const EditLessonPage: React.FC = () => {
 
                               {!isCheckpoint &&
                                 !isSelfCheck &&
+                                !isPageQuiz &&
                                 !isDiagram &&
                                 !isInteractiveSequence &&
                                 !isInteractiveDiagram &&
@@ -9818,6 +9772,269 @@ const EditLessonPage: React.FC = () => {
                                 level={safeStr(lesson?.level, "")}
                               />
                             </div>
+                          ) : isPageQuizBank ? (
+                            (() => {
+                              const pqKey = `${currentPage!.pageId}:${idx}`;
+                              const pqBank = preserveActivityQuestions(
+                                (b as { questions?: unknown }).questions
+                              )!;
+                              const rawActiveIdx = pageQuizActiveQuestionByBlock[pqKey] ?? 0;
+                              const safePqIdx = Math.min(
+                                Math.max(rawActiveIdx, 0),
+                                pqBank.length - 1
+                              );
+                              const activePq = pqBank[safePqIdx] as ActivityBankQuestion;
+                              const pqQuestionType =
+                                activePq.questionType === "short" ? "short" : "mcq";
+                              const pqOpts = (activePq.options ?? ["", "", "", ""]).slice(0, 6);
+                              const setPqIndex = (nextIdx: number) => {
+                                const clamped = Math.min(
+                                  Math.max(nextIdx, 0),
+                                  pqBank.length - 1
+                                );
+                                setPageQuizActiveQuestionByBlock((prev) => ({
+                                  ...prev,
+                                  [pqKey]: clamped,
+                                }));
+                              };
+                              const patchActivePq = (patch: Partial<ActivityBankQuestion>) => {
+                                updateBlock(currentPage!.pageId, idx, {
+                                  questions: patchActivityBankQuestionAtIndex(
+                                    pqBank,
+                                    safePqIdx,
+                                    patch
+                                  ),
+                                });
+                              };
+                              return (
+                                <div
+                                  style={{
+                                    marginTop: 12,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 10,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 8,
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
+                                    <div style={{ fontWeight: 800 }}>
+                                      Question {safePqIdx + 1} of {pqBank.length}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      disabled={safePqIdx <= 0}
+                                      onClick={() => setPqIndex(safePqIdx - 1)}
+                                      style={{
+                                        padding: "6px 12px",
+                                        borderRadius: 8,
+                                        border: "2px solid rgba(0,0,0,0.2)",
+                                        background: "white",
+                                        cursor: safePqIdx <= 0 ? "not-allowed" : "pointer",
+                                        fontWeight: 700,
+                                        opacity: safePqIdx <= 0 ? 0.5 : 1,
+                                      }}
+                                    >
+                                      Previous
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={safePqIdx >= pqBank.length - 1}
+                                      onClick={() => setPqIndex(safePqIdx + 1)}
+                                      style={{
+                                        padding: "6px 12px",
+                                        borderRadius: 8,
+                                        border: "2px solid rgba(0,0,0,0.2)",
+                                        background: "white",
+                                        cursor:
+                                          safePqIdx >= pqBank.length - 1
+                                            ? "not-allowed"
+                                            : "pointer",
+                                        fontWeight: 700,
+                                        opacity: safePqIdx >= pqBank.length - 1 ? 0.5 : 1,
+                                      }}
+                                    >
+                                      Next
+                                    </button>
+                                    {pqBank.map((_, qi) => (
+                                      <button
+                                        key={`${pqKey}-q-${qi}`}
+                                        type="button"
+                                        onClick={() => setPqIndex(qi)}
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 8,
+                                          border:
+                                            qi === safePqIdx
+                                              ? "2px solid #2563eb"
+                                              : "2px solid rgba(0,0,0,0.14)",
+                                          background:
+                                            qi === safePqIdx
+                                              ? "rgba(37,99,235,0.08)"
+                                              : "white",
+                                          cursor: "pointer",
+                                          fontWeight: qi === safePqIdx ? 900 : 600,
+                                          minWidth: 32,
+                                        }}
+                                      >
+                                        {qi + 1}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <label style={{ display: "block" }}>
+                                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Prompt</div>
+                                    <LessonAutoTextarea
+                                      editorVariant="plain"
+                                      value={activePq.prompt ?? activePq.question ?? ""}
+                                      onChange={(v) => patchActivePq({ prompt: v, question: v })}
+                                      placeholder="Question stem..."
+                                      minHeightPx={144}
+                                      style={{ fontSize: "0.9375rem" }}
+                                    />
+                                  </label>
+                                  {pqQuestionType === "short" ? (
+                                    <label style={{ display: "block" }}>
+                                      <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                                        Correct answer
+                                      </div>
+                                      <input
+                                        type="text"
+                                        value={activePq.correctAnswer ?? ""}
+                                        onChange={(e) =>
+                                          patchActivePq({ correctAnswer: e.target.value })
+                                        }
+                                        placeholder="Expected short answer"
+                                        style={{
+                                          width: "100%",
+                                          padding: "10px 12px",
+                                          borderRadius: 10,
+                                          border: "2px solid rgba(0,0,0,0.14)",
+                                        }}
+                                      />
+                                    </label>
+                                  ) : (
+                                    <>
+                                      <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                                        Options (correct answer)
+                                      </div>
+                                      {pqOpts.map((opt, oi) => {
+                                        const isCorrectRow = isEditLessonMcqOptionCorrect(
+                                          opt,
+                                          activePq.correctAnswer
+                                        );
+                                        return (
+                                          <div
+                                            key={oi}
+                                            style={editLessonMcqOptionRowStyle(isCorrectRow)}
+                                          >
+                                            <input
+                                              type="radio"
+                                              name={`${key}-pagequiz-correct`}
+                                              checked={isCorrectRow}
+                                              onChange={() =>
+                                                patchActivePq({
+                                                  correctAnswer: String(opt ?? "").trim(),
+                                                })
+                                              }
+                                              style={EDIT_LESSON_MCQ_RADIO_STYLE}
+                                              aria-label={`Mark option ${oi + 1} as correct`}
+                                            />
+                                            <input
+                                              type="text"
+                                              value={opt ?? ""}
+                                              onChange={(e) => {
+                                                const optPatch = patchMcqOptionText(
+                                                  pqOpts,
+                                                  oi,
+                                                  e.target.value,
+                                                  activePq.correctAnswer ?? ""
+                                                );
+                                                patchActivePq({
+                                                  options: optPatch.options,
+                                                  ...(optPatch.correctAnswer !== undefined
+                                                    ? { correctAnswer: optPatch.correctAnswer }
+                                                    : {}),
+                                                });
+                                              }}
+                                              placeholder={`Option ${oi + 1}`}
+                                              style={EDIT_LESSON_MCQ_TEXT_INPUT_STYLE}
+                                              aria-label={`Option ${oi + 1} text`}
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        {pqOpts.length < 6 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const addPatch = patchMcqAddOption(pqOpts);
+                                              patchActivePq({ options: addPatch.options });
+                                            }}
+                                            style={{
+                                              padding: "6px 12px",
+                                              borderRadius: 8,
+                                              border: "2px solid rgba(59,130,246,0.35)",
+                                              background: "rgba(59,130,246,0.08)",
+                                              cursor: "pointer",
+                                              fontWeight: 700,
+                                            }}
+                                          >
+                                            + option
+                                          </button>
+                                        )}
+                                        {pqOpts.length > 2 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const removePatch = patchMcqRemoveOption(
+                                                pqOpts,
+                                                activePq.correctAnswer ?? ""
+                                              );
+                                              patchActivePq({
+                                                options: removePatch.options,
+                                                ...(removePatch.correctAnswer !== undefined
+                                                  ? { correctAnswer: removePatch.correctAnswer }
+                                                  : {}),
+                                              });
+                                            }}
+                                            style={{
+                                              padding: "6px 12px",
+                                              borderRadius: 8,
+                                              border: "2px solid rgba(0,0,0,0.2)",
+                                              background: "white",
+                                              cursor: "pointer",
+                                              fontWeight: 700,
+                                            }}
+                                          >
+                                            Remove option
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                  <label style={{ display: "block" }}>
+                                    <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                                      Explanation (optional)
+                                    </div>
+                                    <LessonAutoTextarea
+                                      editorVariant="plain"
+                                      value={activePq.explanation ?? ""}
+                                      onChange={(v) => patchActivePq({ explanation: v })}
+                                      placeholder="Why this answer is correct..."
+                                      minHeightPx={120}
+                                      showExpandButton
+                                      style={{ fontSize: "0.9375rem" }}
+                                    />
+                                  </label>
+                                </div>
+                              );
+                            })()
                           ) : (
                             <>
                           <input
