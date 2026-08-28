@@ -1,0 +1,18 @@
+{
+  "_authored": "Independently specified contract expectations for the Weimar instability fixture — NOT generated from buildLessonTruth output.",
+  "requiredConceptIds": [
+    "hyperinflation",
+    "weak_coalition_governments",
+    "treaty_of_versailles_impact",
+    "political_extremism",
+    "reparations_payments"
+  ],
+  "supportingConceptIds": ["economic_link"],
+  "mustNotAppearInRequiredOrSupportingIds": [
+    "world_war_two",
+    "nazi_police_state",
+    "causes_of_world_war_two"
+  ],
+  "relationshipSupportConceptId": "economic_link",
+  "reparationsHyperinflationSharedEvidence": true
+}

@@ -1,0 +1,7 @@
+[
+  { "surface": "checkpoint", "slotIndex": 0, "targetMode": "single" },
+  { "surface": "self_check", "slotIndex": 1, "targetMode": "single" },
+  { "surface": "quiz_mcq", "slotIndex": 2, "targetMode": "single" },
+  { "surface": "self_check", "slotIndex": 3, "targetMode": "relationship" },
+  { "surface": "exam_practice_block", "slotIndex": 4, "targetMode": "single" }
+]

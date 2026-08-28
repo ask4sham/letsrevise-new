@@ -1,0 +1,21 @@
+{
+  "_authored": "Independently specified Phase 2 plan expectations for Weimar — pedagogical assessment intent, not rank-output mirroring.",
+  "_pedagogicalNotes": "Assess economic crisis (hyperinflation), reparations burden, political extremism, treaty impact, and the reparations-hyperinflation causal link. Weak coalition governments remain important but are deprioritised when only five assessment slots exist.",
+  "targetCount": 5,
+  "breadthPrimaryConceptIds": [
+    "hyperinflation",
+    "reparations_payments",
+    "political_extremism",
+    "treaty_of_versailles_impact"
+  ],
+  "relationshipSlotIndex": 3,
+  "relationshipPrimaryConceptIds": ["hyperinflation", "reparations_payments"],
+  "relationshipSupportingConceptIds": ["economic_link"],
+  "relationshipCognitiveLevel": "Apply",
+  "remainingBreadthConceptId": "treaty_of_versailles_impact",
+  "uncoveredConceptIds": ["weak_coalition_governments"],
+  "mustNotCompareUnrelatedRankExtremes": {
+    "topRankedConceptId": "hyperinflation",
+    "bottomRankedConceptId": "weak_coalition_governments"
+  }
+}
