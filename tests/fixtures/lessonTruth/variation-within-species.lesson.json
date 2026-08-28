@@ -1,0 +1,86 @@
+{
+  "title": "Variation within a Species",
+  "subject": "Biology",
+  "examBoard": "Edexcel",
+  "level": "IGCSE",
+  "tier": "Foundation",
+  "topicKey": "biology:variation-within-species",
+  "specKey": "edexcel-igcse-biology",
+  "pages": [
+    {
+      "blocks": [
+        {
+          "id": "obj-block",
+          "type": "text",
+          "role": "lessonObjectives",
+          "title": "Lesson Objectives",
+          "content": "- Explain what is meant by variation within a species\n- Describe genetic and environmental causes of variation\n- Explain how genetic and environmental factors combine"
+        },
+        {
+          "id": "def-variation",
+          "type": "text",
+          "role": "definition",
+          "title": "Definition",
+          "content": "**Variation within a species** — differences between individuals of the same species."
+        },
+        {
+          "id": "teach-genetic",
+          "type": "text",
+          "role": "concept",
+          "title": "Genetic variation",
+          "content": "**Genetic variation** is caused by different alleles. **Mutation** can introduce new alleles into a population."
+        },
+        {
+          "id": "teach-environmental",
+          "type": "text",
+          "role": "concept",
+          "title": "Environmental variation",
+          "content": "**Environmental variation** is caused by differences in diet, climate, or lifestyle — not inherited."
+        },
+        {
+          "id": "teach-combined",
+          "type": "keyidea",
+          "title": "Combined effects",
+          "content": "Most characteristics show **combined genetic and environmental effects**. Height is a classic example."
+        }
+      ]
+    },
+    {
+      "blocks": [
+        {
+          "id": "teach-meiosis",
+          "type": "text",
+          "role": "concept",
+          "title": "Sources of genetic variation",
+          "content": "**Meiosis** and **random fertilisation** increase genetic variation by producing new allele combinations."
+        }
+      ]
+    },
+    {
+      "blocks": [
+        {
+          "id": "assess-sperm",
+          "type": "checkpoint",
+          "role": "checkpoint",
+          "title": "Quick check",
+          "question": "Which adaptation helps sperm reach the egg?",
+          "content": "A) Flagellum B) Cell wall C) Chloroplast"
+        },
+        {
+          "id": "assess-fertilisation",
+          "type": "selfcheck",
+          "role": "examPractice",
+          "title": "Exam practice",
+          "question": "Define fertilisation.",
+          "content": "**Fertilisation** is the fusion of gamete nuclei."
+        },
+        {
+          "id": "assess-zygote",
+          "type": "checkpoint",
+          "title": "Checkpoint",
+          "question": "What is the name of the cell formed after fertilisation?"
+        }
+      ]
+    }
+  ]
+}
