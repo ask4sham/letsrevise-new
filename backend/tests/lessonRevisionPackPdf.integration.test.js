@@ -167,17 +167,47 @@ describe("POST /api/lessons/:lessonId/export/revision-pack", () => {
 
   test("entitled student includeAnswers:true still omits mark scheme appendix", async () => {
     const zlib = require("zlib");
+    const pdfStreamDataStart = (pdf, streamKeywordEnd) => {
+      let pos = streamKeywordEnd;
+      if (pdf[pos] === 0x0d && pdf[pos + 1] === 0x0a) return pos + 2;
+      if (pdf[pos] === 0x0a) return pos + 1;
+      if (pdf[pos] === 0x0d) return pos + 1;
+      return pos;
+    };
     const extractPdfPlainText = (buf) => {
-      const raw = buf.toString("latin1");
+      const pdf = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+      const latin1 = pdf.toString("latin1");
       const pieces = [];
-      const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-      let m;
-      while ((m = re.exec(raw))) {
-        const chunk = Buffer.from(m[1], "binary");
+      const lengthRe = /\/Length\s+(\d+)/g;
+      let match;
+      while ((match = lengthRe.exec(latin1)) !== null) {
+        const length = parseInt(match[1], 10);
+        if (!Number.isFinite(length) || length < 0) continue;
+
+        const dictEnd = latin1.indexOf(">>", match.index);
+        if (dictEnd < 0) continue;
+
+        const streamIdx = latin1.indexOf("stream", dictEnd);
+        if (streamIdx < 0 || streamIdx - dictEnd > 32) continue;
+        if (streamIdx >= 3 && latin1.slice(streamIdx - 3, streamIdx) === "end") continue;
+
+        const dataStart = pdfStreamDataStart(pdf, streamIdx + "stream".length);
+        const chunk = pdf.subarray(dataStart, dataStart + length);
+        if (chunk.length !== length) continue;
+
+        const dictBody = latin1.slice(match.index, dictEnd);
+        const isFlate =
+          /\/Filter\s*\/FlateDecode/.test(dictBody) ||
+          /\/Filter\s*\[\s*\/FlateDecode/.test(dictBody);
+
         let streamText;
-        try {
-          streamText = zlib.inflateSync(chunk).toString("latin1");
-        } catch {
+        if (isFlate) {
+          try {
+            streamText = zlib.inflateSync(chunk).toString("latin1");
+          } catch {
+            continue;
+          }
+        } else {
           streamText = chunk.toString("latin1");
         }
         // PDFKit TJ arrays: keep only hex string payloads (ignore kerning numbers).
