@@ -82,8 +82,8 @@ function validateActivityQuestionBank(questions) {
   return { ok: true, questions: normalized };
 }
 
-function legacyFillerBlock(type) {
-  return {
+function legacyFillerBlock(type, blockId) {
+  const out = {
     type,
     prompt: "Which statement is correct?",
     questionType: "mcq",
@@ -91,6 +91,9 @@ function legacyFillerBlock(type) {
     correctAnswer: "Option 1",
     explanation: "",
   };
+  const id = trimStr(blockId);
+  if (id) out.id = id;
+  return out;
 }
 
 /**
@@ -111,6 +114,8 @@ function sanitizeCheckpointOrSelfCheckBlock(b, type) {
       correctAnswer: first.correctAnswer,
       questions: bank.questions,
     };
+    const blockId = trimStr(b?.id);
+    if (blockId) out.id = blockId;
     if (typeof b?.explanation === "string" && b.explanation.trim()) {
       out.explanation = b.explanation.trim().slice(0, 8000);
     } else if (first.explanation) {
@@ -146,7 +151,7 @@ function sanitizeCheckpointOrSelfCheckBlock(b, type) {
       : hasPrompt && String(correctAnswer || "").trim().length > 0;
 
   if (!hasPrompt || !isValidMcq) {
-    return { block: legacyFillerBlock(type) };
+    return { block: legacyFillerBlock(type, b?.id) };
   }
 
   const out = {
@@ -156,6 +161,8 @@ function sanitizeCheckpointOrSelfCheckBlock(b, type) {
     options: questionType === "mcq" ? nonEmptyOpts.slice(0, 6) : [],
     correctAnswer: correctAnswer.trim(),
   };
+  const blockId = trimStr(b?.id);
+  if (blockId) out.id = blockId;
   if (type === "checkpoint") {
     const explanationTrim =
       typeof b?.explanation === "string" && b.explanation.trim()

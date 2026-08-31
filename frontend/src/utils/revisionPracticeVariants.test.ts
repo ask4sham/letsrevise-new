@@ -2,6 +2,7 @@ import {
   buildRevisionVariantsFromCheckpoints,
   collectCheckpointMcqsFromPages,
   shuffleOptionsDeterministic,
+  sourceLinkageKeyFromCheckpoint,
 } from "./revisionPracticeVariants";
 import { isNearDuplicateStem } from "./questionStemSimilarity";
 import { buildRevisionPracticePool, buildQuizPagePool } from "./lessonQuestionPools";
@@ -32,32 +33,32 @@ describe("revisionPracticeVariants", () => {
     expect(variants[0].correctAnswer).toBe("B");
   });
 
-  it("collects MCQs from questions[] banks", () => {
+  it("collects MCQs from questions[] banks with block and question ids", () => {
     const mcqs = collectCheckpointMcqsFromPages([
       {
+        pageId: "p1",
         blocks: [
           {
+            id: "blk_bank",
             type: "checkpoint",
             prompt: "Legacy",
             options: ["L1", "L2"],
             correctAnswer: "L1",
             questions: [
               {
+                id: "sc1",
                 prompt: "Bank Q1?",
                 options: ["A", "B", "C", "D"],
                 correctAnswer: "A",
-              },
-              {
-                prompt: "Bank Q2?",
-                options: ["A", "B", "C", "D"],
-                correctAnswer: "B",
               },
             ],
           },
         ],
       },
     ]);
-    expect(mcqs.map((m) => m.prompt)).toEqual(["Bank Q1?", "Bank Q2?"]);
+    expect(mcqs[0].sourceBlockId).toBe("blk_bank");
+    expect(mcqs[0].sourceQuestionId).toBe("sc1");
+    expect(sourceLinkageKeyFromCheckpoint(mcqs[0])).toBe("blk_bank:sc1");
   });
 });
 

@@ -19,7 +19,22 @@ export type CheckpointMcqSource = {
   options: string[];
   correctAnswer: string;
   explanation?: string;
+  /** Stable block.id when present on the source checkpoint/selfCheck/quickCheck block. */
+  sourceBlockId?: string;
+  /** Stable questions[i].id for multi-question activity banks. */
+  sourceQuestionId?: string;
+  /** Editor-only hint for assigning block.id on first override (not persisted on source). */
+  sourcePageId?: string;
+  sourceBlockIndex?: number;
 };
+
+/** Persisted override linkage key: blockId or blockId:questionId. */
+export function sourceLinkageKeyFromCheckpoint(source: CheckpointMcqSource): string {
+  const blockId = safeStr(source.sourceBlockId);
+  if (!blockId) return "";
+  const qId = safeStr(source.sourceQuestionId);
+  return qId ? `${blockId}:${qId}` : blockId;
+}
 
 function safeStr(v: unknown): string {
   return v === undefined || v === null ? "" : String(v).trim();
@@ -130,23 +145,49 @@ export function createRevisionVariantFromCheckpoint(
   };
 }
 
-export function extractCheckpointMcqFromBlock(b: LooseBlock): CheckpointMcqSource | null {
+function attachBlockIdentity(
+  b: LooseBlock,
+  mcq: Omit<CheckpointMcqSource, "sourceBlockId" | "sourceQuestionId" | "sourcePageId" | "sourceBlockIndex">,
+  ctx?: { pageId?: string; blockIndex?: number; questionId?: string }
+): CheckpointMcqSource {
+  const blockId = safeStr(b.id);
+  const questionId = safeStr(ctx?.questionId);
+  return {
+    ...mcq,
+    ...(blockId ? { sourceBlockId: blockId } : {}),
+    ...(questionId ? { sourceQuestionId: questionId } : {}),
+    ...(ctx?.pageId ? { sourcePageId: ctx.pageId } : {}),
+    ...(typeof ctx?.blockIndex === "number" ? { sourceBlockIndex: ctx.blockIndex } : {}),
+  };
+}
+
+export function extractCheckpointMcqFromBlock(
+  b: LooseBlock,
+  ctx?: { pageId?: string; blockIndex?: number }
+): CheckpointMcqSource | null {
   const t = blockType(b);
   if (t !== "checkpoint" && t !== "selfcheck" && t !== "quickcheck") return null;
   const prompt = safeStr(b.prompt ?? b.question);
   const opts = Array.isArray(b.options) ? b.options.map((o) => safeStr(o)).filter(Boolean) : [];
   const ca = safeStr(b.correctAnswer ?? b.answer);
   if (!prompt || opts.length < 2 || !ca) return null;
-  return {
-    prompt,
-    options: opts,
-    correctAnswer: ca,
-    explanation: safeStr(b.explanation) || undefined,
-  };
+  return attachBlockIdentity(
+    b,
+    {
+      prompt,
+      options: opts,
+      correctAnswer: ca,
+      explanation: safeStr(b.explanation) || undefined,
+    },
+    ctx
+  );
 }
 
 /** Flatten questions[] plus legacy single prompt into MCQ sources. */
-export function extractCheckpointMcqsFromBlock(b: LooseBlock): CheckpointMcqSource[] {
+export function extractCheckpointMcqsFromBlock(
+  b: LooseBlock,
+  ctx?: { pageId?: string; blockIndex?: number }
+): CheckpointMcqSource[] {
   const t = blockType(b);
   if (t !== "checkpoint" && t !== "selfcheck" && t !== "quickcheck") return [];
   const out: CheckpointMcqSource[] = [];
@@ -158,16 +199,22 @@ export function extractCheckpointMcqsFromBlock(b: LooseBlock): CheckpointMcqSour
       const opts = Array.isArray(q.options) ? q.options.map((o) => safeStr(o)).filter(Boolean) : [];
       const ca = safeStr(q.correctAnswer ?? q.answer);
       if (!prompt || opts.length < 2 || !ca) continue;
-      out.push({
-        prompt,
-        options: opts,
-        correctAnswer: ca,
-        explanation: safeStr(q.explanation) || undefined,
-      });
+      out.push(
+        attachBlockIdentity(
+          b,
+          {
+            prompt,
+            options: opts,
+            correctAnswer: ca,
+            explanation: safeStr(q.explanation) || undefined,
+          },
+          { ...ctx, questionId: safeStr(q.id) || undefined }
+        )
+      );
     }
     if (out.length) return out;
   }
-  const single = extractCheckpointMcqFromBlock(b);
+  const single = extractCheckpointMcqFromBlock(b, ctx);
   return single ? [single] : [];
 }
 
@@ -184,22 +231,28 @@ function pushCheckpointMcq(
 }
 
 export function collectCheckpointMcqsFromPages(
-  pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>
+  pages: Array<{ pageId?: string; blocks?: unknown[]; checkpoint?: unknown }>
 ): CheckpointMcqSource[] {
   const out: CheckpointMcqSource[] = [];
   const seen = new Set<string>();
   for (const p of pages) {
+    const pageId = safeStr(p?.pageId) || undefined;
     const legacyCp = p?.checkpoint;
     if (legacyCp && typeof legacyCp === "object") {
-      pushCheckpointMcq(out, seen, extractCheckpointMcqFromBlock({
-        type: "checkpoint",
-        ...(legacyCp as Record<string, unknown>),
-      }));
+      pushCheckpointMcq(
+        out,
+        seen,
+        extractCheckpointMcqFromBlock({
+          type: "checkpoint",
+          ...(legacyCp as Record<string, unknown>),
+        })
+      );
     }
     const blocks = Array.isArray(p?.blocks) ? p.blocks : [];
-    for (const raw of blocks) {
+    for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+      const raw = blocks[blockIndex];
       if (!raw || typeof raw !== "object") continue;
-      for (const mcq of extractCheckpointMcqsFromBlock(raw as LooseBlock)) {
+      for (const mcq of extractCheckpointMcqsFromBlock(raw as LooseBlock, { pageId, blockIndex })) {
         pushCheckpointMcq(out, seen, mcq);
       }
     }
