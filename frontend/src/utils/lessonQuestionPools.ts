@@ -9,9 +9,15 @@ import {
   buildEndOfLessonVariantsFromCheckpoints,
   buildRevisionVariantsFromCheckpoints,
   collectCheckpointMcqsFromPages,
+  createRevisionVariantFromCheckpoint,
   filterQuizRecordsNotMatchingCheckpoints,
+  sourceLinkageKeyFromCheckpoint,
   type CheckpointMcqSource,
 } from "./revisionPracticeVariants";
+import {
+  isRevisionPracticeOverride,
+  listRevisionPracticeOverrides,
+} from "./revisionPracticeOverrides";
 import {
   isDuplicateMcqPair,
   mcqFingerprintFromRecord,
@@ -165,7 +171,7 @@ function conflictsInlineActivity(
 }
 
 /** Revision practice: topic-bank / AI first, then checkpoint-derived variants — never raw checkpoint clones. */
-export function buildRevisionPracticePool(
+function buildRevisionPracticePoolLegacy(
   pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>,
   storedQuiz: Array<Record<string, unknown>>,
   max = 5
@@ -178,8 +184,8 @@ export function buildRevisionPracticePool(
 
   const bankFiltered = filterQuizRecordsNotMatchingCheckpoints(storedQuiz, checkpoints);
   for (let i = 0; i < bankFiltered.length && out.length < max; i++) {
-    // Page-quiz bank belongs to Quiz Page — do not reuse it as revision practice.
     if (isPageQuizTagged(bankFiltered[i])) continue;
+    if (isRevisionPracticeOverride(bankFiltered[i])) continue;
     const layer = recordToLayer(bankFiltered[i], inferStoredSource(bankFiltered[i]), "rev-bank", i);
     if (!layer || conflictsCheckpoint(layer, checkpoints)) continue;
     if (conflictsInlineActivity(layer, inlineFingerprints)) continue;
@@ -201,6 +207,111 @@ export function buildRevisionPracticePool(
   }
 
   return out;
+}
+
+function overrideRecordToLayer(
+  raw: Record<string, unknown>,
+  index: number
+): LayerQuizQuestion | null {
+  const layer = recordToLayer(raw, "revision", "rev-override", index);
+  if (!layer) return null;
+  return {
+    ...layer,
+    questionSource: "revision",
+    sourceQuestionId: raw.sourceQuestionId != null ? String(raw.sourceQuestionId) : undefined,
+    sourceType: raw.sourceType != null ? String(raw.sourceType) : undefined,
+  };
+}
+
+function buildRevisionPracticePoolWithOverrides(
+  pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>,
+  storedQuiz: Array<Record<string, unknown>>,
+  max = 5
+): LayerQuizQuestion[] {
+  const checkpoints = collectCheckpointMcqsFromPages(pages);
+  const inlineFingerprints = collectInlineActivityFingerprints(pages);
+  const derived = deriveLessonRetrieval(pages);
+  const seen = new Set<string>();
+  const out: LayerQuizQuestion[] = [];
+
+  const overrides = listRevisionPracticeOverrides(
+    storedQuiz as import("./revisionPracticeOverrides").PersistedLessonQuizQuestion[]
+  );
+  const overrideByKey = new Map<string, Record<string, unknown>>();
+  for (const o of overrides) {
+    const key = String(o.sourceQuestionId ?? "").trim();
+    if (key) overrideByKey.set(key, o as Record<string, unknown>);
+  }
+
+  const checkpointSegments: LayerQuizQuestion[] = [];
+  for (let i = 0; i < checkpoints.length; i++) {
+    const source = checkpoints[i];
+    const linkageKey = sourceLinkageKeyFromCheckpoint(source);
+    const override = linkageKey ? overrideByKey.get(linkageKey) : undefined;
+    if (override) {
+      overrideByKey.delete(linkageKey);
+      const layer = overrideRecordToLayer(override, i);
+      if (layer && !conflictsInlineActivity(layer, inlineFingerprints)) {
+        checkpointSegments.push(layer);
+      }
+      continue;
+    }
+    const v = createRevisionVariantFromCheckpoint(source, i, checkpoints);
+    if (!v) continue;
+    const layer = variantToLayer(v, "variant-generated");
+    if (conflictsCheckpoint(layer, checkpoints)) continue;
+    checkpointSegments.push(layer);
+  }
+
+  const orphanOverrides = Array.from(overrideByKey.values());
+  const orphanReserve = orphanOverrides.length;
+  const checkpointBudget = Math.max(0, max - orphanReserve);
+
+  for (let i = 0; i < checkpointSegments.length && out.length < checkpointBudget; i++) {
+    pushUnique(out, seen, checkpointSegments[i]);
+  }
+
+  for (const orphanOverride of orphanOverrides) {
+    if (out.length >= max) break;
+    const layer = overrideRecordToLayer(orphanOverride, out.length);
+    if (layer && !conflictsInlineActivity(layer, inlineFingerprints)) {
+      pushUnique(out, seen, layer);
+    }
+  }
+
+  const bankFiltered = filterQuizRecordsNotMatchingCheckpoints(storedQuiz, checkpoints);
+  for (let i = 0; i < bankFiltered.length && out.length < max; i++) {
+    if (isPageQuizTagged(bankFiltered[i])) continue;
+    if (isRevisionPracticeOverride(bankFiltered[i])) continue;
+    const layer = recordToLayer(bankFiltered[i], inferStoredSource(bankFiltered[i]), "rev-bank", i);
+    if (!layer || conflictsCheckpoint(layer, checkpoints)) continue;
+    if (conflictsInlineActivity(layer, inlineFingerprints)) continue;
+    pushUnique(out, seen, layer);
+  }
+
+  for (const v of derived.quizQuestions) {
+    if (out.length >= max) break;
+    // deriveLessonRetrieval also emits checkpoint revision variants (derived-rev-N).
+    // Those are already handled per-source in the checkpoint loop above.
+    if (String(v.id).startsWith("derived-rev-") && checkpoints.length > 0) continue;
+    const layer = variantToLayer(v, "variant-generated");
+    if (conflictsCheckpoint(layer, checkpoints)) continue;
+    pushUnique(out, seen, layer);
+  }
+
+  return out;
+}
+
+export function buildRevisionPracticePool(
+  pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>,
+  storedQuiz: Array<Record<string, unknown>>,
+  max = 5
+): LayerQuizQuestion[] {
+  const hasOverrides = storedQuiz.some((q) => isRevisionPracticeOverride(q));
+  if (!hasOverrides) {
+    return buildRevisionPracticePoolLegacy(pages, storedQuiz, max);
+  }
+  return buildRevisionPracticePoolWithOverrides(pages, storedQuiz, max);
 }
 
 /** Quiz page: excludes checkpoint + revision stems; prefers bank/AI, then quiz-style variants. */

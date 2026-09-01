@@ -65,6 +65,70 @@ describe("sanitizeActivityBlockQuestions", () => {
     expect(block.prompt).toBe("Which statement is correct?");
   });
 
+  test("preserves checkpoint block.id on single-prompt sanitize", () => {
+    const { block } = sanitizeCheckpointOrSelfCheckBlock(
+      {
+        type: "selfCheck",
+        id: "blk_mutation_test",
+        prompt: "What is a mutation?",
+        questionType: "mcq",
+        options: ["DNA change", "Cell wall", "Membrane", "Ribosome"],
+        correctAnswer: "DNA change",
+      },
+      "selfCheck"
+    );
+    expect(block.id).toBe("blk_mutation_test");
+    expect(block.prompt).toMatch(/mutation/i);
+  });
+
+  test("preserves block.id on Mutation Practise selfCheck shape (live regression)", () => {
+    const { block } = sanitizeCheckpointOrSelfCheckBlock(
+      {
+        type: "selfCheck",
+        id: "blk_test_roundtrip",
+        prompt: "Which statement best defines a mutation?",
+        questionType: "mcq",
+        options: [
+          "A rare, random change in genetic material.",
+          "A change in the number of chromosomes in a cell",
+          "A change in the shape of the cell membrane",
+          "A change in the amount of cytoplasm in a cell",
+        ],
+        correctAnswer: "A rare, random change in genetic material.",
+        explanation: "Mutations involve changes to the DNA base sequence which can affect genes.",
+        role: "selfCheck",
+      },
+      "selfCheck"
+    );
+    expect(block.id).toBe("blk_test_roundtrip");
+    expect(block.prompt).toMatch(/defines a mutation/i);
+    expect(block.correctAnswer).toMatch(/rare, random change/i);
+  });
+
+  test("preserves block.id on legacy filler path when incoming id present", () => {
+    const { block } = sanitizeCheckpointOrSelfCheckBlock(
+      {
+        type: "selfCheck",
+        id: "blk_filler_preserve",
+        prompt: "",
+        options: [],
+        correctAnswer: "",
+      },
+      "selfCheck"
+    );
+    expect(block.id).toBe("blk_filler_preserve");
+    expect(block.prompt).toBe("Which statement is correct?");
+  });
+
+  test("preserves checkpoint block.id on questions[] bank sanitize", () => {
+    const { block } = sanitizeCheckpointOrSelfCheckBlock(
+      { type: "checkpoint", id: "blk_bank_test", questions: goodBank },
+      "checkpoint"
+    );
+    expect(block.id).toBe("blk_bank_test");
+    expect(block.questions).toHaveLength(3);
+  });
+
   test("pageQuiz preserves questions[] bank", () => {
     const quizBank = [
       {

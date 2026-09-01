@@ -107,6 +107,15 @@ import {
   type PublishWarningSummary,
 } from "../utils/formatPublishWarningMessage";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
+import RevisionPracticeEditor, {
+  type RevisionPracticeOverrideRemoveInput,
+  type RevisionPracticeOverrideUpsertInput,
+} from "../components/lesson/RevisionPracticeEditor";
+import {
+  applyRevisionPracticeOverridePatch,
+  applyRevisionPracticeOverrideRemove,
+} from "../utils/revisionPracticeLessonState";
+import type { PersistedLessonQuizQuestion } from "../utils/revisionPracticeOverrides";
 import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
 import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
 import { AttachPageQuizModal } from "../components/lesson/AttachPageQuizModal";
@@ -188,7 +197,7 @@ import {
   withEditorCompatFromActivityBank,
 } from "../utils/activityBankEditorCompat";
 import { lessonPersistPutPath } from "../utils/lessonSaveRoute";
-import { buildPageQuizLessonQuizEntriesFromPages } from "../utils/pageQuizLessonQuizRebuild";
+import { mergeLessonQuizQuestionsForPersist } from "../utils/lessonQuizPersistMerge";
 import {
   getHotspotLetter,
   isInteractiveDiagramHotspotPlaced,
@@ -256,6 +265,8 @@ function blockEditorSizeVariant(type: LessonBlockType): "default" | "long" {
 }
 
 interface LessonPageBlock {
+  /** Stable block id — preserved for checkpoint/selfCheck linkage (Revision Practice overrides). */
+  id?: string;
   type: LessonBlockType;
   content?: string;
   /** Checkpoint block fields (when type === "checkpoint") */
@@ -417,6 +428,11 @@ interface QuizQuestion {
   markScheme?: string[];
   /** Page-aware: which page shows this question. Empty or "END" = end of lesson. */
   pageId?: string;
+  /** Revision Practice override linkage to source checkpoint/selfCheck block. */
+  sourceQuestionId?: string;
+  sourceType?: string;
+  source?: string;
+  aiGenerated?: boolean;
 }
 
 /** PR7: readiness from backend (computed) */
@@ -538,6 +554,11 @@ function sortPages(pages: LessonPage[]) {
 
 function newId() {
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function preservedCheckpointBlockId(b: { id?: unknown }): Record<string, unknown> {
+  const id = typeof b.id === "string" && b.id.trim() ? { id: b.id.trim() } : {};
+  return id;
 }
 
 const DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION = "";
@@ -883,6 +904,7 @@ const EditLessonPage: React.FC = () => {
     pageId: "" as string,
   });
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
+  const [isRevisionPracticeCollapsed, setIsRevisionPracticeCollapsed] = useState(false);
   const [issuesCalloutDismissed, setIssuesCalloutDismissed] = useState(false);
   const [filterFlashcardsBrokenOnly, setFilterFlashcardsBrokenOnly] = useState(false);
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
@@ -1150,6 +1172,24 @@ const EditLessonPage: React.FC = () => {
   const flashcards = useMemo(() => lesson?.flashcards || [], [lesson]);
   const quizQuestions = useMemo(() => lesson?.quiz?.questions || [], [lesson]);
   const assessmentQuestions = useMemo(() => lesson?.assessment?.questions || [], [lesson]);
+
+  const handleRevisionPracticeOverridePatch = useCallback(
+    (patch: RevisionPracticeOverrideUpsertInput) => {
+      setLesson((prev) =>
+        prev ? (applyRevisionPracticeOverridePatch(prev, patch) as Lesson) : prev
+      );
+    },
+    []
+  );
+
+  const handleRevisionPracticeOverrideRemove = useCallback(
+    (opts: RevisionPracticeOverrideRemoveInput) => {
+      setLesson((prev) =>
+        prev ? (applyRevisionPracticeOverrideRemove(prev, opts) as Lesson) : prev
+      );
+    },
+    []
+  );
 
   /** PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — uses taxonomy resolve when lesson.topicKey missing */
   const topicKeyForBank = useResolvedTopicKeyForBank(lesson, taxonomyUnits);
@@ -1653,6 +1693,7 @@ const EditLessonPage: React.FC = () => {
                     options: [...coerceLessonMcqOptionsFour(b.options)],
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
+                    ...preservedCheckpointBlockId(b),
                   } as Record<string, unknown>;
                   if (Array.isArray(b.markScheme)) {
                     const ms = b.markScheme.map((x: any) => String(x ?? "").trim()).filter(Boolean);
@@ -1681,6 +1722,7 @@ const EditLessonPage: React.FC = () => {
                         : [...selfCheckMcqOptionsForEditorHydrate(b.options)],
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
+                    ...preservedCheckpointBlockId(b),
                   } as Record<string, unknown>;
                   if (Array.isArray(b.markScheme)) {
                     const ms = b.markScheme.map((x: any) => String(x ?? "").trim()).filter(Boolean);
@@ -3798,6 +3840,7 @@ const EditLessonPage: React.FC = () => {
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
               ...(markSchemeBlk ? { markScheme: markSchemeBlk } : {}),
+              ...preservedCheckpointBlockId(b),
             };
             if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
             return withPreservedActivityQuestions(cpOut, b);
@@ -3815,6 +3858,7 @@ const EditLessonPage: React.FC = () => {
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
               ...(markSchemeSc ? { markScheme: markSchemeSc } : {}),
+              ...preservedCheckpointBlockId(b),
             };
             if (typeof b.role === "string" && b.role.trim()) scOut.role = b.role.trim();
             return withPreservedActivityQuestions(scOut, b);
@@ -3912,65 +3956,10 @@ const EditLessonPage: React.FC = () => {
       });
 
       // Build quiz.questions from pageQuiz banks + legacy single fields + existing page-scoped items.
-      const pageQuizQuestions: QuizQuestion[] = [
-        ...buildPageQuizLessonQuizEntriesFromPages(sanitizedPages),
-      ];
-      const pagesCoveredByBlockBank = new Set<string>();
-      for (const p of sanitizedPages) {
-        const pageId = p.pageId;
-        if (!pageId) continue;
-        for (const b of p.blocks || []) {
-          if (b.type !== "pageQuiz") continue;
-          const bank = Array.isArray((b as { questions?: unknown[] }).questions)
-            ? ((b as { questions: unknown[] }).questions as Array<Record<string, unknown>>)
-            : [];
-          if (bank.length > 0) {
-            pagesCoveredByBlockBank.add(String(pageId));
-            continue;
-          }
-          const qText = String(b.question ?? b.prompt ?? "").trim();
-          if (!qText) continue;
-          const correctAnswer = String(b.correctAnswer ?? "").trim();
-          if (!correctAnswer) continue;
-          const qt = b.questionType === "short" ? "short" : "mcq";
-          const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()).filter(Boolean) : [];
-          if (qt === "mcq" && opts.length < 2) continue;
-          pageQuizQuestions.push({
-            id: `pq_${pageId}_${pageQuizQuestions.length}_${Date.now()}`,
-            type: qt as "mcq" | "short",
-            question: qText,
-            options: qt === "mcq" ? opts : undefined,
-            correctAnswer,
-            explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
-            pageId,
-          });
-        }
-      }
-      const pageIdsInLesson = new Set(
-        sanitizedPages.map((p: { pageId?: string }) => String(p.pageId || "").trim()).filter(Boolean)
+      const mergedQuizQuestions = mergeLessonQuizQuestionsForPersist(
+        sanitizedPages,
+        (lesson.quiz?.questions || []) as Parameters<typeof mergeLessonQuizQuestionsForPersist>[1]
       );
-      const bankAttachedPageQuiz = (lesson.quiz?.questions || []).filter((q: QuizQuestion & { sourceQuestionId?: string; sourceType?: string }) => {
-        const pid = String(q?.pageId ?? "").trim();
-        if (!pid || pid === "END" || !pageIdsInLesson.has(pid)) return false;
-        return Boolean(q.sourceQuestionId || q.sourceType === "topicQuizQuestion");
-      });
-      // Preserve V2 / other page-scoped quiz items that are not topic-bank attachments.
-      const preservedPageScopedQuiz = (lesson.quiz?.questions || []).filter((q: QuizQuestion & { sourceQuestionId?: string; sourceType?: string }) => {
-        const pid = String(q?.pageId ?? "").trim();
-        if (!pid || pid === "END" || !pageIdsInLesson.has(pid)) return false;
-        if (q.sourceQuestionId || q.sourceType === "topicQuizQuestion") return false;
-        if (pagesCoveredByBlockBank.has(pid)) return false;
-        return Boolean(String(q.question || "").trim() && String(q.correctAnswer || "").trim());
-      });
-      const endOfLessonQuestions = (lesson.quiz?.questions || []).filter(
-        (q: QuizQuestion) => !q.pageId || String(q.pageId) === "END"
-      );
-      const mergedQuizQuestions = [
-        ...pageQuizQuestions,
-        ...preservedPageScopedQuiz,
-        ...bankAttachedPageQuiz,
-        ...endOfLessonQuestions,
-      ];
 
     warnLearningMetaIfMissing(sanitizedPages, "edit lesson");
 
@@ -11460,6 +11449,42 @@ const EditLessonPage: React.FC = () => {
                         readOnlyFromBank={true}
                       />
                     </>
+                </div>
+              )}
+            </div>
+
+            <div
+              id="revision-materials-revision-practice"
+              style={{
+                marginBottom: "30px",
+                background: "#f8fafc",
+                borderRadius: "10px",
+                border: "1px solid #e2e8f0",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                onClick={() => setIsRevisionPracticeCollapsed(!isRevisionPracticeCollapsed)}
+                style={{
+                  padding: "15px 20px",
+                  background: "#e2e8f0",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <h3 style={{ margin: 0, color: "#1e293b" }}>Revision Practice (Block 27)</h3>
+                <span style={{ fontSize: "20px" }}>{isRevisionPracticeCollapsed ? "▶" : "▼"}</span>
+              </div>
+              {!isRevisionPracticeCollapsed && (
+                <div style={{ padding: "20px" }}>
+                  <RevisionPracticeEditor
+                    pages={lesson?.pages ?? []}
+                    quizQuestions={quizQuestions as PersistedLessonQuizQuestion[]}
+                    onUpsertOverride={handleRevisionPracticeOverridePatch}
+                    onRemoveOverride={handleRevisionPracticeOverrideRemove}
+                  />
                 </div>
               )}
             </div>
