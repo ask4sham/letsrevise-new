@@ -4,6 +4,23 @@ const mongoose = require("mongoose");
 /** Phase 9D: single canonical list for lesson visibility status. API/docs/tests must use only these values. */
 const LESSON_STATUSES = ["draft", "in_review", "published", "archived", "flagged"];
 
+/** Phase 2: optional lesson-specific practice question edit (never mutates ExamQuestion master). */
+const ExamQuestionLessonEditSchema = new mongoose.Schema(
+  {
+    type: { type: String, enum: ["mcq", "short"], required: true },
+    question: { type: String, required: true, trim: true },
+    marks: { type: Number, required: true, min: 1 },
+    options: { type: [String], default: undefined },
+    correctAnswer: { type: String, default: undefined },
+    correctIndex: { type: Number, default: null },
+    markScheme: { type: [String], default: undefined },
+    explanation: { type: String, default: undefined },
+    editedAt: { type: Date, required: true },
+    editedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: undefined },
+  },
+  { _id: false }
+);
+
 /**
  * =====================================================
  * Lesson Schema
@@ -596,6 +613,7 @@ const LessonSchema = new mongoose.Schema(
       {
         questionId: { type: mongoose.Schema.Types.ObjectId, ref: "ExamQuestion", required: true },
         addedAt: { type: Date, default: Date.now },
+        lessonEdit: { type: ExamQuestionLessonEditSchema, default: undefined },
       },
     ],
 
