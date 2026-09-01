@@ -29,6 +29,11 @@ const {
 const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const {
+  mergeExamQuestionForPractice,
+  buildEditorAttachmentRow,
+} = require("../utils/mergeExamQuestionLessonEdit");
+const { validateExamQuestionLessonEdit } = require("../utils/validateExamQuestionLessonEdit");
+const {
   collectEmbeddedExamQuestionIds,
   buildExamQuestionFingerprints,
   filterDistinctPracticeExamQuestions,
@@ -3638,23 +3643,27 @@ router.get(
       const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
       let questions = [];
       let source = null;
+      const hasAttachedRefs = mode !== "bank-only" && refs.length > 0;
 
-      if (mode !== "bank-only" && refs.length > 0) {
+      if (hasAttachedRefs) {
         questions = refs
           .map((ref) => {
-            const q = ref.questionId;
-            if (!q || !q._id) return null;
-            return mapQuestion(q);
+            const master = ref.questionId && ref.questionId._id ? ref.questionId : null;
+            try {
+              return mergeExamQuestionForPractice(master, ref);
+            } catch (_) {
+              return master ? mapQuestion(master) : null;
+            }
           })
           .filter(Boolean);
         questions = filterDistinctPracticeExamQuestions(
           questions.map((q) => ({ ...q, _id: q.id })),
           { embeddedIds, fingerprints: examFingerprints, limit }
         ).map(({ _id, ...q }) => q);
-        if (questions.length > 0) source = "attached";
+        source = "attached";
       }
 
-      if (questions.length === 0 && validatedKey && examBankTopicFilter) {
+      if (!hasAttachedRefs && questions.length === 0 && validatedKey && examBankTopicFilter) {
         const ownershipFilter = {
           $or: [
             { teacherId: lesson.teacherId },
@@ -4459,17 +4468,108 @@ router.get("/:id/exam-questions", auth, requireLessonOwnerOrAdmin, async (req, r
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
     const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
     if (refs.length === 0) {
-      return res.json({ questions: [] });
+      return res.json({ questions: [], attachments: [] });
     }
     const ids = refs.map((r) => r.questionId).filter(Boolean);
-    const questions = await ExamQuestion.find({ _id: { $in: ids } })
-      .select("_id question type marks topicKey topic")
+    const masters = await ExamQuestion.find({ _id: { $in: ids } })
+      .select(
+        "_id question type marks options correctAnswer correctIndex markScheme topicKey topic imageUrl"
+      )
       .lean();
-    const byId = new Map(questions.map((q) => [String(q._id), q]));
-    const ordered = ids.map((id) => byId.get(String(id))).filter(Boolean);
-    return res.json({ questions: ordered });
+    const byId = new Map(masters.map((q) => [String(q._id), q]));
+
+    const attachments = refs.map((ref, slotIndex) => {
+      const qid = String(ref.questionId);
+      const master = byId.get(qid) || null;
+      return buildEditorAttachmentRow(master, ref, slotIndex);
+    });
+
+    const questions = attachments
+      .filter((a) => a.available && a.effective)
+      .map((a) => ({
+        _id: a.questionId,
+        question: a.effective.question,
+        type: a.effective.type,
+        marks: a.effective.marks,
+        topicKey: a.effective.topicKey,
+        topic: a.effective.topic,
+      }));
+
+    return res.json({ questions, attachments });
   } catch (err) {
     console.error("GET exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+router.put("/:id/exam-questions/lesson-edits", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const edits = req.body?.edits;
+    if (!Array.isArray(edits) || edits.length === 0) {
+      return res.status(400).json({ msg: "edits array is required" });
+    }
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+
+    const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+    const results = [];
+
+    for (const item of edits) {
+      const questionId = String(item?.questionId ?? "").trim();
+      if (!questionId || !mongoose.Types.ObjectId.isValid(questionId)) {
+        return res.status(400).json({ msg: "Invalid questionId in edits" });
+      }
+
+      const refIndex = refs.findIndex((r) => String(r.questionId) === questionId);
+      if (refIndex < 0) {
+        return res.status(400).json({ msg: `Question ${questionId} is not attached to this lesson` });
+      }
+
+      if (item.lessonEdit === null) {
+        refs[refIndex].lessonEdit = undefined;
+        results.push({ questionId, action: "cleared" });
+        continue;
+      }
+
+      const master = await ExamQuestion.findById(questionId);
+      if (!master) {
+        return res.status(400).json({ msg: `ExamQuestion ${questionId} not found` });
+      }
+
+      const beforeMaster = master.toObject();
+      let sanitised;
+      try {
+        sanitised = validateExamQuestionLessonEdit(master, item.lessonEdit, {
+          editedBy: req.user._id,
+        });
+      } catch (err) {
+        return res.status(400).json({
+          msg: err.message || "Invalid lessonEdit",
+          code: err.code || "VALIDATION_ERROR",
+        });
+      }
+
+      refs[refIndex].lessonEdit = sanitised;
+      results.push({ questionId, action: "saved" });
+
+      const afterMaster = master.toObject();
+      if (JSON.stringify(beforeMaster) !== JSON.stringify(afterMaster)) {
+        return res.status(500).json({ msg: "ExamQuestion master must not be modified" });
+      }
+    }
+
+    lesson.examQuestions = refs;
+    lesson.markModified("examQuestions");
+    await lesson.save();
+
+    return res.json({ ok: true, results });
+  } catch (err) {
+    console.error("PUT exam-questions/lesson-edits error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

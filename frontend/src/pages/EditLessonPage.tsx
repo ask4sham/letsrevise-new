@@ -111,6 +111,19 @@ import RevisionPracticeEditor, {
   type RevisionPracticeOverrideRemoveInput,
   type RevisionPracticeOverrideUpsertInput,
 } from "../components/lesson/RevisionPracticeEditor";
+import PracticeQuestionsEditor from "../components/lesson/PracticeQuestionsEditor";
+import {
+  fetchLessonExamQuestionAttachments,
+  removeLessonExamQuestion,
+  saveLessonExamQuestionEdits,
+  type LessonEditPayload,
+  type PracticeQuestionAttachment,
+} from "../api/lessonPracticeEdits";
+import {
+  buildPracticeQuestionEditsPayload,
+  hasPendingPracticeQuestionEdits,
+  type PendingPracticeQuestionEditsMap,
+} from "../utils/practiceQuestionLessonState";
 import {
   applyRevisionPracticeOverridePatch,
   applyRevisionPracticeOverrideRemove,
@@ -905,6 +918,7 @@ const EditLessonPage: React.FC = () => {
   });
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
   const [isRevisionPracticeCollapsed, setIsRevisionPracticeCollapsed] = useState(false);
+  const [isPracticeQuestionsCollapsed, setIsPracticeQuestionsCollapsed] = useState(false);
   const [issuesCalloutDismissed, setIssuesCalloutDismissed] = useState(false);
   const [filterFlashcardsBrokenOnly, setFilterFlashcardsBrokenOnly] = useState(false);
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
@@ -939,6 +953,9 @@ const EditLessonPage: React.FC = () => {
   const [visualsList, setVisualsList] = useState<Array<{ _id: string; conceptKey: string; topic?: string }>>([]);
 
   const [attachedExamQuestions, setAttachedExamQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string; topic?: string }>>([]);
+  const [practiceQuestionAttachments, setPracticeQuestionAttachments] = useState<PracticeQuestionAttachment[]>([]);
+  const [pendingPracticeQuestionEdits, setPendingPracticeQuestionEdits] =
+    useState<PendingPracticeQuestionEditsMap>({});
   const [addFromBankModalOpen, setAddFromBankModalOpen] = useState(false);
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomyData } = useTaxonomy(specKey);
@@ -1189,6 +1206,75 @@ const EditLessonPage: React.FC = () => {
       );
     },
     []
+  );
+
+  const refreshPracticeQuestionAttachments = useCallback(async () => {
+    if (!id) return;
+    try {
+      const attachments = await fetchLessonExamQuestionAttachments(id);
+      setPracticeQuestionAttachments(attachments);
+      setAttachedExamQuestions(
+        attachments
+          .filter((a) => a.available && a.effective)
+          .map((a) => ({
+            _id: a.questionId,
+            question: a.effective!.question ?? "",
+            type: a.effective!.type,
+            marks: a.effective!.marks,
+            topicKey: a.effective!.topicKey,
+            topic: a.effective!.topic,
+          }))
+      );
+    } catch {
+      setPracticeQuestionAttachments([]);
+      setAttachedExamQuestions([]);
+    }
+  }, [id]);
+
+  const handlePracticeQuestionUpsert = useCallback(
+    (questionId: string, lessonEdit: LessonEditPayload) => {
+      setPendingPracticeQuestionEdits((prev) => ({
+        ...prev,
+        [questionId]: { action: "upsert", lessonEdit },
+      }));
+    },
+    []
+  );
+
+  const handlePracticeQuestionClearEdit = useCallback((questionId: string) => {
+    setPendingPracticeQuestionEdits((prev) => ({
+      ...prev,
+      [questionId]: { action: "clear" },
+    }));
+  }, []);
+
+  const handlePracticeQuestionDiscardPending = useCallback((questionId: string) => {
+    setPendingPracticeQuestionEdits((prev) => {
+      const next = { ...prev };
+      delete next[questionId];
+      return next;
+    });
+  }, []);
+
+  const handlePracticeQuestionRemove = useCallback(
+    async (questionId: string) => {
+      if (!id) return;
+      try {
+        await removeLessonExamQuestion(id, questionId);
+        setPendingPracticeQuestionEdits((prev) => {
+          const next = { ...prev };
+          delete next[questionId];
+          return next;
+        });
+        await refreshPracticeQuestionAttachments();
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { msg?: string; error?: string } } };
+        setSaveMsg(
+          `❌ ${e?.response?.data?.msg || e?.response?.data?.error || "Could not remove practice question."}`
+        );
+      }
+    },
+    [id, refreshPracticeQuestionAttachments]
   );
 
   /** PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — uses taxonomy resolve when lesson.topicKey missing */
@@ -1460,10 +1546,8 @@ const EditLessonPage: React.FC = () => {
 
   useEffect(() => {
     if (!id || !lesson) return;
-    api.get(`/lessons/${id}/exam-questions`).then((res: any) => {
-      setAttachedExamQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
-    }).catch(() => setAttachedExamQuestions([]));
-  }, [id, lesson?.id]);
+    refreshPracticeQuestionAttachments();
+  }, [id, lesson?.id, refreshPracticeQuestionAttachments]);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -4137,6 +4221,36 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
+  const handleSaveChanges = async (): Promise<void> => {
+    const lessonSaved = await saveToBackend();
+    if (!lessonSaved) return;
+
+    if (!hasPendingPracticeQuestionEdits(pendingPracticeQuestionEdits)) {
+      return;
+    }
+    if (!id) return;
+
+    const edits = buildPracticeQuestionEditsPayload(pendingPracticeQuestionEdits);
+    try {
+      setSaving(true);
+      await saveLessonExamQuestionEdits(id, edits);
+      setPendingPracticeQuestionEdits({});
+      await refreshPracticeQuestionAttachments();
+      setSaveMsg("✅ Saved!");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { msg?: string; error?: string } } };
+      const detail = e?.response?.data?.msg || e?.response?.data?.error;
+      setSaveMsg(
+        detail
+          ? `Lesson saved, but the Practice Question edits could not be saved: ${detail} Please try again.`
+          : "Lesson saved, but the Practice Question edits could not be saved. Please try again."
+      );
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMsg(""), 6000);
+    }
+  };
+
   const AI_ASSETS_PUBLISHED_MESSAGE =
     "AI assets can only be generated while the lesson is unpublished. Unpublish the lesson, then try again.";
 
@@ -4565,7 +4679,7 @@ const EditLessonPage: React.FC = () => {
       <div className="edit-lesson-lesson-actions-card__stack">
         <button
           type="button"
-          onClick={saveToBackend}
+          onClick={handleSaveChanges}
           disabled={saving}
           className="edit-lesson-lesson-actions-card__btn edit-lesson-lesson-actions-card__btn--primary"
           style={{
@@ -4779,7 +4893,7 @@ const EditLessonPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={saveToBackend}
+          onClick={handleSaveChanges}
           disabled={saving}
           style={{
             padding: "10px 14px",
@@ -5590,6 +5704,7 @@ const EditLessonPage: React.FC = () => {
                             }
                             const listRes = await api.get(`/lessons/${id}/exam-questions`);
                             setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                            await refreshPracticeQuestionAttachments();
                             setLesson((prev) => (prev && d?.readiness ? { ...prev, readiness: d.readiness as Lesson["readiness"], reviewedAt: d.review?.status === "MARKED" || d.review?.status === "ALREADY_REVIEWED" ? new Date().toISOString() : prev.reviewedAt } as Lesson : prev));
                             await fetchLessonSmart();
                             const baseMsg = `Done: +${d?.attach?.added ?? 0} practice · diagram · plan · reviewed`;
@@ -5648,8 +5763,7 @@ const EditLessonPage: React.FC = () => {
                         const added = data?.added ?? 0;
                         const topicName = data?.topic ?? lesson?.topic ?? "topic";
                         if (added > 0) {
-                          const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                          setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                          await refreshPracticeQuestionAttachments();
                         }
                         const msg = data?.warning ?? (added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}` : "No new questions to add.");
                         setAutoAttachMessage(msg);
@@ -11489,6 +11603,44 @@ const EditLessonPage: React.FC = () => {
               )}
             </div>
 
+            <div
+              id="revision-materials-practice-questions"
+              style={{
+                marginBottom: "30px",
+                background: "#f8fafc",
+                borderRadius: "10px",
+                border: "1px solid #e2e8f0",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                onClick={() => setIsPracticeQuestionsCollapsed(!isPracticeQuestionsCollapsed)}
+                style={{
+                  padding: "15px 20px",
+                  background: "#e2e8f0",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <h3 style={{ margin: 0, color: "#1e293b" }}>Practice Questions (Block 28)</h3>
+                <span style={{ fontSize: "20px" }}>{isPracticeQuestionsCollapsed ? "▶" : "▼"}</span>
+              </div>
+              {!isPracticeQuestionsCollapsed && (
+                <div style={{ padding: "20px" }}>
+                  <PracticeQuestionsEditor
+                    attachments={practiceQuestionAttachments}
+                    pendingEdits={pendingPracticeQuestionEdits}
+                    onUpsertLessonEdit={handlePracticeQuestionUpsert}
+                    onClearLessonEdit={handlePracticeQuestionClearEdit}
+                    onDiscardPendingEdit={handlePracticeQuestionDiscardPending}
+                    onRemoveQuestion={handlePracticeQuestionRemove}
+                  />
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
         </div>
@@ -11761,12 +11913,10 @@ const EditLessonPage: React.FC = () => {
                     type="button"
                     onClick={() => {
                       if (!id || selectedBankQuestionIds.size === 0) return;
-                      api.post(`/lessons/${id}/exam-questions`, { questionIds: Array.from(selectedBankQuestionIds) }).then((res: any) => {
+                      api.post(`/lessons/${id}/exam-questions`, { questionIds: Array.from(selectedBankQuestionIds) }).then(async (res: any) => {
                         const added = res?.data?.added ?? 0;
                         if (added > 0) {
-                          api.get(`/lessons/${id}/exam-questions`).then((r: any) => {
-                            setAttachedExamQuestions(Array.isArray(r?.data?.questions) ? r.data.questions : []);
-                          });
+                          await refreshPracticeQuestionAttachments();
                         }
                         setAddFromBankModalOpen(false);
                       }).catch(() => {});
