@@ -20,6 +20,11 @@ function defaultMcqOptions(options?: string[]): string[] {
   return normalized.slice(0, 6);
 }
 
+function normalizeShortMarkSchemeLines(raw: unknown): string[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [""];
+  return raw.map((l) => trimStr(l));
+}
+
 function effectiveFromMaster(master: PracticeQuestionEffective | null): PracticeQuestionEffective | null {
   if (!master) return null;
   return {
@@ -43,18 +48,24 @@ export function getDisplayEffective(
   }
   if (pending?.action === "upsert") {
     const edit = pending.lessonEdit;
-    const baseType = edit.type || attachment.effective?.type || attachment.master?.type || "short";
+    const base = attachment.effective ?? effectiveFromMaster(attachment.master);
+    const baseType = edit.type || base?.type || attachment.master?.type || "short";
     return {
       id: attachment.questionId,
-      question: edit.question,
+      question: edit.question ?? base?.question ?? "",
       type: baseType,
-      marks: edit.marks,
-      options: baseType === "mcq" ? defaultMcqOptions(edit.options) : undefined,
-      correctAnswer: edit.correctAnswer,
-      markScheme: Array.isArray(edit.markScheme) ? [...edit.markScheme] : undefined,
-      explanation: edit.explanation,
-      topicKey: attachment.effective?.topicKey ?? attachment.master?.topicKey,
-      topic: attachment.effective?.topic ?? attachment.master?.topic,
+      marks: typeof edit.marks === "number" ? edit.marks : base?.marks ?? 1,
+      options:
+        baseType === "mcq" ? defaultMcqOptions(edit.options ?? base?.options) : undefined,
+      correctAnswer: edit.correctAnswer !== undefined ? edit.correctAnswer : base?.correctAnswer,
+      markScheme: Array.isArray(edit.markScheme)
+        ? [...edit.markScheme]
+        : base?.markScheme
+          ? [...base.markScheme]
+          : undefined,
+      explanation: edit.explanation !== undefined ? edit.explanation : base?.explanation,
+      topicKey: base?.topicKey ?? attachment.master?.topicKey,
+      topic: base?.topic ?? attachment.master?.topic,
     };
   }
   return attachment.effective ?? effectiveFromMaster(attachment.master);
@@ -82,9 +93,7 @@ export function buildLessonEditFromEffective(
     payload.options = defaultMcqOptions(effective.options).filter(Boolean);
     payload.correctAnswer = trimStr(effective.correctAnswer);
   } else {
-    payload.markScheme = Array.isArray(effective.markScheme)
-      ? effective.markScheme.map((l) => trimStr(l)).filter(Boolean)
-      : [""];
+    payload.markScheme = normalizeShortMarkSchemeLines(effective.markScheme);
     const ca = trimStr(effective.correctAnswer);
     if (ca) payload.correctAnswer = ca;
   }
@@ -120,12 +129,33 @@ export function applyPracticeQuestionFieldPatch(
   return buildLessonEditFromEffective(merged, type);
 }
 
+export function validatePendingPracticeQuestionEditsForSave(
+  pending: PendingPracticeQuestionEditsMap
+): string | null {
+  for (const edit of Object.values(pending)) {
+    if (edit.action !== "upsert" || edit.lessonEdit.type !== "short") continue;
+    const ms = edit.lessonEdit.markScheme;
+    if (Array.isArray(ms) && ms.some((line) => trimStr(line) === "")) {
+      return "Each mark scheme point needs text before you save. Finish editing or remove empty mark points.";
+    }
+  }
+  return null;
+}
+
 export function buildPracticeQuestionEditsPayload(
   pending: PendingPracticeQuestionEditsMap
 ): Array<{ questionId: string; lessonEdit: LessonEditPayload | null }> {
   return Object.entries(pending).map(([questionId, edit]) => ({
     questionId,
-    lessonEdit: edit.action === "clear" ? null : edit.lessonEdit,
+    lessonEdit:
+      edit.action === "clear"
+        ? null
+        : edit.lessonEdit.type === "short" && Array.isArray(edit.lessonEdit.markScheme)
+          ? {
+              ...edit.lessonEdit,
+              markScheme: edit.lessonEdit.markScheme.map((l) => trimStr(l)).filter(Boolean),
+            }
+          : edit.lessonEdit,
   }));
 }
 
@@ -139,4 +169,54 @@ export function formatPracticeQuestionTypeLabel(type?: string | null): string {
   if (type === "mcq") return "Multiple choice (MCQ)";
   if (type === "short") return "Short answer";
   return type ? String(type) : "Unknown";
+}
+
+/** Teacher-facing copy for unsupported Question Bank types in Block 28. */
+export const PRACTICE_QUESTION_BANK_MANAGED_MESSAGE =
+  "This question is managed in the Question Bank.";
+
+/**
+ * Whether an attachment is expected in the student practice list for Block 28.
+ * Teacher tabs list every attachment; GET /practice may omit unavailable or
+ * bank-managed (non mcq/short) attachments and applies dedup/limit separately.
+ */
+export function isPracticeAttachmentShownToStudents(
+  attachment: PracticeQuestionAttachment
+): boolean {
+  if (!attachment.available) return false;
+  if (!attachment.editable && attachment.unsupportedReason) return false;
+  return true;
+}
+
+export function countStudentVisiblePracticeAttachments(
+  attachments: PracticeQuestionAttachment[]
+): number {
+  return attachments.filter(isPracticeAttachmentShownToStudents).length;
+}
+
+export type PracticeQuestionTabLabel = {
+  teacherIndex: number;
+  label: string;
+  studentNumber: number | null;
+  shownToStudents: boolean;
+};
+
+export function buildPracticeQuestionTabLabels(
+  attachments: PracticeQuestionAttachment[]
+): PracticeQuestionTabLabel[] {
+  let studentCounter = 0;
+  return attachments.map((att, idx) => {
+    const shownToStudents = isPracticeAttachmentShownToStudents(att);
+    const studentNumber = shownToStudents ? ++studentCounter : null;
+    const teacherNum = idx + 1;
+    let label = `Q${teacherNum}`;
+    if (!att.available) {
+      label += " · Unavailable";
+    } else if (!shownToStudents) {
+      label += " · Not shown";
+    } else if (studentNumber !== null && studentNumber !== teacherNum) {
+      label += ` · Student Q${studentNumber}`;
+    }
+    return { teacherIndex: idx, label, studentNumber, shownToStudents };
+  });
 }
