@@ -122,6 +122,7 @@ import {
 import {
   buildPracticeQuestionEditsPayload,
   hasPendingPracticeQuestionEdits,
+  validatePendingPracticeQuestionEditsForSave,
   type PendingPracticeQuestionEditsMap,
 } from "../utils/practiceQuestionLessonState";
 import {
@@ -4229,6 +4230,15 @@ const EditLessonPage: React.FC = () => {
       return;
     }
     if (!id) return;
+
+    const practiceValidationError = validatePendingPracticeQuestionEditsForSave(
+      pendingPracticeQuestionEdits
+    );
+    if (practiceValidationError) {
+      setSaveMsg(`❌ ${practiceValidationError}`);
+      setTimeout(() => setSaveMsg(""), 6000);
+      return;
+    }
 
     const edits = buildPracticeQuestionEditsPayload(pendingPracticeQuestionEdits);
     try {

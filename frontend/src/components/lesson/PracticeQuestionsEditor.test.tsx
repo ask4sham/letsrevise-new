@@ -16,6 +16,8 @@ const mcqAttachment: PracticeQuestionAttachment = {
     marks: 2,
     options: ["Alpha", "Beta", "Gamma"],
     correctAnswer: "Alpha",
+    markScheme: ["Alpha is correct because..."],
+    explanation: "Hidden MCQ explanation",
   },
   effective: {
     id: "mcq-1",
@@ -24,6 +26,8 @@ const mcqAttachment: PracticeQuestionAttachment = {
     marks: 2,
     options: ["Alpha", "Beta", "Gamma"],
     correctAnswer: "Alpha",
+    markScheme: ["Alpha is correct because..."],
+    explanation: "Hidden MCQ explanation",
   },
   lessonEdit: null,
 };
@@ -40,7 +44,8 @@ const shortAttachment: PracticeQuestionAttachment = {
     type: "short",
     marks: 3,
     markScheme: ["Point one", "Point two"],
-    correctAnswer: "Model",
+    correctAnswer: "Model answer text",
+    explanation: "Hidden short explanation",
   },
   effective: {
     id: "short-1",
@@ -48,7 +53,8 @@ const shortAttachment: PracticeQuestionAttachment = {
     type: "short",
     marks: 3,
     markScheme: ["Point one", "Point two"],
-    correctAnswer: "Model",
+    correctAnswer: "Model answer text",
+    explanation: "Hidden short explanation",
   },
   lessonEdit: null,
 };
@@ -73,7 +79,7 @@ const editedMcqAttachment: PracticeQuestionAttachment = {
 
 const unsupportedAttachment: PracticeQuestionAttachment = {
   questionId: "composite-1",
-  slotIndex: 2,
+  slotIndex: 0,
   editable: false,
   unsupportedReason: "This question type is managed in the Question Bank.",
   hasLessonEdit: false,
@@ -146,19 +152,21 @@ describe("PracticeQuestionsEditor", () => {
     expect(screen.getByDisplayValue("Beta")).toBeInTheDocument();
   });
 
-  test("short effective values render", () => {
-    renderEditor([mcqAttachment, shortAttachment]);
-    fireEvent.click(screen.getByRole("button", { name: "Q2" }));
+  test("short shows question, marks, and mark-scheme rows only", () => {
+    renderEditor([shortAttachment]);
     expect(screen.getByDisplayValue("Bank short stem?")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Point one")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Model")).toBeInTheDocument();
+    expect(screen.getByLabelText("Marks")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Model answer text")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Explanation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Question type/i)).not.toBeInTheDocument();
   });
 
-  test("question type is visible but not editable", () => {
+  test("MCQ hides explanation and mark-scheme UI", () => {
     renderEditor([mcqAttachment]);
-    expect(screen.getByText("Multiple choice (MCQ)")).toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/question type/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Explanation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mark scheme/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Question type/i)).not.toBeInTheDocument();
   });
 
   test("editing MCQ creates lesson-edit intent", () => {
@@ -171,6 +179,36 @@ describe("PracticeQuestionsEditor", () => {
       expect.objectContaining({
         type: "mcq",
         question: "Teacher MCQ edit",
+      })
+    );
+  });
+
+  test("editing MCQ question preserves hidden explanation and markScheme", () => {
+    const { onUpsert } = renderEditor([mcqAttachment]);
+    fireEvent.change(screen.getByDisplayValue("Bank MCQ stem?"), {
+      target: { value: "Teacher MCQ edit" },
+    });
+    expect(onUpsert).toHaveBeenCalledWith(
+      "mcq-1",
+      expect.objectContaining({
+        explanation: "Hidden MCQ explanation",
+        markScheme: ["Alpha is correct because..."],
+      })
+    );
+  });
+
+  test("editing short mark scheme preserves hidden model answer and explanation", () => {
+    const { onUpsert } = renderEditor([shortAttachment]);
+    fireEvent.change(screen.getByDisplayValue("Point one"), {
+      target: { value: "Updated point" },
+    });
+    expect(onUpsert).toHaveBeenCalledWith(
+      "short-1",
+      expect.objectContaining({
+        type: "short",
+        markScheme: expect.arrayContaining(["Updated point"]),
+        correctAnswer: "Model answer text",
+        explanation: "Hidden short explanation",
       })
     );
   });
@@ -199,16 +237,26 @@ describe("PracticeQuestionsEditor", () => {
     );
   });
 
-  test("short markScheme editing works", () => {
+  test("short add mark point triggers edit save intent", () => {
     const { onUpsert } = renderEditor([shortAttachment]);
-    fireEvent.change(screen.getByDisplayValue("Point one"), {
-      target: { value: "Updated point" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "+ Add mark point" }));
     expect(onUpsert).toHaveBeenCalledWith(
       "short-1",
       expect.objectContaining({
         type: "short",
-        markScheme: expect.arrayContaining(["Updated point"]),
+        markScheme: expect.arrayContaining(["Point one", "Point two"]),
+      })
+    );
+  });
+
+  test("short remove mark point works", () => {
+    const { onUpsert } = renderEditor([shortAttachment]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove mark point" })[0]);
+    expect(onUpsert).toHaveBeenCalledWith(
+      "short-1",
+      expect.objectContaining({
+        markScheme: ["Point two"],
+        correctAnswer: "Model answer text",
       })
     );
   });
@@ -246,14 +294,14 @@ describe("PracticeQuestionsEditor", () => {
     confirmSpy.mockRestore();
   });
 
-  test("unsupported type is read-only", () => {
+  test("unsupported type shows concise Question Bank message only", () => {
     renderEditor([unsupportedAttachment]);
-    fireEvent.click(screen.getByRole("button", { name: "Q1" }));
     expect(
-      screen.getByText("This question type is managed in the Question Bank.")
+      screen.getByText("This question is managed in the Question Bank.")
     ).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: /question/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove Question" })).toBeInTheDocument();
+    expect(screen.getByText("Not shown to students")).toBeInTheDocument();
   });
 
   test("missing master shows unavailable message", () => {
@@ -263,7 +311,14 @@ describe("PracticeQuestionsEditor", () => {
     ).toBeInTheDocument();
   });
 
-  test(">10 note appears", () => {
+  test("missing master tab says Unavailable, not Not shown", () => {
+    renderEditor([unavailableAttachment, mcqAttachment]);
+    expect(screen.getByRole("button", { name: /Q1 · Unavailable/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Q1 · Not shown/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Q2 · Student Q1/ })).toBeInTheDocument();
+  });
+
+  test(">10 student-visible note appears only when more than 10 shown questions", () => {
     const many = Array.from({ length: 11 }, (_, i) => ({
       ...mcqAttachment,
       questionId: `mcq-${i}`,
@@ -271,8 +326,34 @@ describe("PracticeQuestionsEditor", () => {
     }));
     renderEditor(many);
     expect(
-      screen.getByText("Students see the first 10 questions in this order.")
+      screen.getByText("Students see the first 10 questions they can answer, in this order.")
     ).toBeInTheDocument();
+  });
+
+  test(">10 note hidden when many attachments include non-student-visible items", () => {
+    const mixed = [
+      unsupportedAttachment,
+      ...Array.from({ length: 10 }, (_, i) => ({
+        ...mcqAttachment,
+        questionId: `mcq-${i}`,
+        slotIndex: i + 1,
+      })),
+    ];
+    renderEditor(mixed);
+    expect(
+      screen.queryByText("Students see the first 10 questions they can answer, in this order.")
+    ).not.toBeInTheDocument();
+  });
+
+  test("student-hidden attachment is labelled on tab", () => {
+    renderEditor([unsupportedAttachment, mcqAttachment]);
+    expect(screen.getByRole("button", { name: /Q1 · Not shown/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Q2 · Student Q1/ })).toBeInTheDocument();
+  });
+
+  test("student numbering offset shown when first attachment hidden", () => {
+    renderEditor([unsupportedAttachment, mcqAttachment]);
+    expect(screen.getByRole("button", { name: /Q2 · Student Q1/ })).toBeInTheDocument();
   });
 
   test("edited state says Your edited question", () => {

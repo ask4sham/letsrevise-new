@@ -5,10 +5,12 @@ import type {
 } from "../../api/lessonPracticeEdits";
 import {
   applyPracticeQuestionFieldPatch,
-  formatPracticeQuestionTypeLabel,
+  buildPracticeQuestionTabLabels,
+  countStudentVisiblePracticeAttachments,
   getDisplayEffective,
+  isPracticeAttachmentShownToStudents,
   isPracticeQuestionEdited,
-  type PendingPracticeQuestionEdit,
+  PRACTICE_QUESTION_BANK_MANAGED_MESSAGE,
   type PendingPracticeQuestionEditsMap,
 } from "../../utils/practiceQuestionLessonState";
 
@@ -41,14 +43,13 @@ const MCQ_TEXT_INPUT_STYLE: React.CSSProperties = {
   fontSize: 13,
 };
 
-const READONLY_TYPE_STYLE: React.CSSProperties = {
-  padding: "8px 10px",
+const COMPACT_MARKS_STYLE: React.CSSProperties = {
+  width: 64,
+  padding: "6px 8px",
   borderRadius: 8,
-  border: "1px solid #e2e8f0",
-  background: "#f1f5f9",
-  fontSize: 13,
-  color: "#334155",
+  border: "1px solid #cbd5e1",
   marginBottom: 10,
+  fontSize: 13,
 };
 
 type Props = {
@@ -66,6 +67,14 @@ function defaultMcqOptions(options?: string[]): string[] {
   return normalized.slice(0, 6);
 }
 
+function bankManagedMessage(reason?: string): string {
+  if (!reason) return PRACTICE_QUESTION_BANK_MANAGED_MESSAGE;
+  if (/managed in the Question Bank/i.test(reason)) {
+    return PRACTICE_QUESTION_BANK_MANAGED_MESSAGE;
+  }
+  return reason;
+}
+
 export default function PracticeQuestionsEditor({
   attachments,
   pendingEdits,
@@ -81,6 +90,15 @@ export default function PracticeQuestionsEditor({
   const display = current ? getDisplayEffective(current, currentPending) : null;
   const edited = current ? isPracticeQuestionEdited(current, currentPending) : false;
   const questionType = display?.type || current?.master?.type || current?.effective?.type;
+
+  const tabLabels = useMemo(
+    () => buildPracticeQuestionTabLabels(attachments),
+    [attachments]
+  );
+  const studentVisibleCount = useMemo(
+    () => countStudentVisiblePracticeAttachments(attachments),
+    [attachments]
+  );
 
   const applyPatch = useCallback(
     (patch: Parameters<typeof applyPracticeQuestionFieldPatch>[2]) => {
@@ -121,6 +139,14 @@ export default function PracticeQuestionsEditor({
     return "Question from bank — edit to customise";
   }, [current, edited]);
 
+  const isUnsupportedBankManaged =
+    current &&
+    !current.editable &&
+    Boolean(current.unsupportedReason) &&
+    current.available;
+
+  const isUnavailable = current && !current.available && !current.editable;
+
   if (!attachments.length) {
     return (
       <div style={{ fontSize: 13, color: "#64748b" }}>
@@ -137,32 +163,33 @@ export default function PracticeQuestionsEditor({
         <strong>Save Changes</strong> for the lesson.
       </p>
 
-      {attachments.length > 10 && (
+      {studentVisibleCount > 10 && (
         <p style={{ margin: "0 0 10px", fontSize: 13, color: "#92400e", fontWeight: 600 }}>
-          Students see the first 10 questions in this order.
+          Students see the first 10 questions they can answer, in this order.
         </p>
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-        {attachments.map((att, idx) => {
+        {tabLabels.map((tab) => {
+          const att = attachments[tab.teacherIndex];
           const pending = pendingEdits[att.questionId];
           const tabEdited = isPracticeQuestionEdited(att, pending);
           return (
             <button
               key={att.questionId}
               type="button"
-              onClick={() => setSelectedIndex(idx)}
+              onClick={() => setSelectedIndex(tab.teacherIndex)}
               style={{
                 padding: "6px 12px",
                 borderRadius: 8,
-                border: idx === safeIndex ? "2px solid #2563eb" : "1px solid #cbd5e1",
-                background: idx === safeIndex ? "#eff6ff" : "#fff",
+                border: tab.teacherIndex === safeIndex ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                background: tab.teacherIndex === safeIndex ? "#eff6ff" : "#fff",
                 cursor: "pointer",
                 fontWeight: 600,
                 fontSize: 13,
               }}
             >
-              Q{idx + 1}
+              {tab.label}
               {tabEdited ? " ✎" : ""}
             </button>
           );
@@ -178,73 +205,92 @@ export default function PracticeQuestionsEditor({
             background: "#f8fafc",
           }}
         >
-          {!current.available && !current.editable && current.unsupportedReason && (
-            <div
-              style={{
-                marginBottom: 12,
-                padding: "10px 12px",
-                borderRadius: 8,
-                background: "#fef2f2",
-                color: "#b91c1c",
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              {current.unsupportedReason}
-            </div>
+          {isUnavailable && current.unsupportedReason && (
+            <>
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                {current.unsupportedReason}
+              </div>
+              <button
+                type="button"
+                onClick={handleRemove}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #fecaca",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 13,
+                }}
+              >
+                Remove Question
+              </button>
+            </>
           )}
 
-          {current.editable === false &&
-            current.available &&
-            current.unsupportedReason &&
-            questionType !== "mcq" &&
-            questionType !== "short" && (
-              <>
-                <div style={{ marginBottom: 8, fontSize: 13, color: "#64748b" }}>
-                  {current.effective?.question || current.master?.question || "Attached question"}
-                </div>
+          {isUnsupportedBankManaged && (
+            <>
+              {!isPracticeAttachmentShownToStudents(current) && (
                 <div
                   style={{
-                    marginBottom: 12,
-                    padding: "10px 12px",
+                    marginBottom: 10,
+                    padding: "8px 12px",
                     borderRadius: 8,
-                    background: "#fef3c7",
-                    color: "#92400e",
+                    background: "#f1f5f9",
+                    color: "#475569",
                     fontSize: 13,
                     fontWeight: 600,
                   }}
                 >
-                  {current.unsupportedReason}
+                  Not shown to students
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #fecaca",
-                    background: "#fef2f2",
-                    color: "#b91c1c",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                >
-                  Remove Question
-                </button>
-              </>
-            )}
+              )}
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                {bankManagedMessage(current.unsupportedReason)}
+              </div>
+              <button
+                type="button"
+                onClick={handleRemove}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #fecaca",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 13,
+                }}
+              >
+                Remove Question
+              </button>
+            </>
+          )}
 
           {current.editable && display && (
             <>
               <div style={{ marginBottom: 8, fontSize: 12, color: "#64748b" }}>{statusLabel}</div>
-
-              <label style={{ display: "block", fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-                Question type
-              </label>
-              <div style={READONLY_TYPE_STYLE} aria-readonly="true">
-                {formatPracticeQuestionTypeLabel(questionType)}
-              </div>
 
               <label style={{ display: "block", fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
                 Question
@@ -276,14 +322,8 @@ export default function PracticeQuestionsEditor({
                   const n = parseInt(e.target.value, 10);
                   applyPatch({ marks: Number.isFinite(n) && n >= 1 ? n : 1 });
                 }}
-                style={{
-                  width: 80,
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #cbd5e1",
-                  marginBottom: 10,
-                  fontSize: 13,
-                }}
+                style={COMPACT_MARKS_STYLE}
+                aria-label="Marks"
               />
 
               {questionType === "mcq" && (
@@ -368,34 +408,6 @@ export default function PracticeQuestionsEditor({
                       </button>
                     )}
                   </div>
-
-                  <label
-                    style={{ display: "block", fontWeight: 600, fontSize: 13, margin: "10px 0 4px" }}
-                  >
-                    Mark scheme (optional)
-                  </label>
-                  <textarea
-                    value={(display.markScheme ?? []).join("\n")}
-                    onChange={(e) =>
-                      applyPatch({
-                        markScheme: e.target.value
-                          .split("\n")
-                          .map((l) => l.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                    rows={2}
-                    placeholder="One point per line (optional)"
-                    style={{
-                      width: "100%",
-                      padding: 8,
-                      borderRadius: 8,
-                      border: "1px solid #cbd5e1",
-                      marginBottom: 10,
-                      fontSize: 13,
-                      boxSizing: "border-box",
-                    }}
-                  />
                 </>
               )}
 
@@ -459,46 +471,8 @@ export default function PracticeQuestionsEditor({
                   >
                     + Add mark point
                   </button>
-
-                  <label
-                    style={{ display: "block", fontWeight: 600, fontSize: 13, margin: "10px 0 4px" }}
-                  >
-                    Model answer (optional)
-                  </label>
-                  <textarea
-                    value={display.correctAnswer ?? ""}
-                    onChange={(e) => applyPatch({ correctAnswer: e.target.value })}
-                    rows={2}
-                    style={{
-                      width: "100%",
-                      padding: 8,
-                      borderRadius: 8,
-                      border: "1px solid #cbd5e1",
-                      marginBottom: 10,
-                      fontSize: 13,
-                      boxSizing: "border-box",
-                    }}
-                  />
                 </>
               )}
-
-              <label style={{ display: "block", fontWeight: 600, fontSize: 13, margin: "10px 0 4px" }}>
-                Explanation (optional)
-              </label>
-              <textarea
-                value={display.explanation ?? ""}
-                onChange={(e) => applyPatch({ explanation: e.target.value })}
-                rows={2}
-                style={{
-                  width: "100%",
-                  padding: 8,
-                  borderRadius: 8,
-                  border: "1px solid #cbd5e1",
-                  marginBottom: 10,
-                  fontSize: 13,
-                  boxSizing: "border-box",
-                }}
-              />
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {edited && (
