@@ -1292,6 +1292,51 @@ const EditLessonPage: React.FC = () => {
     }
   }, [topicKeyForBank, lesson?.id]);
 
+  const handleOpenAddFromQuestionBank = useCallback(() => {
+    setAddFromBankModalOpen(true);
+    setBankTopicKey("");
+    setBankQuestions([]);
+    setSelectedBankQuestionIds(new Set());
+  }, []);
+
+  const handleAutoAttachPracticeQuestions = useCallback(async () => {
+    if (!id) return;
+    setAutoAttachMessage(null);
+    setAutoAttachLoading(true);
+    try {
+      const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
+        limit: autoAttachLimit,
+        ...(topicKeyForBank ? { topicKey: topicKeyForBank } : {}),
+      });
+      const data = res?.data;
+      const added = data?.added ?? 0;
+      const topicName = data?.topic ?? lesson?.topic ?? "topic";
+      if (added > 0) {
+        await refreshPracticeQuestionAttachments();
+      }
+      const msg =
+        data?.warning ??
+        (added > 0
+          ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}`
+          : "No new questions to add.");
+      setAutoAttachMessage(msg);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { msg?: string; error?: string } } };
+      setAutoAttachMessage(
+        e?.response?.data?.msg ?? e?.response?.data?.error ?? "Failed to attach."
+      );
+    } finally {
+      setAutoAttachLoading(false);
+      setTimeout(() => setAutoAttachMessage(null), 5000);
+    }
+  }, [
+    id,
+    autoAttachLimit,
+    topicKeyForBank,
+    lesson?.topic,
+    refreshPracticeQuestionAttachments,
+  ]);
+
   useEffect(() => {
     const ids = collectExamQuestionIdsFromPages(lesson?.pages);
     if (!ids.length) return;
@@ -1562,11 +1607,14 @@ const EditLessonPage: React.FC = () => {
       setBankQuestions([]);
       return;
     }
-    api.get("/exam-questions", { params: { topicKey: bankTopicKey } }).then((res: any) => {
-      setBankQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
-      setSelectedBankQuestionIds(new Set());
-    }).catch(() => setBankQuestions([]));
-  }, [addFromBankModalOpen, bankTopicKey]);
+    api
+      .get("/exam-questions", { params: { topicKey: bankTopicKey, specKey } })
+      .then((res: any) => {
+        setBankQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
+        setSelectedBankQuestionIds(new Set());
+      })
+      .catch(() => setBankQuestions([]));
+  }, [addFromBankModalOpen, bankTopicKey, specKey]);
 
   /** Fetch open lesson issue reports when editing a lesson */
   useEffect(() => {
@@ -5751,7 +5799,7 @@ const EditLessonPage: React.FC = () => {
                 <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>These appear as the practice questions for students. Only questions for the selected sub-topic will be attached.</p>
                 <button
                   type="button"
-                  onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
+                  onClick={handleOpenAddFromQuestionBank}
                   style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.08)", cursor: "pointer", fontWeight: 700 }}
                 >
                   Add from Question Bank
@@ -5760,30 +5808,7 @@ const EditLessonPage: React.FC = () => {
                   <button
                     type="button"
                     disabled={autoAttachLoading}
-                    onClick={async () => {
-                      if (!id) return;
-                      setAutoAttachMessage(null);
-                      setAutoAttachLoading(true);
-                      try {
-                        const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
-                          limit: autoAttachLimit,
-                          ...(topicKeyForBank ? { topicKey: topicKeyForBank } : {}),
-                        });
-                        const data = res?.data;
-                        const added = data?.added ?? 0;
-                        const topicName = data?.topic ?? lesson?.topic ?? "topic";
-                        if (added > 0) {
-                          await refreshPracticeQuestionAttachments();
-                        }
-                        const msg = data?.warning ?? (added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}` : "No new questions to add.");
-                        setAutoAttachMessage(msg);
-                      } catch (err: any) {
-                        setAutoAttachMessage(err?.response?.data?.msg ?? err?.response?.data?.error ?? "Failed to attach.");
-                      } finally {
-                        setAutoAttachLoading(false);
-                        setTimeout(() => setAutoAttachMessage(null), 5000);
-                      }
-                    }}
+                    onClick={handleAutoAttachPracticeQuestions}
                     style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.08)", cursor: autoAttachLoading ? "not-allowed" : "pointer", fontWeight: 700, opacity: autoAttachLoading ? 0.7 : 1 }}
                   >
                     {autoAttachLoading ? "Attaching…" : `Auto-attach (Top ${autoAttachLimit})`}
@@ -11646,6 +11671,9 @@ const EditLessonPage: React.FC = () => {
                     onClearLessonEdit={handlePracticeQuestionClearEdit}
                     onDiscardPendingEdit={handlePracticeQuestionDiscardPending}
                     onRemoveQuestion={handlePracticeQuestionRemove}
+                    onAddFromQuestionBank={handleOpenAddFromQuestionBank}
+                    onAutoSelectQuestions={handleAutoAttachPracticeQuestions}
+                    autoSelectLoading={autoAttachLoading}
                   />
                 </div>
               )}

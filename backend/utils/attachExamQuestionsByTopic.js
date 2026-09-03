@@ -11,6 +11,7 @@ const { resolveLessonTopicKeyForAttach } = require("./resolveLessonTopicKeyForAt
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("./topicKey");
 const { assertValidNamespacedTopicKey } = require("./specTopicValidation");
 const { resolveQuestionBankNamespacedTopicKey } = require("./resolveTopicRuntimeKeys");
+const { EXCLUDE_SANDBOX_MANUAL_TEST } = require("./examQuestionSandboxFilter");
 
 /**
  * Attach top N exam questions by topicKey to a lesson (only those not already attached).
@@ -83,9 +84,11 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
       { scope: "platform" },
     ],
   };
+  const sandboxExcludeFilter = EXCLUDE_SANDBOX_MANUAL_TEST;
   const candidates = await ExamQuestion.find({
     ...examTopicFilter,
     ...ownershipFilter,
+    ...sandboxExcludeFilter,
   })
     .select("_id marks createdAt")
     .sort({ marks: -1, createdAt: -1 })

@@ -119,12 +119,17 @@ function renderEditor(
     onClear?: jest.Mock;
     onDiscard?: jest.Mock;
     onRemove?: jest.Mock;
+    onAddFromQuestionBank?: jest.Mock;
+    onAutoSelectQuestions?: jest.Mock;
+    autoSelectLoading?: boolean;
   } = {}
 ) {
   const onUpsert = opts.onUpsert ?? jest.fn();
   const onClear = opts.onClear ?? jest.fn();
   const onDiscard = opts.onDiscard ?? jest.fn();
   const onRemove = opts.onRemove ?? jest.fn();
+  const onAddFromQuestionBank = opts.onAddFromQuestionBank ?? jest.fn();
+  const onAutoSelectQuestions = opts.onAutoSelectQuestions ?? jest.fn();
   render(
     <PracticeQuestionsEditor
       attachments={attachments}
@@ -133,12 +138,52 @@ function renderEditor(
       onClearLessonEdit={onClear}
       onDiscardPendingEdit={onDiscard}
       onRemoveQuestion={onRemove}
+      onAddFromQuestionBank={onAddFromQuestionBank}
+      onAutoSelectQuestions={onAutoSelectQuestions}
+      autoSelectLoading={opts.autoSelectLoading}
     />
   );
-  return { onUpsert, onClear, onDiscard, onRemove };
+  return {
+    onUpsert,
+    onClear,
+    onDiscard,
+    onRemove,
+    onAddFromQuestionBank,
+    onAutoSelectQuestions,
+  };
 }
 
 describe("PracticeQuestionsEditor", () => {
+  test("empty state shows guidance and action buttons", () => {
+    renderEditor([]);
+    expect(screen.getByText("No practice questions added yet.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Add questions for students to practise at the end of the lesson.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add from Question Bank" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Auto-select questions" })).toBeInTheDocument();
+    expect(screen.queryByText(/Auto-attach/i)).not.toBeInTheDocument();
+  });
+
+  test("empty state Add from Question Bank calls supplied handler", () => {
+    const { onAddFromQuestionBank } = renderEditor([]);
+    fireEvent.click(screen.getByRole("button", { name: "Add from Question Bank" }));
+    expect(onAddFromQuestionBank).toHaveBeenCalledTimes(1);
+  });
+
+  test("empty state Auto-select questions calls supplied handler", () => {
+    const { onAutoSelectQuestions } = renderEditor([]);
+    fireEvent.click(screen.getByRole("button", { name: "Auto-select questions" }));
+    expect(onAutoSelectQuestions).toHaveBeenCalledTimes(1);
+  });
+
+  test("non-empty state hides empty-state buttons", () => {
+    renderEditor([mcqAttachment]);
+    expect(screen.queryByText("No practice questions added yet.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Auto-select questions" })).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Bank MCQ stem?")).toBeInTheDocument();
+  });
+
   test("attachment order maps to Q1–Qn tabs", () => {
     renderEditor([mcqAttachment, shortAttachment]);
     expect(screen.getByRole("button", { name: "Q1" })).toBeInTheDocument();

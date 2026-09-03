@@ -59,6 +59,9 @@ type Props = {
   onClearLessonEdit: (questionId: string) => void;
   onDiscardPendingEdit: (questionId: string) => void;
   onRemoveQuestion: (questionId: string) => void;
+  onAddFromQuestionBank?: () => void;
+  onAutoSelectQuestions?: () => void;
+  autoSelectLoading?: boolean;
 };
 
 function defaultMcqOptions(options?: string[]): string[] {
@@ -82,6 +85,9 @@ export default function PracticeQuestionsEditor({
   onClearLessonEdit,
   onDiscardPendingEdit,
   onRemoveQuestion,
+  onAddFromQuestionBank,
+  onAutoSelectQuestions,
+  autoSelectLoading = false,
 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const safeIndex = attachments.length ? Math.min(selectedIndex, attachments.length - 1) : 0;
@@ -150,8 +156,54 @@ export default function PracticeQuestionsEditor({
   if (!attachments.length) {
     return (
       <div style={{ fontSize: 13, color: "#64748b" }}>
-        No practice questions attached yet. Use Add from Question Bank or Auto-attach above to add
-        questions for students.
+        <p style={{ margin: "0 0 8px", fontWeight: 600, color: "#334155" }}>
+          No practice questions added yet.
+        </p>
+        <p style={{ margin: "0 0 16px" }}>
+          Add questions for students to practise at the end of the lesson.
+        </p>
+        {(onAddFromQuestionBank || onAutoSelectQuestions) && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {onAddFromQuestionBank && (
+              <button
+                type="button"
+                onClick={onAddFromQuestionBank}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: "2px solid rgba(59,130,246,0.4)",
+                  background: "rgba(59,130,246,0.08)",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: "#1e40af",
+                }}
+              >
+                Add from Question Bank
+              </button>
+            )}
+            {onAutoSelectQuestions && (
+              <button
+                type="button"
+                onClick={onAutoSelectQuestions}
+                disabled={autoSelectLoading}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: "2px solid rgba(34,197,94,0.4)",
+                  background: "rgba(34,197,94,0.08)",
+                  cursor: autoSelectLoading ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: "#166534",
+                  opacity: autoSelectLoading ? 0.7 : 1,
+                }}
+              >
+                {autoSelectLoading ? "Selecting…" : "Auto-select questions"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
