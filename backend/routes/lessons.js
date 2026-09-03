@@ -3658,7 +3658,13 @@ router.get(
           .filter(Boolean);
         questions = filterDistinctPracticeExamQuestions(
           questions.map((q) => ({ ...q, _id: q.id })),
-          { embeddedIds, fingerprints: examFingerprints, limit }
+          {
+            embeddedIds,
+            fingerprints: examFingerprints,
+            limit,
+            // Teacher-attached practice is authoritative: exact embedded ID dedup only.
+            semanticFingerprintDedup: false,
+          }
         ).map(({ _id, ...q }) => q);
         source = "attached";
       }

@@ -90,6 +90,66 @@ describe("examAwarePractice", () => {
     expect(filtered.map((q) => String(q._id))).toEqual(["eq4"]);
   });
 
+  it("attached mode: keeps semantically similar question when ID differs from embedded", () => {
+    const embeddedComposite = {
+      _id: "6a932e2683dae0a7b4ea0bb5",
+      type: "composite",
+      question: "Mutations can have various effects on organisms.",
+      parts: [
+        {
+          type: "short",
+          questionText:
+            "Explain how a mutation in DNA can lead to a change in an organism's phenotype.",
+          markScheme: ["Mutation can change the base sequence of DNA."],
+        },
+      ],
+    };
+    const embeddedIds = new Set([embeddedComposite._id]);
+    const fps = buildExamQuestionFingerprints([embeddedComposite]);
+    const attachedPhenotype = {
+      _id: "6a93f9bd83dae0a7b4eace99",
+      question: "Explain how a mutation in DNA can result in a change in phenotype.",
+    };
+    const filtered = filterDistinctPracticeExamQuestions([attachedPhenotype], {
+      embeddedIds,
+      fingerprints: fps,
+      semanticFingerprintDedup: false,
+    });
+    expect(filtered.map((q) => String(q._id))).toEqual(["6a93f9bd83dae0a7b4eace99"]);
+  });
+
+  it("attached mode: still excludes exact embedded question ID duplicate", () => {
+    const embeddedIds = new Set(["eq1"]);
+    const fps = buildExamQuestionFingerprints([reproductiveExam]);
+    const filtered = filterDistinctPracticeExamQuestions(
+      [{ _id: "eq1", question: reproductiveExam.question }],
+      { embeddedIds, fingerprints: fps, semanticFingerprintDedup: false }
+    );
+    expect(filtered).toHaveLength(0);
+  });
+
+  it("fallback mode: still excludes semantically similar non-attached candidates", () => {
+    const embeddedIds = new Set();
+    const fps = buildExamQuestionFingerprints([reproductiveExam]);
+    const filtered = filterDistinctPracticeExamQuestions(
+      [{ _id: "bank1", question: reproductiveExam.question }],
+      { embeddedIds, fingerprints: fps, semanticFingerprintDedup: true }
+    );
+    expect(filtered).toHaveLength(0);
+  });
+
+  it("attached mode: preserves order and respects limit for 10 valid questions", () => {
+    const ids = Array.from({ length: 10 }, (_, i) => `q${i + 1}`);
+    const candidates = ids.map((id, i) => ({ _id: id, question: `Attached practice question ${i + 1}` }));
+    const filtered = filterDistinctPracticeExamQuestions(candidates, {
+      embeddedIds: new Set(),
+      fingerprints: [],
+      limit: 10,
+      semanticFingerprintDedup: false,
+    });
+    expect(filtered.map((q) => String(q._id))).toEqual(ids);
+  });
+
   it("rejects generated practice items that overlap exam fingerprints", () => {
     const fps = buildExamQuestionFingerprints([
       { _id: "x", question: "Give the function of oestrogen." },
