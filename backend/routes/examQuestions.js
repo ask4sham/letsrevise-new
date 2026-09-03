@@ -26,6 +26,7 @@ const {
   resolveExamQuestionLevelForSave,
 } = require("../utils/examQuestionLevelFilter");
 const { applyExamQuestionTypeFilter } = require("../utils/examQuestionTypeFilter");
+const { EXCLUDE_SANDBOX_MANUAL_TEST } = require("../utils/examQuestionSandboxFilter");
 const {
   buildTopicSelectorQueryClause,
   resolveSpecKeyForTopicQuery,
@@ -331,6 +332,7 @@ router.get("/", auth, async (req, res) => {
       }
     }
     applyExamQuestionTypeFilter(query, type);
+    Object.assign(query, EXCLUDE_SANDBOX_MANUAL_TEST);
 
     const usePagination = pageQ != null && limitQ != null && String(pageQ).trim() !== "" && String(limitQ).trim() !== "";
     const page = usePagination ? clampInt(pageQ, { min: 1, max: 1000, fallback: 1 }) : 1;
