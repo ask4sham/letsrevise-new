@@ -268,7 +268,7 @@ describe("CSV Import Service", () => {
 
     it("imageUrl is stored in assets", async () => {
       const q = "Explain nucleus " + Date.now();
-      const csv = `questionText,markScheme,specKey,topicKey,imageUrl\n${q},Control,aqa-gcse-biology,cell-structure,https://example.com/diagram.png`;
+      const csv = `questionText,markScheme,specKey,topicKey,imageUrl,marks\n${q},Control,aqa-gcse-biology,cell-structure,https://example.com/diagram.png,1`;
       const filePath = writeTempCsv(csv);
       try {
         const res = await request(app)

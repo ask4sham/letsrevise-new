@@ -79,7 +79,7 @@ describe("POST /api/admin/bulk-import/exam-questions", () => {
             topicKey: "cell-structure",
             question: "Explain one function of the nucleus.",
             markScheme: "Award 1 mark for stating it controls cell activities.",
-            marks: 2,
+            marks: 1,
           },
         ],
       })
@@ -102,6 +102,7 @@ describe("POST /api/admin/bulk-import/exam-questions", () => {
             topicKey: "cell-structure",
             question: "Explain nucleus " + Date.now(),
             markScheme: "Control.",
+            marks: 1,
             difficulty: 3,
             skill: "application",
           },

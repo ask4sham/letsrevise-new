@@ -182,6 +182,7 @@ describe("bulk import exam questions dryRun with metadata", () => {
             topicKey: "cell-structure",
             question: "Unique meta question " + Date.now(),
             markScheme: "MS",
+            marks: 1,
             difficulty: 2,
             skill: "recall",
             estimatedTimeSec: 45,
