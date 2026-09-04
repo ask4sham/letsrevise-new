@@ -16,7 +16,7 @@ const { parseTopicKey } = require("../utils/topicKey");
 const { normalizeSpecKey } = require("../config/featureFlags");
 const { buildAutopilotPromptMetadata } = require("./autopilotPromptMetadata");
 const { scoreFlashcardDraft, scoreQuizMcqDraft, scoreExamDraft, metadataQualityPatch } = require("../utils/draftQualityScoring");
-const { normalizeGeneratedExamQuestionForBank } = require("../utils/examQuestionBankGeneratedItem");
+const { persistGeneratedExamQuestionBatch } = require("../utils/examQuestionGeneratedMarkSchemeRecovery");
 const adminTaxonomyService = require("./adminTaxonomyService");
 
 function parseSpecToMeta(specKey) {
@@ -259,49 +259,75 @@ async function generateExamQuestionsForTopic({ specKey, topicKey, count = 10, ad
   };
   if (promptPack?.sourceType) generatedFrom.sourceType = promptPack.sourceType;
   const ids = [];
-  for (const eq of toSave) {
-    const bankNorm = normalizeGeneratedExamQuestionForBank(eq);
-    if (!bankNorm) continue;
-    const { question, marks, markScheme, modelAnswer } = bankNorm;
-    const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
-    const fp = examQuestionFingerprint({ specKey: normalizedSpecKey, topicKey: topic, question, markScheme: msJoin, marks });
-    if (dryRun) {
+  if (dryRun) {
+    for (const eq of toSave) {
+      const { resolveGeneratedExamQuestionForBank } = require("../utils/examQuestionGeneratedMarkSchemeRecovery");
+      const resolved = await resolveGeneratedExamQuestionForBank(eq, { allowCorrectiveRetry: false });
+      if (!resolved.ok) continue;
+      const { question, marks, markScheme, modelAnswer } = resolved.normalized;
+      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
+      const fp = examQuestionFingerprint({ specKey: normalizedSpecKey, topicKey: topic, question, markScheme: msJoin, marks });
       ids.push(`dry-run-${fp.slice(0, 8)}`);
-      continue;
     }
-    const doc = new ExamQuestion({
-      teacherId: adminUserId,
-      subject: meta.subject,
-      examBoard: meta.examBoard,
-      level: meta.level,
-      topic: topicDisplay,
-      topicKey: topic,
-      type: "short",
-      marks,
-      question,
-      markScheme,
-      correctAnswer: modelAnswer,
-      status: initialStatus === "published" ? "published" : "draft",
-      fingerprint: fp,
-      metadata: {
-        ...generatedFrom,
-        modelAnswer,
-        ...metadataQualityPatch(
-          scoreExamDraft({
-            question,
-            marks,
-            markScheme,
-            type: "short",
-            modelAnswer,
-          }),
-          "heuristic"
-        ),
-      },
-    });
-    await doc.save();
-    ids.push(String(doc._id));
+    return { status: "generated", createdCount: ids.length, ids, dryRun: true };
   }
-  return { status: "generated", createdCount: ids.length, ids, dryRun: !!dryRun };
+
+  const examBatch = await persistGeneratedExamQuestionBatch({
+    items: toSave,
+    expectedCount: count,
+    persist: async (normalized) => {
+      const { question, marks, markScheme, modelAnswer } = normalized;
+      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
+      const fp = examQuestionFingerprint({ specKey: normalizedSpecKey, topicKey: topic, question, markScheme: msJoin, marks });
+      const doc = new ExamQuestion({
+        teacherId: adminUserId,
+        subject: meta.subject,
+        examBoard: meta.examBoard,
+        level: meta.level,
+        topic: topicDisplay,
+        topicKey: topic,
+        type: "short",
+        marks,
+        question,
+        markScheme,
+        correctAnswer: modelAnswer,
+        status: initialStatus === "published" ? "published" : "draft",
+        fingerprint: fp,
+        metadata: {
+          ...generatedFrom,
+          modelAnswer,
+          ...metadataQualityPatch(
+            scoreExamDraft({
+              question,
+              marks,
+              markScheme,
+              type: "short",
+              modelAnswer,
+            }),
+            "heuristic"
+          ),
+        },
+      });
+      await doc.save();
+      return doc._id;
+    },
+  });
+
+  if (!examBatch.complete) {
+    return {
+      status: "failed",
+      code: examBatch.error.code,
+      reason: examBatch.error.message,
+      createdCount: examBatch.persistedCount,
+      ids: examBatch.persisted.map((p) => String(p.id)),
+      incomplete: true,
+    };
+  }
+
+  for (const row of examBatch.persisted) {
+    ids.push(String(row.id));
+  }
+  return { status: "generated", createdCount: ids.length, ids, dryRun: false };
 }
 
 module.exports = {

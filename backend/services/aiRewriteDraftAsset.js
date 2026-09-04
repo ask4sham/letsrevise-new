@@ -18,6 +18,7 @@ const {
   scoreExamDraft,
   metadataQualityPatch,
 } = require("../utils/draftQualityScoring");
+const { validateShortExamQuestionBankWrite } = require("../utils/examQuestionPublishValidation");
 
 const FLASHCARD_ACTIONS = new Set(["simplify_answer", "shorten_answer", "improve_recall_prompt"]);
 const QUIZ_MCQ_ACTIONS = new Set([
@@ -261,6 +262,18 @@ CorrectIndex: ${ex.correctIndex}`;
     const e = new Error(v.errors.join("; "));
     e.statusCode = 400;
     throw e;
+  }
+  if (!isMcq) {
+    const shortCheck = validateShortExamQuestionBankWrite({
+      type: "short",
+      marks,
+      markScheme,
+    });
+    if (!shortCheck.ok) {
+      const e = new Error(shortCheck.msg);
+      e.statusCode = 400;
+      throw e;
+    }
   }
   ex.question = question;
   ex.marks = marks;

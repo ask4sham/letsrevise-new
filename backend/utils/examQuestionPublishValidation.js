@@ -7,6 +7,10 @@ const {
   validateCompositeDraft,
   validateCompositePublish,
 } = require("./compositeExamQuestion");
+const {
+  normalizeMarkSchemeLines,
+  validateShortMarksMarkSchemeInvariant,
+} = require("../../lib/block28PracticePolicy");
 
 /**
  * @param {Object} doc - ExamQuestion-like (type, marks, markScheme, question, correctAnswer, metadata)
@@ -27,8 +31,7 @@ function validateExamQuestionPublishReadiness(doc) {
   const type = String(doc.type || "short").toLowerCase();
   const marks = Number(doc.marks);
   const qText = String(doc.question || "").trim();
-  const ms = Array.isArray(doc.markScheme) ? doc.markScheme.map((s) => String(s || "").trim()).filter(Boolean) : [];
-  const substantial = ms.filter((l) => l.length >= 10);
+  const ms = normalizeMarkSchemeLines(doc.markScheme);
   const modelAns = String(doc.correctAnswer || doc.metadata?.modelAnswer || "").trim();
 
   if (type === "mcq") {
@@ -38,18 +41,17 @@ function validateExamQuestionPublishReadiness(doc) {
     };
   }
 
-  if (substantial.length < 2) {
-    return {
-      ok: false,
-      msg: "Publishing requires at least two substantive mark-scheme points (about a sentence each).",
-    };
-  }
-
   if (type === "short") {
+    const schemeCheck = validateShortMarksMarkSchemeInvariant(marks, ms);
+    if (!schemeCheck.ok) {
+      return { ok: false, msg: schemeCheck.msg };
+    }
+
     if (qText.length > 0 && qText.length < 25) {
       return { ok: false, msg: "Question stem looks too short for an exam-style prompt—expand the stem before publishing." };
     }
-    if (modelAns.length < 20 && substantial.length < 3) {
+
+    if (marks >= 2 && modelAns.length < 20 && ms.length < 3) {
       return {
         ok: false,
         msg: "Add a clearer model answer or a third mark-scheme bullet before publishing this short answer.",
@@ -91,4 +93,28 @@ function validateNewExamQuestionBankDraft(body) {
   return validateExamQuestionPublishReadiness(body);
 }
 
-module.exports = { validateExamQuestionPublishReadiness, validateNewExamQuestionBankDraft };
+/**
+ * Validate short Exam Question Bank writes (create/update) before persistence.
+ * @param {Object} doc
+ * @returns {{ ok: boolean, msg?: string }}
+ */
+function validateShortExamQuestionBankWrite(doc) {
+  if (isCompositePayload(doc)) {
+    return { ok: true };
+  }
+  const type = String(doc?.type || "short").toLowerCase();
+  if (type !== "short") {
+    return { ok: true };
+  }
+  const schemeCheck = validateShortMarksMarkSchemeInvariant(doc.marks, doc.markScheme);
+  if (!schemeCheck.ok) {
+    return { ok: false, msg: schemeCheck.msg };
+  }
+  return { ok: true };
+}
+
+module.exports = {
+  validateExamQuestionPublishReadiness,
+  validateNewExamQuestionBankDraft,
+  validateShortExamQuestionBankWrite,
+};

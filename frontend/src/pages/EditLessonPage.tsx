@@ -125,6 +125,7 @@ import {
   validatePendingPracticeQuestionEditsForSave,
   type PendingPracticeQuestionEditsMap,
 } from "../utils/practiceQuestionLessonState";
+import { isBlock28SupportedType } from "../lib/block28PracticePolicy";
 import {
   applyRevisionPracticeOverridePatch,
   applyRevisionPracticeOverrideRemove,
@@ -1610,7 +1611,8 @@ const EditLessonPage: React.FC = () => {
     api
       .get("/exam-questions", { params: { topicKey: bankTopicKey, specKey } })
       .then((res: any) => {
-        setBankQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
+        const rows = Array.isArray(res?.data?.questions) ? res.data.questions : [];
+        setBankQuestions(rows.filter((q: { type?: string }) => isBlock28SupportedType(q.type)));
         setSelectedBankQuestionIds(new Set());
       })
       .catch(() => setBankQuestions([]));
@@ -11889,7 +11891,9 @@ const EditLessonPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontWeight: 900, marginBottom: 12 }}>Add from Question Bank</div>
-            <div style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: 10 }}>Only questions for the selected sub-topic will be shown.</div>
+            <div style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: 10 }}>
+              Only multiple choice and short answer questions can be attached as Practice Questions.
+            </div>
             <div style={{ marginBottom: 10 }}>
               <SpecSelector value={specKey} onChange={onSpecChange} />
             </div>

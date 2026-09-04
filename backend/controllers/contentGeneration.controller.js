@@ -6,15 +6,13 @@ const mongoose = require("mongoose");
 const Lesson = require("../models/Lesson");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
-const ExamQuestion = require("../models/ExamQuestion");
 const ContentGenerationJob = require("../models/ContentGenerationJob");
 const { runStarterPackGeneration } = require("../services/generation/starterPackService");
 const { runWeakEvidenceFixGeneration } = require("../services/generation/weakEvidenceFixService");
 const { runPracticeSetGeneration } = require("../services/generation/practiceSetService");
 const { fingerprint: flashcardFingerprint } = require("../utils/flashcardDedupe");
 const { fingerprintItem: quizFingerprintItem } = require("../utils/quizDedupe");
-const { examQuestionFingerprint } = require("../utils/examQuestionDedupe");
-const { normalizeGeneratedExamQuestionForBank } = require("../utils/examQuestionBankGeneratedItem");
+const { saveGeneratedExamQuestionsToBank } = require("../services/saveGeneratedExamQuestionsToBank");
 const { normalizeSpecKey } = require("../config/featureFlags");
 const { filterBankItemsByDrift } = require("../utils/topicDriftValidation");
 const { parseTopicKey } = require("../utils/topicKey");
@@ -49,6 +47,49 @@ function parseSpecToMeta(specKey) {
 function topicDisplayName(topicKey) {
   const last = (topicKey || "").split(":").pop();
   return last ? last.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : topicKey || "Topic";
+}
+
+async function persistGeneratedExamQuestionsOrRespondIncomplete({
+  res,
+  job,
+  items,
+  expectedCount,
+  teacherId,
+  meta,
+  topic,
+  topicDisplay,
+  normalizedSpec,
+  generatedFrom,
+  warnings = [],
+}) {
+  const examBatch = await saveGeneratedExamQuestionsToBank({
+    items,
+    expectedCount,
+    teacherId,
+    meta,
+    topic,
+    topicDisplay,
+    normalizedSpec,
+    generatedFrom,
+  });
+  const examIds = examBatch.persisted.map((p) => p.id);
+  if (!examBatch.complete) {
+    job.status = "failed";
+    job.errors = [examBatch.error.message, ...warnings];
+    job.outputs.examQuestionIds = examIds;
+    await job.save();
+    res.status(422).json({
+      error: "Generated exam question set incomplete",
+      incomplete: true,
+      code: examBatch.error.code,
+      jobId: job._id,
+      examCount: examIds.length,
+      expectedExamCount: expectedCount,
+      msg: examBatch.error.message,
+    });
+    return { incomplete: true, examIds };
+  }
+  return { incomplete: false, examIds };
 }
 
 /** Subsection title patterns → lesson block type. PR: subsection labels become blocks, not pages. */
@@ -339,38 +380,21 @@ async function postStarterPack(req, res) {
     }
     job.outputs.quizQuestionIds = quizIds;
 
-    const examIds = [];
-    for (const eq of filtered.examQuestions) {
-      const normalized = normalizeGeneratedExamQuestionForBank(eq);
-      if (!normalized) continue;
-      const { question, marks, markScheme, modelAnswer } = normalized;
-      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
-      const fp = examQuestionFingerprint({
-        specKey: normalizedSpec,
-        topicKey: topic,
-        question,
-        markScheme: msJoin,
-        marks,
-      });
-      const doc = new ExamQuestion({
-        teacherId: userId,
-        subject: meta.subject,
-        examBoard: meta.examBoard,
-        level: meta.level,
-        topic: topicDisplay,
-        topicKey: topic,
-        type: "short",
-        marks,
-        question,
-        markScheme,
-        correctAnswer: modelAnswer,
-        status: "draft",
-        fingerprint: fp,
-        metadata: { ...generatedFrom, modelAnswer },
-      });
-      await doc.save();
-      examIds.push(doc._id);
-    }
+    const examPersist = await persistGeneratedExamQuestionsOrRespondIncomplete({
+      res,
+      job,
+      items: filtered.examQuestions,
+      expectedCount: filtered.examQuestions.length,
+      teacherId: userId,
+      meta,
+      topic,
+      topicDisplay,
+      normalizedSpec,
+      generatedFrom,
+      warnings: allWarnings,
+    });
+    if (examPersist.incomplete) return;
+    const examIds = examPersist.examIds;
     job.outputs.examQuestionIds = examIds;
 
     job.status = "completed";
@@ -622,38 +646,21 @@ async function postWeakEvidenceFix(req, res) {
     }
     job.outputs.quizQuestionIds = quizIds;
 
-    const examIds = [];
-    for (const eq of filtered.examQuestions) {
-      const normalized = normalizeGeneratedExamQuestionForBank(eq);
-      if (!normalized) continue;
-      const { question, marks, markScheme, modelAnswer } = normalized;
-      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
-      const fp = examQuestionFingerprint({
-        specKey: normalizedSpec,
-        topicKey: topic,
-        question,
-        markScheme: msJoin,
-        marks,
-      });
-      const doc = new ExamQuestion({
-        teacherId: userId,
-        subject: meta.subject,
-        examBoard: meta.examBoard,
-        level: meta.level,
-        topic: topicDisplay,
-        topicKey: topic,
-        type: "short",
-        marks,
-        question,
-        markScheme,
-        correctAnswer: modelAnswer,
-        status: "draft",
-        fingerprint: fp,
-        metadata: { ...generatedFrom, modelAnswer },
-      });
-      await doc.save();
-      examIds.push(doc._id);
-    }
+    const examPersist = await persistGeneratedExamQuestionsOrRespondIncomplete({
+      res,
+      job,
+      items: filtered.examQuestions,
+      expectedCount: filtered.examQuestions.length,
+      teacherId: userId,
+      meta,
+      topic,
+      topicDisplay,
+      normalizedSpec,
+      generatedFrom,
+      warnings: allWarnings,
+    });
+    if (examPersist.incomplete) return;
+    const examIds = examPersist.examIds;
     job.outputs.examQuestionIds = examIds;
 
     job.status = "completed";
@@ -865,38 +872,21 @@ async function postPracticeSet(req, res) {
     }
     job.outputs.quizQuestionIds = quizIds;
 
-    const examIds = [];
-    for (const eq of filteredPractice.examQuestions) {
-      const normalized = normalizeGeneratedExamQuestionForBank(eq);
-      if (!normalized) continue;
-      const { question, marks, markScheme, modelAnswer } = normalized;
-      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
-      const fp = examQuestionFingerprint({
-        specKey: normalizedSpec,
-        topicKey: topic,
-        question,
-        markScheme: msJoin,
-        marks,
-      });
-      const doc = new ExamQuestion({
-        teacherId: userId,
-        subject: meta.subject,
-        examBoard: meta.examBoard,
-        level: meta.level,
-        topic: topicDisplay,
-        topicKey: topic,
-        type: "short",
-        marks,
-        question,
-        markScheme,
-        correctAnswer: modelAnswer,
-        status: "draft",
-        fingerprint: fp,
-        metadata: { ...generatedFrom, modelAnswer },
-      });
-      await doc.save();
-      examIds.push(doc._id);
-    }
+    const examPersist = await persistGeneratedExamQuestionsOrRespondIncomplete({
+      res,
+      job,
+      items: filteredPractice.examQuestions,
+      expectedCount: effectiveCounts.exam,
+      teacherId: userId,
+      meta,
+      topic,
+      topicDisplay,
+      normalizedSpec,
+      generatedFrom,
+      warnings: [...(Array.isArray(warnings) ? warnings : []), ...practiceWarnings],
+    });
+    if (examPersist.incomplete) return;
+    const examIds = examPersist.examIds;
     job.outputs.examQuestionIds = examIds;
 
     job.status = "completed";

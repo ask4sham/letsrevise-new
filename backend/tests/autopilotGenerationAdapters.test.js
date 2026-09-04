@@ -1,6 +1,14 @@
 /**
  * Unit tests for Autopilot Generation Adapters.
  */
+jest.mock("../services/adminTaxonomyService", () => ({
+  topicIsGroupInMerged: jest.fn().mockResolvedValue(false),
+}));
+
+jest.mock("../utils/lessonAssetLlm", () => ({
+  callOpenAiJson: jest.fn(),
+}));
+
 const autopilotGenerationAdapters = require("../services/autopilotGenerationAdapters");
 
 jest.mock("../services/generation/starterPackService", () => ({
@@ -14,6 +22,7 @@ jest.mock("../utils/topicDriftValidation", () => ({
 }));
 
 const { runStarterPackGeneration } = require("../services/generation/starterPackService");
+const { callOpenAiJson } = require("../utils/lessonAssetLlm");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
@@ -135,6 +144,25 @@ describe("autopilotGenerationAdapters", () => {
   });
 
   describe("generateExamQuestionsForTopic", () => {
+    const baseExam = {
+      question: "Explain how osmosis affects plant cells in a concentrated solution.",
+      marks: 4,
+      markScheme: [
+        "Water moves out of the cell by osmosis.",
+        "The cytoplasm shrinks and the cell becomes plasmolysed.",
+        "The cell membrane pulls away from the cell wall.",
+        "Turgor pressure is lost in the plant cell.",
+      ],
+      modelAnswer:
+        "Water leaves the cell by osmosis, so the cytoplasm shrinks and the membrane pulls away from the cell wall.",
+      topicKey: "aqa-gcse-biology:cell-structure",
+    };
+
+    const mismatchedExam = {
+      ...baseExam,
+      markScheme: ["Water moves out of the cell by osmosis.", "The cytoplasm shrinks and the cell becomes plasmolysed."],
+    };
+
     it("returns skipped when generation_not_available", async () => {
       runStarterPackGeneration.mockResolvedValue({ pack: { flashcards: [], quiz: [], examQuestions: [] } });
 
@@ -146,6 +174,57 @@ describe("autopilotGenerationAdapters", () => {
 
       expect(result.status).toBe("skipped");
       expect(result.reason).toBe("generation_not_available");
+    });
+
+    it("returns failed incomplete when corrective retry is exhausted", async () => {
+      runStarterPackGeneration.mockResolvedValue({
+        pack: { flashcards: [], quiz: [], examQuestions: [mismatchedExam] },
+      });
+      callOpenAiJson.mockResolvedValue(mismatchedExam);
+      ExamQuestion.mockImplementation(function () {
+        this.save = jest.fn();
+        this._id = "should-not-save";
+        return this;
+      });
+
+      const result = await autopilotGenerationAdapters.generateExamQuestionsForTopic({
+        specKey: "aqa-gcse-biology",
+        topicKey: "cell-structure",
+        adminUserId: "admin123",
+        count: 1,
+      });
+
+      expect(callOpenAiJson).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe("failed");
+      expect(result.incomplete).toBe(true);
+      expect(result.code).toBe("GENERATED_EXAM_QUESTION_SET_INCOMPLETE");
+      expect(result.createdCount).toBe(0);
+      expect(ExamQuestion).not.toHaveBeenCalled();
+    });
+
+    it("persists exam question when corrective retry succeeds", async () => {
+      runStarterPackGeneration.mockResolvedValue({
+        pack: { flashcards: [], quiz: [], examQuestions: [mismatchedExam] },
+      });
+      callOpenAiJson.mockResolvedValue(baseExam);
+      const mockSave = jest.fn().mockResolvedValue(undefined);
+      ExamQuestion.mockImplementation(function () {
+        this.save = mockSave;
+        this._id = "eq-saved";
+        return this;
+      });
+
+      const result = await autopilotGenerationAdapters.generateExamQuestionsForTopic({
+        specKey: "aqa-gcse-biology",
+        topicKey: "cell-structure",
+        adminUserId: "admin123",
+        count: 1,
+      });
+
+      expect(callOpenAiJson).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe("generated");
+      expect(result.createdCount).toBe(1);
+      expect(mockSave).toHaveBeenCalledTimes(1);
     });
   });
 });

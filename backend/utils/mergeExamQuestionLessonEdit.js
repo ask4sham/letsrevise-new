@@ -3,7 +3,11 @@
  * Used by GET /practice and GET /exam-questions (editor read).
  */
 
-const SUPPORTED_PRACTICE_TYPES = new Set(["mcq", "short"]);
+const {
+  BLOCK28_SUPPORTED_TYPES: SUPPORTED_PRACTICE_TYPES,
+  BLOCK28_UNSUPPORTED_TYPE_EDITOR_MESSAGE: UNSUPPORTED_TYPE_MESSAGE,
+  isBlock28SupportedType: isEditableMasterType,
+} = require("../../lib/block28PracticePolicy");
 
 function trimStr(v) {
   return v === undefined || v === null ? "" : String(v).trim();
@@ -155,11 +159,6 @@ function mergeExamQuestionForPractice(master, attachment) {
   return out;
 }
 
-function isEditableMasterType(type) {
-  return SUPPORTED_PRACTICE_TYPES.has(String(type || ""));
-}
-
-const UNSUPPORTED_TYPE_MESSAGE = "This question type is managed in the Question Bank.";
 const UNAVAILABLE_MESSAGE = "Question unavailable — remove from lesson";
 
 /**

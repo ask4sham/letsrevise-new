@@ -12,6 +12,7 @@ const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = r
 const { assertValidNamespacedTopicKey } = require("./specTopicValidation");
 const { resolveQuestionBankNamespacedTopicKey } = require("./resolveTopicRuntimeKeys");
 const { EXCLUDE_SANDBOX_MANUAL_TEST } = require("./examQuestionSandboxFilter");
+const { BLOCK28_SUPPORTED_TYPE_LIST } = require("../../lib/block28PracticePolicy");
 
 /**
  * Attach top N exam questions by topicKey to a lesson (only those not already attached).
@@ -87,6 +88,7 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
   const sandboxExcludeFilter = EXCLUDE_SANDBOX_MANUAL_TEST;
   const candidates = await ExamQuestion.find({
     ...examTopicFilter,
+    type: { $in: BLOCK28_SUPPORTED_TYPE_LIST },
     ...ownershipFilter,
     ...sandboxExcludeFilter,
   })
