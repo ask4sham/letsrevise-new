@@ -73,6 +73,9 @@ backend/uploads/
 full-project-tree.txt
 *.crdownload
 
+# Block 28 Phase 2 dry-run artefacts (production question text; local only)
+.tmp-phase2-*
+
 # Migration output (optional)
 **/visuals-migration-manifest.json
 **/uploads-migration-manifest.json
