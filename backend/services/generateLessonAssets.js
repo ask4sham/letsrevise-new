@@ -20,6 +20,7 @@ const { assertValidNamespacedTopicKey } = require("../utils/specTopicValidation"
 const { generateFlashcardsFromLesson } = require("./generateFlashcardsFromLesson");
 const { generateQuizQuestionsFromLesson } = require("./generateQuizQuestionsFromLesson");
 const { generateExamQuestionsFromLesson } = require("./generateExamQuestionsFromLesson");
+const { resolveGeneratedShortExamQuestionMarks } = require("../utils/examQuestionGeneratedMarkSchemeRecovery");
 const {
   scoreFlashcardDraft,
   scoreQuizMcqDraft,
@@ -286,6 +287,7 @@ async function generateLessonAssets(opts) {
   const EXAM_TARGET = 10;
   /** Exam questions */
   let examRaw = [];
+  const examRecoveryFailures = [];
   if (genFlags.examQuestions) {
     try {
       examRaw = await generateExamQuestionsFromLesson({ ...runOpts, maxItems: EXAM_TARGET });
@@ -295,7 +297,36 @@ async function generateLessonAssets(opts) {
     }
   }
 
-  for (const ex of examRaw) {
+  for (const exRaw of examRaw) {
+    const resolved = await resolveGeneratedShortExamQuestionMarks(exRaw, { allowCorrectiveRetry: true });
+    if (!resolved.ok) {
+      if (resolved.incomplete) {
+        examRecoveryFailures.push(resolved);
+        summary.errors.push({
+          type: "exam",
+          code: "GENERATED_EXAM_QUESTION_SET_INCOMPLETE",
+          message: resolved.msg,
+        });
+      } else {
+        summary.skipped.push({
+          type: "exam",
+          reason: resolved.msg || resolved.code || "invalid generated exam draft",
+        });
+      }
+      continue;
+    }
+
+    const ex = {
+      ...exRaw,
+      type: "short",
+      question: resolved.normalized.question,
+      marks: resolved.normalized.marks,
+      markScheme: resolved.normalized.markScheme,
+      modelAnswer: resolved.normalized.modelAnswer,
+      options: [],
+      correctIndex: undefined,
+    };
+
     const t = String(ex.type || "").toLowerCase();
     if (t === "mcq" || (Array.isArray(ex.options) && ex.options.length > 0)) {
       summary.skipped.push({ type: "exam", reason: "MCQ or multiple-choice options are not saved to the Exam Question Bank" });
@@ -431,11 +462,12 @@ async function generateLessonAssets(opts) {
           insertedCount: summary.examQuestions,
           skippedInvalidCount: examSkippedInvalid.length,
           skippedInvalidReasons: examSkippedInvalid.slice(0, 12).map((s) => s.reason),
+          incompleteRecoveryFailures: examRecoveryFailures.length,
         }
       : undefined,
     skipped: summary.skipped,
     errors: summary.errors,
-    status: summary.errors.length ? "partial" : "ok",
+    status: summary.errors.length || examRecoveryFailures.length ? "partial" : "ok",
     ...(boundaryAudit ? { boundaryAudit } : {}),
     ...(boundaryReplacementPlan ? { boundaryReplacementPlan } : {}),
     ...(interactionAuthority?.enabled ? { interactionAuthority } : {}),

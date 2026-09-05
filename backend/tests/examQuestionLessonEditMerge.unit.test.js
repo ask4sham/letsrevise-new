@@ -22,7 +22,7 @@ describe("mergeExamQuestionLessonEdit", () => {
     question: "Master short?",
     type: "short",
     marks: 3,
-    markScheme: ["Point A", "Point B"],
+    markScheme: ["Point A", "Point B", "Point C"],
     correctAnswer: "Model",
     topicKey: "cells",
   };
@@ -67,13 +67,13 @@ describe("mergeExamQuestionLessonEdit", () => {
         type: "short",
         question: "Edited short",
         marks: 2,
-        markScheme: ["New scheme"],
+        markScheme: ["New scheme one", "New scheme two"],
         editedAt: new Date(),
       },
     };
     const out = mergeExamQuestionForPractice(masterShort, attachment);
     expect(out.type).toBe("short");
-    expect(out.markScheme).toEqual(["New scheme"]);
+    expect(out.markScheme).toEqual(["New scheme one", "New scheme two"]);
   });
 
   test("missing master with lessonEdit uses snapshot", () => {
@@ -120,7 +120,7 @@ describe("validateExamQuestionLessonEdit", () => {
     type: "short",
     question: "Q?",
     marks: 2,
-    markScheme: ["A"],
+    markScheme: ["A", "B"],
   };
 
   test("rejects unsupported master composite type", () => {
@@ -173,9 +173,20 @@ describe("validateExamQuestionLessonEdit", () => {
       type: "short",
       question: "Edited short?",
       marks: 4,
-      markScheme: ["Line 1", "Line 2"],
+      markScheme: ["Line 1", "Line 2", "Line 3", "Line 4"],
     });
-    expect(out.markScheme).toEqual(["Line 1", "Line 2"]);
+    expect(out.markScheme).toEqual(["Line 1", "Line 2", "Line 3", "Line 4"]);
+  });
+
+  test("rejects short lessonEdit when marks do not match markScheme length", () => {
+    expect(() =>
+      validateExamQuestionLessonEdit(masterShort, {
+        type: "short",
+        question: "Edited short?",
+        marks: 4,
+        markScheme: ["Line 1", "Line 2"],
+      })
+    ).toThrow(/exactly 4 mark-scheme points/i);
   });
 
   test("null input clears lessonEdit", () => {

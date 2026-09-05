@@ -3,6 +3,9 @@ import type {
   PracticeQuestionAttachment,
   PracticeQuestionEffective,
 } from "../api/lessonPracticeEdits";
+import {
+  validateShortMarksMarkSchemeInvariant,
+} from "../lib/block28PracticePolicy";
 
 export type PendingPracticeQuestionEdit =
   | { action: "upsert"; lessonEdit: LessonEditPayload }
@@ -137,6 +140,11 @@ export function validatePendingPracticeQuestionEditsForSave(
     const ms = edit.lessonEdit.markScheme;
     if (Array.isArray(ms) && ms.some((line) => trimStr(line) === "")) {
       return "Each mark scheme point needs text before you save. Finish editing or remove empty mark points.";
+    }
+    const marks = edit.lessonEdit.marks;
+    const schemeCheck = validateShortMarksMarkSchemeInvariant(marks, ms);
+    if (schemeCheck.ok === false) {
+      return schemeCheck.msg;
     }
   }
   return null;

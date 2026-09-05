@@ -1036,7 +1036,8 @@ Rules:
 - Lesson: exactly 1 page, 4-10 blocks (mix of text, keyIdea, examTip, checkpoint, etc.).
 - Flashcards: 5-10 items.
 - Quiz: 8-12 MCQ items (Topic Quiz Bank only — never put MCQs in examQuestions).
-- Exam questions: aim for 10 structured GCSE-style written questions (2–6 marks each). No MCQs in examQuestions. Each needs question, markScheme (multi-line or bullets), modelAnswer, marks ≥ 2. Command words: Explain, Describe, Compare, Suggest, etc.`;
+- Exam questions: aim for 10 structured GCSE-style written questions (2–6 marks each). No MCQs in examQuestions. Each needs question, markScheme (multi-line or bullets), modelAnswer, marks ≥ 2. Command words: Explain, Describe, Compare, Suggest, etc.
+- For each short exam question: if marks = N, generate exactly N distinct, substantive, independently awardable one-mark mark-scheme points. Do not combine two independent marks into one bullet; do not provide fewer mark points than marks; do not provide extra mark points beyond marks; do not represent alternative wording for the same point as an additional awardable mark.`;
 
   const userPrompt = `Spec: ${specKey}
 Topic: ${topicKey}
@@ -1221,7 +1222,8 @@ Rules:
 - Return valid JSON only.
 - Blocks: use "text", "bulletList", "keyIdea", "examTip", "commonMistake", "checkpoint".
 - Quiz: kind "mcq" (options, correctIndex) or "short" (acceptableAnswers array).
-- Exam (examQuestions): ONLY structured written exam-style items for the Exam Question Bank — no MCQs, no options arrays. Include question, markScheme (multi-line), modelAnswer, marks 2–6.`;
+- Exam (examQuestions): ONLY structured written exam-style items for the Exam Question Bank — no MCQs, no options arrays. Include question, markScheme (multi-line), modelAnswer, marks 2–6.
+- For each short item: if marks = N, provide exactly N distinct, substantive, independently awardable one-mark mark-scheme points (no combined bullets, no fewer or extra points).`;
 
   const userPrompt = `Spec: ${specKey}
 Topic: ${topicKey}

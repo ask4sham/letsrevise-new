@@ -12,6 +12,7 @@ const { applyExamAiRewrite, EXAM_ACTIONS } = require("../services/aiRewriteDraft
 const {
   validateExamQuestionPublishReadiness,
   validateNewExamQuestionBankDraft,
+  validateShortExamQuestionBankWrite,
 } = require("../utils/examQuestionPublishValidation");
 const {
   isCompositePayload,
@@ -705,6 +706,18 @@ router.put("/:id", auth, async (req, res) => {
       question.totalMarks = composite.totalMarks;
       question.question = composite.question;
       question.marks = composite.marks;
+    }
+
+    if (!wantsComposite && String(question.type || "short").toLowerCase() === "short") {
+      const writeCheck = validateShortExamQuestionBankWrite({
+        type: question.type,
+        marks: question.marks,
+        markScheme: question.markScheme,
+        question: question.question,
+      });
+      if (!writeCheck.ok) {
+        return res.status(400).json({ success: false, msg: writeCheck.msg || "Invalid mark scheme" });
+      }
     }
 
     let justPublished = false;

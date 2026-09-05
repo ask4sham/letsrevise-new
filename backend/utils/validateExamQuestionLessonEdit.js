@@ -4,16 +4,18 @@
  */
 
 const { deriveCorrectIndex, SUPPORTED_PRACTICE_TYPES } = require("./mergeExamQuestionLessonEdit");
-
-const UNSUPPORTED_MASTER_TYPES = new Set(["composite", "label", "table", "data"]);
+const {
+  BLOCK28_UNSUPPORTED_TYPES: UNSUPPORTED_MASTER_TYPES,
+  normalizeMarkSchemeLines,
+  validateShortMarksMarkSchemeInvariant,
+} = require("../../lib/block28PracticePolicy");
 
 function trimStr(v) {
   return v === undefined || v === null ? "" : String(v).trim();
 }
 
 function normalizeMarkScheme(raw) {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((l) => trimStr(l)).filter(Boolean);
+  return normalizeMarkSchemeLines(raw);
 }
 
 function normalizeOptions(raw) {
@@ -112,13 +114,14 @@ function validateExamQuestionLessonEdit(master, lessonEditInput, opts = {}) {
     const explanation = trimStr(lessonEditInput.explanation);
     if (explanation) out.explanation = explanation;
   } else if (masterType === "short") {
-    const markScheme = normalizeMarkScheme(lessonEditInput.markScheme);
-    if (markScheme.length === 0) {
-      const err = new Error("short questions require at least one markScheme line");
-      err.code = "INVALID_MARK_SCHEME";
+    const schemeCheck = validateShortMarksMarkSchemeInvariant(marks, lessonEditInput.markScheme);
+    if (!schemeCheck.ok) {
+      const err = new Error(schemeCheck.msg);
+      err.code = schemeCheck.code || "INVALID_MARK_SCHEME";
       throw err;
     }
-    out.markScheme = markScheme;
+    out.marks = schemeCheck.marks;
+    out.markScheme = schemeCheck.markScheme;
 
     const correctAnswer = trimStr(lessonEditInput.correctAnswer);
     if (correctAnswer) out.correctAnswer = correctAnswer;

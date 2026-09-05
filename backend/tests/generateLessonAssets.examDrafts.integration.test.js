@@ -33,7 +33,9 @@ function validExamDraft(i) {
     commandWord: "Explain",
     markScheme: [
       "Oestrogen stimulates repair and thickening of the uterus lining after menstruation.",
-      "High oestrogen inhibits FSH and triggers an LH surge leading to ovulation.",
+      "High oestrogen inhibits FSH release from the pituitary gland.",
+      "High oestrogen triggers an LH surge that leads to ovulation.",
+      "Oestrogen helps maintain the uterus lining during the cycle.",
     ],
     modelAnswer:
       "Oestrogen repairs and thickens the uterus lining and, at high levels, inhibits FSH while triggering the LH surge that causes ovulation.",

@@ -42,7 +42,7 @@ describe("ExamQuestion topicKey validation", () => {
         level: "GCSE",
         topicKey: "photosynthesis",
         type: "short",
-        marks: 4,
+        marks: 2,
         question:
           "Explain how limiting factors such as carbon dioxide concentration can affect the rate of photosynthesis in a plant.",
         markScheme: [

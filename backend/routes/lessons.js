@@ -34,6 +34,11 @@ const {
 } = require("../utils/mergeExamQuestionLessonEdit");
 const { validateExamQuestionLessonEdit } = require("../utils/validateExamQuestionLessonEdit");
 const {
+  isBlock28SupportedType,
+  BLOCK28_UNSUPPORTED_ATTACH_MESSAGE,
+  filterBlock28SupportedPracticeQuestions,
+} = require("../../lib/block28PracticePolicy");
+const {
   collectEmbeddedExamQuestionIds,
   buildExamQuestionFingerprints,
   filterDistinctPracticeExamQuestions,
@@ -3656,6 +3661,7 @@ router.get(
             }
           })
           .filter(Boolean);
+        questions = filterBlock28SupportedPracticeQuestions(questions);
         questions = filterDistinctPracticeExamQuestions(
           questions.map((q) => ({ ...q, _id: q.id })),
           {
@@ -4592,6 +4598,26 @@ router.post("/:id/exam-questions", auth, requireLessonOwnerOrAdmin, async (req, 
     }
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+
+    const masters = await ExamQuestion.find({ _id: { $in: unique } })
+      .select("_id type question")
+      .lean();
+    const masterById = new Map(masters.map((m) => [String(m._id), m]));
+    const missingIds = unique.filter((id) => !masterById.has(id));
+    const unsupported = masters.filter((m) => !isBlock28SupportedType(m.type));
+
+    if (missingIds.length > 0 || unsupported.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        msg: BLOCK28_UNSUPPORTED_ATTACH_MESSAGE,
+        missingIds,
+        unsupported: unsupported.map((m) => ({
+          questionId: String(m._id),
+          type: m.type || null,
+        })),
+      });
+    }
+
     const existing = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
     const existingIds = new Set(existing.map((r) => String(r.questionId)));
     let added = 0;

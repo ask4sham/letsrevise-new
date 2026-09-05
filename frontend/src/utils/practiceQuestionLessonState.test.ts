@@ -103,6 +103,61 @@ describe("practiceQuestionLessonState short markScheme", () => {
       /mark scheme point needs text/i
     );
   });
+
+  test("save blocked when marks do not match markScheme length", () => {
+    const pending = {
+      action: "upsert" as const,
+      lessonEdit: applyPracticeQuestionFieldPatch(shortAttachment, undefined, {
+        marks: 4,
+        markScheme: [LINE1, LINE2],
+      }),
+    };
+    expect(validatePendingPracticeQuestionEditsForSave({ [shortAttachment.questionId]: pending })).toMatch(
+      /worth 4 marks/i
+    );
+  });
+
+  test("legacy mismatched short opens with full data, blocks save until aligned, then saves", () => {
+    const legacyMismatch: PracticeQuestionAttachment = {
+      ...shortAttachment,
+      questionId: "legacy-mismatch",
+      master: {
+        ...shortAttachment.master!,
+        id: "legacy-mismatch",
+        marks: 4,
+        markScheme: [LINE1, LINE2],
+      },
+      effective: {
+        ...shortAttachment.effective!,
+        id: "legacy-mismatch",
+        marks: 4,
+        markScheme: [LINE1, LINE2],
+      },
+    };
+
+    const opened = getDisplayEffective(legacyMismatch, undefined);
+    expect(opened?.marks).toBe(4);
+    expect(opened?.markScheme).toEqual([LINE1, LINE2]);
+    expect(opened?.question).toBe(shortAttachment.master!.question);
+
+    const blocked = validatePendingPracticeQuestionEditsForSave({
+      [legacyMismatch.questionId]: {
+        action: "upsert",
+        lessonEdit: applyPracticeQuestionFieldPatch(legacyMismatch, undefined, {}),
+      },
+    });
+    expect(blocked).toMatch(/worth 4 marks/i);
+
+    const withExtraPoints = applyPracticeQuestionFieldPatch(legacyMismatch, undefined, {
+      markScheme: [LINE1, LINE2, "Third mark point for legacy alignment.", "Fourth mark point for legacy alignment."],
+    });
+    expect(withExtraPoints.marks).toBe(4);
+    expect(withExtraPoints.markScheme).toHaveLength(4);
+
+    const pendingAligned = { action: "upsert" as const, lessonEdit: withExtraPoints };
+    expect(validatePendingPracticeQuestionEditsForSave({ [legacyMismatch.questionId]: pendingAligned })).toBeNull();
+    expect(buildPracticeQuestionEditsPayload({ [legacyMismatch.questionId]: pendingAligned })[0].lessonEdit?.markScheme).toHaveLength(4);
+  });
 });
 
 const mcqVisible: PracticeQuestionAttachment = {

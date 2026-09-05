@@ -56,7 +56,7 @@ describe("exam question lessonEdit integration", () => {
       type: "short",
       question: "Shared short master?",
       marks: 3,
-      markScheme: ["Master point"],
+      markScheme: ["Master point one", "Master point two", "Master point three"],
       correctAnswer: "Master answer",
       topicKey: "photosynthesis",
       status: "published",
@@ -232,7 +232,13 @@ describe("exam question lessonEdit integration", () => {
               type: "short",
               question: "Edited short stem",
               marks: 5,
-              markScheme: ["Edited scheme line"],
+              markScheme: [
+                "Edited scheme line one",
+                "Edited scheme line two",
+                "Edited scheme line three",
+                "Edited scheme line four",
+                "Edited scheme line five",
+              ],
             },
           },
         ],
@@ -243,7 +249,13 @@ describe("exam question lessonEdit integration", () => {
       .set("Authorization", `Bearer ${teacherToken}`);
     const q = res.body.questions.find((x) => x.id === String(shortId));
     expect(q.question).toBe("Edited short stem");
-    expect(q.markScheme).toEqual(["Edited scheme line"]);
+    expect(q.markScheme).toEqual([
+      "Edited scheme line one",
+      "Edited scheme line two",
+      "Edited scheme line three",
+      "Edited scheme line four",
+      "Edited scheme line five",
+    ]);
     expect(q.marks).toBe(5);
   });
 

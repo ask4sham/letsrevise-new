@@ -62,6 +62,7 @@ describe("attachExamQuestionsByTopic sandbox exclusion", () => {
         topicKey: expect.objectContaining({
           $in: expect.arrayContaining(["edexcel-igcse-biology:mutation"]),
         }),
+        type: { $in: ["mcq", "short"] },
         "metadata.sandboxManualTest": { $ne: true },
       })
     );

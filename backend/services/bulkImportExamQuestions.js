@@ -6,6 +6,7 @@ const { buildTopicKey } = require("../utils/topicKey");
 const { examQuestionFingerprint } = require("../utils/examQuestionDedupe");
 const { normalizeMetadata } = require("../utils/metadataValidation");
 const ExamQuestion = require("../models/ExamQuestion");
+const { validateShortExamQuestionBankWrite } = require("../utils/examQuestionPublishValidation");
 
 /**
  * Payload format:
@@ -118,6 +119,31 @@ async function bulkImportExamQuestions({ specKey, items, dryRun = false, actorId
           .filter(Boolean)
       : [];
 
+    const itemType =
+      p.raw.type && ["mcq", "short", "label", "table", "data"].includes(String(p.raw.type).toLowerCase())
+        ? String(p.raw.type).toLowerCase()
+        : "short";
+    const marks = Number.isFinite(Number(p.raw.marks)) ? Number(p.raw.marks) : null;
+
+    const shortWriteCheck = validateShortExamQuestionBankWrite({
+      type: itemType,
+      marks,
+      markScheme: markSchemeArray,
+    });
+    if (!shortWriteCheck.ok) {
+      report.valid--;
+      report.invalid++;
+      report.errors.push({
+        index: p.index,
+        code: "MARK_SCHEME_COUNT_MISMATCH",
+        message: shortWriteCheck.msg,
+      });
+      if (report.preview.length < 25) {
+        report.preview.push({ index: p.index, action: "reject_invalid_short" });
+      }
+      continue;
+    }
+
     const doc = {
       teacherId: actorId,
       topicKey: p.namespacedTopicKey,
@@ -126,10 +152,8 @@ async function bulkImportExamQuestions({ specKey, items, dryRun = false, actorId
       level: p.raw.level || "GCSE",
       topic: p.raw.topic || null,
       unitKey: p.raw.unitKey || null,
-      type: p.raw.type && ["mcq", "short", "label", "table", "data"].includes(String(p.raw.type).toLowerCase())
-        ? String(p.raw.type).toLowerCase()
-        : "short",
-      marks: Number.isFinite(Number(p.raw.marks)) ? Number(p.raw.marks) : null,
+      type: itemType,
+      marks,
       question: p.raw.question.trim(),
       markScheme: markSchemeArray,
       correctAnswer: markSchemeArray[0] ?? null,

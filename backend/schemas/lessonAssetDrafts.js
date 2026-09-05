@@ -6,6 +6,7 @@
 const { parseTopicKey } = require("../utils/topicKey");
 const { assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
+const { validateShortMarksMarkSchemeInvariant } = require("../../lib/block28PracticePolicy");
 
 function isNonEmptyString(s, minLen = 1) {
   return typeof s === "string" && s.trim().length >= minLen;
@@ -107,6 +108,8 @@ function validateExamQuestionDraftForAiLessonBank(item, specKey, namespacedTopic
   const ms = Array.isArray(item.markScheme) ? item.markScheme.map((x) => String(x || "").trim()) : [];
   const substantial = ms.filter((l) => l.length >= 10);
   if (substantial.length < 2) errs.push("markScheme needs at least two substantive points (~10+ chars each)");
+  const schemeCheck = validateShortMarksMarkSchemeInvariant(marks, ms);
+  if (!schemeCheck.ok) errs.push(schemeCheck.msg);
   if (!isNonEmptyString(item.modelAnswer, 25)) errs.push("modelAnswer too short for an exam-style response");
   try {
     assertValidNamespacedTopicKey(specKey, namespacedTopicKey);
