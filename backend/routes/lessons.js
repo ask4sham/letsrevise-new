@@ -38,6 +38,12 @@ const {
   BLOCK28_UNSUPPORTED_ATTACH_MESSAGE,
   filterBlock28SupportedPracticeQuestions,
 } = require("../../lib/block28PracticePolicy");
+const { isBlock28SemanticMarkingEnabled } = require("../config/block28SemanticMarking");
+const {
+  markShortAnswerSemantically,
+  deriveLessonSpecKey,
+} = require("../services/semanticShortAnswerMarking");
+const { MARKING_UNAVAILABLE_MESSAGE } = require("../services/semanticShortAnswerMarking/constants");
 const {
   collectEmbeddedExamQuestionIds,
   buildExamQuestionFingerprints,
@@ -3655,7 +3661,12 @@ router.get(
           .map((ref) => {
             const master = ref.questionId && ref.questionId._id ? ref.questionId : null;
             try {
-              return mergeExamQuestionForPractice(master, ref);
+              const merged = mergeExamQuestionForPractice(master, ref);
+              if (!merged) return null;
+              return {
+                ...merged,
+                attachmentRefId: ref._id ? String(ref._id) : undefined,
+              };
             } catch (_) {
               return master ? mapQuestion(master) : null;
             }
@@ -3711,11 +3722,121 @@ router.get(
         source: source || undefined,
         limit,
         seedUsed: source === "bank" ? (seed || `${lessonId}:date`) : undefined,
+        semanticMarkingEnabled: isBlock28SemanticMarkingEnabled(
+          validatedKey ? String(validatedKey).split(":")[0] : deriveLessonSpecKey(lesson)
+        ),
         questions,
       });
     } catch (err) {
       console.error("GET /api/lessons/:id/practice error:", err);
       return res.status(500).json({ error: "Failed to load practice questions" });
+    }
+  }
+);
+
+/* =========================================
+   Block 28 Semantic Marking V1: POST /api/lessons/:id/practice/mark-short
+   Server resolves effective rubric; client sends identifiers + student answer only.
+   ========================================= */
+router.post(
+  "/:id/practice/mark-short",
+  auth,
+  async (req, res, next) => {
+    try {
+      const lessonId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: "Invalid lessonId" });
+      }
+      const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      return applySharedTeacherPracticeAccess(req, res, next, lessonId, lesson);
+    } catch (err) {
+      console.error("mark-short precheck error:", err);
+      return res.status(500).json({ error: "Failed to check access" });
+    }
+  },
+  async (req, res) => {
+    try {
+      const lessonId = req.params.id;
+      if (!req.accessDecision || !req.accessDecision.allowed) {
+        return res.status(403).json({
+          status: "error",
+          code: "ACCESS_DENIED",
+          message: "Practice access required",
+        });
+      }
+
+      const questionId = String(req.body?.questionId ?? "").trim();
+      const studentAnswer = String(req.body?.studentAnswer ?? "");
+      const attachmentRefId =
+        req.body?.attachmentRefId != null ? String(req.body.attachmentRefId).trim() : undefined;
+
+      if (!questionId || !mongoose.Types.ObjectId.isValid(questionId)) {
+        return res.status(400).json({ status: "error", code: "INVALID_QUESTION", message: "questionId is required" });
+      }
+      if (!studentAnswer.trim()) {
+        return res.status(400).json({ status: "error", code: "EMPTY_ANSWER", message: "studentAnswer is required" });
+      }
+
+      const lesson = await Lesson.findById(lessonId)
+        .select("_id examQuestions teacherId topic topicKey subject level board organisationId")
+        .populate({
+          path: "examQuestions.questionId",
+          model: "ExamQuestion",
+          select:
+            "question type marks options correctAnswer correctIndex markScheme topicKey topic status subject level board examBoard",
+        })
+        .lean();
+
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+      const result = await markShortAnswerSemantically({
+        lesson,
+        questionId,
+        studentAnswer,
+        attachmentRefId,
+      });
+
+      if (result.status === "error") {
+        const status = result.code === "QUESTION_NOT_ELIGIBLE" ? 404 : 400;
+        return res.status(status).json(result);
+      }
+
+      if (result.status === "unavailable") {
+        return res.status(503).json({
+          status: "unavailable",
+          code: result.code || "MARKING_UNAVAILABLE",
+          message: result.message || MARKING_UNAVAILABLE_MESSAGE,
+        });
+      }
+
+      if (result._meta) {
+        console.info(
+          JSON.stringify({
+            event: "semantic_marking",
+            lessonId,
+            questionId,
+            rubricFingerprint: result.rubricFingerprint,
+            score: result.score,
+            maxMarks: result.maxMarks,
+            awardedIndices: (result.points || []).filter((p) => p.awarded === 1).map((p) => p.index),
+            provider: result._meta.provider,
+            model: result._meta.model,
+            latencyMs: result._meta.latencyMs,
+            structuralRetryCount: result._meta.structuralRetryCount,
+          })
+        );
+      }
+
+      const { _meta, _debug, ...payload } = result;
+      return res.status(200).json(payload);
+    } catch (err) {
+      console.error("POST /api/lessons/:id/practice/mark-short error:", err);
+      return res.status(503).json({
+        status: "unavailable",
+        code: "MARKING_UNAVAILABLE",
+        message: MARKING_UNAVAILABLE_MESSAGE,
+      });
     }
   }
 );

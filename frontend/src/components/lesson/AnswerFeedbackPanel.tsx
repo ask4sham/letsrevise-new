@@ -20,6 +20,7 @@ export type AnswerFeedbackPanelProps = {
   contradictionFeedback?: string;
   markSchemeHits?: string[];
   markSchemeMissing?: string[];
+  markSchemeContradicted?: string[];
   variant?: "default" | "v12";
   className?: string;
 };
@@ -150,6 +151,7 @@ export function AnswerFeedbackPanel({
   contradictionFeedback,
   markSchemeHits,
   markSchemeMissing,
+  markSchemeContradicted,
   variant = "default",
   className = "",
 }: AnswerFeedbackPanelProps): React.ReactElement {
@@ -158,6 +160,7 @@ export function AnswerFeedbackPanel({
   const schemeLines = (markScheme || []).map((l) => String(l ?? "").trim()).filter(Boolean);
   const hits = (markSchemeHits || []).map((l) => String(l ?? "").trim()).filter(Boolean);
   const missing = (markSchemeMissing || []).map((l) => String(l ?? "").trim()).filter(Boolean);
+  const contradicted = (markSchemeContradicted || []).map((l) => String(l ?? "").trim()).filter(Boolean);
   const correct = String(correctAnswer ?? "").trim();
   const yours = String(yourAnswer ?? "").trim();
   const model = String(modelAnswer ?? "").trim();
@@ -301,12 +304,12 @@ export function AnswerFeedbackPanel({
       {!isMcqLayout && hits.length > 0 ? (
         <FeedbackSection
           variant="correct"
-          heading="Mark scheme points matched"
+          heading="Awarded"
           uppercase={false}
           body={
             <ul className="answer-feedback-panel__list">
               {hits.map((line) => (
-                <li key={line}>{line}</li>
+                <li key={line}>✓ {line}</li>
               ))}
             </ul>
           }
@@ -321,14 +324,29 @@ export function AnswerFeedbackPanel({
           body={
             <ul className="answer-feedback-panel__list">
               {missing.map((line) => (
-                <li key={line}>{line}</li>
+                <li key={line}>○ {line}</li>
               ))}
             </ul>
           }
         />
       ) : null}
 
-      {!isMcqLayout && schemeLines.length > 0 && hits.length === 0 && missing.length === 0 ? (
+      {!isMcqLayout && contradicted.length > 0 ? (
+        <FeedbackSection
+          variant="wrong"
+          heading="Contradicted"
+          uppercase={false}
+          body={
+            <ul className="answer-feedback-panel__list">
+              {contradicted.map((line) => (
+                <li key={line}>✗ {line}</li>
+              ))}
+            </ul>
+          }
+        />
+      ) : null}
+
+      {!isMcqLayout && schemeLines.length > 0 && hits.length === 0 && missing.length === 0 && contradicted.length === 0 ? (
         <FeedbackSection
           variant="neutral"
           heading="Mark scheme"

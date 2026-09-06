@@ -43,7 +43,9 @@ import {
   buildShortAnswerImprovementTip,
   deriveShortAnswerFeedbackStatus,
   gradeShortAnswer,
+  resolveShortAnswerModelAnswer,
 } from "../utils/gradeShortAnswer";
+import { markShortPracticeAnswer, type SemanticMarkShortSuccess } from "../api/markShortAnswer";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
@@ -378,6 +380,7 @@ interface PracticeQuestionLite {
   markScheme?: string[];
   topicKey?: string;
   topic?: string;
+  attachmentRefId?: string;
 }
 
 /** Published exam bank row from GET /api/exam-questions/for-topic (lesson Exam Practice). */
@@ -1002,18 +1005,22 @@ function PracticeShortQuestion({
   const [checked, setChecked] = useState(false);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
   const [recorded, setRecorded] = useState(false);
+  const [markingLoading, setMarkingLoading] = useState(false);
+  const [markingUnavailable, setMarkingUnavailable] = useState(false);
+  const [shortGrade, setShortGrade] = useState<{
+    score: number;
+    maxMarks: number;
+    hits: string[];
+    missing?: string[];
+    contradicted?: string[];
+    contradictionFeedback?: string;
+  } | null>(null);
   const hasAnswer = answer.trim() !== "";
-  const modelAnswer = q.correctAnswer != null ? String(q.correctAnswer).trim() : "";
-
-  const shortGrade = useMemo(() => {
-    if (!checked) return null;
-    return gradeShortAnswer({
-      userAnswer: answer,
-      markScheme: q.markScheme,
-      correctAnswer: q.correctAnswer,
-      marks: q.marks ?? 1,
-    });
-  }, [checked, answer, q.markScheme, q.correctAnswer, q.marks]);
+  const hasCuratedMarkScheme = Array.isArray(q.markScheme) && q.markScheme.length > 0;
+  const modelAnswer = resolveShortAnswerModelAnswer({
+    markScheme: q.markScheme,
+    correctAnswer: hasCuratedMarkScheme ? undefined : q.correctAnswer,
+  });
 
   const shortFeedbackStatus = shortGrade
     ? deriveShortAnswerFeedbackStatus(shortGrade.score, shortGrade.maxMarks)
@@ -1027,6 +1034,59 @@ function PracticeShortQuestion({
   }, [shortGrade]);
 
   const isFullyCorrect = shortGrade != null && shortGrade.score >= shortGrade.maxMarks;
+
+  const handleCheckAnswer = async () => {
+    if (!hasAnswer || markingLoading) return;
+
+    if (!hasCuratedMarkScheme) {
+      const legacy = gradeShortAnswer({
+        userAnswer: answer,
+        markScheme: q.markScheme,
+        marks: q.marks ?? 1,
+        correctAnswer: q.correctAnswer,
+      });
+      setShortGrade(legacy);
+      setMarkingUnavailable(false);
+      setChecked(true);
+      return;
+    }
+
+    if (!lessonId) {
+      setMarkingUnavailable(true);
+      setChecked(true);
+      return;
+    }
+
+    setMarkingLoading(true);
+    setMarkingUnavailable(false);
+    try {
+      const result = await markShortPracticeAnswer({
+        lessonId,
+        questionId: q.id,
+        studentAnswer: answer.trim(),
+        attachmentRefId: q.attachmentRefId,
+      });
+      if (result.status === "ok") {
+        const ok = result as SemanticMarkShortSuccess;
+        setShortGrade({
+          score: ok.score,
+          maxMarks: ok.maxMarks,
+          hits: ok.feedback.awarded,
+          missing: ok.feedback.missing,
+          contradicted: ok.feedback.contradicted,
+        });
+      } else {
+        setShortGrade(null);
+        setMarkingUnavailable(true);
+      }
+    } catch {
+      setShortGrade(null);
+      setMarkingUnavailable(true);
+    } finally {
+      setMarkingLoading(false);
+      setChecked(true);
+    }
+  };
 
   useEffect(() => {
     if (!lessonId || !q.id || !checked || confidence === null || recorded || !shortGrade) return;
@@ -1051,7 +1111,7 @@ function PracticeShortQuestion({
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
           placeholder="Your answer..."
-          disabled={checked}
+          disabled={checked || markingLoading}
           style={{
             width: "100%",
             maxWidth: 500,
@@ -1066,22 +1126,41 @@ function PracticeShortQuestion({
         {!checked ? (
           <button
             type="button"
-            disabled={!hasAnswer}
-            onClick={() => setChecked(true)}
+            disabled={!hasAnswer || markingLoading}
+            onClick={() => void handleCheckAnswer()}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
               border: "2px solid rgba(59,130,246,0.4)",
-              background: hasAnswer ? "rgba(59,130,246,0.12)" : "#f1f5f9",
-              cursor: hasAnswer ? "pointer" : "not-allowed",
+              background: hasAnswer && !markingLoading ? "rgba(59,130,246,0.12)" : "#f1f5f9",
+              cursor: hasAnswer && !markingLoading ? "pointer" : "not-allowed",
               fontWeight: 700,
             }}
           >
-            Check answer
+            {markingLoading ? "Marking…" : "Check answer"}
           </button>
         ) : (
           <>
-            {shortGrade ? (
+            {markingUnavailable ? (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid #fcd34d",
+                  background: "#fffbeb",
+                  color: "#92400e",
+                  fontSize: BASE_FONT_SIZE,
+                }}
+              >
+                Automatic marking is temporarily unavailable. Your answer has been saved; please try Check Answer again.
+                {hasCuratedMarkScheme && modelAnswer ? (
+                  <div style={{ marginTop: 10 }}>
+                    <strong>Mark scheme (self-review):</strong>
+                    <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>{modelAnswer}</div>
+                  </div>
+                ) : null}
+              </div>
+            ) : shortGrade ? (
               <AnswerFeedbackPanel
                 status={shortFeedbackStatus}
                 marksAwarded={shortGrade.score}
@@ -1092,15 +1171,18 @@ function PracticeShortQuestion({
                 contradictionFeedback={shortGrade.contradictionFeedback}
                 markSchemeHits={shortGrade.hits}
                 markSchemeMissing={shortGrade.missing}
+                markSchemeContradicted={shortGrade.contradicted}
               />
             ) : null}
-            <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-              <strong style={{ color: "#374151" }}>Model answer:</strong>
-              <div style={{ marginTop: 6, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>
-                {modelAnswer || "—"}
+            {!markingUnavailable ? (
+              <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
+                <strong style={{ color: "#374151" }}>Model answer:</strong>
+                <div style={{ marginTop: 6, color: "#4b5563", fontSize: BASE_FONT_SIZE, whiteSpace: "pre-wrap" }}>
+                  {modelAnswer || "—"}
+                </div>
               </div>
-            </div>
-            {!recorded ? (
+            ) : null}
+            {!recorded && shortGrade ? (
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
                 {([1, 2, 3] as const).map((c) => (
@@ -1122,9 +1204,9 @@ function PracticeShortQuestion({
                   </button>
                 ))}
               </div>
-            ) : (
+            ) : recorded ? (
               <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
-            )}
+            ) : null}
             {q.explanation ? (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
                 {!hideExplanationLabel ? (
@@ -1143,7 +1225,15 @@ function PracticeShortQuestion({
             ) : null}
             <button
               type="button"
-              onClick={() => { setAnswer(""); setChecked(false); setConfidence(null); setRecorded(false); }}
+              onClick={() => {
+                setAnswer("");
+                setChecked(false);
+                setConfidence(null);
+                setRecorded(false);
+                setShortGrade(null);
+                setMarkingUnavailable(false);
+                setMarkingLoading(false);
+              }}
               style={{
                 marginTop: 12,
                 padding: "8px 14px",
