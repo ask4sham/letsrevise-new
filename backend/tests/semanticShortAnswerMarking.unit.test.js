@@ -133,39 +133,49 @@ describe("semanticShortAnswerMarking unit", () => {
   });
 
   test("markShortAnswerSemantically uses one corrective retry then unavailable", async () => {
-    let calls = 0;
-    const lesson = {
-      topicKey: "aqa-gcse-biology:mutation",
-      subject: "Biology",
-      level: "GCSE",
-      examQuestions: [
-        {
-          _id: "507f1f77bcf86cd799439011",
-          questionId: {
-            _id: "507f1f77bcf86cd799439012",
-            type: "short",
-            question: "Q?",
-            marks: 2,
-            markScheme: markScheme,
-            status: "published",
-            topicKey: "aqa-gcse-biology:mutation",
+    const previousFlag = process.env.BLOCK28_SEMANTIC_MARKING_V1;
+    process.env.BLOCK28_SEMANTIC_MARKING_V1 = "1";
+    try {
+      let calls = 0;
+      const lesson = {
+        topicKey: "aqa-gcse-biology:mutation",
+        subject: "Biology",
+        level: "GCSE",
+        examQuestions: [
+          {
+            _id: "507f1f77bcf86cd799439011",
+            questionId: {
+              _id: "507f1f77bcf86cd799439012",
+              type: "short",
+              question: "Q?",
+              marks: 2,
+              markScheme: markScheme,
+              status: "published",
+              topicKey: "aqa-gcse-biology:mutation",
+            },
           },
+        ],
+      };
+
+      const result = await markShortAnswerSemantically({
+        lesson,
+        questionId: "507f1f77bcf86cd799439012",
+        studentAnswer,
+        generateJson: async () => {
+          calls += 1;
+          return { points: [{ index: 1, judgement: "SATISFIED", studentEvidence: "nucleus", reason: "x" }] };
         },
-      ],
-    };
+      });
 
-    const result = await markShortAnswerSemantically({
-      lesson,
-      questionId: "507f1f77bcf86cd799439012",
-      studentAnswer,
-      generateJson: async () => {
-        calls += 1;
-        return { points: [{ index: 1, judgement: "SATISFIED", studentEvidence: "nucleus", reason: "x" }] };
-      },
-    });
-
-    expect(calls).toBe(2);
-    expect(result.status).toBe("unavailable");
+      expect(calls).toBe(2);
+      expect(result.status).toBe("unavailable");
+    } finally {
+      if (previousFlag === undefined) {
+        delete process.env.BLOCK28_SEMANTIC_MARKING_V1;
+      } else {
+        process.env.BLOCK28_SEMANTIC_MARKING_V1 = previousFlag;
+      }
+    }
   });
 
   test("provider failure returns unavailable not score", async () => {
