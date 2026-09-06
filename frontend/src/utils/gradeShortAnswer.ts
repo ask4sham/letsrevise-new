@@ -21,6 +21,22 @@ export function deriveShortAnswerFeedbackStatus(
   return "incorrect";
 }
 
+export function resolveShortAnswerModelAnswer(input: {
+  markScheme?: string[];
+  correctAnswer?: string;
+  metadataModelAnswer?: string;
+}): string {
+  const scheme = Array.isArray(input.markScheme)
+    ? input.markScheme.map((line) => String(line ?? "").trim()).filter(Boolean)
+    : [];
+  if (scheme.length > 0) {
+    return scheme.map((line, index) => `${index + 1}. ${line}`).join("\n");
+  }
+  if (input.metadataModelAnswer?.trim()) return input.metadataModelAnswer.trim();
+  if (input.correctAnswer?.trim()) return input.correctAnswer.trim();
+  return "";
+}
+
 export function gradeShortAnswer({
   userAnswer,
   markScheme,
