@@ -172,10 +172,28 @@ function createReadOnlyAdapters(dbFacade) {
     return dbFacade.collection("lessons").findOne({ _id: new ObjectId(lessonId) });
   }
 
+  async function fetchUsageCounts() {
+    const lessons = await dbFacade
+      .collection("lessons")
+      .find({ examQuestions: { $exists: true, $ne: [] } })
+      .project({ examQuestions: 1 })
+      .toArray();
+    const usage = new Map();
+    for (const l of lessons) {
+      for (const ref of l.examQuestions || []) {
+        const qid = ref?.questionId ? String(ref.questionId) : null;
+        if (!qid) continue;
+        usage.set(qid, (usage.get(qid) || 0) + 1);
+      }
+    }
+    return usage;
+  }
+
   return {
     fetchLessons,
     fetchMastersByIds,
     fetchLessonById,
+    fetchUsageCounts,
     dbName: dbFacade.databaseName,
   };
 }

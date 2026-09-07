@@ -136,4 +136,8 @@ module.exports = {
   runPhase2DryRun,
   MUTATION_LESSON_ID,
   REPAIR_CLASS,
+  buildEdexcelBioReviewQueue: require("./lessonQueue").buildEdexcelBioReviewQueue,
+  generateEdexcelBioReviewBatch: require("./batchReviewGenerator").generateEdexcelBioReviewBatch,
+  buildLessonReviewPack: require("./batchReviewPack").buildLessonReviewPack,
+  PACK_STATUS: require("./batchReviewPack").PACK_STATUS,
 };
