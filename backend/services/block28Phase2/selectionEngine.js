@@ -72,6 +72,24 @@ function objectiveAlignmentScore(question, boundary) {
     if (/\banalyse\b/.test(q) || /\bevaluate\b/.test(q)) score -= 1;
   }
 
+  if (title.includes("random fertilisation")) {
+    if (/\boutline the process of random fertilisation\b/.test(q)) score += 4;
+    if (/\brandom fertilisation and its role\b/.test(q)) score += 3.5;
+    if (/\bdescribe what happens during random fertilisation\b/.test(q)) score += 4;
+    if (/\bexplain how meiosis produces genetically different gametes\b/.test(q)) score += 3.5;
+    if (/\bexplain how meiosis contributes to genetic variation in gametes\b/.test(q)) score += 3.5;
+    if (/\bcompare\b.*\bmeiosis\b.*\brandom fertil/i.test(q)) score += 3.5;
+    if (/\bchildren with the same biological parents\b/.test(q)) score += 4;
+    if (/\balleles\b/.test(q) && /\b(significance of alleles|genetic variation)\b/.test(q)) score += 2.5;
+    if (/\bjustify\b.*\bgenetic variation\b.*\b(survival|species)\b/.test(q)) score += 2.5;
+    if (/\boutline how meiosis and random fertilisation together\b/.test(q)) score -= 3;
+    if (/\bapply your knowledge of meiosis and fertilisation\b/.test(q)) score -= 3;
+    if (/\bdescribe how random fertilisation can lead to unique traits\b/.test(q)) score -= 2.5;
+    if (/\banalyse\b.*\bnatural selection\b/.test(q)) score -= 4;
+    if (/\bevaluate\b.*\bgenetic variation\b.*\bevolution\b/.test(q)) score -= 3.5;
+    if (/\banalyse\b/.test(q) || /\bevaluate\b/.test(q)) score -= 1.5;
+  }
+
   if (title.includes("dna structure") && /\brna\b/.test(q) && !/\bdna\b/.test(q)) score -= 2;
 
   if (title.includes("dna structure")) {

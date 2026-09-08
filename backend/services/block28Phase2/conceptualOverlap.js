@@ -39,6 +39,45 @@ const TOPIC_SIGNATURE_RULES = [
       /\b(stages?|two divisions|how many divisions|meiosis i|meiosis ii|homologous chromosomes|sister chromatids|recall the stages)\b/i.test(q),
   },
   { id: "fertilisation_genetic_variation", test: (q) => /fertil/i.test(q) && /genetic (variation|diversity)/i.test(q) },
+  {
+    id: "random_fertilisation_process",
+    test: (q) => {
+      if (/\bcompare\b.*\bmeiosis\b/i.test(q)) return false;
+      if (/\bmeiosis and random fertil/i.test(q) && /\b(together|outline how|apply your knowledge)\b/i.test(q)) {
+        return false;
+      }
+      if (/\brandom fertil/i.test(q)) return true;
+      return false;
+    },
+  },
+  {
+    id: "meiosis_fertilisation_combined",
+    test: (q) => {
+      if (!/\bmeiosis\b/i.test(q) || !/\bfertil/i.test(q)) return false;
+      if (
+        /\bexplain how meiosis\b/i.test(q) &&
+        /\b(gametes?|genetically different gametes)\b/i.test(q) &&
+        !/\brandom\b/i.test(q)
+      ) {
+        return false;
+      }
+      if (/\bcompare\b.*\bmeiosis\b.*\brandom fertil/i.test(q)) return true;
+      if (/\boutline how meiosis and random fertil/i.test(q)) return true;
+      if (/\bapply your knowledge of meiosis and fertil/i.test(q)) return true;
+      if (/\bwork together\b/i.test(q) && /\bmeiosis\b/i.test(q) && /\bfertil/i.test(q)) return true;
+      return false;
+    },
+  },
+  {
+    id: "genetic_variation_survival",
+    test: (q) => {
+      if (/\bnatural selection\b/i.test(q)) return true;
+      if (/\bevaluate\b.*\bgenetic variation\b.*\b(survival|evolution)\b/i.test(q)) return true;
+      if (/\bjustify\b.*\bgenetic variation\b.*\b(survival|species)\b/i.test(q)) return true;
+      if (/\bimportance of genetic variation\b.*\b(survival|species)\b/i.test(q)) return true;
+      return false;
+    },
+  },
   { id: "meiosis_gametes_haploid", test: (q) => /meiosis/i.test(q) && /(gamete|haploid)/i.test(q) },
   { id: "uracil_thymine", test: (q) => /uracil/i.test(q) && /thymine/i.test(q) },
   { id: "uracil_role", test: (q) => /uracil/i.test(q) && /(role|function|significance|differ)/i.test(q) },
@@ -127,11 +166,26 @@ function assessConceptualOverlap(questionA, questionB) {
     if (inheritanceVsVariation) {
       return { severity: "LOW", similarity: lexical, sharedSignatures: shared, reason: null };
     }
+    const sigsA = extractConceptSignatures(questionA);
+    const sigsB = extractConceptSignatures(questionB);
+    const combinedMeiosisFert =
+      sigsA.includes("meiosis_fertilisation_combined") || sigsB.includes("meiosis_fertilisation_combined");
+    const meiosisGameteOnly = (sigs) =>
+      sigs.includes("meiosis_genetic_variation") &&
+      !sigs.includes("meiosis_fertilisation_combined") &&
+      !sigs.includes("random_fertilisation_process");
+    if (combinedMeiosisFert && (meiosisGameteOnly(sigsA) || meiosisGameteOnly(sigsB))) {
+      return { severity: "LOW", similarity: lexical, sharedSignatures: shared, reason: null };
+    }
     const meiosisCluster =
       sig === "meiosis_genetic_variation" ||
       sig === "meiosis_chromosome_halving" ||
       sig === "meiosis_two_divisions";
-    if (meiosisCluster) {
+    const randomFertCluster =
+      sig === "random_fertilisation_process" ||
+      sig === "meiosis_fertilisation_combined" ||
+      sig === "genetic_variation_survival";
+    if (meiosisCluster || randomFertCluster) {
       return {
         severity: "HIGH",
         similarity: lexical,
