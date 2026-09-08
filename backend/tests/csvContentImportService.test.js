@@ -211,7 +211,8 @@ describe("CSV Import Service", () => {
     });
 
     it("dryRun does not write to DB", async () => {
-      const csv = "questionText,markScheme,specKey,topicKey\nExplain mitosis,1. Condense 2. Divide,aqa-gcse-biology,cell-division";
+      const csv =
+        "questionText,markScheme,marks,specKey,topicKey\nExplain mitosis,Condense chromosomes during prophase|Cytokinesis completes cell division,2,aqa-gcse-biology,cell-division";
       const filePath = writeTempCsv(csv);
       try {
         const res = await request(app)
@@ -248,7 +249,8 @@ describe("CSV Import Service", () => {
     });
 
     it("defaultSpecKey and defaultTopicKey work", async () => {
-      const csv = "questionText,markScheme\nQ1,MS1\nQ2,MS2";
+      const csv =
+        "questionText,markScheme,marks\nExplain cell wall function,Plant cells have a rigid cell wall,1\nExplain chloroplast role,Chloroplasts absorb light for photosynthesis,1";
       const filePath = writeTempCsv(csv);
       try {
         const res = await request(app)

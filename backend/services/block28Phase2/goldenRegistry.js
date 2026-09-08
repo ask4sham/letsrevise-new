@@ -9,7 +9,6 @@ const {
   RANDOM_FERTILISATION_LESSON_ID,
   ...randomFert
 } = require("./randomFertilisationGoldenCapture");
-const { RNA_STRUCTURE_LESSON_ID, ...rna } = require("./rnaStructureGoldenCapture");
 const { MUTATION_LESSON_ID } = require("./constants");
 
 const GOLDEN_MODE = Object.freeze({
@@ -59,10 +58,6 @@ const GOLDEN_REGISTRY = new Map([
     ),
   ],
   [
-    RNA_STRUCTURE_LESSON_ID,
-    captureEntry(RNA_STRUCTURE_LESSON_ID, "RNA Structure", GOLDEN_MODE.REVIEW_METADATA, rna),
-  ],
-  [
     MUTATION_LESSON_ID,
     {
       lessonId: MUTATION_LESSON_ID,
@@ -99,6 +94,5 @@ module.exports = {
   DNA_STRUCTURE_LESSON_ID,
   MEIOSIS_LESSON_ID,
   RANDOM_FERTILISATION_LESSON_ID,
-  RNA_STRUCTURE_LESSON_ID,
   MUTATION_LESSON_ID,
 };

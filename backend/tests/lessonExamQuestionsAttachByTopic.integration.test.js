@@ -107,12 +107,22 @@ describe("POST /api/lessons/:id/exam-questions/attach-by-topic", () => {
       topic: "Cell structure",
       status: "draft",
     });
+    const validShort = (question) => ({
+      teacherId,
+      subject: "Biology",
+      type: "short",
+      question,
+      topicKey: "cell-structure",
+      marks: 2,
+      markScheme: ["First independent marking point.", "Second independent marking point."],
+      status: "draft",
+    });
     const qs = await ExamQuestion.create([
-      { teacherId, subject: "Biology", type: "short", question: "CS 1?", topicKey: "cell-structure", status: "draft" },
-      { teacherId, subject: "Biology", type: "short", question: "CS 2?", topicKey: "cell-structure", status: "draft" },
-      { teacherId, subject: "Biology", type: "short", question: "CS 3?", topicKey: "cell-structure", status: "draft" },
-      { teacherId, subject: "Biology", type: "short", question: "CS 4?", topicKey: "cell-structure", status: "draft" },
-      { teacherId, subject: "Biology", type: "short", question: "CS 5?", topicKey: "cell-structure", status: "draft" },
+      validShort("Describe one feature of cell structure?"),
+      validShort("Describe another feature of cell structure?"),
+      validShort("Explain how cell structure supports function?"),
+      validShort("State one difference between plant and animal cells?"),
+      validShort("Explain why cells need a nucleus?"),
     ]);
     const res = await request(app)
       .post(`/api/lessons/${lesson2._id}/exam-questions/attach-by-topic`)
