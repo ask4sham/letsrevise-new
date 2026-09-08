@@ -90,6 +90,31 @@ function objectiveAlignmentScore(question, boundary) {
     if (/\banalyse\b/.test(q) || /\bevaluate\b/.test(q)) score -= 1.5;
   }
 
+  if (title.includes("rna structure")) {
+    if (/\bdescribe the (chemical )?structure of (an )?rna\b/.test(q)) score += 4.5;
+    if (/\boutline\b.*\brna'?s? structure\b/.test(q)) score += 3.5;
+    if (/\bgive two structural differences between rna and dna\b/.test(q)) score += 4;
+    if (/\boutline the differences between rna and dna\b/.test(q)) score += 3.5;
+    if (/\bbeing single-stranded is useful\b/.test(q)) score += 4;
+    if (/\b(suggest how the structure of rna|structure of rna allows)\b/.test(q)) score += 3.5;
+    if (/\bcompare the roles of mrna, trna and rrna\b/.test(q)) score += 4;
+    if (/\bcompare the roles of mrna, tRNA, and rRNA\b/i.test(q)) score += 4;
+    if (/\b(nucleotide|sugar-phosphate backbone|ribose)\b/.test(q) && /\b(describe|outline)\b/.test(q)) {
+      score += 2;
+    }
+    if (/\bevaluate the role of different types of rna\b/.test(q)) score -= 3.5;
+    if (/\bjustify the necessity of rna\b/.test(q)) score -= 4.5;
+    if (/\bexplain why the presence of uracil instead of thymine\b/.test(q)) score -= 4;
+    if (/\bexplain the role of uracil in rna\b/.test(q)) score -= 4;
+    if (/\banalyse the importance of the ribose sugar\b/.test(q)) score -= 3;
+    if (/\bevaluate the significance of rna being single-stranded\b/.test(q)) score -= 3;
+    if (/\boutline how rna's structure contributes to its function in protein synthesis\b/.test(q)) {
+      score += 2.5;
+    }
+    if (/\b(transcription|translation|codon|anticodon)\b/.test(q)) score -= 4;
+    if (/\banalyse\b/.test(q) || /\bevaluate\b/.test(q)) score -= 1.5;
+  }
+
   if (title.includes("dna structure") && /\brna\b/.test(q) && !/\bdna\b/.test(q)) score -= 2;
 
   if (title.includes("dna structure")) {

@@ -108,13 +108,48 @@ describe("Block 28 Practice Integrity V1", () => {
     expect(res.body.added).toBe(1);
   });
 
-  test("short can attach manually", async () => {
+  test("short can attach manually when invariant-clean", async () => {
     const res = await request(app)
       .post(`/api/lessons/${lessonId}/exam-questions`)
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({ questionIds: [String(shortIds[0])] });
     expect(res.status).toBe(200);
     expect(res.body.added).toBe(1);
+  });
+
+  test("invalid short cannot attach (marks != scheme length)", async () => {
+    const invalid = await ExamQuestion.create({
+      teacherId,
+      subject: "Biology",
+      type: "short",
+      question: "Invalid short attach integrity test question?",
+      marks: 3,
+      markScheme: ["only one point"],
+      topicKey: "edexcel-igcse-biology:mutation",
+      topic: "Mutation",
+      status: "published",
+    });
+    const lesson = await Lesson.create({
+      title: "Invalid short attach lesson",
+      description: "D",
+      content: "C",
+      teacherId,
+      teacherName: "T",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Mutation",
+      topicKey: "edexcel-igcse-biology:mutation",
+      status: "published",
+      isFreePreview: true,
+      examQuestions: [],
+    });
+    const res = await request(app)
+      .post(`/api/lessons/${lesson._id}/exam-questions`)
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ questionIds: [String(invalid._id)] });
+    expect(res.status).toBe(400);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.attachErrors?.[0]?.code).toBe("MARK_SCHEME_COUNT_MISMATCH");
   });
 
   test("composite cannot manually attach", async () => {

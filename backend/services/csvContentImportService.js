@@ -136,6 +136,20 @@ function validateExamQuestionRow(row, opts = {}) {
     return { valid: false, error: e.message || "Invalid specKey or topicKey" };
   }
 
+  const questionType =
+    row.questionType && ["mcq", "short", "label", "table", "data"].includes(String(row.questionType).toLowerCase())
+      ? String(row.questionType).toLowerCase()
+      : "short";
+  if (questionType === "short") {
+    const marks = Number.isFinite(Number(row.marks)) ? Number(row.marks) : null;
+    const schemeLines = parseMarkScheme(row.markScheme);
+    const { validateBlock28ShortForPersist } = require("../../lib/block28IntegrityGate");
+    const gate = validateBlock28ShortForPersist({ marks, markScheme: schemeLines, type: "short" });
+    if (!gate.ok) {
+      return { valid: false, error: gate.msg };
+    }
+  }
+
   return { valid: true, specKey, topicKey };
 }
 

@@ -13,6 +13,7 @@ const { assertValidNamespacedTopicKey } = require("./specTopicValidation");
 const { resolveQuestionBankNamespacedTopicKey } = require("./resolveTopicRuntimeKeys");
 const { EXCLUDE_SANDBOX_MANUAL_TEST } = require("./examQuestionSandboxFilter");
 const { BLOCK28_SUPPORTED_TYPE_LIST } = require("../../lib/block28PracticePolicy");
+const { validateMastersForBlock28Attach } = require("./block28AttachGuard");
 
 /**
  * Attach top N exam questions by topicKey to a lesson (only those not already attached).
@@ -92,19 +93,34 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
     ...ownershipFilter,
     ...sandboxExcludeFilter,
   })
-    .select("_id marks createdAt")
+    .select("_id marks createdAt type question markScheme")
     .sort({ marks: -1, createdAt: -1 })
     .limit(requested * 3)
     .lean();
 
+  const existingMasterIds = [...existingIds];
+  const existingMasters =
+    existingMasterIds.length > 0
+      ? await ExamQuestion.find({ _id: { $in: existingMasterIds } })
+          .select("_id type question marks markScheme")
+          .lean()
+      : [];
+  const mastersById = new Map(existingMasters.map((m) => [String(m._id), m]));
+
   const toAdd = [];
+  const rejected = [];
   for (const q of candidates) {
     if (toAdd.length >= requested) break;
     const qid = String(q._id);
-    if (!existingIds.has(qid)) {
-      toAdd.push(qid);
-      existingIds.add(qid);
+    if (existingIds.has(qid)) continue;
+    mastersById.set(qid, q);
+    const attachCheck = validateMastersForBlock28Attach([q], lesson, mastersById);
+    if (!attachCheck.ok) {
+      rejected.push({ questionId: qid, errors: attachCheck.errors });
+      continue;
     }
+    toAdd.push(qid);
+    existingIds.add(qid);
   }
 
   if (toAdd.length === 0) {
@@ -114,6 +130,7 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
       requested,
       added: 0,
       addedIds: [],
+      rejected,
     };
   }
 
@@ -127,6 +144,25 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
       addedIds: [],
     };
   }
+
+  const {
+    simulateLessonAfterAttach,
+    validateBlock28NoRegressionOnPublishedLesson,
+  } = require("./block28PublishedMutationGuard");
+  const lessonAfter = simulateLessonAfterAttach(lessonDoc.toObject(), toAdd);
+  const regressionGate = validateBlock28NoRegressionOnPublishedLesson(
+    lessonDoc.toObject(),
+    lessonAfter,
+    mastersById,
+    10
+  );
+  if (!regressionGate.ok) {
+    const err = new Error(regressionGate.msg);
+    err.code = "BLOCK28_PUBLISHED_REGRESSION";
+    err.block28Issues = regressionGate.afterIssues;
+    throw err;
+  }
+
   const refs = Array.isArray(lessonDoc.examQuestions) ? lessonDoc.examQuestions : [];
   for (const qid of toAdd) {
     refs.push({ questionId: new mongoose.Types.ObjectId(qid), addedAt: new Date() });
@@ -140,6 +176,7 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
     requested,
     added: toAdd.length,
     addedIds: toAdd,
+    rejected,
   };
 }
 

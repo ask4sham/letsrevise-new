@@ -140,4 +140,9 @@ module.exports = {
   generateEdexcelBioReviewBatch: require("./batchReviewGenerator").generateEdexcelBioReviewBatch,
   buildLessonReviewPack: require("./batchReviewPack").buildLessonReviewPack,
   PACK_STATUS: require("./batchReviewPack").PACK_STATUS,
+  getGoldenCaptureForLesson: require("./goldenRegistry").getGoldenCaptureForLesson,
+  isProtectedLessonId: require("./goldenRegistry").isProtectedLessonId,
+  applyGoldenAuthoritativeOverride: require("./goldenBulkReview").applyGoldenAuthoritativeOverride,
+  runBlock28IntegrityCensus: require("./integrityCensus").runBlock28IntegrityCensus,
+  scanBlock28IntegrityHealth: require("./integrityHealth").scanBlock28IntegrityHealth,
 };
