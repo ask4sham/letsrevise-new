@@ -40,6 +40,38 @@ function objectiveAlignmentScore(question, boundary) {
   }
 
   if (title.includes("meiosis") && /\bmitosis\b/.test(q) && !/\bmeiosis\b/.test(q)) score -= 1;
+
+  if (title.includes("meiosis")) {
+    if (/\bchromosome number in a human gamete\b/.test(q) || /\bwhat is the chromosome number\b.*\bgamete\b/.test(q)) {
+      score += 4;
+    }
+    if (/\bwhere does meiosis take place\b/.test(q) || /\bwhere does meiosis occur\b/.test(q)) score += 4;
+    if (/\bwhat does meiosis produce\b/.test(q) && /\bhalv/.test(q)) score += 4;
+    if (/\brecall the stages of meiosis\b/.test(q) || /\btwo divisions\b/.test(q)) score += 3.5;
+    if (/\bhomologous chromosomes\b/.test(q) || /\bsister chromatids\b/.test(q)) score += 2;
+    if (/\bgenetic variation\b/.test(q) && /\bexplain how meiosis\b/.test(q)) score += 4;
+    if (
+      /\b(outline|compare)\b/.test(q) &&
+      /\bmitosis\b/.test(q) &&
+      /\b(outcomes?|differences?)\b/.test(q)
+    ) {
+      score += 3.5;
+    }
+    if (/\banalyse\b.*\berrors\b/.test(q) || /\bgenetic disorders?\b/.test(q) || /\bdown syndrome\b/.test(q)) {
+      score -= 5;
+    }
+    if (/\bevolution\b/.test(q) && /\b(suggest how|affects evolution|apply your knowledge)\b/.test(q)) {
+      score -= 4;
+    }
+    if (/\banalyse\b.*\bcrossing over\b/.test(q)) score -= 2.5;
+    if (/\bevaluate\b.*\bindependent assortment\b/.test(q)) score -= 2.5;
+    if (/\bconsequences of not having meiosis\b/.test(q)) score -= 2.5;
+    if (/\bwhy gametes must be haploid\b/.test(q) || /\bgametes must be haploid\b/.test(q)) score -= 2;
+    if (/\bstable chromosome numbers?\b/.test(q) && /\bevaluate\b/.test(q)) score -= 2.5;
+    if (/\bhow many divisions occur in meiosis\b/.test(q)) score -= 1.5;
+    if (/\banalyse\b/.test(q) || /\bevaluate\b/.test(q)) score -= 1;
+  }
+
   if (title.includes("dna structure") && /\brna\b/.test(q) && !/\bdna\b/.test(q)) score -= 2;
 
   if (title.includes("dna structure")) {
@@ -113,6 +145,14 @@ function isOutOfScope(question, boundary) {
       return true;
     }
     if (/\bjustify the role of dna in inheritance\b/.test(q)) return true;
+  }
+  if (title.includes("meiosis")) {
+    if (/\b(errors? in meiosis|genetic disorders?|down syndrome|nondisjunction|aneuploidy)\b/.test(q)) {
+      return true;
+    }
+    if (/\bevolution\b/.test(q) && /\b(suggest how|affects evolution|apply your knowledge)\b/.test(q)) {
+      return true;
+    }
   }
   return false;
 }

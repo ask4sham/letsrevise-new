@@ -5,7 +5,39 @@ const { jaccardSimilarity, normalizeForCompare } = require("./qualityGates");
 
 const TOPIC_SIGNATURE_RULES = [
   { id: "meiosis_fertilisation_combo", test: (q) => /meiosis/i.test(q) && /fertil/i.test(q) },
-  { id: "meiosis_genetic_variation", test: (q) => /meiosis/i.test(q) && /genetic (variation|diversity)/i.test(q) },
+  {
+    id: "meiosis_genetic_variation",
+    test: (q) => {
+      if (!/\bmeiosis\b/i.test(q)) return false;
+      if (/\bgenetic (variation|diversity)\b/i.test(q)) return true;
+      if (/\bcrossing over\b/i.test(q)) return true;
+      if (/\bindependent assortment\b/i.test(q)) return true;
+      if (/\bleads? to genetic variation\b/i.test(q)) return true;
+      return false;
+    },
+  },
+  {
+    id: "meiosis_chromosome_halving",
+    test: (q) => {
+      if (!/\bmeiosis\b/i.test(q)) return false;
+      if (/\b(stages?|meiosis i|meiosis ii|two divisions|how many divisions|homologous chromosomes|sister chromatids)\b/i.test(q)) {
+        return false;
+      }
+      if (/\bwhat does meiosis produce\b/i.test(q)) return true;
+      if (/\bconsequences of not having meiosis\b/i.test(q)) return true;
+      if (/\bstable chromosome numbers?\b/i.test(q)) return true;
+      if (/\bhalv/i.test(q) && /\bchromosome\b/i.test(q)) return true;
+      if (/\bwhy gametes must be haploid\b/i.test(q) || /\bgametes must be haploid\b/i.test(q)) return true;
+      if (/\bmaintaining stable chromosome\b/i.test(q)) return true;
+      return false;
+    },
+  },
+  {
+    id: "meiosis_two_divisions",
+    test: (q) =>
+      /\bmeiosis\b/i.test(q) &&
+      /\b(stages?|two divisions|how many divisions|meiosis i|meiosis ii|homologous chromosomes|sister chromatids|recall the stages)\b/i.test(q),
+  },
   { id: "fertilisation_genetic_variation", test: (q) => /fertil/i.test(q) && /genetic (variation|diversity)/i.test(q) },
   { id: "meiosis_gametes_haploid", test: (q) => /meiosis/i.test(q) && /(gamete|haploid)/i.test(q) },
   { id: "uracil_thymine", test: (q) => /uracil/i.test(q) && /thymine/i.test(q) },
@@ -95,11 +127,25 @@ function assessConceptualOverlap(questionA, questionB) {
     if (inheritanceVsVariation) {
       return { severity: "LOW", similarity: lexical, sharedSignatures: shared, reason: null };
     }
+    const meiosisCluster =
+      sig === "meiosis_genetic_variation" ||
+      sig === "meiosis_chromosome_halving" ||
+      sig === "meiosis_two_divisions";
+    if (meiosisCluster) {
+      return {
+        severity: "HIGH",
+        similarity: lexical,
+        sharedSignatures: shared,
+        reason: `Material conceptual duplication: ${shared[0]}`,
+      };
+    }
     const highThreshold =
       sig === "alleles_inheritance_process" ||
       sig === "dominant_recessive_alleles" ||
       sig === "dna_copying_replication_process" ||
-      sig === "dna_double_helix_structure"
+      sig === "dna_double_helix_structure" ||
+      sig === "meiosis_genetic_variation" ||
+      sig === "meiosis_chromosome_halving"
         ? 0.12
         : 0.28;
     if (sig === "single_stranded_rna" && lexical >= 0.2) {
