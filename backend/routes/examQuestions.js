@@ -605,6 +605,7 @@ router.put("/:id", auth, async (req, res) => {
     if (!question) {
       return res.status(404).json({ success: false, msg: "Question not found" });
     }
+    const masterBefore = question.toObject();
     if (req.body.topicKey != null) {
       if (req.body.topicKey && String(req.body.topicKey).trim() !== "") {
         const resolved = await resolveStoredTopicKeyWithAdmin(req.body.specKey, req.body.topicKey);
@@ -747,6 +748,48 @@ router.put("/:id", auth, async (req, res) => {
       }
       question.status = newStatus;
     }
+
+    const Lesson = require("../models/Lesson");
+    const publishedLessons = await Lesson.find({
+      $or: [{ isPublished: true }, { status: "published" }],
+      "examQuestions.questionId": question._id,
+    })
+      .select("_id examQuestions isPublished status")
+      .lean();
+    if (publishedLessons.length > 0) {
+      const {
+        validateBlock28NoRegressionOnPublishedLessonMasters,
+      } = require("../utils/block28PublishedMutationGuard");
+      const masterAfter = question.toObject();
+      for (const lesson of publishedLessons) {
+        const lessonMasterIds = (lesson.examQuestions || []).map((r) => r.questionId).filter(Boolean);
+        const lessonMasters = await ExamQuestion.find({ _id: { $in: lessonMasterIds } })
+          .select("_id type question marks markScheme")
+          .lean();
+        const mastersByIdBefore = new Map(
+          lessonMasters.map((m) => [String(m._id), String(m._id) === String(question._id) ? masterBefore : m])
+        );
+        const mastersByIdAfter = new Map(
+          lessonMasters.map((m) => [String(m._id), String(m._id) === String(question._id) ? masterAfter : m])
+        );
+        const regressionGate = validateBlock28NoRegressionOnPublishedLessonMasters(
+          lesson,
+          mastersByIdBefore,
+          mastersByIdAfter,
+          10
+        );
+        if (!regressionGate.ok) {
+          return res.status(400).json({
+            success: false,
+            msg: regressionGate.msg,
+            code: "BLOCK28_PUBLISHED_REGRESSION",
+            lessonId: regressionGate.lessonId,
+            block28Issues: regressionGate.afterIssues,
+          });
+        }
+      }
+    }
+
     await question.save();
 
     // PR-015: Enqueue knowledge refresh when publishing (async, non-blocking)

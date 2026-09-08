@@ -80,10 +80,82 @@ const TOPIC_SIGNATURE_RULES = [
   },
   { id: "meiosis_gametes_haploid", test: (q) => /meiosis/i.test(q) && /(gamete|haploid)/i.test(q) },
   { id: "uracil_thymine", test: (q) => /uracil/i.test(q) && /thymine/i.test(q) },
+  {
+    id: "uracil_standalone",
+    test: (q) => {
+      if (!/\buracil\b/i.test(q)) return false;
+      if (
+        /\b(give two structural differences|differences between rna and dna|outline the differences|structural differences between rna)\b/i.test(
+          q
+        )
+      ) {
+        return false;
+      }
+      return true;
+    },
+  },
   { id: "uracil_role", test: (q) => /uracil/i.test(q) && /(role|function|significance|differ)/i.test(q) },
   { id: "single_stranded_rna", test: (q) => /single[\s-]?stranded/i.test(q) && /rna/i.test(q) },
-  { id: "rna_dna_structure_compare", test: (q) => /rna/i.test(q) && /dna/i.test(q) && /(difference|compare|outline|contrast|versus|vs)/i.test(q) },
-  { id: "rna_protein_synthesis_types", test: (q) => /(mrna|trna|rrna)/i.test(q) || (/types? of rna/i.test(q) && /protein synthesis/i.test(q)) },
+  {
+    id: "rna_basic_structure_anchor",
+    test: (q) => {
+      if (!/\brna\b/i.test(q)) return false;
+      if (/\bdescribe the (chemical )?structure of (an )?rna\b/i.test(q)) return true;
+      if (/\boutline\b.*\brna'?s? structure\b/i.test(q)) return true;
+      if (/\b(nucleotide|sugar-phosphate backbone|phosphodiester)\b/i.test(q) && /\b(describe|outline)\b/i.test(q)) {
+        return true;
+      }
+      return false;
+    },
+  },
+  {
+    id: "rna_single_strand_function",
+    test: (q) => {
+      if (!/\brna\b/i.test(q)) return false;
+      if (/\b(single[\s-]?stranded|single strand)\b/i.test(q) && /\b(useful|significance|function|fold)\b/i.test(q)) {
+        return true;
+      }
+      if (/\b(suggest how the structure of rna|structure of rna allows)\b/i.test(q)) return true;
+      if (/\bbeing single-stranded is useful\b/i.test(q)) return true;
+      return false;
+    },
+  },
+  {
+    id: "rna_structure_protein_function_outline",
+    test: (q) =>
+      /\brna\b/i.test(q) &&
+      /\bprotein synthesis\b/i.test(q) &&
+      /\b(structure contributes|outline how|justify the necessity|justify the necessity)\b/i.test(q),
+  },
+  {
+    id: "rna_dna_structure_compare",
+    test: (q) =>
+      /\brna\b/i.test(q) &&
+      /\bdna\b/i.test(q) &&
+      /(difference|compare|outline|contrast|versus|vs|give two structural)/i.test(q),
+  },
+  {
+    id: "rna_ribose_sugar_compare",
+    test: (q) =>
+      /\b(ribose|deoxyribose)\b/i.test(q) &&
+      /\b(rna|dna)\b/i.test(q) &&
+      /\b(importance|analyse|compare|difference|contrast)\b/i.test(q),
+  },
+  {
+    id: "rna_protein_synthesis_types",
+    test: (q) =>
+      /(mrna|trna|rrna)/i.test(q) ||
+      (/\btypes? of rna\b/i.test(q) && /\bprotein synthesis\b/i.test(q)) ||
+      (/\bevaluate\b/i.test(q) && /\btypes? of rna\b/i.test(q) && /\bprotein synthesis\b/i.test(q)),
+  },
+  {
+    id: "rna_protein_synthesis_generic",
+    test: (q) =>
+      /\brna\b/i.test(q) &&
+      /\bprotein synthesis\b/i.test(q) &&
+      /\b(justify the necessity|justify)\b/i.test(q) &&
+      !/(mrna|trna|rrna)/i.test(q),
+  },
   {
     id: "dna_copying_replication_process",
     test: (q) => {
@@ -147,6 +219,32 @@ function sharedSignatures(a, b) {
 function assessConceptualOverlap(questionA, questionB) {
   const shared = sharedSignatures(questionA, questionB);
   const lexical = jaccardSimilarity(questionA, questionB);
+  const sigsA = extractConceptSignatures(questionA);
+  const sigsB = extractConceptSignatures(questionB);
+
+  const uracilStandalone = (sigs) => sigs.includes("uracil_standalone") || sigs.includes("uracil_role");
+  if (
+    (uracilStandalone(sigsA) && sigsB.includes("rna_dna_structure_compare")) ||
+    (uracilStandalone(sigsB) && sigsA.includes("rna_dna_structure_compare"))
+  ) {
+    return {
+      severity: "HIGH",
+      similarity: lexical,
+      sharedSignatures: shared,
+      reason: "Standalone uracil question subsumed by RNA-vs-DNA comparison",
+    };
+  }
+  if (
+    (sigsA.includes("rna_ribose_sugar_compare") && sigsB.includes("rna_dna_structure_compare")) ||
+    (sigsB.includes("rna_ribose_sugar_compare") && sigsA.includes("rna_dna_structure_compare"))
+  ) {
+    return {
+      severity: "HIGH",
+      similarity: lexical,
+      sharedSignatures: shared,
+      reason: "Ribose sugar comparison subsumed by RNA-vs-DNA structural comparison",
+    };
+  }
 
   if (shared.length >= 2 || (shared.length === 1 && lexical >= 0.35)) {
     return {
@@ -177,6 +275,27 @@ function assessConceptualOverlap(questionA, questionB) {
     if (combinedMeiosisFert && (meiosisGameteOnly(sigsA) || meiosisGameteOnly(sigsB))) {
       return { severity: "LOW", similarity: lexical, sharedSignatures: shared, reason: null };
     }
+    const rnaBasicAnchor = (sigs) => sigs.includes("rna_basic_structure_anchor");
+    const rnaSingleStrandFn = (sigs) =>
+      sigs.includes("rna_single_strand_function") || sigs.includes("single_stranded_rna");
+    if (
+      (rnaBasicAnchor(sigsA) && rnaSingleStrandFn(sigsB)) ||
+      (rnaBasicAnchor(sigsB) && rnaSingleStrandFn(sigsA))
+    ) {
+      return { severity: "LOW", similarity: lexical, sharedSignatures: shared, reason: null };
+    }
+    if (
+      (rnaBasicAnchor(sigsA) && sigsB.includes("rna_dna_structure_compare")) ||
+      (rnaBasicAnchor(sigsB) && sigsA.includes("rna_dna_structure_compare"))
+    ) {
+      return { severity: "LOW", similarity: lexical, sharedSignatures: shared, reason: null };
+    }
+    if (
+      (rnaBasicAnchor(sigsA) && sigsB.includes("rna_protein_synthesis_types")) ||
+      (rnaBasicAnchor(sigsB) && sigsA.includes("rna_protein_synthesis_types"))
+    ) {
+      return { severity: "LOW", similarity: lexical, sharedSignatures: shared, reason: null };
+    }
     const meiosisCluster =
       sig === "meiosis_genetic_variation" ||
       sig === "meiosis_chromosome_halving" ||
@@ -185,7 +304,16 @@ function assessConceptualOverlap(questionA, questionB) {
       sig === "random_fertilisation_process" ||
       sig === "meiosis_fertilisation_combined" ||
       sig === "genetic_variation_survival";
-    if (meiosisCluster || randomFertCluster) {
+    const rnaCluster =
+      sig === "rna_protein_synthesis_types" ||
+      sig === "rna_structure_protein_function_outline" ||
+      sig === "rna_single_strand_function" ||
+      sig === "single_stranded_rna" ||
+      sig === "uracil_standalone" ||
+      sig === "uracil_role" ||
+      sig === "uracil_thymine" ||
+      sig === "rna_ribose_sugar_compare";
+    if (meiosisCluster || randomFertCluster || rnaCluster) {
       return {
         severity: "HIGH",
         similarity: lexical,
@@ -203,6 +331,17 @@ function assessConceptualOverlap(questionA, questionB) {
         ? 0.12
         : 0.28;
     if (sig === "single_stranded_rna" && lexical >= 0.2) {
+      return {
+        severity: "HIGH",
+        similarity: lexical,
+        sharedSignatures: shared,
+        reason: `Material conceptual duplication: ${shared[0]}`,
+      };
+    }
+    if (
+      (sig === "uracil_standalone" || sig === "uracil_role" || sig === "uracil_thymine") &&
+      (sigsA.includes("rna_dna_structure_compare") || sigsB.includes("rna_dna_structure_compare"))
+    ) {
       return {
         severity: "HIGH",
         similarity: lexical,

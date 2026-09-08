@@ -3266,6 +3266,22 @@ async function publishToggleHandler(req, res, mode) {
       }
 
       curriculumReviewPublishWarning = getCurriculumReviewPublishWarning(lesson);
+
+      const lessonMasterIds = (lesson.examQuestions || []).map((r) => r.questionId).filter(Boolean);
+      if (lessonMasterIds.length > 0) {
+        const publishMasters = await ExamQuestion.find({ _id: { $in: lessonMasterIds } }).lean();
+        const mastersById = new Map(publishMasters.map((m) => [String(m._id), m]));
+        const { validateBlock28LessonPublishIntegrity } = require("../utils/block28PublishIntegrity");
+        const block28Gate = validateBlock28LessonPublishIntegrity(lesson, mastersById, 10);
+        if (!block28Gate.ok) {
+          return res.status(400).json({
+            error: "Block 28 Practice integrity check failed",
+            msg: "Block 28 Practice integrity check failed — fix served practice questions before publishing.",
+            block28Issues: block28Gate.issues,
+            servedCount: block28Gate.servedCount,
+          });
+        }
+      }
     }
 
     if (mode === "publish") {
@@ -4688,11 +4704,43 @@ router.put("/:id/exam-questions/lesson-edits", auth, requireLessonOwnerOrAdmin, 
       }
 
       refs[refIndex].lessonEdit = sanitised;
-      results.push({ questionId, action: "saved" });
+      results.push({ questionId, action: "saved", lessonEdit: sanitised });
 
       const afterMaster = master.toObject();
       if (JSON.stringify(beforeMaster) !== JSON.stringify(afterMaster)) {
         return res.status(500).json({ msg: "ExamQuestion master must not be modified" });
+      }
+    }
+
+    const appliedEdits = results
+      .filter((r) => r.action === "saved" || r.action === "cleared")
+      .map((r) => ({
+        questionId: r.questionId,
+        lessonEdit: r.action === "cleared" ? null : r.lessonEdit,
+      }));
+    const lessonMasterIds = (lesson.examQuestions || []).map((r) => r.questionId).filter(Boolean);
+    if (lessonMasterIds.length > 0) {
+      const editMasters = await ExamQuestion.find({ _id: { $in: lessonMasterIds } })
+        .select("_id type question marks markScheme")
+        .lean();
+      const mastersById = new Map(editMasters.map((m) => [String(m._id), m]));
+      const {
+        simulateLessonAfterLessonEdits,
+        validateBlock28NoRegressionOnPublishedLesson,
+      } = require("../utils/block28PublishedMutationGuard");
+      const lessonAfter = simulateLessonAfterLessonEdits(lesson, appliedEdits);
+      const regressionGate = validateBlock28NoRegressionOnPublishedLesson(
+        lesson,
+        lessonAfter,
+        mastersById,
+        10
+      );
+      if (!regressionGate.ok) {
+        return res.status(400).json({
+          msg: regressionGate.msg,
+          code: "BLOCK28_PUBLISHED_REGRESSION",
+          block28Issues: regressionGate.afterIssues,
+        });
       }
     }
 
@@ -4721,26 +4769,65 @@ router.post("/:id/exam-questions", auth, requireLessonOwnerOrAdmin, async (req, 
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
     const masters = await ExamQuestion.find({ _id: { $in: unique } })
-      .select("_id type question")
+      .select("_id type question marks markScheme")
       .lean();
     const masterById = new Map(masters.map((m) => [String(m._id), m]));
     const missingIds = unique.filter((id) => !masterById.has(id));
     const unsupported = masters.filter((m) => !isBlock28SupportedType(m.type));
 
-    if (missingIds.length > 0 || unsupported.length > 0) {
+    const allLessonMasters = await ExamQuestion.find({
+      _id: {
+        $in: (lesson.examQuestions || [])
+          .map((r) => r.questionId)
+          .filter(Boolean),
+      },
+    })
+      .select("_id type question marks markScheme")
+      .lean();
+    const mastersById = new Map([...allLessonMasters, ...masters].map((m) => [String(m._id), m]));
+    const { validateMastersForBlock28Attach } = require("../utils/block28AttachGuard");
+    const attachGate = validateMastersForBlock28Attach(masters, lesson, mastersById);
+    const invalidShort = attachGate.errors?.filter((e) => e.code === "MARK_SCHEME_COUNT_MISMATCH") || [];
+
+    if (missingIds.length > 0 || unsupported.length > 0 || !attachGate.ok) {
       return res.status(400).json({
         ok: false,
-        msg: BLOCK28_UNSUPPORTED_ATTACH_MESSAGE,
+        msg: attachGate.msg || BLOCK28_UNSUPPORTED_ATTACH_MESSAGE,
         missingIds,
         unsupported: unsupported.map((m) => ({
           questionId: String(m._id),
           type: m.type || null,
         })),
+        invalidShort,
+        attachErrors: attachGate.errors || [],
       });
     }
 
     const existing = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
     const existingIds = new Set(existing.map((r) => String(r.questionId)));
+    const toAttach = unique.filter((qid) => !existingIds.has(qid));
+    if (toAttach.length > 0) {
+      const {
+        simulateLessonAfterAttach,
+        validateBlock28NoRegressionOnPublishedLesson,
+      } = require("../utils/block28PublishedMutationGuard");
+      const lessonAfter = simulateLessonAfterAttach(lesson, toAttach);
+      const regressionGate = validateBlock28NoRegressionOnPublishedLesson(
+        lesson,
+        lessonAfter,
+        mastersById,
+        10
+      );
+      if (!regressionGate.ok) {
+        return res.status(400).json({
+          ok: false,
+          msg: regressionGate.msg,
+          code: "BLOCK28_PUBLISHED_REGRESSION",
+          block28Issues: regressionGate.afterIssues,
+        });
+      }
+    }
+
     let added = 0;
     for (const qid of unique) {
       if (!existingIds.has(qid)) {
@@ -4768,7 +4855,33 @@ router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
     const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
     const before = refs.length;
-    lesson.examQuestions = refs.filter((r) => String(r.questionId) !== String(questionId));
+    const lessonAfter = {
+      ...lesson.toObject(),
+      examQuestions: refs.filter((r) => String(r.questionId) !== String(questionId)),
+    };
+    const remainingIds = lessonAfter.examQuestions.map((r) => r.questionId).filter(Boolean);
+    if (remainingIds.length > 0) {
+      const detachMasters = await ExamQuestion.find({ _id: { $in: remainingIds } })
+        .select("_id type question marks markScheme")
+        .lean();
+      const mastersById = new Map(detachMasters.map((m) => [String(m._id), m]));
+      const { validateBlock28NoRegressionOnPublishedLesson } = require("../utils/block28PublishedMutationGuard");
+      const regressionGate = validateBlock28NoRegressionOnPublishedLesson(
+        lesson.toObject(),
+        lessonAfter,
+        mastersById,
+        10
+      );
+      if (!regressionGate.ok) {
+        return res.status(400).json({
+          ok: false,
+          msg: regressionGate.msg,
+          code: "BLOCK28_PUBLISHED_REGRESSION",
+          block28Issues: regressionGate.afterIssues,
+        });
+      }
+    }
+    lesson.examQuestions = lessonAfter.examQuestions;
     const removed = before !== lesson.examQuestions.length;
     await lesson.save();
     return res.json({ ok: true, removed });

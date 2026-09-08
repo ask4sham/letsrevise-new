@@ -354,8 +354,13 @@ describe("Lesson exam-questions attach/remove", () => {
       teacherId,
       subject: "Biology",
       type: "short",
-      question: "Q2?",
+      question: "Explain how photosynthesis produces glucose in plant cells?",
       topicKey: "photosynthesis",
+      marks: 2,
+      markScheme: [
+        "Light energy is absorbed by chlorophyll in chloroplasts.",
+        "Glucose is produced from carbon dioxide and water.",
+      ],
       status: "draft",
     });
     questionId1 = q1._id;

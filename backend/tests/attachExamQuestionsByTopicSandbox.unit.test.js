@@ -25,6 +25,16 @@ function mockFindChain(docs) {
   return chain;
 }
 
+function mockLessonDoc(lessonId) {
+  const doc = {
+    _id: lessonId,
+    examQuestions: [],
+    save: jest.fn().mockResolvedValue(undefined),
+  };
+  doc.toObject = () => ({ _id: lessonId, examQuestions: [] });
+  return doc;
+}
+
 describe("attachExamQuestionsByTopic sandbox exclusion", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -37,11 +47,7 @@ describe("attachExamQuestionsByTopic sandbox exclusion", () => {
 
     mockFindChain([{ _id: legitId, marks: 1, createdAt: new Date() }]);
 
-    Lesson.findById.mockResolvedValue({
-      _id: lessonId,
-      examQuestions: [],
-      save: jest.fn().mockResolvedValue(undefined),
-    });
+    Lesson.findById.mockResolvedValue(mockLessonDoc(lessonId));
 
     const lesson = {
       _id: lessonId,
@@ -73,13 +79,22 @@ describe("attachExamQuestionsByTopic sandbox exclusion", () => {
     const legitId = "507f1f77bcf86cd799439022";
     const lessonId = "507f1f77bcf86cd799439024";
 
-    mockFindChain([{ _id: legitId, marks: 3, createdAt: new Date() }]);
+    mockFindChain([
+      {
+        _id: legitId,
+        type: "short",
+        question: "Explain how mutation can affect protein synthesis?",
+        marks: 3,
+        markScheme: [
+          "Mutation changes the DNA base sequence.",
+          "Amino acid sequence may change.",
+          "Protein shape or function may change.",
+        ],
+        createdAt: new Date(),
+      },
+    ]);
 
-    Lesson.findById.mockResolvedValue({
-      _id: lessonId,
-      examQuestions: [],
-      save: jest.fn().mockResolvedValue(undefined),
-    });
+    Lesson.findById.mockResolvedValue(mockLessonDoc(lessonId));
 
     const lesson = {
       _id: lessonId,
