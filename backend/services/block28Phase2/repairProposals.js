@@ -163,6 +163,8 @@ function proposeRetainedRepair(retained, context = {}) {
   const semantic = assessSemanticReadiness({
     marks: proposedMarks,
     markScheme: proposedScheme,
+    stem: proposedQuestion,
+    question: proposedQuestion,
     markDemand,
     overlapRisk: context.overlapRisk || "LOW",
     highOverlapInSet: context.highOverlapInSet || false,

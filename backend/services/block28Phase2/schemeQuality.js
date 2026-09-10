@@ -45,6 +45,11 @@ const GENERIC_RUBRIC_PATTERNS = [
   /^uses? accurate scientific terminology/i,
   /^reaches? a (supported )?conclusion/i,
   /^explains? the answer\.?$/i,
+  /^uses?\s+the\s+template\b/i,
+  /^mentions?\s+the\s+strand\b/i,
+  /^describes?\s+the\s+(template|strand)\b/i,
+  /^considers?\s+the\s+(template|strand)\b/i,
+  /^gives?\s+(a\s+)?valid\s+template\b/i,
 ];
 
 /** Supporting vocabulary roots — substring match tolerates plurals/inflections; not the sole gate. */
@@ -69,10 +74,99 @@ const BIOLOGICAL_RELATION_PATTERNS = [
 
 const BIOLOGICAL_ENTITY_PATTERNS = [
   /\b[A-Z]{2,6}\b/,
-  /\b\d+\s+(chromosomes?|pairs?|cells?|nucleotides?|amino acids?)\b/i,
+  /\b\d+\s+(chromosomes?|pairs?|cells?|gametes?|nucleotides?|amino acids?)\b/i,
   /\b(XX|XY|2n|n)\b/,
   /\bfrom .+ to .+:/i,
 ];
+
+const VAGUE_QUANTIFIER_PATTERN =
+  /\b(many|several|some|few|correct|suitable|appropriate|valid|linked)\s+(number|chromosomes?|gametes?|cells?|pairs?)\b/i;
+
+const MECHANISM_POINT_LEXICON =
+  /\b(strand|strands|template|complementary|replicat|unwind|unwinds|separate|separates|pair|pairs|transcri|translat|mitosis|meiosis)\b/i;
+
+function normalizeSpecificityContext(context) {
+  if (context == null || typeof context !== "object") return { stem: "", marks: undefined };
+  const stem = context.stem != null ? String(context.stem) : context.question != null ? String(context.question) : "";
+  const marks = context.marks != null ? Number(context.marks) : undefined;
+  return { stem, marks };
+}
+
+function stemEstablishesBiology(stem) {
+  const text = String(stem || "").trim();
+  if (!text) return false;
+  return hasVocabularyHint(text) || BIOLOGICAL_ENTITY_PATTERNS.some((re) => re.test(text));
+}
+
+function isVagueQuantifierBiologyPoint(point) {
+  const norm = normalizeForCompare(point);
+  if (/\b\d+\b/.test(String(point || ""))) return false;
+  if (VAGUE_QUANTIFIER_PATTERN.test(norm)) return true;
+  if (/\ba\s+(suitable|correct|valid|linked)\s+number\b/.test(norm)) return true;
+  if (
+    /\b(many|several|some|few)\b/.test(norm)
+    && /\b(chromosomes?|gametes?|cells?|pairs?)\b/.test(norm)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function stemAsksForBiologicalQuantity(stem, marks) {
+  const stemNorm = normalizeForCompare(stem);
+  if (!stemNorm) return false;
+  const quantityCue =
+    /\b(how many|what is the|state the|give the)\b/.test(stemNorm)
+    && /\b(number|amount|chromosome|gamete|haploid|diploid|cell|pair)\b/.test(stemNorm);
+  const chromosomeNumberCue = /\bchromosome number\b/.test(stemNorm);
+  const oneMarkRecall =
+    marks === 1
+    && /\b(what is|state|give|how many|name)\b/.test(stemNorm)
+    && /\b(chromosome|gamete|haploid|diploid|cell|pair|number)\b/.test(stemNorm);
+  return quantityCue || chromosomeNumberCue || oneMarkRecall;
+}
+
+function pointNumericUnitMatchesStem(point, stem) {
+  const stemNorm = normalizeForCompare(stem);
+  const pointText = String(point || "");
+  if (/\bchromosomes?\b/i.test(pointText) && /\bchromosome/i.test(stemNorm)) return true;
+  if (/\bgametes?\b/i.test(pointText) && /\bgamete/i.test(stemNorm)) return true;
+  if (/\bcells?\b/i.test(pointText) && /\bcell/i.test(stemNorm)) return true;
+  if (/\bpairs?\b/i.test(pointText) && /\bpair/i.test(stemNorm)) return true;
+  if (/\b(haploid|diploid)\b/i.test(pointText) && /\b(haploid|diploid|chromosome|gamete)\b/i.test(stemNorm)) {
+    return true;
+  }
+  if (/\bchromosomes?\b/i.test(pointText) && /\bgamete/i.test(stemNorm)) return true;
+  return false;
+}
+
+function isExactNumericBiologicalAnswer(point, context) {
+  const text = String(point || "").trim();
+  const { stem, marks } = context;
+  if (!text || isVagueQuantifierBiologyPoint(text)) return false;
+  if (!/\b\d+\b/.test(text)) return false;
+  const numericWithUnit =
+    /\b\d+\s+(chromosomes?|pairs?|gametes?|cells?|nucleotides?)\b/i.test(text)
+    || /\b\d+\s*\(\s*haploid\s*\)/i.test(text);
+  if (!numericWithUnit) return false;
+  if (!stemAsksForBiologicalQuantity(stem, marks)) return false;
+  return pointNumericUnitMatchesStem(text, stem);
+}
+
+function isContextAwareMechanismPoint(point, stem) {
+  const text = String(point || "").trim();
+  if (!text || isGenericRubricPhrase(text) || isVagueQuantifierBiologyPoint(text)) return false;
+  if (!stemEstablishesBiology(stem)) return false;
+  const pointNorm = normalizeForCompare(text);
+  if (!MECHANISM_POINT_LEXICON.test(pointNorm)) return false;
+  const contentWords = meaningfulContentWords(text);
+  if (contentWords.length < 4) return false;
+  const hasMechanismLink =
+    /\bacts?\s+as\b/.test(pointNorm)
+    || /\bfor\s+(a\s+)?new\b/.test(pointNorm)
+    || hasBiologicalRelation(text);
+  return hasMechanismLink;
+}
 
 function hasVocabularyHint(text) {
   const norm = normalizeForCompare(text);
@@ -92,8 +186,29 @@ function meaningfulContentWords(text) {
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 }
 
+/**
+ * Examiner credit instructions ("Mentions the chromosome.") — not awardable biological claims.
+ * Targets short verb + article + head-noun rubric lines, not substantive prose.
+ */
+function isRubricCreditInstructionPoint(point) {
+  const text = String(point || "").trim();
+  if (!text) return false;
+
+  const contentWords = meaningfulContentWords(text);
+  const rubricVerbTheSingleNoun =
+    /^(mentions?|names?|considers?|uses?|describes?|states?|identifies?)\s+the\s+[a-z]+\.?\s*$/i.test(text);
+  if (rubricVerbTheSingleNoun && contentWords.length <= 3) return true;
+
+  const rubricVerbAQualifiedNoun =
+    /^(names?|gives?)\s+(a|an)\s+(valid\s+|linked\s+|correct\s+|suitable\s+)?[a-z]+\.?\s*$/i.test(text);
+  if (rubricVerbAQualifiedNoun && contentWords.length <= 4) return true;
+
+  return false;
+}
+
 function isGenericRubricPhrase(point) {
   const text = String(point || "").trim();
+  if (isRubricCreditInstructionPoint(text)) return true;
   return GENERIC_RUBRIC_PATTERNS.some((re) => re.test(text));
 }
 
@@ -117,11 +232,18 @@ function isGenericFillerPoint(point) {
 /**
  * A scheme point is specific when it states an independently awardable biological claim,
  * not merely because it matches a finite topic-word regex.
+ * @param {string} point
+ * @param {{ stem?: string, question?: string, marks?: number }} [context]
  */
-function hasSpecificBiologicalContent(point) {
+function hasSpecificBiologicalContent(point, context) {
   const text = String(point || "").trim();
+  const ctx = normalizeSpecificityContext(context);
   if (!text || text.length < 10) return false;
   if (isGenericFillerPoint(text)) return false;
+  if (isVagueQuantifierBiologyPoint(text)) return false;
+
+  if (isExactNumericBiologicalAnswer(text, ctx)) return true;
+  if (isContextAwareMechanismPoint(text, ctx.stem)) return true;
 
   const contentWords = meaningfulContentWords(text);
   if (contentWords.length < 2) return false;
@@ -138,13 +260,14 @@ function hasSpecificBiologicalContent(point) {
   return false;
 }
 
-function assessMarkSchemeQuality(markScheme) {
+function assessMarkSchemeQuality(markScheme, context) {
+  const ctx = normalizeSpecificityContext(context);
   const points = normalizeMarkSchemeLines(markScheme);
   const genericIndices = [];
   const weakIndices = [];
   points.forEach((p, i) => {
     if (isGenericFillerPoint(p)) genericIndices.push(i);
-    else if (!hasSpecificBiologicalContent(p)) weakIndices.push(i);
+    else if (!hasSpecificBiologicalContent(p, ctx)) weakIndices.push(i);
   });
   const duplicatePairs = [];
   for (let i = 0; i < points.length; i++) {
@@ -160,7 +283,10 @@ function assessMarkSchemeQuality(markScheme) {
     weakIndices,
     duplicatePairs,
     hasGenericFiller: genericIndices.length > 0,
-    allPointsSpecific: genericIndices.length === 0 && weakIndices.length === 0 && points.every(hasSpecificBiologicalContent),
+    allPointsSpecific:
+      genericIndices.length === 0
+      && weakIndices.length === 0
+      && points.every((p) => hasSpecificBiologicalContent(p, ctx)),
   };
 }
 
@@ -168,13 +294,19 @@ function assessMarkSchemeQuality(markScheme) {
  * @param {object} opts
  * @param {number} opts.marks
  * @param {string[]} opts.markScheme
+ * @param {string} [opts.stem]
+ * @param {string} [opts.question]
  * @param {object} [opts.markDemand]
  * @param {string} [opts.overlapRisk] - LOW | MEDIUM | HIGH for this question in final set
  * @param {boolean} [opts.highOverlapInSet]
  */
 function assessSemanticReadiness(opts) {
   const marks = Number(opts.marks);
-  const quality = assessMarkSchemeQuality(opts.markScheme);
+  const specificityContext = {
+    stem: opts.stem ?? opts.question,
+    marks,
+  };
+  const quality = assessMarkSchemeQuality(opts.markScheme, specificityContext);
   const inv = validateShortMarksMarkSchemeInvariant(marks, quality.points);
   const reasons = [];
 

@@ -4,9 +4,37 @@
 const {
   SEMANTIC_READINESS,
   assessSemanticReadiness,
+  assessMarkSchemeQuality,
   hasSpecificBiologicalContent,
   isGenericFillerPoint,
 } = require("../services/block28Phase2/schemeQuality");
+
+const DNA_REPLICATION_STEM =
+  "Outline how the structure of DNA enables it to be copied during cell division.";
+const DNA_TEMPLATE_POINT =
+  "Each original strand acts as a template for a new complementary strand.";
+const MEIOSIS_STEM = "What is the chromosome number in a human gamete?";
+
+const ARCHIVED_NEGATIVE_POINTS = [
+  "Gives a valid continuous example, e.g. height or body mass.",
+  "Describes an environmental influence on the same characteristic.",
+  "This knowledge can be used in an appropriate medical application, e.g. screening, diagnosis or treatment choice.",
+  "Gives a correctly linked example, e.g. different light levels affecting plant growth or diet affecting body mass.",
+  "Discuss the result.",
+  "Consider a suitable application.",
+  "Gives a valid example.",
+  "Describes the process.",
+  "States the function.",
+  "23",
+  "many chromosomes",
+  "correct number",
+  "a suitable number",
+  "50",
+  "3",
+  "Uses the template.",
+  "Describes the strand.",
+  "Considers the template.",
+];
 
 const FIVE_FALSE_NEGATIVES = [
   {
@@ -142,5 +170,135 @@ describe("block28 semantic readiness generalisation", () => {
     });
     expect(result.reasons).toContain("duplicate_credit_in_scheme");
     expect(result.semanticReadiness).not.toBe(SEMANTIC_READINESS.PASS);
+  });
+
+  describe("context-aware and numeric biological specificity (policy E)", () => {
+    test("DNA replication template point passes with stem context", () => {
+      const result = assessSemanticReadiness({
+        marks: 3,
+        stem: DNA_REPLICATION_STEM,
+        markScheme: [
+          "The DNA double helix unwinds and the two strands separate.",
+          DNA_TEMPLATE_POINT,
+          "Complementary bases pair A–T and G–C, producing two DNA molecules with the same base sequence as the original.",
+        ],
+      });
+      expect(result.semanticReadiness).toBe(SEMANTIC_READINESS.PASS);
+    });
+
+    test("Meiosis atomic chromosome number passes with recall stem", () => {
+      const result = assessSemanticReadiness({
+        marks: 1,
+        stem: MEIOSIS_STEM,
+        markScheme: ["23 chromosomes."],
+      });
+      expect(result.semanticReadiness).toBe(SEMANTIC_READINESS.PASS);
+    });
+
+    test("additional numeric biological quantity with matching stem", () => {
+      const stem = "How many chromosomes are in a human body cell?";
+      const result = assessSemanticReadiness({
+        marks: 1,
+        stem,
+        markScheme: ["46 chromosomes."],
+      });
+      expect(result.semanticReadiness).toBe(SEMANTIC_READINESS.PASS);
+    });
+
+    test("rich stem does not rescue generic template rubric", () => {
+      const stem = "Outline how DNA is copied during cell division.";
+      expect(hasSpecificBiologicalContent("Uses the template.", { stem })).toBe(false);
+      const result = assessSemanticReadiness({
+        marks: 1,
+        stem,
+        markScheme: ["Uses the template."],
+      });
+      expect(result.semanticReadiness).not.toBe(SEMANTIC_READINESS.PASS);
+    });
+
+    test("rich stem does not rescue mentions-the-noun rubric credit lines", () => {
+      const stem = "Outline how DNA is copied during cell division.";
+      for (const point of [
+        "Mentions the chromosome.",
+        "Mentions the gene.",
+        "Mentions the cell.",
+        "Names a valid chromosome.",
+      ]) {
+        expect(hasSpecificBiologicalContent(point, { stem, marks: 1 })).toBe(false);
+        expect(
+          assessSemanticReadiness({ marks: 1, stem, markScheme: [point] }).semanticReadiness
+        ).not.toBe(SEMANTIC_READINESS.PASS);
+      }
+    });
+
+    test("rubric credit detection does not reject substantive biological sentences", () => {
+      const stem = "Outline how DNA is copied during cell division.";
+      for (const point of [
+        "The chromosome contains DNA.",
+        "Homologous chromosomes separate during meiosis I.",
+        "A human gamete contains 23 chromosomes.",
+      ]) {
+        expect(hasSpecificBiologicalContent(point, { stem, marks: 2 })).toBe(true);
+      }
+    });
+
+    test("non-DNA context-aware mechanism point passes", () => {
+      const stem = "Outline how transcription produces mRNA from a DNA template.";
+      const point =
+        "RNA polymerase binds and the DNA template strand is used to assemble a complementary mRNA strand.";
+      expect(hasSpecificBiologicalContent(point, { stem, marks: 1 })).toBe(true);
+      expect(
+        assessSemanticReadiness({ marks: 1, stem, markScheme: [point] }).semanticReadiness
+      ).toBe(SEMANTIC_READINESS.PASS);
+    });
+
+    test("23 bananas fails numeric biological answer gate", () => {
+      const stem = "What is the chromosome number in a human gamete?";
+      expect(hasSpecificBiologicalContent("23 bananas.", { stem, marks: 1 })).toBe(false);
+      expect(
+        assessSemanticReadiness({ marks: 1, stem, markScheme: ["23 bananas."] }).semanticReadiness
+      ).not.toBe(SEMANTIC_READINESS.PASS);
+    });
+
+    test("vague quantifier with biological unit fails", () => {
+      expect(hasSpecificBiologicalContent("many chromosomes")).toBe(false);
+      expect(hasSpecificBiologicalContent("correct number")).toBe(false);
+      expect(hasSpecificBiologicalContent("a suitable number")).toBe(false);
+    });
+
+    test("bare numeral without stem quantity context fails", () => {
+      expect(hasSpecificBiologicalContent("23", { stem: "Explain inheritance.", marks: 2 })).toBe(false);
+    });
+
+    test("digit plus irrelevant noun on explain stem does not bypass explanation demand", () => {
+      const result = assessSemanticReadiness({
+        marks: 2,
+        stem: "Explain how mitosis produces genetically identical daughter cells.",
+        markScheme: ["2 cells."],
+      });
+      expect(result.semanticReadiness).not.toBe(SEMANTIC_READINESS.PASS);
+    });
+
+    test("archived weak/meta negative points remain unspecific", () => {
+      const stem = "Explain a process.";
+      for (const point of ARCHIVED_NEGATIVE_POINTS) {
+        expect(hasSpecificBiologicalContent(point, { stem, marks: 2 })).toBe(false);
+      }
+    });
+
+    test("live DNA and Meiosis effective payloads pass scheme quality with stem", () => {
+      const dna = assessMarkSchemeQuality(
+        [
+          "The DNA double helix unwinds and the two strands separate.",
+          DNA_TEMPLATE_POINT,
+          "Complementary bases pair A–T and G–C, producing two DNA molecules with the same base sequence as the original.",
+        ],
+        { stem: DNA_REPLICATION_STEM, marks: 3 }
+      );
+      expect(dna.weakIndices).toHaveLength(0);
+
+      const meiosis = assessMarkSchemeQuality(["23 chromosomes."], { stem: MEIOSIS_STEM, marks: 1 });
+      expect(meiosis.weakIndices).toHaveLength(0);
+    });
   });
 });

@@ -35,6 +35,8 @@ function buildGoldenRepairRow(meta, genericPack, mastersById, studentPosition) {
   const semantic = assessSemanticReadiness({
     marks: meta.proposedMarks,
     markScheme: currentScheme,
+    stem: meta.proposedQuestion,
+    question: meta.proposedQuestion,
     markDemand: { verdict: "NATURAL" },
     overlapRisk: "LOW",
     schemeStatus: SCHEME_STATUS.READY,
