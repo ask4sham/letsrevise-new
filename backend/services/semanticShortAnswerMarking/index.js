@@ -7,6 +7,7 @@ const {
 } = require("./prompt");
 const { callSemanticMarkingLlm } = require("./llm");
 const { validateSemanticLlmPoints, deriveMarkingResult } = require("./validate");
+const { applySafetyDowngrades } = require("./safetyDowngrade");
 const { resolvePracticeQuestionForMarking } = require("./resolvePracticeQuestion");
 
 function rubricFingerprint(markScheme, question, marks) {
@@ -101,8 +102,9 @@ async function markShortAnswerSemantically(input) {
     });
 
     if (validation.ok) {
+      const safePoints = applySafetyDowngrades(validation.points);
       const derived = deriveMarkingResult(
-        validation.points,
+        safePoints,
         resolved.effectiveMarkScheme,
         resolved.effectiveMarks
       );
