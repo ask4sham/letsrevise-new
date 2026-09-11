@@ -2,6 +2,7 @@
  * Block 28 Phase 2 — mark-scheme quality and semantic-readiness rules.
  */
 const { normalizeMarkSchemeLines, validateShortMarksMarkSchemeInvariant } = require("../../../lib/block28PracticePolicy");
+const { isRubricCreditInstructionPoint } = require("../../../lib/block28RubricFragment");
 const { jaccardSimilarity, normalizeForCompare } = require("./qualityGates");
 
 const SCHEME_STATUS = Object.freeze({
@@ -184,26 +185,6 @@ function meaningfulContentWords(text) {
   return normalizeForCompare(text)
     .split(" ")
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
-}
-
-/**
- * Examiner credit instructions ("Mentions the chromosome.") — not awardable biological claims.
- * Targets short verb + article + head-noun rubric lines, not substantive prose.
- */
-function isRubricCreditInstructionPoint(point) {
-  const text = String(point || "").trim();
-  if (!text) return false;
-
-  const contentWords = meaningfulContentWords(text);
-  const rubricVerbTheSingleNoun =
-    /^(mentions?|names?|considers?|uses?|describes?|states?|identifies?)\s+the\s+[a-z]+\.?\s*$/i.test(text);
-  if (rubricVerbTheSingleNoun && contentWords.length <= 3) return true;
-
-  const rubricVerbAQualifiedNoun =
-    /^(names?|gives?)\s+(a|an)\s+(valid\s+|linked\s+|correct\s+|suitable\s+)?[a-z]+\.?\s*$/i.test(text);
-  if (rubricVerbAQualifiedNoun && contentWords.length <= 4) return true;
-
-  return false;
 }
 
 function isGenericRubricPhrase(point) {
