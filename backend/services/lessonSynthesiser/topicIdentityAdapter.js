@@ -54,6 +54,41 @@ const P1_TOPIC_BRIDGES = Object.freeze([
     tierMode: TIER_MODE.UNTIERED,
     displayTopic: "Gametes and Fertilisation",
   }),
+  Object.freeze({
+    id: "p1-edexcel-igcse-biology-sexual-vs-asexual",
+    teacherSpecKey: "edexcel-igcse-biology",
+    teacherTopicKey:
+      "edexcel-igcse-biology:sexual-and-asexual-reproduction-differences",
+    teacherCanonicalSlug: "sexual-and-asexual-reproduction-differences",
+    taxonomySource:
+      "backend/config/edexcel_igcse_biology_topics.json (key: sexual-and-asexual-reproduction-differences)",
+    synthesiserSpecKey: "edexcel-igcse-biology",
+    synthesiserTopicKey: "reproduction/sexual-vs-asexual-reproduction",
+    synthesiserSource:
+      "Lesson Synthesiser pack edexcel-igcse-biology TOPIC_PACKS reproduction/sexual-vs-asexual-reproduction",
+    subject: "Biology",
+    level: "IGCSE",
+    examBoard: "Edexcel",
+    tierMode: TIER_MODE.UNTIERED,
+    displayTopic: "Sexual and Asexual Reproduction: Differences",
+  }),
+  Object.freeze({
+    id: "p1-aqa-gcse-biology-sexual-asexual-reproduction",
+    teacherSpecKey: "aqa-gcse-biology",
+    teacherTopicKey: "aqa-gcse-biology:sexual-asexual-reproduction",
+    teacherCanonicalSlug: "sexual-asexual-reproduction",
+    taxonomySource:
+      "backend/config/aqa_gcse_biology_topics.json (key: sexual-asexual-reproduction)",
+    synthesiserSpecKey: "aqa-gcse-biology",
+    synthesiserTopicKey: "reproduction/sexual-reproduction",
+    synthesiserSource:
+      "Lesson Synthesiser pack aqa-gcse-biology TOPIC_PACKS reproduction/sexual-reproduction",
+    subject: "Biology",
+    level: "GCSE",
+    examBoard: "AQA",
+    tierMode: TIER_MODE.TIERED,
+    displayTopic: "Sexual and asexual reproduction",
+  }),
 ]);
 
 function normalizeSpecKey(specKey) {

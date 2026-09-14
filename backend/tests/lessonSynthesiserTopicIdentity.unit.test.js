@@ -71,8 +71,9 @@ describe("Lesson Synthesiser topic identity adapter (P1.3)", () => {
   test("I: status list and adapter agree on supported identity", () => {
     const statusList = listP1SupportedTopicIdentities();
     expect(statusList).toHaveLength(P1_TOPIC_BRIDGES.length);
-    expect(statusList[0].teacherTopicKey).toBe(TEACHER_GAMETES);
-    expect(statusList[0].topicKey).toBe(SYNTH_GAMETES);
+    const gametes = statusList.find((t) => t.teacherTopicKey === TEACHER_GAMETES);
+    expect(gametes).toBeTruthy();
+    expect(gametes.topicKey).toBe(SYNTH_GAMETES);
   });
 
   test("normalizeTeacherTopicIdentity preserves taxonomy namespaced key", () => {
