@@ -41,9 +41,11 @@ router.get("/lesson-synthesiser-v1/status", auth, (req, res) => {
     ok: true,
     enabled: isLessonSynthesiserV1Enabled(),
     supportedTopics: require("../services/lessonSynthesiser/supportedTopics")
-      .P1_SUPPORTED_TOPICS.map((t) => ({
+      .listP1SupportedTopicIdentities()
+      .map((t) => ({
         specKey: t.specKey,
         topicKey: t.topicKey,
+        teacherTopicKey: t.teacherTopicKey,
         tierMode: t.tierMode,
       })),
   });

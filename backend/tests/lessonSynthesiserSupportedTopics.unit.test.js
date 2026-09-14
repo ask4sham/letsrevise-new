@@ -12,12 +12,28 @@ describe("Lesson Synthesiser supported topics (P1)", () => {
       board: "Edexcel",
       topic: "Gametes and Fertilisation",
       specKey: "edexcel-igcse-biology",
-      topicKey: "edexcel-igcse-biology:reproduction/gametes-fertilisation",
+      topicKey: "edexcel-igcse-biology:gametes-and-fertilisation",
       tier: "Higher",
     });
     expect(mapped.ok).toBe(true);
     expect(mapped.synthesiseInput.tier).toBeUndefined();
     expect(mapped.synthesiseInput.topicKey).toBe("reproduction/gametes-fertilisation");
+  });
+
+  test("teacher taxonomy gametes-and-fertilisation maps to Synthesiser topicKey", () => {
+    const mapped = mapTeacherBodyToSynthesiseInput({
+      subject: "Biology",
+      level: "IGCSE",
+      board: "Edexcel",
+      topic: "Gametes & Fertilisation",
+      specKey: "edexcel-igcse-biology",
+      topicKey: "edexcel-igcse-biology:gametes-and-fertilisation",
+    });
+    expect(mapped.ok).toBe(true);
+    expect(mapped.synthesiseInput.topicKey).toBe("reproduction/gametes-fertilisation");
+    expect(mapped.teacherTopicKey).toBe(
+      "edexcel-igcse-biology:gametes-and-fertilisation"
+    );
   });
 
   test("unsupported topic returns SYNTHESISER_TOPIC_UNSUPPORTED", () => {

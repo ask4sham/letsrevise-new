@@ -28,7 +28,7 @@ function gametesTeacherBody(overrides = {}) {
     board: "Edexcel",
     topic: "Gametes and Fertilisation",
     specKey: "edexcel-igcse-biology",
-    topicKey: "edexcel-igcse-biology:reproduction/gametes-fertilisation",
+    topicKey: "edexcel-igcse-biology:gametes-and-fertilisation",
     tier: "Higher",
     ...overrides,
   };
@@ -86,6 +86,30 @@ describe("Lesson Synthesiser P1 — teacher generate route", () => {
     expect(res.status).toBe(404);
     expect(res.body.code).toBe("LESSON_SYNTHESISER_V1_DISABLED");
     expect(callLessonSynthesiser).not.toHaveBeenCalled();
+  });
+
+  test("flag ON + teacher taxonomy topicKey → maps and calls Synthesiser", async () => {
+    process.env.LESSON_SYNTHESISER_V1_ENABLED = "true";
+    callLessonSynthesiser.mockResolvedValue({
+      ok: true,
+      payload: successfulPipelinePayload(),
+    });
+
+    const res = await request(app)
+      .post("/api/ai/generate-with-lesson-synthesiser-v1")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send(
+        gametesTeacherBody({
+          topicKey: "edexcel-igcse-biology:gametes-and-fertilisation",
+          topic: "Gametes & Fertilisation",
+        })
+      );
+
+    expect(res.status).toBe(201);
+    expect(callLessonSynthesiser).toHaveBeenCalledTimes(1);
+    const synthInput = callLessonSynthesiser.mock.calls[0][0];
+    expect(synthInput.topicKey).toBe("reproduction/gametes-fertilisation");
+    expect(synthInput.tier).toBeUndefined();
   });
 
   test("flag ON + supported topic → calls Synthesiser and creates lesson", async () => {

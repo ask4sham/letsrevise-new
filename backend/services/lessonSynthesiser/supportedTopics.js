@@ -2,51 +2,34 @@
 
 /**
  * P1 allowlist — only route topics with shipped Synthesiser curriculum packs.
- * Do not claim production parity for unlisted topics.
+ * Teacher taxonomy → Synthesiser identity is resolved in topicIdentityAdapter.js.
  */
 
 const { boardSubjectToSpecKey } = require("../syllabusAlignment");
 const { parseTopicKey } = require("../../utils/topicKey");
+const {
+  TIER_MODE,
+  mapTeacherIdentityToSynthesiserIdentity,
+  listP1SupportedTopicIdentities,
+  findBridgeBySynthesiserIdentity,
+} = require("./topicIdentityAdapter");
 
-const TIER_MODE = Object.freeze({
-  TIERED: "TIERED",
-  UNTIERED: "UNTIERED",
-});
-
-const P1_SUPPORTED_TOPICS = Object.freeze([
-  Object.freeze({
-    id: "edexcel-igcse-biology:reproduction/gametes-fertilisation",
-    specKey: "edexcel-igcse-biology",
-    topicKey: "reproduction/gametes-fertilisation",
-    subject: "Biology",
-    level: "IGCSE",
-    examBoard: "Edexcel",
-    tierMode: TIER_MODE.UNTIERED,
-    displayTopic: "Gametes and Fertilisation",
-  }),
-]);
-
-function normalizeSpecKey(specKey) {
-  return String(specKey || "")
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, "-");
-}
-
-function stripTopicKeyNamespace(topicKey, specKey) {
-  const raw = String(topicKey || "").trim();
-  if (!raw) return "";
-  const normalizedSpec = normalizeSpecKey(specKey);
-  const colonIdx = raw.indexOf(":");
-  if (colonIdx > 0) {
-    const prefix = normalizeSpecKey(raw.slice(0, colonIdx));
-    if (prefix === normalizedSpec) {
-      return raw.slice(colonIdx + 1).trim();
-    }
-    return raw.slice(colonIdx + 1).trim();
-  }
-  return raw;
-}
+/** @deprecated use listP1SupportedTopicIdentities — kept for tests importing P1_SUPPORTED_TOPICS */
+const P1_SUPPORTED_TOPICS = Object.freeze(
+  listP1SupportedTopicIdentities().map((t) =>
+    Object.freeze({
+      id: `${t.specKey}:${t.topicKey}`,
+      specKey: t.specKey,
+      topicKey: t.topicKey,
+      teacherTopicKey: t.teacherTopicKey,
+      subject: "Biology",
+      level: "IGCSE",
+      examBoard: "Edexcel",
+      tierMode: t.tierMode,
+      displayTopic: t.displayTopic,
+    })
+  )
+);
 
 function resolveSpecKeyFromTeacherBody(body) {
   const direct =
@@ -65,18 +48,8 @@ function resolveSpecKeyFromTeacherBody(body) {
   );
 }
 
-function findSupportedTopic(specKey, topicKeyBare) {
-  const spec = normalizeSpecKey(specKey);
-  const topic = String(topicKeyBare || "").trim();
-  return P1_SUPPORTED_TOPICS.find(
-    (entry) =>
-      normalizeSpecKey(entry.specKey) === spec &&
-      entry.topicKey === topic
-  );
-}
-
 /**
- * @returns {{ ok: true, entry, synthesiseInput } | { ok: false, code, message }}
+ * @returns {{ ok: true, entry, synthesiseInput, teacherTopicKey } | { ok: false, code, message }}
  */
 function mapTeacherBodyToSynthesiseInput(body) {
   const subject = String(body?.subject || "").trim();
@@ -84,36 +57,40 @@ function mapTeacherBodyToSynthesiseInput(body) {
   const examBoard = String(body?.board || "").trim();
   const topic = String(body?.topic || "").trim();
   const specKey = resolveSpecKeyFromTeacherBody(body);
-  const topicKeyBare = stripTopicKeyNamespace(body?.topicKey, specKey);
 
-  if (!specKey || !topicKeyBare) {
-    return {
-      ok: false,
-      code: "SYNTHESISER_INPUT_INCOMPLETE",
-      message: "specKey and topicKey are required for Lesson Synthesiser generation.",
-    };
+  const identity = mapTeacherIdentityToSynthesiserIdentity({
+    specKey,
+    topicKey: body?.topicKey,
+    canonicalTopicKey: body?.canonicalTopicKey,
+  });
+
+  if (!identity.ok) {
+    return identity;
   }
 
-  const entry = findSupportedTopic(specKey, topicKeyBare);
+  const bridge = identity.bridge;
+  const entry = findBridgeBySynthesiserIdentity(
+    identity.synthesiserSpecKey,
+    identity.synthesiserTopicKey
+  );
   if (!entry) {
     return {
       ok: false,
       code: "SYNTHESISER_TOPIC_UNSUPPORTED",
-      message:
-        `Topic is not supported by Lesson Synthesiser P1 (${specKey} / ${topicKeyBare}). Use legacy AI generator or choose a supported topic.`,
+      message: "Internal P1 topic bridge missing for resolved Synthesiser identity.",
     };
   }
 
   const synthesiseInput = {
-    subject: entry.subject || subject,
-    level: entry.level || level,
-    examBoard: entry.examBoard || examBoard,
-    topic: topic || entry.displayTopic,
-    specKey: entry.specKey,
-    topicKey: entry.topicKey,
+    subject: bridge.subject || subject,
+    level: bridge.level || level,
+    examBoard: bridge.examBoard || examBoard,
+    topic: topic || bridge.displayTopic,
+    specKey: bridge.synthesiserSpecKey,
+    topicKey: bridge.synthesiserTopicKey,
   };
 
-  if (entry.tierMode === TIER_MODE.TIERED) {
+  if (bridge.tierMode === TIER_MODE.TIERED) {
     const tierRaw = String(body?.tier || "").trim();
     if (tierRaw) {
       const normalized =
@@ -130,13 +107,28 @@ function mapTeacherBodyToSynthesiseInput(body) {
     synthesiseInput.teacherNotes = body.teacherNotes.trim();
   }
 
-  return { ok: true, entry, synthesiseInput };
+  return {
+    ok: true,
+    entry: {
+      id: bridge.id,
+      specKey: bridge.synthesiserSpecKey,
+      topicKey: bridge.synthesiserTopicKey,
+      teacherTopicKey: bridge.teacherTopicKey,
+      tierMode: bridge.tierMode,
+      displayTopic: bridge.displayTopic,
+      subject: bridge.subject,
+      level: bridge.level,
+      examBoard: bridge.examBoard,
+    },
+    synthesiseInput,
+    teacherTopicKey: bridge.teacherTopicKey,
+  };
 }
 
 module.exports = {
   TIER_MODE,
   P1_SUPPORTED_TOPICS,
   mapTeacherBodyToSynthesiseInput,
-  stripTopicKeyNamespace,
-  findSupportedTopic,
+  listP1SupportedTopicIdentities,
+  mapTeacherIdentityToSynthesiserIdentity,
 };
