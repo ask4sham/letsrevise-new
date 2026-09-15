@@ -72,6 +72,74 @@ const P1_TOPIC_BRIDGES = Object.freeze([
     tierMode: TIER_MODE.UNTIERED,
     displayTopic: "Sexual and Asexual Reproduction: Differences",
   }),
+  Object.freeze({
+    id: "p1-edexcel-igcse-biology-photosynthesis-process",
+    teacherSpecKey: "edexcel-igcse-biology",
+    teacherTopicKey: "edexcel-igcse-biology:the-process-of-photosynthesis",
+    teacherCanonicalSlug: "the-process-of-photosynthesis",
+    taxonomySource:
+      "backend/config/edexcel_igcse_biology_topics.json (key: the-process-of-photosynthesis)",
+    synthesiserSpecKey: "edexcel-igcse-biology",
+    synthesiserTopicKey: "photosynthesis/the-process-of-photosynthesis",
+    synthesiserSource:
+      "Lesson Synthesiser pack edexcel-igcse-biology photosynthesis/the-process-of-photosynthesis",
+    subject: "Biology",
+    level: "IGCSE",
+    examBoard: "Edexcel",
+    tierMode: TIER_MODE.UNTIERED,
+    displayTopic: "The Process of Photosynthesis",
+  }),
+  Object.freeze({
+    id: "p1-edexcel-igcse-biology-levels-of-organisation",
+    teacherSpecKey: "edexcel-igcse-biology",
+    teacherTopicKey: "edexcel-igcse-biology:levels-of-organisation",
+    teacherCanonicalSlug: "levels-of-organisation",
+    taxonomySource:
+      "backend/config/edexcel_igcse_biology_topics.json (key: levels-of-organisation)",
+    synthesiserSpecKey: "edexcel-igcse-biology",
+    synthesiserTopicKey: "organisation/levels-of-organisation",
+    synthesiserSource:
+      "Lesson Synthesiser pack edexcel-igcse-biology organisation/levels-of-organisation",
+    subject: "Biology",
+    level: "IGCSE",
+    examBoard: "Edexcel",
+    tierMode: TIER_MODE.UNTIERED,
+    displayTopic: "Levels of Organisation",
+  }),
+  Object.freeze({
+    id: "p1-edexcel-igcse-biology-pathogens",
+    teacherSpecKey: "edexcel-igcse-biology",
+    teacherTopicKey: "edexcel-igcse-biology:pathogens",
+    teacherCanonicalSlug: "pathogens",
+    taxonomySource: "backend/config/edexcel_igcse_biology_topics.json (key: pathogens)",
+    synthesiserSpecKey: "edexcel-igcse-biology",
+    synthesiserTopicKey: "variety/pathogens",
+    synthesiserSource:
+      "Lesson Synthesiser pack edexcel-igcse-biology variety/pathogens",
+    subject: "Biology",
+    level: "IGCSE",
+    examBoard: "Edexcel",
+    tierMode: TIER_MODE.UNTIERED,
+    displayTopic: "Pathogens",
+  }),
+  Object.freeze({
+    id: "p1-edexcel-igcse-biology-animal-plant-cells",
+    teacherSpecKey: "edexcel-igcse-biology",
+    teacherTopicKey:
+      "edexcel-igcse-biology:animal-and-plant-cells-similarities-and-differences",
+    teacherCanonicalSlug: "animal-and-plant-cells-similarities-and-differences",
+    taxonomySource:
+      "backend/config/edexcel_igcse_biology_topics.json (key: animal-and-plant-cells-similarities-and-differences)",
+    synthesiserSpecKey: "edexcel-igcse-biology",
+    synthesiserTopicKey: "cells/animal-and-plant-cells-similarities-and-differences",
+    synthesiserSource:
+      "Lesson Synthesiser pack edexcel-igcse-biology cells/animal-and-plant-cells-similarities-and-differences",
+    subject: "Biology",
+    level: "IGCSE",
+    examBoard: "Edexcel",
+    tierMode: TIER_MODE.UNTIERED,
+    displayTopic: "Animal & Plant Cells: Similarities & Differences",
+  }),
 ]);
 
 function normalizeSpecKey(specKey) {

@@ -19,8 +19,8 @@ const TEACHER_EDEXCEL_SEXUAL_ASEXUAL =
 const TEACHER_AQA_SEXUAL_ASEXUAL = "aqa-gcse-biology:sexual-asexual-reproduction";
 
 describe("E0.1R semantic topic-bridge integrity", () => {
-  test("A: bridge table is Edexcel-only (two valid semantic bridges)", () => {
-    expect(P1_TOPIC_BRIDGES).toHaveLength(2);
+  test("A: bridge table is Edexcel-only (six valid semantic bridges)", () => {
+    expect(P1_TOPIC_BRIDGES).toHaveLength(6);
     const teacherKeys = P1_TOPIC_BRIDGES.map((b) => b.teacherTopicKey);
     expect(teacherKeys).toContain(TEACHER_EDEXCEL_GAMETES);
     expect(teacherKeys).toContain(TEACHER_EDEXCEL_SEXUAL_ASEXUAL);
