@@ -93,6 +93,7 @@ import {
   isGeneratorExportV1,
   buildPagesFromGeneratorExport,
   lessonMetaFromExport,
+  resolveCheckpointBlockForCreateLessonPersist,
 } from "../utils/lessonGeneratorImport";
 import { applyCreateLessonTaxonomyPayloadFields } from "../utils/createLessonTaxonomyPayloadFields";
 import {
@@ -1499,19 +1500,17 @@ const CreateLessonPage: React.FC = () => {
           out.number = Math.trunc(blockNum);
         }
         if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
-        if (blockType === "checkpoint" && p.checkpoint) {
-          const bcp = b as LessonPageBlock;
-          const qType = bcp.questionType === "short" ? "short" : "mcq";
-          out.prompt = safeStr(p.checkpoint.question, "");
-          out.questionType = qType;
-          out.options =
-            qType === "short"
-              ? []
-              : clampOptions((p.checkpoint.options || []) as string[]);
-          out.correctAnswer = safeStr(p.checkpoint.answer, "");
-          const chkExpl = safeStr(p.checkpoint.explanation, "").trim();
-          if (chkExpl) out.explanation = chkExpl;
-          const chkMs = checkpointMarkSchemeForBlockPersist(p.checkpoint.markScheme);
+        if (blockType === "checkpoint") {
+          const persisted = resolveCheckpointBlockForCreateLessonPersist(
+            b as Record<string, unknown>,
+            p.checkpoint
+          );
+          out.prompt = persisted.prompt;
+          out.questionType = persisted.questionType;
+          out.options = persisted.options;
+          out.correctAnswer = persisted.correctAnswer;
+          if (persisted.explanation) out.explanation = persisted.explanation;
+          const chkMs = checkpointMarkSchemeForBlockPersist(persisted.markScheme);
           if (chkMs) out.markScheme = chkMs;
         }
         if (blockType === "selfCheck") {

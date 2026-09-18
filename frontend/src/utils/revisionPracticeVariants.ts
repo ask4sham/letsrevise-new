@@ -2,6 +2,11 @@
  * Build revision-practice MCQs that reinforce checkpoint concepts without repeating exact stems.
  */
 import type { DerivedQuizQuestion } from "./deriveLessonRetrieval";
+import { extractActivityQuestionsFromBlock } from "./activityQuestionsFromBlock";
+import {
+  isGenericPlaceholderCheckpointPrompt,
+  isPlaceholderMcqOptions,
+} from "./mcqPlaceholderOptions";
 import {
   DEFAULT_DUPLICATE_THRESHOLD,
   isNearDuplicateStem,
@@ -258,6 +263,63 @@ export function collectCheckpointMcqsFromPages(
     }
   }
   return out;
+}
+
+/** Real imported pageQuiz MCQs — used when checkpoint/self-check items are short. */
+export function collectPageQuizMcqsFromPages(
+  pages: Array<{ pageId?: string; blocks?: unknown[] }>
+): CheckpointMcqSource[] {
+  const out: CheckpointMcqSource[] = [];
+  const seen = new Set<string>();
+  for (const p of pages) {
+    const pageId = safeStr(p?.pageId) || undefined;
+    const blocks = Array.isArray(p?.blocks) ? p.blocks : [];
+    for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+      const raw = blocks[blockIndex];
+      if (!raw || typeof raw !== "object") continue;
+      const b = raw as LooseBlock;
+      if (blockType(b) !== "pagequiz") continue;
+      const extracted = extractActivityQuestionsFromBlock(b);
+      extracted.forEach((item, qi) => {
+        if (item.questionType !== "mcq") return;
+        if (!item.prompt || item.options.length < 2 || !item.correctAnswer) return;
+        if (isGenericPlaceholderCheckpointPrompt(item.prompt)) return;
+        if (isPlaceholderMcqOptions(item.options)) return;
+        const bank = Array.isArray(b.questions) ? b.questions : [];
+        const qid =
+          bank[qi] && typeof bank[qi] === "object"
+            ? safeStr((bank[qi] as LooseBlock).id)
+            : "";
+        pushCheckpointMcq(
+          out,
+          seen,
+          attachBlockIdentity(
+            b,
+            {
+              prompt: item.prompt,
+              options: item.options,
+              correctAnswer: item.correctAnswer,
+              explanation: item.explanation,
+            },
+            { pageId, blockIndex, questionId: qid || undefined }
+          )
+        );
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Revision Practice MCQ sources: checkpoint/self-check MCQs when present;
+ * otherwise the imported pageQuiz MCQs (do not invent filler).
+ */
+export function collectRevisionPracticeMcqSources(
+  pages: Array<{ pageId?: string; blocks?: unknown[]; checkpoint?: unknown }>
+): CheckpointMcqSource[] {
+  const fromCheckpoints = collectCheckpointMcqsFromPages(pages);
+  if (fromCheckpoints.length > 0) return fromCheckpoints;
+  return collectPageQuizMcqsFromPages(pages);
 }
 
 export function buildRevisionVariantsFromCheckpoints(

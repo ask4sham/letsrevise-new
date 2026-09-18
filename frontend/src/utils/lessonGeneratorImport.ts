@@ -20,6 +20,7 @@ import {
 import { coerceLessonMcqOptionsFour } from "./parseFlexibleCheckpointPaste";
 import { applyDifficultyToMarkScheme, normalizeCheckpointDifficultyTier } from "./checkpointDifficulty";
 import {
+  isGenericPlaceholderCheckpointPrompt,
   isPlaceholderMcqOptions,
   recoverMcqFieldsFromBlockContent,
 } from "./mcqPlaceholderOptions";
@@ -215,14 +216,119 @@ function pageCheckpointFromFirstBlock(
     : ([] as string[]);
   const hasMcqBody =
     opts.filter((o) => o.trim() && !isPlaceholderMcqOptions([o])).length >= 2 && q.length > 0;
-  if (!hasMcqBody) return empty;
-  return {
-    question: q || fallback.question,
-    options: opts,
-    answer: ans || opts.find(Boolean) || fallback.answer,
-    explanation: expl,
-    markScheme,
+  if (hasMcqBody) {
+    return {
+      question: q || fallback.question,
+      options: opts,
+      answer: ans || opts.find(Boolean) || fallback.answer,
+      explanation: expl,
+      markScheme,
+    };
+  }
+  const isShortType = String(cp.questionType ?? "").toLowerCase() === "short";
+  if (isShortType && q.length > 0 && ans.length > 0) {
+    return {
+      question: q,
+      options: ["", "", "", ""],
+      answer: ans,
+      explanation: expl,
+      markScheme,
+    };
+  }
+  return empty;
+}
+
+function fourMcqOptions(raw: unknown): string[] {
+  return padOptions(raw);
+}
+
+/** True when page.checkpoint has real question data (not empty / Option 1–4 filler). */
+export function isMeaningfulPageLevelCheckpoint(
+  cp:
+    | {
+        question?: unknown;
+        answer?: unknown;
+        options?: unknown;
+      }
+    | null
+    | undefined
+): boolean {
+  if (!cp || typeof cp !== "object") return false;
+  const q = String(cp.question ?? "").trim();
+  const a = String(cp.answer ?? "").trim();
+  if (!q || isGenericPlaceholderCheckpointPrompt(q)) return false;
+  const opts = Array.isArray(cp.options)
+    ? cp.options.map((o) => String(o ?? "").trim()).filter(Boolean)
+    : [];
+  if (opts.length > 0 && isPlaceholderMcqOptions(opts)) return false;
+  if (a) return true;
+  return opts.filter((o) => o && !isPlaceholderMcqOptions([o])).length >= 2;
+}
+
+export type CreateLessonCheckpointPersistFields = {
+  prompt: string;
+  questionType: "short" | "mcq";
+  options: string[];
+  correctAnswer: string;
+  explanation?: string;
+  markScheme?: string[];
+};
+
+/**
+ * Create Lesson persist: keep a real imported checkpoint block when page.checkpoint
+ * is empty or legacy filler. Never convert short → MCQ.
+ */
+export function resolveCheckpointBlockForCreateLessonPersist(
+  block: Record<string, unknown>,
+  pageCheckpoint?: {
+    question?: unknown;
+    answer?: unknown;
+    options?: unknown;
+    explanation?: unknown;
+    markScheme?: unknown;
+  } | null
+): CreateLessonCheckpointPersistFields {
+  const qType =
+    String(block.questionType ?? "").toLowerCase() === "short" ? "short" : "mcq";
+  const blockPrompt = String(
+    block.prompt ?? (block as { question?: unknown }).question ?? ""
+  ).trim();
+  const blockAnswer = String(
+    block.correctAnswer ?? (block as { answer?: unknown }).answer ?? ""
+  ).trim();
+  const blockExpl = String(block.explanation ?? "").trim();
+  const blockOpts = Array.isArray(block.options)
+    ? block.options.map((o) => String(o ?? "").trim())
+    : [];
+  const blockMs = Array.isArray(block.markScheme)
+    ? block.markScheme.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+    : [];
+
+  const usePage = isMeaningfulPageLevelCheckpoint(pageCheckpoint);
+  const pageQ = String(pageCheckpoint?.question ?? "").trim();
+  const pageA = String(pageCheckpoint?.answer ?? "").trim();
+  const pageExpl = String(pageCheckpoint?.explanation ?? "").trim();
+  const pageOpts = Array.isArray(pageCheckpoint?.options)
+    ? pageCheckpoint.options.map((o) => String(o ?? "").trim())
+    : [];
+  const pageMs = Array.isArray(pageCheckpoint?.markScheme)
+    ? pageCheckpoint.markScheme.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+    : [];
+
+  const prompt = usePage ? pageQ : blockPrompt;
+  const correctAnswer = usePage ? pageA : blockAnswer;
+  const explanation = (usePage && pageExpl ? pageExpl : blockExpl) || pageExpl;
+  const markScheme = usePage && pageMs.length ? pageMs : blockMs;
+
+  const out: CreateLessonCheckpointPersistFields = {
+    prompt,
+    questionType: qType,
+    options: qType === "short" ? [] : fourMcqOptions(usePage ? pageOpts : blockOpts),
+    correctAnswer,
   };
+  if (explanation) out.explanation = explanation;
+  if (markScheme.length) out.markScheme = markScheme;
+  return out;
 }
 
 type ImportLessonMeta = { topic?: string; title?: string };
