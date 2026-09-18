@@ -24,6 +24,7 @@ import {
 import {
   collectCheckpointMcqsFromPages,
   collectPageQuizMcqsFromPages,
+  collectRevisionPracticeMcqSources,
 } from "./revisionPracticeVariants";
 /* eslint-enable import/first */
 
@@ -386,6 +387,101 @@ describe("practice import persist (short checkpoints + pageQuiz MCQs)", () => {
     expect(
       allBlocks.some((b) => String((b as { examQuestionId?: unknown }).examQuestionId || "").trim())
     ).toBe(false);
+  });
+
+  test("8. persisted filler checkpoint/selfCheck MCQs do not block pageQuiz fallback", () => {
+    const livePersistedShape = [
+      {
+        pageId: "practise",
+        blocks: [
+          {
+            type: "selfCheck",
+            questionType: "short",
+            prompt:
+              "What happens to the proportion of antibiotic-resistant bacteria as antibiotic resistance increases in a bacterial population?",
+            options: [],
+            correctAnswer: "The proportion of antibiotic-resistant bacteria increases.",
+          },
+          {
+            type: "checkpoint",
+            questionType: "mcq",
+            prompt: "Which statement is correct?",
+            options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+            correctAnswer: "Option 1",
+          },
+          {
+            type: "selfCheck",
+            questionType: "mcq",
+            prompt: "Which statement is correct?",
+            options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+            correctAnswer: "Option 1",
+          },
+          {
+            type: "selfCheck",
+            questionType: "mcq",
+            prompt: "Which statement is correct?",
+            options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+            correctAnswer: "Option 1",
+          },
+          {
+            type: "pageQuiz",
+            questions: QUIZ_MCQS,
+          },
+        ],
+      },
+    ];
+
+    expect(collectCheckpointMcqsFromPages(livePersistedShape)).toHaveLength(0);
+    const sources = collectRevisionPracticeMcqSources(livePersistedShape);
+    expect(sources).toHaveLength(5);
+    expect(sources.map((s) => s.prompt)).toEqual(QUIZ_MCQS.map((q) => q.prompt));
+    const pool = buildRevisionPracticePool(livePersistedShape, [], 5);
+    expect(pool).toHaveLength(5);
+    expect(fillerCount(pool.flatMap((q) => [q.question, ...q.options]))).toBe(0);
+    expect(pool.map((q) => q.question)).toEqual(QUIZ_MCQS.map((q) => q.prompt));
+  });
+
+  test("9. real checkpoint MCQs still take precedence over pageQuiz; filler siblings are ignored", () => {
+    const mixed = [
+      {
+        pageId: "practise",
+        blocks: [
+          {
+            type: "checkpoint",
+            questionType: "mcq",
+            prompt: "What is produced by mitosis?",
+            options: [
+              "Two genetically identical daughter cells",
+              "Four gametes",
+              "A haploid zygote",
+              "Two different species",
+            ],
+            correctAnswer: "Two genetically identical daughter cells",
+          },
+          {
+            type: "selfCheck",
+            questionType: "mcq",
+            prompt: "Which statement is correct?",
+            options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+            correctAnswer: "Option 1",
+          },
+          {
+            type: "pageQuiz",
+            questions: QUIZ_MCQS,
+          },
+        ],
+      },
+    ];
+    const checkpoints = collectCheckpointMcqsFromPages(mixed);
+    expect(checkpoints).toHaveLength(1);
+    expect(checkpoints[0].prompt).toContain("mitosis");
+    const sources = collectRevisionPracticeMcqSources(mixed);
+    expect(sources).toHaveLength(1);
+    expect(sources[0].prompt).toContain("mitosis");
+    const pool = buildRevisionPracticePool(mixed, [], 5);
+    expect(pool.length).toBeGreaterThanOrEqual(1);
+    expect(pool.some((q) => /mitosis/i.test(q.question))).toBe(true);
+    expect(fillerCount(pool.flatMap((q) => [q.question, ...q.options]))).toBe(0);
   });
 
   test("filler string count across import persist + revision is zero", () => {

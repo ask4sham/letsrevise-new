@@ -150,6 +150,11 @@ export function createRevisionVariantFromCheckpoint(
   };
 }
 
+/** Legacy sanitizer filler must not count as a Revision Practice checkpoint source. */
+function isKnownFillerRevisionMcq(prompt: string, options: string[]): boolean {
+  return isGenericPlaceholderCheckpointPrompt(prompt) || isPlaceholderMcqOptions(options);
+}
+
 function attachBlockIdentity(
   b: LooseBlock,
   mcq: Omit<CheckpointMcqSource, "sourceBlockId" | "sourceQuestionId" | "sourcePageId" | "sourceBlockIndex">,
@@ -176,6 +181,7 @@ export function extractCheckpointMcqFromBlock(
   const opts = Array.isArray(b.options) ? b.options.map((o) => safeStr(o)).filter(Boolean) : [];
   const ca = safeStr(b.correctAnswer ?? b.answer);
   if (!prompt || opts.length < 2 || !ca) return null;
+  if (isKnownFillerRevisionMcq(prompt, opts)) return null;
   return attachBlockIdentity(
     b,
     {
@@ -204,6 +210,7 @@ export function extractCheckpointMcqsFromBlock(
       const opts = Array.isArray(q.options) ? q.options.map((o) => safeStr(o)).filter(Boolean) : [];
       const ca = safeStr(q.correctAnswer ?? q.answer);
       if (!prompt || opts.length < 2 || !ca) continue;
+      if (isKnownFillerRevisionMcq(prompt, opts)) continue;
       out.push(
         attachBlockIdentity(
           b,
