@@ -9,16 +9,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const lessonSynthesiserAuth = require("../middleware/lessonSynthesiserAuth");
 const {
-  validateLessonSynthesiserDraftEnvelope,
-} = require("../utils/lessonSynthesiserDraftValidator");
-const {
-  adaptSynthesiserDraftToLessonCreate,
-} = require("../utils/lessonSynthesiserDraftAdapter");
-const { groundLessonQuizBeforePersist } = require("../utils/groundLessonQuizBeforePersist");
-const {
-  auditAndLogSynthesiserPageQuizShadow,
-} = require("../utils/synthesiserPageQuizAlignmentAudit");
-const Lesson = require("../models/Lesson");
+  createLessonFromSynthesiserEnvelope,
+} = require("../services/lessonSynthesiser/createLessonFromSynthesiserEnvelope");
 const User = require("../models/User");
 
 const router = express.Router();
@@ -34,17 +26,6 @@ function fail(res, status, code, message, errors = []) {
 
 router.post("/drafts", lessonSynthesiserAuth, async (req, res) => {
   try {
-    const validation = validateLessonSynthesiserDraftEnvelope(req.body);
-    if (!validation.ok) {
-      return fail(
-        res,
-        400,
-        validation.errors[0]?.code || "SYNTHESISER_VALIDATION_FAILED",
-        "Lesson Synthesiser draft validation failed.",
-        validation.errors
-      );
-    }
-
     const ownerTeacherIdRaw = process.env.LETSREVISE_SYNTHESISER_OWNER_TEACHER_ID;
     if (ownerTeacherIdRaw == null || !String(ownerTeacherIdRaw).trim()) {
       return fail(
@@ -89,46 +70,31 @@ router.post("/drafts", lessonSynthesiserAuth, async (req, res) => {
       [owner.firstName, owner.lastName].filter(Boolean).join(" ").trim() ||
       "Lesson Synthesiser";
 
-    const createDoc = adaptSynthesiserDraftToLessonCreate(req.body.draft, {
+    const saved = await createLessonFromSynthesiserEnvelope(req.body, {
       ownerTeacherId: owner._id,
       teacherName,
+      generationProvenance: {
+        generationEngine: "lesson-synthesiser",
+        path: "service-push-lesson-synthesiser-drafts",
+        generatedAt: new Date().toISOString(),
+      },
     });
 
-    groundLessonQuizBeforePersist(createDoc);
-
-    try {
-      auditAndLogSynthesiserPageQuizShadow(createDoc);
-    } catch (shadowAuditError) {
-      console.warn("[TeacherBrain][PageQuizShadow] audit failed (fail-open)", {
-        message: shadowAuditError?.message || String(shadowAuditError),
-        topicKey: createDoc?.topicKey || null,
-        specKey: createDoc?.specKey || null,
-      });
+    if (!saved.ok) {
+      const status =
+        saved.code === "SYNTHESISER_VALIDATION_FAILED" ||
+        (Array.isArray(saved.errors) && saved.errors.length > 0)
+          ? 400
+          : 422;
+      return fail(res, status, saved.code, saved.message, saved.errors || []);
     }
 
-    // Force draft / unpublished immediately before save (defence in depth).
-    createDoc.status = "draft";
-    createDoc.isPublished = false;
-
-    const lesson = new Lesson(createDoc);
-    lesson.status = "draft";
-    lesson.isPublished = false;
-    await lesson.save();
-
-    // Re-read alignment after pre-save hook.
-    if (lesson.status !== "draft" || lesson.isPublished !== false) {
-      lesson.status = "draft";
-      lesson.isPublished = false;
-      await lesson.save();
-    }
-
-    const lessonId = String(lesson._id);
     return res.status(201).json({
       ok: true,
-      lessonId,
-      status: "draft",
-      isPublished: false,
-      editPath: `/edit-lesson/${lessonId}`,
+      lessonId: saved.lessonId,
+      status: saved.status,
+      isPublished: saved.isPublished,
+      editPath: saved.editPath,
     });
   } catch (err) {
     return fail(

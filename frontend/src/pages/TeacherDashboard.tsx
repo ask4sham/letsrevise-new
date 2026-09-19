@@ -26,6 +26,11 @@ import {
   formatV2GenerateError,
   isSuccessfulV2DraftSave,
 } from "../utils/lessonGeneratorV2Ui";
+import {
+  isLessonSynthesiserV1UiEnabled,
+  buildLessonSynthesiserV1GeneratePayload,
+  formatLessonSynthesiserV1Error,
+} from "../utils/lessonSynthesiserV1Ui";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -206,7 +211,9 @@ const TeacherDashboard: React.FC = () => {
   const [aiV2Error, setAiV2Error] = useState<string>("");
   const [aiV2Success, setAiV2Success] = useState<string>("");
   const showLessonGeneratorV2Ui = isLessonGeneratorV2UiEnabled();
-  const aiBusy = aiLoading || aiV2Loading;
+  const showLessonSynthesiserV1Ui = isLessonSynthesiserV1UiEnabled();
+  const [aiSynthLoading, setAiSynthLoading] = useState(false);
+  const aiBusy = aiLoading || aiV2Loading || aiSynthLoading;
   const [aiForm, setAiForm] = useState({
     subject: "Biology",
     level: "GCSE",
@@ -829,6 +836,58 @@ const TeacherDashboard: React.FC = () => {
       setAiError(display);
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  /**
+   * Phase P1 — hardened Lesson Synthesiser service (/synthesise), feature-gated.
+   * Does not replace legacy Generate Draft; no silent fallback on failure.
+   */
+  const handleLessonSynthesiserV1Generate = async () => {
+    const topic = (aiForm.topic || "").trim();
+    const topicKey = (aiForm.topicKey || "").trim();
+    if (!topic && !topicKey) {
+      setAiError("Please select a sub-topic or enter Topic (display).");
+      return;
+    }
+
+    setAiError("");
+    setAiV2Error("");
+    setAiSynthLoading(true);
+    try {
+      const payload = buildLessonSynthesiserV1GeneratePayload(
+        {
+          subject: aiForm.subject,
+          level: aiForm.level,
+          topic,
+          topicKey,
+          board: aiForm.board,
+          tier: aiForm.tier,
+          specKey: aiTopicSelection.specKey,
+        },
+        aiTopicSelection.mainTopicTitle || ""
+      );
+
+      const res = await api.post("/ai/generate-with-lesson-synthesiser-v1", payload, {
+        timeout: 600000,
+      });
+      const lessonId = res?.data?.lessonId;
+      if (!lessonId) {
+        setAiError("Lesson Synthesiser saved a draft, but no lessonId returned.");
+        return;
+      }
+
+      setAiOpen(false);
+      await fetchLessonsFromBackend();
+      await fetchTeacherStatsFromBackend();
+      navigate(`/edit-lesson/${lessonId}`, {
+        state: { generationWarning: "Generated with Lesson Synthesiser (P1)" },
+      });
+    } catch (err: any) {
+      console.error("Lesson Synthesiser generate failed:", err);
+      setAiError(formatLessonSynthesiserV1Error(err));
+    } finally {
+      setAiSynthLoading(false);
     }
   };
 
@@ -2922,6 +2981,30 @@ const TeacherDashboard: React.FC = () => {
                 >
                   {aiLoading ? "Generating..." : "Generate Draft"}
                 </button>
+
+                {showLessonSynthesiserV1Ui ? (
+                  <button
+                    data-testid="generate-with-lesson-synthesiser-v1"
+                    onClick={handleLessonSynthesiserV1Generate}
+                    disabled={aiBusy || !aiTopicOk}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid #047857",
+                      background: aiBusy || !aiTopicOk ? "#6ee7b7" : "#059669",
+                      color: "white",
+                      cursor: aiBusy || !aiTopicOk ? "not-allowed" : "pointer",
+                      fontWeight: 800,
+                    }}
+                    title={
+                      !aiTopicOk
+                        ? "Select a supported topic (P1: Edexcel IGCSE gametes/fertilisation)"
+                        : "Hardened Lesson Synthesiser — no legacy AI fallback"
+                    }
+                  >
+                    {aiSynthLoading ? "Synthesising..." : "Generate with Lesson Synthesiser"}
+                  </button>
+                ) : null}
 
                 {showLessonGeneratorV2Ui ? (
                   <button

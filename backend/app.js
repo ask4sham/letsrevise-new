@@ -356,6 +356,7 @@ app.use("/api/teachers", require("./routes/teachers"));
 app.use("/api/lesson-synthesiser", require("./routes/lessonSynthesiserDrafts"));
 app.use("/api/reviews", require("./routes/reviews"));
 app.use("/api/ai", require("./routes/ai"));
+app.use("/api/ai", require("./routes/lessonSynthesiserGenerate"));
 app.use("/api/ai", require("./routes/aiLessonV2"));
 app.use("/api/taxonomy", require("./routes/taxonomy"));
 app.use("/api/admin/bulk-import", require("./routes/adminBulkImport"));

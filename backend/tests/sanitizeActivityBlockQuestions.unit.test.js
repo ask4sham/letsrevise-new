@@ -177,4 +177,52 @@ describe("sanitizeActivityBlockQuestions", () => {
     expect(block.questions).toHaveLength(5);
     expect(validateActivityQuestionBank(block.questions).ok).toBe(true);
   });
+
+  test("keeps a valid short checkpoint instead of inventing Option 1–4", () => {
+    const { block } = sanitizeCheckpointOrSelfCheckBlock(
+      {
+        type: "checkpoint",
+        prompt:
+          "Explain why antibiotic resistance can increase in a bacterial population exposed to an antibiotic.",
+        questionType: "short",
+        options: ["", "", "", ""],
+        correctAnswer:
+          "The antibiotic kills susceptible bacteria, while resistant bacteria survive.",
+      },
+      "checkpoint"
+    );
+    expect(block.questionType).toBe("short");
+    expect(block.prompt).toMatch(/antibiotic resistance can increase/i);
+    expect(block.correctAnswer).toMatch(/resistant bacteria survive/i);
+    expect(block.options).toEqual([]);
+    expect(block.prompt).not.toBe("Which statement is correct?");
+  });
+
+  test("recovers a short mis-tagged as MCQ with empty options instead of filler", () => {
+    const { block } = sanitizeCheckpointOrSelfCheckBlock(
+      {
+        type: "selfCheck",
+        prompt:
+          "Explain why increasing antibiotic resistance creates difficulties in controlling bacterial infections.",
+        questionType: "mcq",
+        options: ["", "", "", ""],
+        correctAnswer: "An antibiotic may no longer kill the resistant bacteria.",
+      },
+      "selfCheck"
+    );
+    expect(block.questionType).toBe("short");
+    expect(block.prompt).toMatch(/increasing antibiotic resistance/i);
+    expect(block.correctAnswer).toMatch(/no longer kill/i);
+    expect(JSON.stringify(block)).not.toMatch(/Which statement is correct/);
+    expect(JSON.stringify(block)).not.toMatch(/"Option 1"/);
+  });
+
+  test("still invents filler for genuinely empty checkpoint/selfCheck blocks", () => {
+    const { block } = sanitizeCheckpointOrSelfCheckBlock(
+      { type: "checkpoint", prompt: "", options: [], correctAnswer: "" },
+      "checkpoint"
+    );
+    expect(block.prompt).toBe("Which statement is correct?");
+    expect(block.options).toEqual(["Option 1", "Option 2", "Option 3", "Option 4"]);
+  });
 });

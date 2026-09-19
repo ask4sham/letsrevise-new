@@ -93,6 +93,9 @@ import {
   isGeneratorExportV1,
   buildPagesFromGeneratorExport,
   lessonMetaFromExport,
+  resolveCheckpointBlockForCreateLessonPersist,
+  isIncompleteCreateLessonPageCheckpoint,
+  isImportedShortActivityPayload,
 } from "../utils/lessonGeneratorImport";
 import { applyCreateLessonTaxonomyPayloadFields } from "../utils/createLessonTaxonomyPayloadFields";
 import {
@@ -1363,18 +1366,7 @@ const CreateLessonPage: React.FC = () => {
     if (!anyContent) return "Add some content in the page blocks.";
 
     // checkpoint sanity (optional)
-    const badCheckpoint = p.find((pg) => {
-      const q = safeStr(pg.checkpoint?.question, "");
-      const opts = clampOptions((pg.checkpoint?.options || []) as string[]);
-      const ans = safeStr(pg.checkpoint?.answer, "");
-      if (!q && !opts.join("").trim() && !ans) return false;
-      const nonEmptyOpts = opts.filter((x) => safeStr(x, "").length > 0);
-      if (!q) return true;
-      if (nonEmptyOpts.length < 2) return true;
-      if (ans && !nonEmptyOpts.some((o) => o.trim() === ans.trim()))
-        return true;
-      return false;
-    });
+    const badCheckpoint = p.find((pg) => isIncompleteCreateLessonPageCheckpoint(pg.checkpoint));
     if (badCheckpoint)
       return `Checkpoint on "${badCheckpoint.title}" needs question + at least 2 options (and answer must match an option).`;
 
@@ -1499,19 +1491,17 @@ const CreateLessonPage: React.FC = () => {
           out.number = Math.trunc(blockNum);
         }
         if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
-        if (blockType === "checkpoint" && p.checkpoint) {
-          const bcp = b as LessonPageBlock;
-          const qType = bcp.questionType === "short" ? "short" : "mcq";
-          out.prompt = safeStr(p.checkpoint.question, "");
-          out.questionType = qType;
-          out.options =
-            qType === "short"
-              ? []
-              : clampOptions((p.checkpoint.options || []) as string[]);
-          out.correctAnswer = safeStr(p.checkpoint.answer, "");
-          const chkExpl = safeStr(p.checkpoint.explanation, "").trim();
-          if (chkExpl) out.explanation = chkExpl;
-          const chkMs = checkpointMarkSchemeForBlockPersist(p.checkpoint.markScheme);
+        if (blockType === "checkpoint") {
+          const persisted = resolveCheckpointBlockForCreateLessonPersist(
+            b as Record<string, unknown>,
+            p.checkpoint
+          );
+          out.prompt = persisted.prompt;
+          out.questionType = persisted.questionType;
+          out.options = persisted.options;
+          out.correctAnswer = persisted.correctAnswer;
+          if (persisted.explanation) out.explanation = persisted.explanation;
+          const chkMs = checkpointMarkSchemeForBlockPersist(persisted.markScheme);
           if (chkMs) out.markScheme = chkMs;
         }
         if (blockType === "selfCheck") {
@@ -1521,9 +1511,10 @@ const CreateLessonPage: React.FC = () => {
           if (chkExpl) out.explanation = chkExpl;
           if (chkMs) out.markScheme = chkMs;
           out.prompt = String(bsc.prompt ?? "").trim();
-          out.questionType = bsc.questionType === "short" ? "short" : "mcq";
+          const persistShort = isImportedShortActivityPayload(bsc as Record<string, unknown>);
+          out.questionType = persistShort || bsc.questionType === "short" ? "short" : "mcq";
           const scOpts = Array.isArray(bsc.options) ? bsc.options.map((o: string) => String(o ?? "").trim()) : [];
-          out.options = scOpts;
+          out.options = persistShort || bsc.questionType === "short" ? [] : scOpts;
           out.correctAnswer = String(bsc.correctAnswer ?? "").trim();
         }
         if (blockType === "pageQuiz") {
