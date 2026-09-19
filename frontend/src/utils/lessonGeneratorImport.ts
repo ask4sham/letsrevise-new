@@ -109,6 +109,39 @@ function padOptions(raw: unknown): string[] {
   return [...coerceLessonMcqOptionsFour(raw)];
 }
 
+function activityHasTwoRealMcqOptions(options: unknown): boolean {
+  const opts = Array.isArray(options)
+    ? options.map((o) => String(o ?? "").trim()).filter(Boolean)
+    : [];
+  if (opts.length < 2) return false;
+  if (isPlaceholderMcqOptions(opts)) return false;
+  return true;
+}
+
+/**
+ * True when an imported checkpoint/selfCheck payload is a short answer, including
+ * shorts mis-tagged as MCQ because they have an empty/padded options array.
+ */
+export function isImportedShortActivityPayload(payload: {
+  questionType?: unknown;
+  type?: unknown;
+  prompt?: unknown;
+  question?: unknown;
+  correctAnswer?: unknown;
+  answer?: unknown;
+  options?: unknown;
+}): boolean {
+  const qt = String(payload.questionType ?? payload.type ?? "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+  const prompt = String(payload.prompt ?? payload.question ?? "").trim();
+  const answer = String(payload.correctAnswer ?? payload.answer ?? "").trim();
+  if (!prompt || !answer || isGenericPlaceholderCheckpointPrompt(prompt)) return false;
+  if (qt === "short" || qt === "shortanswer" || qt === "shortexplain") return true;
+  if (activityHasTwoRealMcqOptions(payload.options)) return false;
+  return true;
+}
+
 /** Persisted title: clean label only; student view adds `blockNumber —` via formatStudentBlockHeading. */
 function generatorImportBlockTitle(record: GeneratorExportV1Block): string {
   const label = stripSs1PrefixFromTitle(
@@ -242,7 +275,28 @@ function fourMcqOptions(raw: unknown): string[] {
   return padOptions(raw);
 }
 
-/** True when page.checkpoint has real question data (not empty / Option 1–4 filler). */
+/** True when page.checkpoint is missing required MCQ fields, but empty and valid shorts are allowed. */
+export function isIncompleteCreateLessonPageCheckpoint(cp: {
+  question?: unknown;
+  answer?: unknown;
+  options?: unknown;
+} | null | undefined): boolean {
+  if (!cp || typeof cp !== "object") return false;
+  const q = String(cp.question ?? "").trim();
+  const ans = String(cp.answer ?? "").trim();
+  const opts = Array.isArray(cp.options)
+    ? cp.options.map((o) => String(o ?? "").trim())
+    : [];
+  const nonEmptyOpts = opts.filter(Boolean);
+  if (!q && !nonEmptyOpts.join("") && !ans) return false;
+  if (isImportedShortActivityPayload({ prompt: q, correctAnswer: ans, options: opts })) {
+    return false;
+  }
+  if (!q) return true;
+  if (nonEmptyOpts.length < 2) return true;
+  if (ans && !nonEmptyOpts.some((o) => o.trim() === ans.trim())) return true;
+  return false;
+}
 export function isMeaningfulPageLevelCheckpoint(
   cp:
     | {
@@ -288,8 +342,11 @@ export function resolveCheckpointBlockForCreateLessonPersist(
     markScheme?: unknown;
   } | null
 ): CreateLessonCheckpointPersistFields {
-  const qType =
-    String(block.questionType ?? "").toLowerCase() === "short" ? "short" : "mcq";
+  const qType = isImportedShortActivityPayload(block)
+    ? "short"
+    : String(block.questionType ?? "").toLowerCase() === "short"
+      ? "short"
+      : "mcq";
   const blockPrompt = String(
     block.prompt ?? (block as { question?: unknown }).question ?? ""
   ).trim();
@@ -391,20 +448,13 @@ function elevateExtraImportedCheckpointsToSelfCheck(
       return raw;
     }
     elevatedIndex += 1;
-    let opts = padOptions(raw.options as unknown[]);
     let prompt = String(raw.prompt ?? (raw as { question?: unknown }).question ?? "").trim();
     let ca = String(
       raw.correctAnswer ?? (raw as { answer?: unknown }).answer ?? ""
     ).trim();
     let expl = String(raw.explanation ?? "").trim();
-    const enriched = enrichMcqFromContentIfNeeded(
-      { prompt, options: opts, correctAnswer: ca, explanation: expl },
-      raw.content
-    );
-    opts = enriched.options;
-    prompt = enriched.prompt;
-    ca = enriched.correctAnswer;
-    expl = enriched.explanation;
+    const title = typeof raw.title === "string" ? raw.title.trim() : "";
+    const role = typeof raw.role === "string" ? raw.role.trim() : "";
     const msRaw = raw.markScheme;
     const msPersist = checkpointMarkSchemeForBlockPersist(
       Array.isArray(msRaw)
@@ -413,8 +463,32 @@ function elevateExtraImportedCheckpointsToSelfCheck(
           ? msRaw
           : undefined
     );
-    const title = typeof raw.title === "string" ? raw.title.trim() : "";
-    const role = typeof raw.role === "string" ? raw.role.trim() : "";
+
+    if (isImportedShortActivityPayload(raw)) {
+      const out: Record<string, unknown> = {
+        type: "selfCheck",
+        content: "",
+        ...(title ? { title } : {}),
+        ...(role ? { role } : {}),
+        prompt,
+        questionType: "short",
+        options: [],
+        correctAnswer: ca,
+        explanation: expl,
+      };
+      if (msPersist) out.markScheme = msPersist;
+      return out;
+    }
+
+    let opts = padOptions(raw.options as unknown[]);
+    const enriched = enrichMcqFromContentIfNeeded(
+      { prompt, options: opts, correctAnswer: ca, explanation: expl },
+      raw.content
+    );
+    opts = enriched.options;
+    prompt = enriched.prompt;
+    ca = enriched.correctAnswer;
+    expl = enriched.explanation;
 
     const optionsKey = opts
       .map((o) => normalizeImportStem(o))
@@ -504,7 +578,7 @@ function recordToLessonBlock(
 
   switch (t) {
     case "checkpoint": {
-      const qType = payload.questionType === "short" ? "short" : "mcq";
+      const qType = isImportedShortActivityPayload(payload) ? "short" : "mcq";
       let opts = qType === "mcq" ? padOptions(payload.options) : [];
       let prompt = String(
         payload.prompt ?? (payload as { question?: unknown }).question ?? "Question"
@@ -557,7 +631,7 @@ function recordToLessonBlock(
           ...(role ? { role } : {}),
           prompt,
           questionType: qType,
-          options: qType === "short" ? ["", "", "", ""] : opts,
+          options: qType === "short" ? [] : opts,
           correctAnswer,
           explanation,
           ...(markScheme ? { markScheme } : {}),
@@ -631,7 +705,7 @@ function recordToLessonBlock(
       );
     }
     case "selfCheck": {
-      const qType = payload.questionType === "short" ? "short" : "mcq";
+      const qType = isImportedShortActivityPayload(payload) ? "short" : "mcq";
       let opts = qType === "mcq" ? padOptions(payload.options) : [];
       let prompt = String(payload.prompt ?? "Question");
       let correctAnswer =
@@ -679,7 +753,7 @@ function recordToLessonBlock(
           ...(role ? { role } : {}),
           prompt,
           questionType: qType,
-          options: qType === "short" ? ["", "", "", ""] : opts,
+          options: qType === "short" ? [] : opts,
           correctAnswer,
           explanation,
           ...(markScheme ? { markScheme } : {}),

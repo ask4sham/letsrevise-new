@@ -14,6 +14,7 @@ import { LESSON_GENERATOR_EXPORT_FORMAT_V1 } from "../constants/lessonGeneratorE
 import {
   buildPagesFromGeneratorExport,
   resolveCheckpointBlockForCreateLessonPersist,
+  isIncompleteCreateLessonPageCheckpoint,
   type GeneratorExportV1Document,
 } from "./lessonGeneratorImport";
 import { LEARN_TESTING_BLOCK_TYPES, isLearnTeachingPage } from "./lessonPageGuards";
@@ -37,6 +38,14 @@ const CHECKPOINT_1_ANSWER =
   "The antibiotic kills susceptible bacteria, while resistant bacteria survive. The survivors reproduce, so resistant bacteria form a greater proportion of the population.";
 const CHECKPOINT_1_EXPL =
   "Resistant bacteria are not created by the antibiotic; they survive and reproduce.";
+const CHECKPOINT_2_STEM =
+  "A bacterial infection contains both resistant and susceptible bacteria. Explain what happens to this population during antibiotic treatment.";
+const CHECKPOINT_2_ANSWER =
+  "More susceptible bacteria are killed by the antibiotic. Resistant bacteria survive and can reproduce.";
+const CHECKPOINT_3_STEM =
+  "Explain why increasing antibiotic resistance creates difficulties in controlling bacterial infections.";
+const CHECKPOINT_3_ANSWER =
+  "An antibiotic may no longer kill the resistant bacteria, so the infection becomes harder to treat.";
 
 function shortPayload(prompt: string, answer: string, explanation = "") {
   return {
@@ -181,18 +190,12 @@ function antibioticPracticeExport(): GeneratorExportV1Document {
           {
             editorType: "checkpoint",
             generatorBlockKind: "checkpoint",
-            payload: shortPayload(
-              "A bacterial infection contains both resistant and susceptible bacteria. Explain what happens to this population during antibiotic treatment.",
-              "More susceptible bacteria are killed by the antibiotic. Resistant bacteria survive and can reproduce."
-            ),
+            payload: shortPayload(CHECKPOINT_2_STEM, CHECKPOINT_2_ANSWER),
           },
           {
             editorType: "checkpoint",
             generatorBlockKind: "checkpoint",
-            payload: shortPayload(
-              "Explain why increasing antibiotic resistance creates difficulties in controlling bacterial infections.",
-              "An antibiotic may no longer kill the resistant bacteria, so the infection becomes harder to treat."
-            ),
+            payload: shortPayload(CHECKPOINT_3_STEM, CHECKPOINT_3_ANSWER),
           },
           {
             editorType: "pageQuiz",
@@ -371,6 +374,65 @@ describe("practice import persist (short checkpoints + pageQuiz MCQs)", () => {
     expect(persisted.prompt).toContain("mitosis");
     expect(persisted.options.filter(Boolean).length).toBeGreaterThanOrEqual(2);
     expect(FILLER_PROMPT.test(persisted.prompt)).toBe(false);
+  });
+
+  test("5b. extra short checkpoints stay short selfChecks with original answers (not MCQ filler)", () => {
+    const selfChecks = practise.blocks.filter((b) => String(b.type) === "selfCheck") as Array<{
+      prompt?: string;
+      questionType?: string;
+      correctAnswer?: string;
+      options?: string[];
+    }>;
+    const elevated = selfChecks.filter(
+      (b) =>
+        String(b.prompt || "").includes(CHECKPOINT_2_STEM.slice(0, 40)) ||
+        String(b.prompt || "").includes(CHECKPOINT_3_STEM.slice(0, 40))
+    );
+    expect(elevated).toHaveLength(2);
+    expect(elevated.every((b) => b.questionType === "short")).toBe(true);
+    expect(elevated.every((b) => !FILLER_PROMPT.test(String(b.prompt || "")))).toBe(true);
+    expect(elevated.map((b) => b.correctAnswer).sort()).toEqual(
+      [CHECKPOINT_2_ANSWER, CHECKPOINT_3_ANSWER].sort()
+    );
+    expect(elevated.every((b) => (b.options || []).filter((o) => String(o).trim()).length === 0)).toBe(
+      true
+    );
+    expect(isIncompleteCreateLessonPageCheckpoint(practise.checkpoint)).toBe(false);
+  });
+
+  test("5c. Create Lesson persist keeps all 3 checkpoint-derived shorts", () => {
+    const checkpoints = practise.blocks.filter((b) => String(b.type) === "checkpoint");
+    const selfChecks = practise.blocks.filter((b) => String(b.type) === "selfCheck") as Array<
+      Record<string, unknown>
+    >;
+    expect(checkpoints).toHaveLength(1);
+    const persistedCp = resolveCheckpointBlockForCreateLessonPersist(
+      checkpoints[0] as Record<string, unknown>,
+      practise.checkpoint
+    );
+    expect(persistedCp.questionType).toBe("short");
+    expect(persistedCp.prompt).toBe(CHECKPOINT_1_STEM);
+    expect(persistedCp.correctAnswer).toBe(CHECKPOINT_1_ANSWER);
+    expect(persistedCp.options).toEqual([]);
+
+    const elevatedPersisted = selfChecks
+      .filter(
+        (b) =>
+          String(b.prompt || "").includes(CHECKPOINT_2_STEM.slice(0, 40)) ||
+          String(b.prompt || "").includes(CHECKPOINT_3_STEM.slice(0, 40))
+      )
+      .map((b) => ({
+        prompt: String(b.prompt || "").trim(),
+        questionType: "short" as const,
+        options: [] as string[],
+        correctAnswer: String(b.correctAnswer || "").trim(),
+      }));
+    expect(elevatedPersisted).toHaveLength(2);
+    const stems = [persistedCp.prompt, ...elevatedPersisted.map((b) => b.prompt)];
+    expect(stems).toEqual(
+      expect.arrayContaining([CHECKPOINT_1_STEM, CHECKPOINT_2_STEM, CHECKPOINT_3_STEM])
+    );
+    expect(fillerCount(stems)).toBe(0);
   });
 
   test("6. Learn page still contains no testing blocks", () => {

@@ -88,6 +88,24 @@ export function isStudentVisiblePageQuizBlock(block: unknown): boolean {
   return extractActivityQuestionsFromBlock(block).length > 0;
 }
 
+/**
+ * Practise-page selfCheck/checkpoint: show real shorts and real MCQs; hide empty and
+ * legacy filler (“Which statement is correct?” / Option 1–4).
+ */
+export function isStudentVisibleSelfCheckOrCheckpointBlock(block: unknown): boolean {
+  return extractActivityQuestionsFromBlock(block).some((q) => {
+    const prompt = String(q.prompt || "").trim();
+    if (!prompt || GENERIC_CHECKPOINT_PROMPT_RE.test(prompt)) return false;
+    if (q.questionType === "short") {
+      return Boolean(String(q.correctAnswer || "").trim());
+    }
+    const opts = Array.isArray(q.options)
+      ? q.options.map((o) => String(o ?? "").trim()).filter(Boolean)
+      : [];
+    return opts.length >= 2 && !opts.every((o) => PLACEHOLDER_OPTION_RE.test(o));
+  });
+}
+
 /** Teacher-facing copy when a pageQuiz block has no usable bank items. */
 export function emptyPageQuizBankEditorWarning(block: unknown): string | null {
   const t = String((block as { type?: unknown } | null | undefined)?.type ?? "").trim();
