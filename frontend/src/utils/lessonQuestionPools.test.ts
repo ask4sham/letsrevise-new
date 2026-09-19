@@ -154,9 +154,11 @@ describe("lessonQuestionPools", () => {
       },
     ];
     const revision = buildRevisionPracticePool(productionPages, storedQuiz);
-    expect(
-      revision.some((q) => normalizeQuestionStem(q.question) === normalizeQuestionStem(haploidStem))
-    ).toBe(false);
+    const haploidHits = revision.filter(
+      (q) => normalizeQuestionStem(q.question) === normalizeQuestionStem(haploidStem)
+    );
+    // No checkpoint MCQs → imported pageQuiz MCQ is the Revision Practice source (once, not duplicated).
+    expect(haploidHits).toHaveLength(1);
     expect(revision.some((q) => q.id === "unique_rev")).toBe(true);
   });
 });

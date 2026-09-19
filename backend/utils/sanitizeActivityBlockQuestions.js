@@ -138,17 +138,60 @@ function sanitizeCheckpointOrSelfCheckBlock(b, type) {
   }
 
   // Legacy single-prompt path (unchanged behaviour for old lessons).
-  const prompt = typeof b?.prompt === "string" ? b.prompt : "";
+  const promptRaw =
+    typeof b?.prompt === "string" && b.prompt.trim()
+      ? b.prompt
+      : typeof b?.question === "string"
+        ? b.question
+        : "";
+  const prompt = promptRaw;
   const options = Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [];
-  const correctAnswer = typeof b?.correctAnswer === "string" ? b.correctAnswer : "";
+  const correctAnswerRaw =
+    typeof b?.correctAnswer === "string" && b.correctAnswer.trim()
+      ? b.correctAnswer
+      : typeof b?.answer === "string"
+        ? b.answer
+        : "";
+  const correctAnswer = correctAnswerRaw;
   const questionType = b?.questionType === "short" ? "short" : "mcq";
   const nonEmptyOpts = options.filter((o) => String(o || "").trim());
   const hasPrompt = String(prompt || "").trim().length > 0;
+  const hasAnswer = String(correctAnswer || "").trim().length > 0;
+  const realMcqOpts = nonEmptyOpts.filter((o) => !isFillerOption(o));
+  const isFillerPrompt = /^which statement is correct\??$/i.test(String(prompt || "").trim());
   const isValidMcq =
     questionType === "mcq"
       ? nonEmptyOpts.length >= 2 &&
         nonEmptyOpts.some((o) => String(o).trim() === String(correctAnswer || "").trim())
-      : hasPrompt && String(correctAnswer || "").trim().length > 0;
+      : hasPrompt && hasAnswer;
+
+  // Valid short (including shorts mis-tagged as MCQ with empty/placeholder options).
+  if (hasPrompt && hasAnswer && !isFillerPrompt && (questionType === "short" || realMcqOpts.length < 2)) {
+    const out = {
+      type,
+      prompt: prompt.trim(),
+      questionType: "short",
+      options: [],
+      correctAnswer: String(correctAnswer).trim(),
+    };
+    const blockId = trimStr(b?.id);
+    if (blockId) out.id = blockId;
+    if (type === "checkpoint") {
+      const explanationTrim =
+        typeof b?.explanation === "string" && b.explanation.trim()
+          ? b.explanation.trim().slice(0, 8000)
+          : undefined;
+      if (explanationTrim) out.explanation = explanationTrim;
+      const markSchemeBlk = Array.isArray(b?.markScheme)
+        ? b.markScheme.map((x) => String(x).trim()).filter(Boolean).slice(0, 20)
+        : undefined;
+      if (markSchemeBlk && markSchemeBlk.length) out.markScheme = markSchemeBlk;
+    } else if (typeof b?.explanation === "string") {
+      out.explanation = b.explanation;
+    }
+    if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
+    return { block: out };
+  }
 
   if (!hasPrompt || !isValidMcq) {
     return { block: legacyFillerBlock(type, b?.id) };

@@ -3,6 +3,7 @@ import {
   isPlaceholderOrEmptyCheckpoint,
   isRenderablePageCheckpoint,
   isStudentVisiblePageQuizBlock,
+  isStudentVisibleSelfCheckOrCheckpointBlock,
   emptyPageQuizBankEditorWarning,
   stripLearnPageTestingBlocks,
 } from "./lessonPageGuards";
@@ -45,6 +46,37 @@ describe("lessonPageGuards", () => {
       { type: "keyIdea", content: "Idea" },
     ]);
     expect(out.map((b) => b.type)).toEqual(["text", "keyIdea"]);
+  });
+
+  test("student selfCheck/checkpoint visibility keeps real shorts and hides filler", () => {
+    expect(
+      isStudentVisibleSelfCheckOrCheckpointBlock({
+        type: "checkpoint",
+        prompt:
+          "Explain why antibiotic resistance can increase in a bacterial population exposed to an antibiotic.",
+        questionType: "short",
+        options: [],
+        correctAnswer: "Resistant bacteria survive and reproduce.",
+      })
+    ).toBe(true);
+    expect(
+      isStudentVisibleSelfCheckOrCheckpointBlock({
+        type: "selfCheck",
+        prompt: "Which statement is correct?",
+        questionType: "mcq",
+        options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+        correctAnswer: "Option 1",
+      })
+    ).toBe(false);
+    expect(
+      isStudentVisibleSelfCheckOrCheckpointBlock({
+        type: "checkpoint",
+        prompt: "",
+        questionType: "short",
+        options: [],
+        correctAnswer: "",
+      })
+    ).toBe(false);
   });
 
   test("pageQuiz visibility requires a real question bank", () => {

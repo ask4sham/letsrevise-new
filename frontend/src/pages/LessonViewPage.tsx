@@ -138,6 +138,7 @@ import {
   isLearnTeachingPage,
   isRenderablePageCheckpoint,
   isStudentVisiblePageQuizBlock,
+  isStudentVisibleSelfCheckOrCheckpointBlock,
   stripLearnPageTestingBlocks,
   LEARN_TESTING_BLOCK_TYPES,
 } from "../utils/lessonPageGuards";
@@ -3858,15 +3859,7 @@ const LessonViewPage: React.FC = () => {
               // Keep only when the block bank has items. Bank-only quizzes render in the footer.
               return isStudentVisiblePageQuizBlock(b);
             }
-            const opts = Array.isArray((b as { options?: unknown }).options)
-              ? ((b as { options: unknown[] }).options as unknown[])
-              : [];
-            const prompt = String(
-              (b as { prompt?: unknown; question?: unknown }).prompt ??
-                (b as { question?: unknown }).question ??
-                ""
-            ).trim();
-            return isRenderablePageCheckpoint({ question: prompt, options: opts });
+            return isStudentVisibleSelfCheckOrCheckpointBlock(b);
           });
       return scoped.filter((b) => {
         if (b.type === "stretch" && !showDeeperKnowledge) return false;
