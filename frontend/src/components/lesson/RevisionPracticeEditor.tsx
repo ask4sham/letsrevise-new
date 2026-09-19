@@ -5,6 +5,7 @@ import {
 } from "../../utils/lessonQuestionPools";
 import {
   collectCheckpointMcqsFromPages,
+  collectPageQuizMcqsFromPages,
   createRevisionVariantFromCheckpoint,
   sourceLinkageKeyFromCheckpoint,
 } from "../../utils/revisionPracticeVariants";
@@ -88,13 +89,17 @@ function buildEditorSlots(
   max: number
 ): EditorSlot[] {
   const pool = buildRevisionPracticePool(pages, quizQuestions as Record<string, unknown>[], max);
-  const checkpoints = collectCheckpointMcqsFromPages(pages);
+  const checkpointMcqs = collectCheckpointMcqsFromPages(pages);
+  const pageQuizFallback =
+    checkpointMcqs.length === 0 ? collectPageQuizMcqsFromPages(pages) : [];
+  const sources = checkpointMcqs.length > 0 ? checkpointMcqs : pageQuizFallback;
+  const paraphraseFromCheckpoints = checkpointMcqs.length > 0;
   const slots: EditorSlot[] = [];
   const checkpointSegments: EditorSlot[] = [];
   const matchedLinkageKeys = new Set<string>();
 
-  for (let i = 0; i < checkpoints.length; i++) {
-    const source = checkpoints[i];
+  for (let i = 0; i < sources.length; i++) {
+    const source = sources[i];
     const linkageKey = sourceLinkageKeyFromCheckpoint(source);
     const override = linkageKey
       ? findRevisionPracticeOverride(quizQuestions, linkageKey)
@@ -118,7 +123,24 @@ function buildEditorSlots(
       });
       continue;
     }
-    const generated = createRevisionVariantFromCheckpoint(source, i, checkpoints);
+    if (!paraphraseFromCheckpoints) {
+      checkpointSegments.push({
+        key: linkageKey ? `pagequiz-${linkageKey}` : `pagequiz-${i}`,
+        linkageKey: linkageKey || null,
+        isOverride: false,
+        isOrphan: false,
+        isGenerated: false,
+        question: source.prompt,
+        options: [...source.options],
+        correctAnswer: source.correctAnswer,
+        explanation: source.explanation,
+        sourcePageId: source.sourcePageId,
+        sourceBlockIndex: source.sourceBlockIndex,
+        sourceQuestionBankId: source.sourceQuestionId,
+      });
+      continue;
+    }
+    const generated = createRevisionVariantFromCheckpoint(source, i, checkpointMcqs);
     if (!generated) continue;
     checkpointSegments.push({
       key: linkageKey ? `generated-${linkageKey}` : `generated-${i}`,

@@ -9,6 +9,7 @@ import {
   buildEndOfLessonVariantsFromCheckpoints,
   buildRevisionVariantsFromCheckpoints,
   collectCheckpointMcqsFromPages,
+  collectPageQuizMcqsFromPages,
   createRevisionVariantFromCheckpoint,
   filterQuizRecordsNotMatchingCheckpoints,
   sourceLinkageKeyFromCheckpoint,
@@ -170,6 +171,35 @@ function conflictsInlineActivity(
   return inlineFingerprints.has(stemOnly);
 }
 
+function pageQuizSourceToLayer(src: CheckpointMcqSource, index: number): LayerQuizQuestion {
+  return {
+    id: src.sourceQuestionId || `pq-rev-${index + 1}`,
+    type: "mcq",
+    question: src.prompt,
+    options: src.options.slice(0, 4),
+    correctAnswer: src.correctAnswer,
+    explanation: src.explanation,
+    questionSource: "quiz",
+    pageId: src.sourcePageId,
+  };
+}
+
+function pushPageQuizFallback(
+  out: LayerQuizQuestion[],
+  seen: Set<string>,
+  pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>,
+  max: number
+): boolean {
+  const checkpointMcqs = collectCheckpointMcqsFromPages(pages);
+  if (checkpointMcqs.length > 0) return false;
+  const pageQuizMcqs = collectPageQuizMcqsFromPages(pages);
+  if (!pageQuizMcqs.length) return false;
+  for (let i = 0; i < pageQuizMcqs.length && out.length < max; i++) {
+    pushUnique(out, seen, pageQuizSourceToLayer(pageQuizMcqs[i], i));
+  }
+  return true;
+}
+
 /** Revision practice: topic-bank / AI first, then checkpoint-derived variants — never raw checkpoint clones. */
 function buildRevisionPracticePoolLegacy(
   pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>,
@@ -181,6 +211,8 @@ function buildRevisionPracticePoolLegacy(
   const derived = deriveLessonRetrieval(pages);
   const seen = new Set<string>();
   const out: LayerQuizQuestion[] = [];
+
+  pushPageQuizFallback(out, seen, pages, max);
 
   const bankFiltered = filterQuizRecordsNotMatchingCheckpoints(storedQuiz, checkpoints);
   for (let i = 0; i < bankFiltered.length && out.length < max; i++) {
@@ -233,6 +265,8 @@ function buildRevisionPracticePoolWithOverrides(
   const derived = deriveLessonRetrieval(pages);
   const seen = new Set<string>();
   const out: LayerQuizQuestion[] = [];
+
+  pushPageQuizFallback(out, seen, pages, max);
 
   const overrides = listRevisionPracticeOverrides(
     storedQuiz as import("./revisionPracticeOverrides").PersistedLessonQuizQuestion[]
