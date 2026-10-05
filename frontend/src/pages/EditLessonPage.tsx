@@ -156,6 +156,13 @@ import { INTERACTIVE_SEQUENCE_TEMPLATE_MITOSIS } from "../components/lesson/inte
 import { CELL_ORGANELLES_DRAG_DROP_TEMPLATE } from "../components/lesson/dragDropMatchTemplates";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import {
+  hasAiLessonDraftReviewToolbar as computeHasAiLessonDraftReviewToolbar,
+  pendingDraftsFromSettledLists,
+  resolveAiLessonDraftReviewTopicKey,
+  shouldShowAiLessonDraftReviewLink,
+  splitTopicKeyForBankReview,
+} from "./editLessonAiDraftReview";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
@@ -475,6 +482,10 @@ interface Lesson {
   level: string;
   topic: string;
   topicKey?: string;
+  /** Backend GET topicKey before topicNorm.namespaced. AI draft review only. */
+  persistedTopicKey?: string;
+  /** Unprefixed taxonomy slug persisted with the lesson. */
+  canonicalTopicKey?: string;
   subTopic?: string;
   specKey?: string;
   examBoardName: string | null;
@@ -939,6 +950,8 @@ const EditLessonPage: React.FC = () => {
     lastGenerated: null,
     pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 },
   });
+  /** Topic key actually used for the current-session Generate AI assets run (effectiveTopicKey). */
+  const [aiGenerateTopicKey, setAiGenerateTopicKey] = useState<string | null>(null);
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
   const [syncFlashcardsLoading, setSyncFlashcardsLoading] = useState(false);
@@ -1281,6 +1294,16 @@ const EditLessonPage: React.FC = () => {
 
   /** PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — uses taxonomy resolve when lesson.topicKey missing */
   const topicKeyForBank = useResolvedTopicKeyForBank(lesson, taxonomyUnits);
+  const topicKeyForDraftReview = resolveAiLessonDraftReviewTopicKey(topicKeyForBank, aiGenerateTopicKey, {
+    persistedTopicKey: lesson?.persistedTopicKey,
+    topicKey: lesson?.topicKey,
+    specKey: (lesson as { specKey?: string })?.specKey,
+    canonicalTopicKey: lesson?.canonicalTopicKey,
+  });
+
+  useEffect(() => {
+    setAiGenerateTopicKey(null);
+  }, [id]);
 
   /** Keep lesson.topicKey in sync with resolved mapping so save/readiness use the repaired key. */
   useEffect(() => {
@@ -1360,70 +1383,94 @@ const EditLessonPage: React.FC = () => {
     };
   }, [lesson?.pages, id]);
 
-  const refreshAiLessonDraftCounts = useCallback(async () => {
-    if (!id || !topicKeyForBank) {
+  const refreshAiLessonDraftCounts = useCallback(async (topicKeyOverride?: string | null) => {
+    const topicKey = resolveAiLessonDraftReviewTopicKey(
+      topicKeyForBank,
+      topicKeyOverride !== undefined ? topicKeyOverride : aiGenerateTopicKey,
+      {
+        persistedTopicKey: lesson?.persistedTopicKey,
+        topicKey: lesson?.topicKey,
+        specKey: (lesson as { specKey?: string })?.specKey,
+        canonicalTopicKey: lesson?.canonicalTopicKey,
+      }
+    );
+    if (!id || !topicKey) {
       setAiReviewPanel((p) => ({ ...p, pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 } }));
       return;
     }
-    const specKey = (lesson as { specKey?: string })?.specKey || topicKeyForBank.split(":")[0];
-    const topicKeySlug = topicKeyForBank.includes(":") ? topicKeyForBank.split(":")[1] || topicKeyForBank : topicKeyForBank;
-    try {
-      const [fc, qq, examRes] = await Promise.all([
-        listTopicFlashcards({
+    const { specKey, topicKeySlug } = splitTopicKeyForBankReview(
+      topicKey,
+      (lesson as { specKey?: string })?.specKey
+    );
+    const [fcResult, qqResult, examResult] = await Promise.allSettled([
+      listTopicFlashcards({
+        topicKey: topicKeySlug,
+        specKey,
+        status: "draft",
+        mineOnly: !isAdmin,
+        metadataSource: "ai_lesson_assets",
+        lessonId: id,
+        generationType: "flashcard",
+      }),
+      listTopicQuizQuestions(topicKeySlug, {
+        specKey,
+        status: "draft",
+        mineOnly: !isAdmin,
+        kind: "quiz",
+        metadataSource: "ai_lesson_assets",
+        lessonId: id,
+        generationType: "quiz",
+      }),
+      api.get<{ success?: boolean; questions?: unknown[] }>("/exam-questions", {
+        params: {
           topicKey: topicKeySlug,
           specKey,
           status: "draft",
-          mineOnly: !isAdmin,
           metadataSource: "ai_lesson_assets",
           lessonId: id,
-          generationType: "flashcard",
-        }),
-        listTopicQuizQuestions(topicKeySlug, {
-          specKey,
-          status: "draft",
-          mineOnly: !isAdmin,
-          kind: "quiz",
-          metadataSource: "ai_lesson_assets",
-          lessonId: id,
-          generationType: "quiz",
-        }),
-        api.get<{ success?: boolean; questions?: unknown[] }>("/exam-questions", {
-          params: {
-            topicKey: topicKeySlug,
-            specKey,
-            status: "draft",
-            metadataSource: "ai_lesson_assets",
-            lessonId: id,
-            generationType: "exam",
-            ...(isAdmin ? {} : { mineOnly: "1" }),
-          },
-        }),
-      ]);
-      const examList = Array.isArray(examRes?.data?.questions) ? examRes.data!.questions! : [];
-      setAiReviewPanel((prev) => ({
-        ...prev,
-        pendingDrafts: {
-          flashcards: fc.length,
-          quizQuestions: qq.length,
-          examQuestions: examList.length,
+          generationType: "exam",
+          ...(isAdmin ? {} : { mineOnly: "1" }),
         },
-      }));
+      }).then((examRes) =>
+        Array.isArray(examRes?.data?.questions) ? examRes.data!.questions! : []
+      ),
+    ]);
+    setAiReviewPanel((prev) => ({
+      ...prev,
+      pendingDrafts: pendingDraftsFromSettledLists({
+        flashcards: fcResult,
+        quiz: qqResult,
+        exam: examResult,
+      }),
+    }));
+    if (
+      fcResult.status === "fulfilled" ||
+      qqResult.status === "fulfilled" ||
+      examResult.status === "fulfilled"
+    ) {
       setCoverageReviewRefreshKey((k) => k + 1);
-    } catch {
-      setAiReviewPanel((prev) => ({ ...prev, pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 } }));
     }
-  }, [id, topicKeyForBank, lesson, isAdmin]);
+  }, [id, topicKeyForBank, aiGenerateTopicKey, lesson, isAdmin]);
 
   useEffect(() => {
     void refreshAiLessonDraftCounts();
   }, [refreshAiLessonDraftCounts]);
 
-  /** Purple review links: show from live bank draft counts (persists across navigation), not only post-generate session state. */
-  const hasAiLessonDraftReviewToolbar = useMemo(() => {
-    if (!topicKeyForBank || !id || !isMongoObjectId(id)) return false;
-    const { flashcards: fc, quizQuestions: qq, examQuestions: ex } = aiReviewPanel.pendingDrafts;
-    return fc > 0 || qq > 0 || ex > 0;
-  }, [topicKeyForBank, id, aiReviewPanel.pendingDrafts]);
+  /** Purple review links: live bank counts preferred; session generate counts + generate topic key as fallback. */
+  const hasAiLessonDraftReviewToolbar = useMemo(
+    () =>
+      computeHasAiLessonDraftReviewToolbar({
+        topicKey: topicKeyForDraftReview,
+        lessonId: id,
+        isMongoObjectId,
+        pendingDrafts: aiReviewPanel.pendingDrafts,
+        lastGenerated: aiReviewPanel.lastGenerated,
+      }),
+    [topicKeyForDraftReview, id, aiReviewPanel.pendingDrafts, aiReviewPanel.lastGenerated]
+  );
+  const draftReviewUrlParts = topicKeyForDraftReview
+    ? splitTopicKeyForBankReview(topicKeyForDraftReview, (lesson as { specKey?: string })?.specKey)
+    : null;
 
   /** Fetch lesson graph + topic coverage when lesson has topicKey/specKey */
   useEffect(() => {
@@ -1767,7 +1814,9 @@ const EditLessonPage: React.FC = () => {
         topic: safeStr(data.topic, "Not set"),
         subTopic: safeStr(data.subTopic, "") || undefined,
         specKey: lessonForTopicNorm.specKey,
+        persistedTopicKey: lessonForTopicNorm.topicKey,
         topicKey: topicNorm.namespaced ?? lessonForTopicNorm.topicKey,
+        canonicalTopicKey: lessonForTopicNorm.canonicalTopicKey,
         examBoardName: (data.examBoard ?? data.board) ? safeStr((data.examBoard ?? data.board) as string, "") : null,
         teacherName: safeStr(data.teacherName, "Teacher"),
         teacherId: safeStr(data.teacherId?._id || data.teacherId, ""),
@@ -4396,7 +4445,8 @@ const EditLessonPage: React.FC = () => {
         lessonUpdatedAtSnapshot: r.lessonUpdatedAtSnapshot ?? null,
         lastGenerated: g,
       }));
-      await refreshAiLessonDraftCounts();
+      setAiGenerateTopicKey(effectiveTopicKey);
+      await refreshAiLessonDraftCounts(effectiveTopicKey);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
       setAiAssetsMessage(err?.response?.data?.error || err?.message || "Generation failed.");
@@ -4848,50 +4898,44 @@ const EditLessonPage: React.FC = () => {
       {(aiAssetsMessage || hasAiLessonDraftReviewToolbar) ? (
         <div className="edit-lesson-lesson-actions-card__subpanel">
           {aiAssetsMessage ? <div>{aiAssetsMessage}</div> : null}
-          {hasAiLessonDraftReviewToolbar && topicKeyForBank && id ? (
+          {hasAiLessonDraftReviewToolbar && topicKeyForDraftReview && draftReviewUrlParts && id ? (
             <div className="edit-lesson-lesson-actions-card__draft-links">
-              {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
+              {shouldShowAiLessonDraftReviewLink(
+                aiReviewPanel.pendingDrafts.flashcards,
+                aiReviewPanel.lastGenerated?.flashcards
+              ) ? (
                 <Link
                   to={buildAiLessonAssetBankReviewUrl("flashcards", {
-                    topicKeySlug: topicKeyForBank.includes(":")
-                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                      : topicKeyForBank,
-                    specKey:
-                      (lesson as { specKey?: string })?.specKey ||
-                      topicKeyForBank.split(":")[0] ||
-                      getStoredSpecKey(),
+                    topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                    specKey: draftReviewUrlParts.specKey,
                     lessonId: id,
                   })}
                 >
                   Review flashcard drafts
                 </Link>
               ) : null}
-              {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
+              {shouldShowAiLessonDraftReviewLink(
+                aiReviewPanel.pendingDrafts.quizQuestions,
+                aiReviewPanel.lastGenerated?.quizQuestions
+              ) ? (
                 <Link
                   to={buildAiLessonAssetBankReviewUrl("quizzes", {
-                    topicKeySlug: topicKeyForBank.includes(":")
-                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                      : topicKeyForBank,
-                    specKey:
-                      (lesson as { specKey?: string })?.specKey ||
-                      topicKeyForBank.split(":")[0] ||
-                      getStoredSpecKey(),
+                    topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                    specKey: draftReviewUrlParts.specKey,
                     lessonId: id,
                   })}
                 >
                   Review quiz drafts
                 </Link>
               ) : null}
-              {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
+              {shouldShowAiLessonDraftReviewLink(
+                aiReviewPanel.pendingDrafts.examQuestions,
+                aiReviewPanel.lastGenerated?.examQuestions
+              ) ? (
                 <Link
                   to={buildAiLessonAssetExamReviewUrl({
-                    topicKeySlug: topicKeyForBank.includes(":")
-                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                      : topicKeyForBank,
-                    specKey:
-                      (lesson as { specKey?: string })?.specKey ||
-                      topicKeyForBank.split(":")[0] ||
-                      getStoredSpecKey(),
+                    topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                    specKey: draftReviewUrlParts.specKey,
                     lessonId: id,
                   })}
                 >
@@ -5076,18 +5120,16 @@ const EditLessonPage: React.FC = () => {
           }}
         >
           {aiAssetsMessage ? <div>{aiAssetsMessage}</div> : null}
-          {hasAiLessonDraftReviewToolbar && topicKeyForBank && id ? (
+          {hasAiLessonDraftReviewToolbar && topicKeyForDraftReview && draftReviewUrlParts && id ? (
             <div style={{ marginTop: aiAssetsMessage ? 10 : 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
+              {shouldShowAiLessonDraftReviewLink(
+                aiReviewPanel.pendingDrafts.flashcards,
+                aiReviewPanel.lastGenerated?.flashcards
+              ) ? (
                 <Link
                   to={buildAiLessonAssetBankReviewUrl("flashcards", {
-                    topicKeySlug: topicKeyForBank.includes(":")
-                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                      : topicKeyForBank,
-                    specKey:
-                      (lesson as { specKey?: string })?.specKey ||
-                      topicKeyForBank.split(":")[0] ||
-                      getStoredSpecKey(),
+                    topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                    specKey: draftReviewUrlParts.specKey,
                     lessonId: id,
                   })}
                   style={{
@@ -5103,16 +5145,14 @@ const EditLessonPage: React.FC = () => {
                   Review flashcard drafts
                 </Link>
               ) : null}
-              {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
+              {shouldShowAiLessonDraftReviewLink(
+                aiReviewPanel.pendingDrafts.quizQuestions,
+                aiReviewPanel.lastGenerated?.quizQuestions
+              ) ? (
                 <Link
                   to={buildAiLessonAssetBankReviewUrl("quizzes", {
-                    topicKeySlug: topicKeyForBank.includes(":")
-                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                      : topicKeyForBank,
-                    specKey:
-                      (lesson as { specKey?: string })?.specKey ||
-                      topicKeyForBank.split(":")[0] ||
-                      getStoredSpecKey(),
+                    topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                    specKey: draftReviewUrlParts.specKey,
                     lessonId: id,
                   })}
                   style={{
@@ -5128,16 +5168,14 @@ const EditLessonPage: React.FC = () => {
                   Review quiz drafts
                 </Link>
               ) : null}
-              {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
+              {shouldShowAiLessonDraftReviewLink(
+                aiReviewPanel.pendingDrafts.examQuestions,
+                aiReviewPanel.lastGenerated?.examQuestions
+              ) ? (
                 <Link
                   to={buildAiLessonAssetExamReviewUrl({
-                    topicKeySlug: topicKeyForBank.includes(":")
-                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                      : topicKeyForBank,
-                    specKey:
-                      (lesson as { specKey?: string })?.specKey ||
-                      topicKeyForBank.split(":")[0] ||
-                      getStoredSpecKey(),
+                    topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                    specKey: draftReviewUrlParts.specKey,
                     lessonId: id,
                   })}
                   style={{
@@ -11453,7 +11491,7 @@ const EditLessonPage: React.FC = () => {
                         <span style={{ fontSize: 13, color: "#64748b", maxWidth: 420 }}>
                           Draft flashcards/quiz from lesson pages: use <strong>Generate AI assets</strong> in the toolbar above.
                         </span>
-                        {topicKeyForBank && id && (
+                        {topicKeyForDraftReview && draftReviewUrlParts && id && (
                           <div
                             style={{
                               marginTop: 10,
@@ -11500,14 +11538,14 @@ const EditLessonPage: React.FC = () => {
                               <strong>{aiReviewPanel.pendingDrafts.examQuestions}</strong> exam
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                              {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
+                              {shouldShowAiLessonDraftReviewLink(
+                                aiReviewPanel.pendingDrafts.flashcards,
+                                aiReviewPanel.lastGenerated?.flashcards
+                              ) ? (
                               <Link
                                 to={buildAiLessonAssetBankReviewUrl("flashcards", {
-                                  topicKeySlug: topicKeyForBank.includes(":")
-                                    ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                                    : topicKeyForBank,
-                                  specKey:
-                                    (lesson as { specKey?: string })?.specKey || topicKeyForBank.split(":")[0] || getStoredSpecKey(),
+                                  topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                                  specKey: draftReviewUrlParts.specKey,
                                   lessonId: id,
                                 })}
                                 style={{
@@ -11523,14 +11561,14 @@ const EditLessonPage: React.FC = () => {
                                 Review flashcard drafts
                               </Link>
                               ) : null}
-                              {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
+                              {shouldShowAiLessonDraftReviewLink(
+                                aiReviewPanel.pendingDrafts.quizQuestions,
+                                aiReviewPanel.lastGenerated?.quizQuestions
+                              ) ? (
                               <Link
                                 to={buildAiLessonAssetBankReviewUrl("quizzes", {
-                                  topicKeySlug: topicKeyForBank.includes(":")
-                                    ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                                    : topicKeyForBank,
-                                  specKey:
-                                    (lesson as { specKey?: string })?.specKey || topicKeyForBank.split(":")[0] || getStoredSpecKey(),
+                                  topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                                  specKey: draftReviewUrlParts.specKey,
                                   lessonId: id,
                                 })}
                                 style={{
@@ -11546,16 +11584,14 @@ const EditLessonPage: React.FC = () => {
                                 Review quiz drafts
                               </Link>
                               ) : null}
-                              {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
+                              {shouldShowAiLessonDraftReviewLink(
+                                aiReviewPanel.pendingDrafts.examQuestions,
+                                aiReviewPanel.lastGenerated?.examQuestions
+                              ) ? (
                                 <Link
                                   to={buildAiLessonAssetExamReviewUrl({
-                                    topicKeySlug: topicKeyForBank.includes(":")
-                                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                                      : topicKeyForBank,
-                                    specKey:
-                                      (lesson as { specKey?: string })?.specKey ||
-                                      topicKeyForBank.split(":")[0] ||
-                                      getStoredSpecKey(),
+                                    topicKeySlug: draftReviewUrlParts.topicKeySlug,
+                                    specKey: draftReviewUrlParts.specKey,
                                     lessonId: id,
                                   })}
                                   style={{
