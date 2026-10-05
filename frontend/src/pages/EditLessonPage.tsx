@@ -6282,11 +6282,12 @@ const EditLessonPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
+                            if (!topicKeyForDraftReview) return;
                             setAttachPageQuizModalMode("published");
                             setAttachPageQuizModalOpen(true);
                           }}
-                          disabled={!topicKeyForBank}
-                          title={!topicKeyForBank ? "This lesson needs a valid syllabus topic before quiz questions can be attached." : "Attach published quiz questions from the Topic Quiz Bank to this page."}
+                          disabled={!topicKeyForDraftReview}
+                          title={!topicKeyForDraftReview ? "This lesson needs a valid syllabus topic before quiz questions can be attached." : "Attach published quiz questions from the Topic Quiz Bank to this page."}
                           style={{
                             padding: "8px 14px",
                             fontSize: 13,
@@ -6295,8 +6296,8 @@ const EditLessonPage: React.FC = () => {
                             borderRadius: 8,
                             background: "#eff6ff",
                             color: "#2563eb",
-                            cursor: topicKeyForBank ? "pointer" : "not-allowed",
-                            opacity: topicKeyForBank ? 1 : 0.6,
+                            cursor: topicKeyForDraftReview ? "pointer" : "not-allowed",
+                            opacity: topicKeyForDraftReview ? 1 : 0.6,
                           }}
                         >
                           Attach Quiz Page From Question Bank
@@ -6304,12 +6305,13 @@ const EditLessonPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
+                            if (!topicKeyForDraftReview || !id) return;
                             setAttachPageQuizModalMode("aiDrafts");
                             setAttachPageQuizModalOpen(true);
                           }}
-                          disabled={!topicKeyForBank || !id}
+                          disabled={!topicKeyForDraftReview || !id}
                           title={
-                            !topicKeyForBank
+                            !topicKeyForDraftReview
                               ? "Map a syllabus subtopic first."
                               : !id
                                 ? "Save the lesson first."
@@ -6323,15 +6325,15 @@ const EditLessonPage: React.FC = () => {
                             borderRadius: 8,
                             background: "rgba(245,243,255,0.95)",
                             color: "#5b21b6",
-                            cursor: topicKeyForBank && id ? "pointer" : "not-allowed",
-                            opacity: topicKeyForBank && id ? 1 : 0.6,
+                            cursor: topicKeyForDraftReview && id ? "pointer" : "not-allowed",
+                            opacity: topicKeyForDraftReview && id ? 1 : 0.6,
                           }}
                         >
                           Attach AI quiz drafts
                         </button>
                       </div>
                     </div>
-                    {topicKeyForBank && (
+                    {topicKeyForDraftReview && (
                       <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
                         Published bank: attach reviewed MCQs. AI drafts: attach generated drafts to this page without publishing bank rows.
                       </div>
@@ -12054,12 +12056,8 @@ const EditLessonPage: React.FC = () => {
         open={attachPageQuizModalOpen}
         onClose={() => setAttachPageQuizModalOpen(false)}
         lessonId={id ?? ""}
-        topicKey={topicKeyForBank ?? ""}
-        specKey={
-          (lesson as { specKey?: string })?.specKey?.trim() ||
-          (topicKeyForBank?.includes(":") ? topicKeyForBank.split(":")[0] : undefined) ||
-          getStoredSpecKey()
-        }
+        topicKey={topicKeyForDraftReview ?? ""}
+        specKey={draftReviewUrlParts?.specKey}
         mode={attachPageQuizModalMode}
         pageId={currentPage?.pageId ?? ""}
         pageTitle={currentPage?.title}
