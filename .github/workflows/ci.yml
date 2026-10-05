@@ -144,3 +144,40 @@ jobs:
       - name: Build (frontend)
         working-directory: frontend
         run: npm run build
+
+  teacher-editor-topic-identity:
+    name: Teacher Editor Topic Identity Gate
+    needs: taxonomy-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: true
+      NODE_OPTIONS: --max-old-space-size=4096
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install (frontend)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Topic identity regression suites
+        working-directory: frontend
+        run: >
+          npx react-scripts test --watchAll=false
+          src/pages/editLessonTopicIdentityHardening.test.ts
+          src/pages/editLessonAiDraftReview.test.ts
+          src/pages/editLessonAttachQuizIdentity.test.ts
+          src/utils/normalizeLessonTopicKey.test.ts
+
+      - name: Frontend TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.json
